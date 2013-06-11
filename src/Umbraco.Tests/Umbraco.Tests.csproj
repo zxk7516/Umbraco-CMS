@@ -357,6 +357,7 @@
     <Compile Include="TestHelpers\BaseSeleniumTest.cs" />
     <Compile Include="Integration\InstallPackage.cs" />
     <Compile Include="CoreXml\NavigableNavigatorTests.cs" />
+    <Compile Include="Cache\PublishedCache\NuCacheTests.cs" />
     <Compile Include="Cache\PublishedCache\PublishedMediaCacheTests.cs" />
     <Compile Include="Strings\CmsHelperCasingTests.cs" />
     <Compile Include="Strings\ShortStringHelperResolverTest.cs" />

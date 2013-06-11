@@ -384,6 +384,8 @@ namespace Umbraco.Web
                 // use the NoCache
                 //new PublishedCache.PublishedNoCache.PublishedCachesService(
                 //    () => ApplicationContext.Current.Services);
+                // use the new cache
+                //new PublishedCache.DrippingPublishedCache.PublishedCachesService();
             PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(publishedCachesService);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector), 
