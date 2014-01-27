@@ -18,12 +18,9 @@ namespace Umbraco.Core.Cache
 
         public const string MediaCacheKey = "UL_GetMedia";
 
-        public const string MacroXsltCacheKey = "macroXslt_";
-        public const string MacroCacheKey = "UmbracoMacroCache";
-        public const string MacroHtmlCacheKey = "macroHtml_";
-        public const string MacroControlCacheKey = "macroControl_";
-        public const string MacroHtmlDateAddedCacheKey = "macroHtml_DateAdded_";
-        public const string MacroControlDateAddedCacheKey = "macroControl_DateAdded_";
+        public const string MacroXsltCacheKey = "macroXslt_"; // for macro XSLT transforms
+        public const string MacroCacheKey = "UmbracoMacroCache"; // for Macro objects
+        public const string MacroContentCacheKey = "macroContent_"; // for macro contents
 
         public const string MemberLibraryCacheKey = "UL_GetMember";
         public const string MemberBusinessLogicCacheKey = "MemberCacheItem_";

@@ -44,7 +44,7 @@ namespace umbraco.presentation
             page p = new page(pageID, pageVersion);
             macro m = macro.GetMacro(macroID);
 
-            Control c = m.renderMacro(attributes, p.Elements, p.PageID);
+            var c = m.ExecuteMacro(p.Elements, p.PageID, attributes).GetAsControl();
             PlaceHolder1.Controls.Add(c);
         }
 

@@ -146,7 +146,7 @@ namespace umbraco.presentation.templateControls
             int pageId = Context.Items["pageID"] == null ? int.MinValue : int.Parse(Context.Items["pageID"].ToString());
 
             if ((!String.IsNullOrEmpty(Language) && Text != "") || !string.IsNullOrEmpty(FileLocation)) {
-                var tempMacro = new macro();
+                var tempMacro = macro.GetMacro();
                 tempMacro.GenerateMacroModelPropertiesFromAttributes(MacroAttributes);
                 if (string.IsNullOrEmpty(FileLocation)) {
                     tempMacro.Model.ScriptCode = Text;
@@ -162,27 +162,20 @@ namespace umbraco.presentation.templateControls
                     else
                         System.Web.HttpContext.Current.Trace.Warn("Template", "Cache attribute is in incorect format (should be an integer).");
                 }
-                var c = tempMacro.renderMacro((Hashtable)Context.Items["pageElements"], pageId);
-                if (c != null)
-                {
-                    Exceptions = tempMacro.Exceptions;
-
-                    Controls.Add(c);
-                }
-                else
-                    System.Web.HttpContext.Current.Trace.Warn("Template", "Result of inline macro scripting is null");
+                var c = tempMacro.ExecuteMacro((Hashtable)Context.Items["pageElements"], pageId).GetAsControl();
+                // why test for null? renderMacro did not return null anyway!
+                Exceptions = tempMacro.Exceptions;
+                Controls.Add(c);
             
             } else {
                 var tempMacro = macro.GetMacro(Alias);
                 if (tempMacro != null) {
                     try {
-                        var c = tempMacro.renderMacro(MacroAttributes, (Hashtable)Context.Items["pageElements"], pageId);
-                        if (c != null)
-                            Controls.Add(c);
-                        else
-                            System.Web.HttpContext.Current.Trace.Warn("Template", "Result of macro " + tempMacro.Name + " is null");
+                        var c = tempMacro.ExecuteMacro((Hashtable)Context.Items["pageElements"], pageId, MacroAttributes).GetAsControl();
+                        // why test for null? renderMacro did not return null anyway!
+                        Controls.Add(c);
                     } catch (Exception ee) {
-                        System.Web.HttpContext.Current.Trace.Warn("Template", "Error adding macro " + tempMacro.Name, ee);
+                        System.Web.HttpContext.Current.Trace.Warn("Template", "Error adding macro " + tempMacro.Model.Name, ee);
                         throw;
                     }
                 }

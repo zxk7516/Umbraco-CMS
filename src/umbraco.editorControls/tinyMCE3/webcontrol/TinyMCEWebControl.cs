@@ -367,7 +367,7 @@ namespace umbraco.editorControls.tinyMCE3.webcontrol
                     }
 
                     if (helper.FindAttribute(attributes, "macroAlias") == "")
-                        attributes.Add("macroAlias", m.Alias);
+                        attributes.Add("macroAlias", m.Model.Alias);
 
 
                     try

@@ -69,7 +69,7 @@ namespace umbraco.editorControls.macrocontainer
         {
             var macro = umbraco.macro.GetMacro(alias);
 
-            return macro == null ? string.Empty : macro.Name;
+            return macro == null ? string.Empty : macro.Model.Name;
         }
         
         void _delete_Click(object sender, EventArgs e)

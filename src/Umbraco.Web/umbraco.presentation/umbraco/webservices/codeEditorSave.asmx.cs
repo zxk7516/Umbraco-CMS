@@ -108,7 +108,7 @@ namespace umbraco.presentation.webservices
                             var macroXSLT = new XslCompiledTransform();
                             var umbPage = new page(content.Instance.XmlContent.SelectSingleNode("//* [@parentID = -1]"));
 
-                            var xslArgs = macro.AddMacroXsltExtensions();
+                            var xslArgs = global::Umbraco.Web.Macros.XsltMacroEngine.GetXsltArgumentListWithExtensions();
                             var lib = new library(umbPage);
                             xslArgs.AddExtensionObject("urn:umbraco.library", lib);
                             HttpContext.Current.Trace.Write("umbracoMacro", "After adding extensions");

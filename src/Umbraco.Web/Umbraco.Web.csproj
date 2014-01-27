@@ -303,6 +303,7 @@
     <Compile Include="Editors\EntityControllerConfigurationAttribute.cs" />
     <Compile Include="Editors\ImagesController.cs" />
     <Compile Include="Editors\TemplateController.cs" />
+    <Compile Include="Macros\XsltMacroEngine.cs" />
     <Compile Include="Editors\TuningController.cs" />
     <Compile Include="GridTemplateExtensions.cs" />
     <Compile Include="Models\TemplateQuery\ContentTypeModel.cs" />

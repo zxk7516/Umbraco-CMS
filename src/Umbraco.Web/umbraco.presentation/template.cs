@@ -289,16 +289,13 @@ namespace umbraco
 
                                 try
                                 {
-                                    Control c = tempMacro.renderMacro(attributes, umbPage.Elements, umbPage.PageID);
-                                    if (c != null)
-                                        pageContent.Controls.Add(c);
-                                    else
-                                        System.Web.HttpContext.Current.Trace.Warn("Template", "Result of macro " + tempMacro.Name + " is null");
-
+                                    var c = tempMacro.ExecuteMacro(umbPage.Elements, umbPage.PageID, attributes).GetAsControl();
+                                    // why test for null? renderMacro did not return null anyway!
+                                    pageContent.Controls.Add(c);
                                 }
                                 catch (Exception e)
                                 {
-                                    System.Web.HttpContext.Current.Trace.Warn("Template", "Error adding macro " + tempMacro.Name, e);
+                                    System.Web.HttpContext.Current.Trace.Warn("Template", "Error adding macro " + tempMacro.Model.Name, e);
                                 }
                             }
                         }

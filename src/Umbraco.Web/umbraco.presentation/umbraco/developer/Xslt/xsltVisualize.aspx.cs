@@ -55,7 +55,7 @@ namespace umbraco.presentation.umbraco.developer.Xslt
                 xslt = xslt.Replace("<!-- start writing XSLT -->", xsltSelection.Value);
 
                 // prepare support for XSLT extensions
-                xslt = macro.AddXsltExtensionsToHeader(xslt);
+                xslt = Umbraco.Web.Macros.XsltMacroEngine.AddXsltExtensionsToHeader(xslt);
 
             }
 
@@ -69,8 +69,8 @@ namespace umbraco.presentation.umbraco.developer.Xslt
             try
             {
                 xslReader = new XmlTextReader(new StringReader(xslt));
-                System.Xml.Xsl.XslCompiledTransform xsl = macro.CreateXsltTransform(xslReader, false);
-                xsltResult = macro.GetXsltTransformResult(new XmlDocument(), xsl, parameters);
+                System.Xml.Xsl.XslCompiledTransform xsl = Umbraco.Web.Macros.XsltMacroEngine.GetXsltTransform(xslReader, false);
+                xsltResult = Umbraco.Web.Macros.XsltMacroEngine.XsltTransform(new XmlDocument(), xsl, parameters);
             }
             catch (Exception ee)
             {

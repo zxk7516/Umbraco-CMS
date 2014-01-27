@@ -35,5 +35,10 @@ namespace Umbraco.Core.Events
         /// </summary>
         /// <value>Macro error behaviour enum.</value>
         public MacroErrorBehaviour Behaviour { get; set; }
+
+        /// <summary>
+        /// The html code to display when Behavior is Content.
+        /// </summary>
+        public string Html { get; set; }
     }
 }

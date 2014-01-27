@@ -225,7 +225,7 @@ namespace umbraco.presentation.templateControls
                 // prepare support for XSLT extensions
                 StringBuilder namespaceList = new StringBuilder();
                 StringBuilder namespaceDeclaractions = new StringBuilder();
-                foreach (KeyValuePair<string, object> extension in macro.GetXsltExtensions())
+                foreach (KeyValuePair<string, object> extension in Umbraco.Web.Macros.XsltMacroEngine.GetXsltExtensions())
                 {
                     namespaceList.Append(extension.Key).Append(' ');
                     namespaceDeclaractions.AppendFormat("xmlns:{0}=\"urn:{0}\" ", extension.Key);
@@ -241,8 +241,8 @@ namespace umbraco.presentation.templateControls
 
                 // apply the XSLT transformation
                 XmlTextReader xslReader = new XmlTextReader(new StringReader(xslt));
-                System.Xml.Xsl.XslCompiledTransform xsl = macro.CreateXsltTransform(xslReader, false);
-                itemData = macro.GetXsltTransformResult(new XmlDocument(), xsl, parameters);
+                System.Xml.Xsl.XslCompiledTransform xsl = Umbraco.Web.Macros.XsltMacroEngine.GetXsltTransform(xslReader, false);
+                itemData = Umbraco.Web.Macros.XsltMacroEngine.XsltTransform(new XmlDocument(), xsl, parameters);
                 xslReader.Close();
             }
             return itemData;

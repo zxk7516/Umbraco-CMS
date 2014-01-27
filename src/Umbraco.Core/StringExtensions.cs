@@ -584,6 +584,16 @@ namespace Umbraco.Core
             return compare.Contains(compareTo, StringComparer.InvariantCultureIgnoreCase);
         }
 
+        public static int InvariantIndexOf(this string s, string value)
+        {
+            return s.IndexOf(value, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static int InvariantLastIndexOf(this string s, string value)
+        {
+            return s.LastIndexOf(value, StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>
         /// Determines if the string is a Guid
         /// </summary>

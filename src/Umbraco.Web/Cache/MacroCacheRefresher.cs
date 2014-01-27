@@ -26,10 +26,7 @@ namespace Umbraco.Web.Cache
             return new[]
                 {
                     CacheKeys.MacroCacheKey,
-                    CacheKeys.MacroControlCacheKey,
-                    CacheKeys.MacroHtmlCacheKey,
-                    CacheKeys.MacroHtmlDateAddedCacheKey,
-                    CacheKeys.MacroControlDateAddedCacheKey,
+                    CacheKeys.MacroContentCacheKey,
                     CacheKeys.MacroXsltCacheKey,
                 };
         }
@@ -129,7 +126,7 @@ namespace Umbraco.Web.Cache
         {
             var payload = new JsonPayload
             {
-                Alias = macro.Alias,
+                Alias = macro.Model.Alias,
                 Id = macro.Model.Id
             };
             return payload;

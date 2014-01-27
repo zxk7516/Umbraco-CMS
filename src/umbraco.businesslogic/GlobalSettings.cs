@@ -18,7 +18,6 @@ namespace umbraco
     /// </summary>
     public class GlobalSettings
     {
-		
     	/// <summary>
         /// Gets the reserved urls from web.config.
         /// </summary>

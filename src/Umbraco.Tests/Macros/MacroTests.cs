@@ -94,10 +94,11 @@ namespace Umbraco.Tests.Macros
         [TestCase("", "~/Views/MacroPartials/test.cshtml", "", "", "~/Views/MacroPartials/test.cshtml")]
         [TestCase("", "~/App_Plugins/MyPackage/Views/MacroPartials/test.cshtml", "", "", "~/App_Plugins/MyPackage/Views/MacroPartials/test.cshtml")]
         [TestCase("", "", "~/usercontrols/menu.ascx", "", "~/usercontrols/menu.ascx")]
+        [TestCase("", "", "MyControl", "MyAssembly", null)]
         public void Get_Macro_File(string xslt, string scriptFile, string scriptType, string scriptAssembly, string expectedResult)
         {
             var model = new MacroModel("Test", "test", scriptAssembly, scriptType, xslt, scriptFile, 0, false, false);
-            var file = macro.GetMacroFile(model);
+            var file = macro.GetMacroFileName(model);
             Assert.AreEqual(expectedResult, file);
         }
 
@@ -108,48 +109,30 @@ namespace Umbraco.Tests.Macros
         [TestCase("CustomControl", false)]
         [TestCase("Python", true)]
         [TestCase("Unknown", false)]
-        public void Macro_Is_File_Based(string macroType, bool expectedResult)
+        public void Macro_Is_File_Based(string macroTypeString, bool expectedNonNull)
         {
-            var mType = Enum<MacroTypes>.Parse(macroType);
-            var model = new MacroModel("Test", "test", "", "", "", "", 0, false, false);
-            model.MacroType = mType; //force the type
-            Assert.AreEqual(expectedResult, macro.MacroIsFileBased(model));
+            var macroType = Enum<MacroTypes>.Parse(macroTypeString);
+            var model = new MacroModel
+            {
+                MacroType = macroType,
+                Xslt = "anything",
+                ScriptName = "anything",
+                TypeName = "anything"
+            };
+            var filename = macro.GetMacroFileName(model);
+            if (expectedNonNull)
+                Assert.IsNotNull(filename);
+            else
+                Assert.IsNull(filename);
         }
 
-        [TestCase("XSLT", true)]
-        [TestCase("Script", true)]
-        [TestCase("PartialView", true)]
-        [TestCase("UserControl", false)]
-        [TestCase("CustomControl", false)]
-        [TestCase("Python", true)]
-        [TestCase("Unknown", false)]
-        public void Can_Cache_As_String(string macroType, bool expectedResult)
+        //[TestCase(-5, true)] //the cache DateTime will be older than the file date
+        //[TestCase(5, false)] //the cache DateTime will be newer than the file date
+        public void Macro_Needs_Removing_Based_On_Macro_File(int minutesToNow, bool expectedNull)
         {
-            var mType = Enum<MacroTypes>.Parse(macroType);
-            var model = new MacroModel("Test", "test", "", "", "", "", 0, false, false);
-            model.MacroType = mType; //force the type
-            Assert.AreEqual(expectedResult, macro.CacheMacroAsString(model));
-        }
-
-        [TestCase(-5, true)] //the cache DateTime will be older than the file date
-        [TestCase(5, false)] //the cache DateTime will be newer than the file date
-        public void Macro_Needs_Removing_Based_On_Macro_File(int minutesToNow, bool expectedResult)
-        {
-            var now = DateTime.Now;
-            ApplicationContext.Current.ApplicationCache.InsertCacheItem(
-                "TestDate",
-                CacheItemPriority.NotRemovable,
-                new TimeSpan(0, 0, 60),
-                () => now.AddMinutes(minutesToNow)); //add a datetime value of 'now' with the minutes offset
-
-            //now we need to update a file's date to 'now' to compare
-            var path = Path.Combine(TestHelpers.TestHelper.CurrentAssemblyDirectory, "temp.txt");
-            File.CreateText(path).Close();
-
-            //needs to be file based (i.e. xslt)
-            var model = new MacroModel("Test", "test", "", "", "test.xslt", "", 0, false, false);
-
-            Assert.AreEqual(expectedResult, macro.MacroNeedsToBeClearedFromCache(model, "TestDate", new FileInfo(path)));
+            // macro has been refactored, and macro.GetMacroContentFromCache() will
+            // take care of the macro file, if any. It requires a web environment,
+            // so we cannot really test this anymore.
         }
 
         public void Get_Macro_Cache_Identifier()

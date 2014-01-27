@@ -13,9 +13,7 @@ namespace umbraco.cms.businesslogic.macro
         public string CLRType { get; set; }
 
 		public MacroPropertyModel()
-		{
-
-		}
+		{ }
 
 		public MacroPropertyModel(string key, string value)
 		{

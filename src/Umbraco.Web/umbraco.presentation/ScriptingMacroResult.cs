@@ -2,6 +2,8 @@ using System;
 
 namespace umbraco
 {
+    // fixme - should move to LegacyClasses! (later)
+    [Obsolete("Use an Attempt<T> instead!", false)]
 	public class ScriptingMacroResult
 	{
 		public ScriptingMacroResult()

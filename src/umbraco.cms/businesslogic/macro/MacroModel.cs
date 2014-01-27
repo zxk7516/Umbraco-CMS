@@ -33,36 +33,63 @@ namespace umbraco.cms.businesslogic.macro
 
         public List<MacroPropertyModel> Properties { get; set; }
 
+        // used only in macro
         public MacroModel()
         {
             Properties = new List<MacroPropertyModel>();
         }
 
+        public MacroModel(Umbraco.Core.Models.IMacro macro)
+        {
+            Properties = new List<MacroPropertyModel>();
+            if (macro == null) return;
+
+            Id = macro.Id;
+            Name = macro.Name;
+            Alias = macro.Alias;
+            TypeAssembly = macro.ControlAssembly;
+            TypeName = macro.ControlType;
+            Xslt = macro.XsltPath;
+            ScriptName = macro.ScriptPath;
+            CacheDuration = macro.CacheDuration;
+            CacheByPage = macro.CacheByPage;
+            CacheByMember = macro.CacheByMember;
+            RenderInEditor = macro.UseInEditor;
+
+            foreach (var prop in macro.Properties)
+                Properties.Add(new MacroPropertyModel(prop.Alias, string.Empty, prop.EditorAlias, null));
+
+            // can convert enums
+            MacroType = (MacroTypes) Umbraco.Core.Services.MacroService.GetMacroType(macro);
+        }
+
+        // was used by macro.cs, kept for compat reason
+        // but should not be used anymore at runtime
+        [Obsolete("Should be removed.", false)]
         public MacroModel(Macro m)
         {
             Properties = new List<MacroPropertyModel>();
-            if (m != null)
-            {
-                Id = m.Id;
-                Name = m.Name;
-                Alias = m.Alias;
-                TypeAssembly = m.Assembly;
-                TypeName = m.Type;
-                Xslt = m.Xslt;
-                ScriptName = m.ScriptingFile;
-                CacheDuration = m.RefreshRate;
-                CacheByPage = m.CacheByPage;
-                CacheByMember = m.CachePersonalized;
-                RenderInEditor = m.RenderContent;
-                foreach (MacroProperty mp in m.Properties)
-                {
-                    Properties.Add(
-                        new MacroPropertyModel(mp.Alias, string.Empty, mp.Type.Alias, mp.Type.BaseType));
-                }
-                MacroType = Macro.FindMacroType(Xslt, ScriptName, TypeName, TypeAssembly);
-            }
+            if (m == null) return;
+
+            Id = m.Id;
+            Name = m.Name;
+            Alias = m.Alias;
+            TypeAssembly = m.Assembly;
+            TypeName = m.Type;
+            Xslt = m.Xslt;
+            ScriptName = m.ScriptingFile;
+            CacheDuration = m.RefreshRate;
+            CacheByPage = m.CacheByPage;
+            CacheByMember = m.CachePersonalized;
+            RenderInEditor = m.RenderContent;
+                
+            foreach (var prop in m.Properties)
+                Properties.Add(new MacroPropertyModel(prop.Alias, string.Empty, prop.Type.Alias, prop.Type.BaseType));
+
+            MacroType = Macro.FindMacroType(Xslt, ScriptName, TypeName, TypeAssembly);
         }
 
+        // used only in tests
         public MacroModel(string name, string alias, string typeAssembly, string typeName, string xslt, string scriptName, int cacheDuration, bool cacheByPage, bool cacheByMember)
         {
             Name = name;

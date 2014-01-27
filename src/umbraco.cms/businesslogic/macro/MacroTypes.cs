@@ -1,5 +1,6 @@
 namespace umbraco.cms.businesslogic.macro
 {
+    // indicates the type of a macro
 	public enum MacroTypes
 	{
 		XSLT = 1,

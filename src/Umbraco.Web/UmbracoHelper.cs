@@ -255,20 +255,21 @@ namespace Umbraco.Web
                 //NOTE: the value could have html encoded values, so we need to deal with that
                 macroProps.Add(i.Key.ToLowerInvariant(), (i.Value is string) ? HttpUtility.HtmlDecode(i.Value.ToString()) : i.Value);
             }
-            var macroControl = m.renderMacro(macroProps,
+            var macroContent = m.ExecuteMacro(
                 umbracoPage.Elements,
-                UmbracoContext.PageId.Value);
+                UmbracoContext.PageId.Value,
+                macroProps);
 
             string html;
-            if (macroControl is LiteralControl)
+            if (macroContent.IsText)
             {
                 // no need to execute, we already have text
-                html = (macroControl as LiteralControl).Text;
+                html = macroContent.GetAsText();
             }
             else
             {
                 var containerPage = new FormlessPage();
-                containerPage.Controls.Add(macroControl);
+                containerPage.Controls.Add(macroContent.Control);
 
                 using (var output = new StringWriter())
                 {
