@@ -12,17 +12,10 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         private readonly object _dataValue;
         private readonly IPublishedContentOrMedia _content;
 
-        public PublishedProperty(PublishedPropertyType propertyType, IPublishedContentOrMedia content)
+        public PublishedProperty(PublishedPropertyType propertyType, IPublishedContentOrMedia content, object dataValue)
             : base(propertyType)
         {
-            _dataValue = null;
-            _content = content;
-        }
-
-        public PublishedProperty(PublishedPropertyType propertyType, IPublishedContentOrMedia content, Property property)
-            : base(propertyType)
-        {
-            _dataValue = property.Value;
+            _dataValue = dataValue;
             _content = content;
         }
 
