@@ -15,12 +15,31 @@ namespace Umbraco.Core.Models
     public class Member : ContentBase, IMember
     {
         private readonly IMemberType _contentType;
-        private string _contentTypeAlias;
+        private readonly string _contentTypeAlias;
         private string _username;
         private string _email;
-        private string _password;
+        private string _rawPasswordValue;
         private object _providerUserKey;
         private Type _userTypeKey;
+
+        /// <summary>
+        /// Constructor for creating an empty Member object
+        /// </summary>
+        /// <param name="contentType">ContentType for the current Content object</param>
+        public Member(IMemberType contentType)
+            : base("", -1, contentType, new PropertyCollection())
+        {
+            Mandate.ParameterNotNull(contentType, "contentType");
+
+            _contentTypeAlias = contentType.Alias;
+            _contentType = contentType;
+            IsApproved = true;
+
+            //this cannot be null but can be empty
+            _rawPasswordValue = "";
+            _email = "";
+            _username = "";
+        }
 
         /// <summary>
         /// Constructor for creating a Member object
@@ -28,52 +47,72 @@ namespace Umbraco.Core.Models
         /// <param name="name">Name of the content</param>
         /// <param name="contentType">ContentType for the current Content object</param>
         public Member(string name, IMemberType contentType)
+            : this(contentType)
+        {
+            Mandate.ParameterNotNull(contentType, "contentType");
+            Mandate.ParameterNotNullOrEmpty(name, "name");
+
+            _contentTypeAlias = contentType.Alias;
+            _contentType = contentType;
+            IsApproved = true;
+
+            //this cannot be null but can be empty
+            _rawPasswordValue = "";
+            _email = "";
+            _username = "";
+        }
+
+        /// <summary>
+        /// Constructor for creating a Member object
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="email"></param>
+        /// <param name="username"></param>
+        /// <param name="contentType"></param>
+        public Member(string name, string email, string username, IMemberType contentType)
             : base(name, -1, contentType, new PropertyCollection())
         {
-            _contentType = contentType;
-            IsApproved = true;
-        }
-
-        //TODO: Should we just get rid of this one? no reason to have a level set.
-        internal Member(string name, string email, string username, string password, int parentId, IMemberType contentType)
-            : base(name, parentId, contentType, new PropertyCollection())
-        {
             Mandate.ParameterNotNull(contentType, "contentType");
+            Mandate.ParameterNotNullOrEmpty(name, "name");
+            Mandate.ParameterNotNullOrEmpty(email, "email");
+            Mandate.ParameterNotNullOrEmpty(username, "username");
 
+            _contentTypeAlias = contentType.Alias;
             _contentType = contentType;
             _email = email;
             _username = username;
-            _password = password;
             IsApproved = true;
+
+            //this cannot be null but can be empty
+            _rawPasswordValue = "";
         }
 
-        public Member(string name, string email, string username, string password, IMemberType contentType)
-            : this(name, email, username, password, -1, contentType)
+        /// <summary>
+        /// Constructor for creating a Member object
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="email"></param>
+        /// <param name="username"></param>
+        /// <param name="rawPasswordValue">
+        /// The password value passed in to this parameter should be the encoded/encrypted/hashed format of the member's password
+        /// </param>
+        /// <param name="contentType"></param>
+        public Member(string name, string email, string username, string rawPasswordValue, IMemberType contentType)
+            : base(name, -1, contentType, new PropertyCollection())
         {
             Mandate.ParameterNotNull(contentType, "contentType");
 
+            _contentTypeAlias = contentType.Alias;
             _contentType = contentType;
             _email = email;
             _username = username;
-            _password = password;
+            _rawPasswordValue = rawPasswordValue;
             IsApproved = true;
         }
 
-        //public Member(string name, string email, string username, string password, IContentBase parent, IMemberType contentType)
-        //    : base(name, parent, contentType, new PropertyCollection())
-        //{
-        //    Mandate.ParameterNotNull(contentType, "contentType");
-
-        //    _contentType = contentType;
-        //    _email = email;
-        //    _username = username;
-        //    _password = password;
-        //}
-
-        private static readonly PropertyInfo DefaultContentTypeAliasSelector = ExpressionHelper.GetPropertyInfo<Member, string>(x => x.ContentTypeAlias);
         private static readonly PropertyInfo UsernameSelector = ExpressionHelper.GetPropertyInfo<Member, string>(x => x.Username);
         private static readonly PropertyInfo EmailSelector = ExpressionHelper.GetPropertyInfo<Member, string>(x => x.Email);
-        private static readonly PropertyInfo PasswordSelector = ExpressionHelper.GetPropertyInfo<Member, string>(x => x.Password);
+        private static readonly PropertyInfo PasswordSelector = ExpressionHelper.GetPropertyInfo<Member, string>(x => x.RawPasswordValue);
         private static readonly PropertyInfo ProviderUserKeySelector = ExpressionHelper.GetPropertyInfo<Member, object>(x => x.ProviderUserKey);
         private static readonly PropertyInfo UserTypeKeySelector = ExpressionHelper.GetPropertyInfo<Member, Type>(x => x.ProviderUserKeyType);
 
@@ -112,19 +151,19 @@ namespace Umbraco.Core.Models
         }
 
         /// <summary>
-        /// Gets or sets the Password
+        /// Gets or sets the raw password value
         /// </summary>
         [DataMember]
-        public string Password
+        public string RawPasswordValue
         {
-            get { return _password; }
+            get { return _rawPasswordValue; }
             set
             {
                 SetPropertyValueAndDetectChanges(o =>
                 {
-                    _password = value;
-                    return _password;
-                }, _password, PasswordSelector);
+                    _rawPasswordValue = value;
+                    return _rawPasswordValue;
+                }, _rawPasswordValue, PasswordSelector);
             }
         }
 
@@ -142,7 +181,7 @@ namespace Umbraco.Core.Models
         /// Gets or sets the Password Question
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoPasswordRetrievalQuestionPropertyTypeAlias
+        /// Alias: umbracoMemberPasswordRetrievalQuestion
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -168,14 +207,16 @@ namespace Umbraco.Core.Models
         }
 
         /// <summary>
-        /// Gets or sets the Password Answer
+        /// Gets or sets the raw password answer value
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoPasswordRetrievalAnswerPropertyTypeAlias
+        /// For security reasons this value should be encrypted, the encryption process is handled by the memberhip provider
+        /// Alias: umbracoMemberPasswordRetrievalAnswer
+        /// 
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
-        public string PasswordAnswer
+        public string RawPasswordAnswerValue
         {
             get
             {
@@ -200,7 +241,7 @@ namespace Umbraco.Core.Models
         /// Gets or set the comments for the member
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoCommentPropertyTypeAlias
+        /// Alias: umbracoMemberComments
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -229,7 +270,7 @@ namespace Umbraco.Core.Models
         /// Gets or sets a boolean indicating whether the Member is approved
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoApprovePropertyTypeAlias
+        /// Alias: umbracoMemberApproved
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -264,7 +305,7 @@ namespace Umbraco.Core.Models
         /// Gets or sets a boolean indicating whether the Member is locked out
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoLockPropertyTypeAlias
+        /// Alias: umbracoMemberLockedOut
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -297,7 +338,7 @@ namespace Umbraco.Core.Models
         /// Gets or sets the date for last login
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoLastLoginPropertyTypeAlias
+        /// Alias: umbracoMemberLastLogin
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -330,7 +371,7 @@ namespace Umbraco.Core.Models
         /// Gest or sets the date for last password change
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoMemberLastPasswordChange
+        /// Alias: umbracoMemberLastPasswordChangeDate
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -363,7 +404,7 @@ namespace Umbraco.Core.Models
         /// Gets or sets the date for when Member was locked out
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoMemberLastLockout
+        /// Alias: umbracoMemberLastLockoutDate
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -397,7 +438,7 @@ namespace Umbraco.Core.Models
         /// This is the number of times the password was entered incorrectly upon login.
         /// </summary>
         /// <remarks>
-        /// Alias: umbracoFailedPasswordAttemptsPropertyTypeAlias
+        /// Alias: umbracoMemberFailedPasswordAttempts
         /// Part of the standard properties collection.
         /// </remarks>
         [IgnoreDataMember]
@@ -433,14 +474,6 @@ namespace Umbraco.Core.Models
         public virtual string ContentTypeAlias
         {
             get { return _contentTypeAlias; }
-            internal set
-            {
-                SetPropertyValueAndDetectChanges(o =>
-                {
-                    _contentTypeAlias = value;
-                    return _contentTypeAlias;
-                }, _contentTypeAlias, DefaultContentTypeAliasSelector);
-            }
         }
 
         /// <summary>

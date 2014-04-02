@@ -122,12 +122,23 @@ namespace Umbraco.Core.Services
         {
             var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
             var media = new Models.Media(name, parentId, mediaType);
+
+            //NOTE: I really hate the notion of these Creating/Created events - they are so inconsistent, I've only just found
+            // out that in these 'WithIdentity' methods, the Saving/Saved events were not fired, wtf. Anyways, they're added now.
             if (Creating.IsRaisedEventCancelled(new NewEventArgs<IMedia>(media, mediaTypeAlias, parentId), this))
             {
                 media.WasCancelled = true;
                 return media;
             }
 
+            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(media), this))
+            {
+                media.WasCancelled = true;
+                return media;
+            }
+
+            //TODO: Once we fix up the transaction logic, these write locks should be replaced with 
+            // an outter transaction instead.
             using (new WriteLock(Locker))
             {
                 var uow = _uowProvider.GetUnitOfWork();
@@ -141,6 +152,8 @@ namespace Umbraco.Core.Services
                     CreateAndSaveMediaXml(xml, media.Id, uow.Database);
                 }
             }
+
+            Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false), this);
 
             Created.RaiseEvent(new NewEventArgs<IMedia>(media, false, mediaTypeAlias, parentId), this);
 
@@ -166,7 +179,16 @@ namespace Umbraco.Core.Services
         {
             var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
             var media = new Models.Media(name, parent, mediaType);
+
+            //NOTE: I really hate the notion of these Creating/Created events - they are so inconsistent, I've only just found
+            // out that in these 'WithIdentity' methods, the Saving/Saved events were not fired, wtf. Anyways, they're added now.
             if (Creating.IsRaisedEventCancelled(new NewEventArgs<IMedia>(media, mediaTypeAlias, parent), this))
+            {
+                media.WasCancelled = true;
+                return media;
+            }
+
+            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(media), this))
             {
                 media.WasCancelled = true;
                 return media;
@@ -185,6 +207,8 @@ namespace Umbraco.Core.Services
                     CreateAndSaveMediaXml(xml, media.Id, uow.Database);
                 }
             }
+
+            Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false), this);
 
             Created.RaiseEvent(new NewEventArgs<IMedia>(media, false, mediaTypeAlias, parent), this);
 
@@ -427,7 +451,7 @@ namespace Umbraco.Core.Services
         /// <summary>
         /// Gets an <see cref="IMedia"/> object from the path stored in the 'umbracoFile' property.
         /// </summary>
-        /// <param name="mediaPath">Path of the media item to retreive (for example: /media/1024/koala_403x328.jpg)</param>
+        /// <param name="mediaPath">Path of the media item to retrieve (for example: /media/1024/koala_403x328.jpg)</param>
         /// <returns><see cref="IMedia"/></returns>
         public IMedia GetMediaByPath(string mediaPath)
         {

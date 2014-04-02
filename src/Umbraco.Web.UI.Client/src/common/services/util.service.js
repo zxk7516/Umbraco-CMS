@@ -26,22 +26,12 @@ function umbPhotoFolderHelper($compile, $log, $timeout, $filter, imageHelper, me
         /** sets the image's url - will check if it is a folder or a real image */
         setImageUrl: function(img) {
             //get the image property (if one exists)
-            //var imageProp = imageHelper.getImagePropertyValue({ imageModel: img });
-            img.thumbnail = mediaHelper.resolveFile(img);
+            img.thumbnail = mediaHelper.resolveFile(img, true);
+            img.image = mediaHelper.resolveFile(img, false);
+
             if (!img.thumbnail){
                 img.thumbnail = "none";
             }
-
-            /*
-            else {
-
-                //get the proxy url for big thumbnails (this ensures one is always generated)
-                var thumbnailUrl = umbRequestHelper.getApiUrl(
-                    "imagesApiBaseUrl",
-                    "GetBigThumbnail",
-                    [{ mediaId: img.id }]);
-                img.thumbnail = thumbnailUrl;
-            }*/
         },
 
         /** sets the images original size properties - will check if it is a folder and if so will just make it square */
@@ -208,7 +198,7 @@ function umbPhotoFolderHelper($compile, $log, $timeout, $filter, imageHelper, me
 
                 //in this case, a single image will not fit into the row so we need to crop/center
                 // width the full width and the min display height
-                if (imgs.length > 1 && imageRowHeight.imgCount === 1) {
+                if (imageRowHeight.imgCount === 1) {
                     sizes.push({
                         width: targetWidth,
                         //ensure that the height is rounded
@@ -400,7 +390,7 @@ function updateChecker($http, umbRequestHelper) {
                    umbRequestHelper.getApiUrl(
                        "updateCheckApiBaseUrl",
                        "GetCheck")),
-               'Failed to retreive update status');
+               'Failed to retrieve update status');
         }  
     };
 }
@@ -530,13 +520,13 @@ function umbDataFormatter() {
                         //we know the current property matches an alias, now we need to determine which membership provider property it was for
                         // by looking at the key
                         switch (foundAlias[0]) {
-                            case "umbracoLockPropertyTypeAlias":
+                            case "umbracoMemberLockedOut":
                                 saveModel.isLockedOut = prop.value.toString() === "1" ? true : false;
                                 break;
-                            case "umbracoApprovePropertyTypeAlias":
+                            case "umbracoMemberApproved":
                                 saveModel.isApproved = prop.value.toString() === "1" ? true : false;
                                 break;
-                            case "umbracoCommentPropertyTypeAlias":
+                            case "umbracoMemberComments":
                                 saveModel.comments = prop.value;
                                 break;
                         }

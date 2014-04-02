@@ -10,6 +10,8 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Security;
 using Umbraco.Web.Models;
+using Umbraco.Web.PublishedCache;
+using MPE = global::Umbraco.Core.Security.MembershipProviderExtensions;
 
 namespace Umbraco.Web.Security
 {
@@ -45,7 +47,8 @@ namespace Umbraco.Web.Security
         /// <returns></returns>
         public bool IsUmbracoMembershipProviderActive()
         {
-            return Membership.Provider.IsUmbracoMembershipProvider();
+            var provider = MPE.GetMembersMembershipProvider();
+            return provider.IsUmbracoMembershipProvider();
         }
 
         /// <summary>
@@ -63,7 +66,8 @@ namespace Umbraco.Web.Security
             }
 
             //get the current membership user
-            var membershipUser = Membership.GetUser();
+            var provider = MPE.GetMembersMembershipProvider();
+            var membershipUser = provider.GetCurrentUser();
             //NOTE: This should never happen since they are logged in
             if (membershipUser == null) throw new InvalidOperationException("Could not find member with username " + _httpContext.User.Identity.Name);
 
@@ -73,7 +77,7 @@ namespace Umbraco.Web.Security
                 if (model.Email.InvariantEquals(membershipUser.Email) == false)
                 {
                     //Use the membership provider to change the email since that is configured to do the checks to check for unique emails if that is configured.
-                    var requiresUpdating = UpdateMember(membershipUser, Membership.Provider, model.Email);
+                    var requiresUpdating = UpdateMember(membershipUser, provider, model.Email);
                     membershipUser = requiresUpdating.Result;
                 }
             }
@@ -128,16 +132,20 @@ namespace Umbraco.Web.Security
         {
             model.Username = (model.UsernameIsEmail || model.Username == null) ? model.Email : model.Username;
 
-            var membershipUser = Membership.CreateUser(model.Username, model.Password, model.Email,
-                //TODO: Support q/a http://issues.umbraco.org/issue/U4-3213
-                null, null,
-                true, out status);
-
-            if (status != MembershipCreateStatus.Success) return null;
-            
+            MembershipUser membershipUser;
+            var provider = MPE.GetMembersMembershipProvider();
             //update their real name 
-            if (Membership.Provider.IsUmbracoMembershipProvider())
+            if (provider.IsUmbracoMembershipProvider())
             {
+                membershipUser = ((UmbracoMembershipProviderBase)provider).CreateUser(
+                    model.MemberTypeAlias,
+                    model.Username, model.Password, model.Email,
+                    //TODO: Support q/a http://issues.umbraco.org/issue/U4-3213
+                    null, null,
+                    true, null, out status);
+
+                if (status != MembershipCreateStatus.Success) return null;
+
                 var member = _applicationContext.Services.MemberService.GetByUsername(membershipUser.UserName);
                 member.Name = model.Name;
 
@@ -154,11 +162,16 @@ namespace Umbraco.Web.Security
             }
             else
             {
-                //TODO: Support this scenario!
+                membershipUser = provider.CreateUser(model.Username, model.Password, model.Email,
+                    //TODO: Support q/a http://issues.umbraco.org/issue/U4-3213
+                    null, null,
+                    true, null, out status);
+
+                if (status != MembershipCreateStatus.Success) return null;
             }
 
             //Set member online
-            Membership.GetUser(model.Username, true);
+            provider.GetUser(model.Username, true);
 
             //Log them in
             FormsAuthentication.SetAuthCookie(membershipUser.UserName, true);
@@ -174,13 +187,14 @@ namespace Umbraco.Web.Security
         /// <returns></returns>
         public bool Login(string username, string password)
         {
+            var provider = MPE.GetMembersMembershipProvider();
             //Validate credentials
-            if (Membership.ValidateUser(username, password) == false)
+            if (provider.ValidateUser(username, password) == false)
             {
                 return false;
             }
             //Set member online
-            var member = Membership.GetUser(username, true);
+            var member = provider.GetUser(username, true);
             if (member == null)
             {
                 //this should not happen
@@ -192,26 +206,90 @@ namespace Umbraco.Web.Security
             return true;
         }
 
+        #region Querying for front-end
+
+        public IPublishedContent GetByProviderKey(object key)
+        {
+            var provider = MPE.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider() == false)
+            {
+                throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
+            }
+
+            var result = _applicationContext.Services.MemberService.GetByProviderKey(key);
+            return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
+        }
+
+        public IPublishedContent GetById(int memberId)
+        {
+            var provider = MPE.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider() == false)
+            {
+                throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
+            }
+
+            var result = _applicationContext.Services.MemberService.GetById(memberId);
+            return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
+        }
+
+        public IPublishedContent GetByUsername(string username)
+        {
+            var provider = MPE.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider() == false)
+            {
+                throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
+            }
+
+            var result = _applicationContext.Services.MemberService.GetByUsername(username);
+            return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
+        }
+
+        public IPublishedContent GetByEmail(string email)
+        {
+            var provider = MPE.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider() == false)
+            {
+                throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
+            }
+
+            var result = _applicationContext.Services.MemberService.GetByEmail(email);
+            return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
+        }
+        
+        #endregion
+
+        #region Model Creation methods for member data editing on the front-end
         /// <summary>
-        /// Creates a new profile model filled in with the current members details if they are logged in.
+        /// Creates a new profile model filled in with the current members details if they are logged in which allows for editing
+        /// profile properties
         /// </summary>
         /// <returns></returns>
-        public ProfileModel CreateProfileModel()
+        public ProfileModel GetCurrentMemberProfileModel()
         {
             if (IsLoggedIn() == false)
             {
                 return null;
             }
 
-            if (Membership.Provider.IsUmbracoMembershipProvider())
-            {
-                var membershipUser = Membership.GetUser();
+            var provider = MPE.GetMembersMembershipProvider();
+
+            if (provider.IsUmbracoMembershipProvider())
+            {                
+                var membershipUser = provider.GetCurrentUser();
                 var member = GetCurrentMember();
-                //this shouldn't happen
-                if (member == null) return null;
+                //this shouldn't happen but will if the member is deleted in the back office while the member is trying
+                // to use the front-end!
+                if (member == null)
+                {
+                    //log them out since they've been removed
+                    FormsAuthentication.SignOut();
+
+                    return null;
+                }
 
                 var model = ProfileModel.CreateModel();
                 model.Name = member.Name;
+                model.MemberTypeAlias = member.ContentTypeAlias;
 
                 model.Email = membershipUser.Email;
                 model.UserName = membershipUser.UserName;
@@ -225,27 +303,13 @@ namespace Umbraco.Web.Security
                 model.LastActivityDate = membershipUser.LastActivityDate;
                 model.LastPasswordChangedDate = membershipUser.LastPasswordChangedDate;
 
+
                 var memberType = member.ContentType;
 
                 var builtIns = Constants.Conventions.Member.GetStandardPropertyTypeStubs().Select(x => x.Key).ToArray();
 
-                foreach (var prop in memberType.PropertyTypes
-                    .Where(x => builtIns.Contains(x.Alias) == false && memberType.MemberCanEditProperty(x.Alias)))
-                {
-                    var value = string.Empty;
-                    var propValue = member.Properties[prop.Alias];
-                    if (propValue != null)
-                    {
-                        value = propValue.Value.ToString();
-                    }
+                model.MemberProperties = GetMemberPropertiesViewModel(memberType, builtIns, member).ToList();
 
-                    model.MemberProperties.Add(new UmbracoProperty
-                    {
-                        Alias = prop.Alias,
-                        Name = prop.Name,
-                        Value = value
-                    });
-                }
                 return model;
             }
 
@@ -261,24 +325,18 @@ namespace Umbraco.Web.Security
         /// <returns></returns>
         public RegisterModel CreateRegistrationModel(string memberTypeAlias = null)
         {
-            if (Membership.Provider.IsUmbracoMembershipProvider())
+            var provider = MPE.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider())
             {
-                memberTypeAlias = memberTypeAlias ?? Constants.Conventions.MemberTypes.Member;
+                memberTypeAlias = memberTypeAlias ?? Constants.Conventions.MemberTypes.DefaultAlias;
                 var memberType = _applicationContext.Services.MemberTypeService.Get(memberTypeAlias);
                 if (memberType == null)
                     throw new InvalidOperationException("Could not find a member type with alias " + memberTypeAlias);
 
-                var props = memberType.PropertyTypes
-                    .Where(x => memberType.MemberCanEditProperty(x.Alias))
-                    .Select(prop => new UmbracoProperty
-                    {
-                        Alias = prop.Alias,
-                        Name = prop.Name,
-                        Value = string.Empty
-                    }).ToList();
-
+                var builtIns = Constants.Conventions.Member.GetStandardPropertyTypeStubs().Select(x => x.Key).ToArray();
                 var model = RegisterModel.CreateModel();
-                model.MemberProperties = props;
+                model.MemberTypeAlias = memberTypeAlias;
+                model.MemberProperties = GetMemberPropertiesViewModel(memberType, builtIns).ToList();
                 return model;
             }
             else
@@ -288,6 +346,64 @@ namespace Umbraco.Web.Security
                 return model;
             }
         }
+
+        private IEnumerable<UmbracoProperty> GetMemberPropertiesViewModel(IMemberType memberType, IEnumerable<string> builtIns, IMember member = null)
+        {
+            var viewProperties = new List<UmbracoProperty>();
+
+            foreach (var prop in memberType.PropertyTypes
+                    .Where(x => builtIns.Contains(x.Alias) == false && memberType.MemberCanEditProperty(x.Alias)))
+            {
+                var value = string.Empty;
+                if (member != null)
+                {
+                    var propValue = member.Properties[prop.Alias];
+                    if (propValue != null)
+                    {
+                        value = propValue.Value.ToString();
+                    }    
+                }
+
+                var viewProperty = new UmbracoProperty
+                {
+                    Alias = prop.Alias,
+                    Name = prop.Name,
+                    Value = value
+                };
+
+                //TODO: Perhaps one day we'll ship with our own EditorTempates but for now developers 
+                // can just render their own.
+
+                ////This is a rudimentary check to see what data template we should render
+                //// if developers want to change the template they can do so dynamically in their views or controllers 
+                //// for a given property.
+                ////These are the default built-in MVC template types: “Boolean”, “Decimal”, “EmailAddress”, “HiddenInput”, “Html”, “Object”, “String”, “Text”, and “Url”
+                //// by default we'll render a text box since we've defined that metadata on the UmbracoProperty.Value property directly.
+                //if (prop.DataTypeId == new Guid(Constants.PropertyEditors.TrueFalse))
+                //{
+                //    viewProperty.EditorTemplate = "UmbracoBoolean";
+                //}
+                //else
+                //{                    
+                //    switch (prop.DataTypeDatabaseType)
+                //    {
+                //        case DataTypeDatabaseType.Integer:
+                //            viewProperty.EditorTemplate = "Decimal";
+                //            break;
+                //        case DataTypeDatabaseType.Ntext:
+                //            viewProperty.EditorTemplate = "Text";
+                //            break;
+                //        case DataTypeDatabaseType.Date:
+                //        case DataTypeDatabaseType.Nvarchar:
+                //            break;
+                //    }
+                //}
+
+                viewProperties.Add(viewProperty);
+            }
+            return viewProperties;
+        }
+        #endregion
 
         /// <summary>
         /// Returns the login status model of the currently logged in member, if no member is logged in it returns null;
@@ -302,21 +418,37 @@ namespace Umbraco.Web.Security
                 model.IsLoggedIn = false;
                 return model;
             }
-            
-            if (Membership.Provider.IsUmbracoMembershipProvider())
+
+            var provider = MPE.GetMembersMembershipProvider();
+
+            if (provider.IsUmbracoMembershipProvider())
             {
                 var member = GetCurrentMember();
-                //this shouldn't happen
-                if (member == null) return model;
+                //this shouldn't happen but will if the member is deleted in the back office while the member is trying
+                // to use the front-end!
+                if (member == null)
+                {
+                    //log them out since they've been removed
+                    FormsAuthentication.SignOut();
+                    model.IsLoggedIn = false;
+                    return model;
+                }
                 model.Name = member.Name;
                 model.Username = member.Username;
                 model.Email = member.Email;
             }
             else
             {
-                var member = Membership.GetUser();
-                //this shouldn't happen
-                if (member == null) return null;
+                var member = provider.GetCurrentUser();
+                //this shouldn't happen but will if the member is deleted in the back office while the member is trying
+                // to use the front-end!
+                if (member == null)
+                {
+                    //log them out since they've been removed
+                    FormsAuthentication.SignOut();
+                    model.IsLoggedIn = false;
+                    return model;
+                }
                 model.Name = member.UserName;
                 model.Username = member.UserName;
                 model.Email = member.Email;
@@ -369,8 +501,10 @@ namespace Umbraco.Web.Security
             }
             else
             {
+                var provider = MPE.GetMembersMembershipProvider();
+
                 string username;
-                if (Membership.Provider.IsUmbracoMembershipProvider())
+                if (provider.IsUmbracoMembershipProvider())
                 {
                     var member = GetCurrentMember();
                     username = member.Username;
@@ -391,7 +525,7 @@ namespace Umbraco.Web.Security
                 }
                 else
                 {
-                    var member = Membership.GetUser();
+                    var member = provider.GetCurrentUser();
                     username = member.UserName;
                 }
                 
@@ -624,11 +758,14 @@ namespace Umbraco.Web.Security
         /// <returns></returns>
         private IMember GetCurrentMember()
         {
-            if (Membership.Provider.IsUmbracoMembershipProvider() == false)
+            var provider = MPE.GetMembersMembershipProvider();
+
+            if (provider.IsUmbracoMembershipProvider() == false)
             {
                 throw new NotSupportedException("An IMember model can only be retreived when using the built-in Umbraco membership providers");
             }
-            var member = _applicationContext.Services.MemberService.GetByUsername(_httpContext.User.Identity.Name);
+            var username = provider.GetCurrentUserName();
+            var member = _applicationContext.Services.MemberService.GetByUsername(username);
             return member;
         }
 

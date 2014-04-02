@@ -66,7 +66,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Newtonsoft.Json.4.5.11\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
-
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Configuration" />
@@ -305,6 +304,7 @@
     <Compile Include="Events\RollbackEventArgs.cs" />
     <Compile Include="Events\SaveEventArgs.cs" />
     <Compile Include="Events\SendToPublishEventArgs.cs" />
+    <Compile Include="HideFromTypeFinderAttribute.cs" />
     <Compile Include="IApplicationEventHandler.cs" />
     <Compile Include="IDisposeOnRequestEnd.cs" />
     <Compile Include="IO\ResizedImage.cs" />
@@ -352,10 +352,25 @@
     <Compile Include="Models\TaggableObjectTypes.cs" />
     <Compile Include="Models\TemplateNode.cs" />
     <Compile Include="Models\UmbracoEntityExtensions.cs" />
+    <Compile Include="Packaging\Models\InstallAction.cs" />
+    <Compile Include="Packaging\Models\InstallationSummary.cs" />
+    <Compile Include="Packaging\Models\MetaData.cs" />
+    <Compile Include="Packaging\Models\UninstallAction.cs" />
+    <Compile Include="Packaging\PackageBuilding.cs" />
+    <Compile Include="Packaging\PackageExtraction.cs" />
+    <Compile Include="Packaging\PackageInstallation.cs" />
+    <Compile Include="Persistence\DatabaseModelDefinitions\DbIndexDefinition.cs" />
     <Compile Include="Packaging\PackageBinaryInspector.cs" />
     <Compile Include="Persistence\EntityNotFoundException.cs" />
     <Compile Include="Persistence\Factories\MemberGroupFactory.cs" />
     <Compile Include="Persistence\Mappers\MemberGroupMapper.cs" />
+    <Compile Include="Persistence\Mappers\TagMapper.cs" />
+    <Compile Include="Persistence\Migrations\DataLossException.cs" />
+    <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSevenOneZero\AssignMissingPrimaryForMySqlKeys.cs" />
+    <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSixTwoZero\AssignMissingPrimaryForMySqlKeys.cs" />
+    <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSixTwoZero\ChangePasswordColumn.cs" />
+    <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSixTwoZero\UpdateToNewMemberPropertyAliases.cs" />
+    <Compile Include="Persistence\DbConnectionExtensions.cs" />
     <Compile Include="PropertyEditors\DefaultPropertyValueConverterAttribute.cs" />
     <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSeven\UpdateRelatedLinksData.cs" />
     <Compile Include="PropertyEditors\IValueEditor.cs" />
@@ -429,7 +444,7 @@
     <Compile Include="Models\IMember.cs" />
     <Compile Include="Models\IMemberType.cs" />
     <Compile Include="Models\Member.cs" />
-    <Compile Include="Models\Membership\MembershipExtensions.cs" />
+    <Compile Include="Models\Membership\MembershipUserExtensions.cs" />
     <Compile Include="Models\Membership\UmbracoMembershipMember.cs" />
     <Compile Include="Models\Membership\UmbracoMembershipUser.cs" />
     <Compile Include="Models\PagedResult.cs" />
@@ -1019,7 +1034,7 @@
     <Compile Include="Services\LocalizationService.cs" />
     <Compile Include="Services\MacroService.cs" />
     <Compile Include="Services\MediaService.cs" />
-    <Compile Include="Services\MemberCountType.cs" />
+    <Compile Include="Models\Membership\MemberCountType.cs" />
     <Compile Include="Services\MemberGroupService.cs" />
     <Compile Include="Services\MemberService.cs" />
     <Compile Include="Services\MemberTypeService.cs" />
@@ -1077,6 +1092,9 @@
       <DependentUpon>Constants.cs</DependentUpon>
     </Compile>
     <Compile Include="Constants-PropertyEditors.cs">
+      <DependentUpon>Constants.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Constants-Packaging.cs">
       <DependentUpon>Constants.cs</DependentUpon>
     </Compile>
     <Compile Include="Constants-ObjectTypes.cs">

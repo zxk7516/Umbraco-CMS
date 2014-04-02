@@ -172,6 +172,7 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             var list = new List<string>
                            {
+                               "DELETE FROM cmsTask WHERE nodeId = @Id",
                                "DELETE FROM umbracoUser2NodeNotify WHERE nodeId = @Id",
                                "DELETE FROM umbracoUser2NodePermission WHERE nodeId = @Id",
                                "DELETE FROM umbracoRelation WHERE parentId = @Id",
@@ -309,7 +310,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 Database.Update(newContentDto);
             }
 
-            //In order to update the ContentVersion we need to retreive its primary key id
+            //In order to update the ContentVersion we need to retrieve its primary key id
             var contentVerDto = Database.SingleOrDefault<ContentVersionDto>("WHERE VersionId = @Version", new { Version = entity.Version });
             dto.ContentVersionDto.Id = contentVerDto.Id;
             //Updates the current version - cmsContentVersion
@@ -317,7 +318,10 @@ namespace Umbraco.Core.Persistence.Repositories
             Database.Update(dto.ContentVersionDto);
             
             //Updates the cmsMember entry if it has changed
+            
+            //NOTE: these cols are the REAL column names in the db
             var changedCols = new List<string>();
+
             if (dirtyEntity.IsPropertyDirty("Email"))
             {
                 changedCols.Add("Email");
@@ -327,7 +331,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 changedCols.Add("LoginName");
             }
             // DO NOT update the password if it is null or empty
-            if (dirtyEntity.IsPropertyDirty("Password") && entity.Password.IsNullOrWhiteSpace() == false)
+            if (dirtyEntity.IsPropertyDirty("RawPasswordValue") && entity.RawPasswordValue.IsNullOrWhiteSpace() == false)
             {
                 changedCols.Add("Password");
             }
@@ -564,7 +568,6 @@ namespace Umbraco.Core.Persistence.Repositories
                 resultQuery = sql;
             }
             
-
             //get the referenced column name
             var expressionMember = ExpressionHelper.GetMemberInfo(orderBy);
             //now find the mapped column name
@@ -576,8 +579,19 @@ namespace Umbraco.Core.Persistence.Repositories
             }
             //need to ensure the order by is in brackets, see: https://github.com/toptensoftware/PetaPoco/issues/177
             resultQuery.OrderBy(string.Format("({0})", mappedField));
+            
+            var result = GetPagedResultsByQuery<MemberDto>(resultQuery, pageIndex, pageSize, out totalRecords, 
+                dtos => dtos.Select(x => x.NodeId).ToArray());
+            
+            //now we need to ensure this result is also ordered by the same order by clause
+            return result.OrderBy(orderBy.Compile());
+        }
 
-            var pagedResult = Database.Page<MemberDto>(pageIndex + 1, pageSize, resultQuery);
+        public IEnumerable<IMember> GetPagedResultsByQuery<TDto>(
+            Sql sql, int pageIndex, int pageSize, out int totalRecords,
+            Func<IEnumerable<TDto>, int[]> resolveIds)
+        {
+            var pagedResult = Database.Page<TDto>(pageIndex + 1, pageSize, sql);
 
             totalRecords = Convert.ToInt32(pagedResult.TotalItems);
 
@@ -586,10 +600,7 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 return Enumerable.Empty<IMember>();
             }
-            var result = GetAll(pagedResult.Items.Select(x => x.NodeId).ToArray());
-            
-            //now we need to ensure this result is also ordered by the same order by clause
-            return result.OrderBy(orderBy.Compile());
+            return GetAll(resolveIds(pagedResult.Items)).ToArray();
         }
 
         private IMember BuildFromDto(List<MemberReadOnlyDto> dtos)

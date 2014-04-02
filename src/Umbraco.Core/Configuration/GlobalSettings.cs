@@ -6,11 +6,13 @@ using System.Web;
 using System.Web.Configuration;
 using System.Web.Hosting;
 using System.Web.Routing;
+using System.Web.Security;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Security;
 
 namespace Umbraco.Core.Configuration
 {
@@ -39,7 +41,7 @@ namespace Umbraco.Core.Configuration
         private static string _reservedUrls;
         //ensure the built on (non-changeable) reserved paths are there at all times
         private const string StaticReservedPaths = "~/app_plugins/,~/install/,";
-        private const string StaticReservedUrls = "~/config/splashes/booting.aspx,~/install/default.aspx,~/config/splashes/noNodes.aspx,~/VSEnterpriseHelper.axd,";
+        private const string StaticReservedUrls = "~/config/splashes/booting.aspx,~/config/splashes/noNodes.aspx,~/VSEnterpriseHelper.axd,";
 
         #endregion
 
@@ -269,7 +271,7 @@ namespace Umbraco.Core.Configuration
         {
             get
             {
-                return ConfiguredMembershipProvidersLegacyEncoding(Constants.Conventions.Member.UmbracoMemberProviderName);
+                return IsConfiguredMembershipProviderUsingLegacyEncoding(Constants.Conventions.Member.UmbracoMemberProviderName);
             }
             set
             {
@@ -285,11 +287,11 @@ namespace Umbraco.Core.Configuration
         {
             get
             {
-                return ConfiguredMembershipProvidersLegacyEncoding(Constants.Conventions.User.UmbracoUsersProviderName);
+                return IsConfiguredMembershipProviderUsingLegacyEncoding(UmbracoConfig.For.UmbracoSettings().Providers.DefaultBackOfficeUserProvider);
             }
             set
             {
-                SetMembershipProvidersLegacyEncoding(Constants.Conventions.User.UmbracoUsersProviderName, value);
+                SetMembershipProvidersLegacyEncoding(UmbracoConfig.For.UmbracoSettings().Providers.DefaultBackOfficeUserProvider, value);
             }
         }
 		
@@ -338,6 +340,18 @@ namespace Umbraco.Core.Configuration
 
         private static void SetMembershipProvidersLegacyEncoding(string providerName, bool useLegacyEncoding)
         {
+            //check if this can even be configured.
+            var membershipProvider = Membership.Providers[providerName] as MembershipProviderBase;
+            if (membershipProvider == null)
+            {
+                return;
+            }
+            if (membershipProvider.GetType().Namespace == "umbraco.providers.members")
+            {
+                //its the legacy one, this cannot be changed
+                return;
+            }
+
             var webConfigFilename = IOHelper.MapPath(string.Format("{0}/web.config", SystemDirectories.Root));
             var webConfigXml = XDocument.Load(webConfigFilename, LoadOptions.PreserveWhitespace);
 
@@ -356,22 +370,16 @@ namespace Umbraco.Core.Configuration
             webConfigXml.Save(webConfigFilename, SaveOptions.DisableFormatting);
         }
 
-        private static bool ConfiguredMembershipProvidersLegacyEncoding(string providerName)
+        private static bool IsConfiguredMembershipProviderUsingLegacyEncoding(string providerName)
         {
-            var webConfigFilename = IOHelper.MapPath(string.Format("{0}/web.config", SystemDirectories.Root));
-            var webConfigXml = XDocument.Load(webConfigFilename, LoadOptions.PreserveWhitespace);
+            //check if this can even be configured.
+            var membershipProvider = Membership.Providers[providerName] as MembershipProviderBase;
+            if (membershipProvider == null)
+            {
+                return false;
+            }
 
-            var membershipConfigs = webConfigXml.XPathSelectElements("configuration/system.web/membership/providers/add").ToList();
-
-            var provider = membershipConfigs.SingleOrDefault(c => c.Attribute("name") != null && c.Attribute("name").Value == providerName);
-
-            var useLegacyEncodingAttribute = provider.Attribute("useLegacyEncoding");
-
-            bool useLegacyEncoding;
-            bool.TryParse(useLegacyEncodingAttribute.Value, out useLegacyEncoding);
-
-            return useLegacyEncoding;
-
+            return membershipProvider.UseLegacyEncoding;            
         }
 
         /// <summary>

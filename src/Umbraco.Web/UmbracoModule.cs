@@ -383,9 +383,7 @@ namespace Umbraco.Web
 		        return true;
 
             LogHelper.Warn<UmbracoModule>("Umbraco has no content");
-
-			httpContext.Response.StatusCode = 503;
-
+            
 			const string noContentUrl = "~/config/splashes/noNodes.aspx";
 			httpContext.RewritePath(UriUtility.ToAbsolute(noContentUrl));
 
@@ -403,7 +401,7 @@ namespace Umbraco.Web
             LogHelper.Warn<UmbracoModule>("Umbraco is not configured");
 
 			var installPath = UriUtility.ToAbsolute(SystemDirectories.Install);
-			var installUrl = string.Format("{0}/default.aspx?redir=true&url={1}", installPath, HttpUtility.UrlEncode(uri.ToString()));
+			var installUrl = string.Format("{0}/?redir=true&url={1}", installPath, HttpUtility.UrlEncode(uri.ToString()));
 			httpContext.Response.Redirect(installUrl, true);
 			return false;
 		}

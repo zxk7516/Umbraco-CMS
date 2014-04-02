@@ -125,6 +125,44 @@ function mediaHelper(umbRequestHelper) {
             return "";
         },
 
+        registerFileResolver: function(propertyEditorAlias, func){
+            _mediaFileResolvers[propertyEditorAlias] = func;
+        },
+
+        /*jshint loopfunc: true */
+        resolveFile : function(mediaItem, thumbnail){
+            var _props = [];
+            function _iterateProps(props){
+                var result = null;
+                for(var resolver in _mediaFileResolvers) {
+                    var property = _.find(props, function(property){ return property.editor === resolver; });
+                    if(property){
+                        result = _mediaFileResolvers[resolver](property, mediaItem, thumbnail);
+                        break;
+                    }
+                }
+
+                return result;    
+            }
+
+            //we either have properties raw on the object, or spread out on tabs
+            var result = "";
+            if(mediaItem.properties){
+                result = _iterateProps(mediaItem.properties);
+            }else if(mediaItem.tabs){
+                for(var tab in mediaItem.tabs) {
+                    if(mediaItem.tabs[tab].properties){
+                        result = _iterateProps(mediaItem.tabs[tab].properties);
+                        if(result){
+                            break;
+                        }
+                    }
+                }
+            }
+            return result;            
+        },
+
+
         /**
          * @ngdoc function
          * @name umbraco.services.mediaHelper#scaleToMaxSize
@@ -181,6 +219,11 @@ function mediaHelper(umbRequestHelper) {
          */
         getThumbnailFromPath: function (imagePath) {
 
+            //If the path is not an image we cannot get a thumb
+            if (!this.detectIfImageByExtension(imagePath)) {
+                return null;
+            }
+
             //get the proxy url for big thumbnails (this ensures one is always generated)
             var thumbnailUrl = umbRequestHelper.getApiUrl(
                 "imagesApiBaseUrl",
@@ -208,41 +251,8 @@ function mediaHelper(umbRequestHelper) {
             var lowered = imagePath.toLowerCase();
             var ext = lowered.substr(lowered.lastIndexOf(".") + 1);
             return ("," + Umbraco.Sys.ServerVariables.umbracoSettings.imageFileTypes + ",").indexOf("," + ext + ",") !== -1;
-        },
-
-        registerFileResolver: function(propertyEditorAlias, func){
-            _mediaFileResolvers[propertyEditorAlias] = func;
-        },
-
-        resolveFile : function(mediaItem){
-            var _props = [];
-
-            //we either have properties raw on the object, or spread out on tabs
-            if(mediaItem.properties){
-                _props = mediaItem.properties;
-            }else if(mediaItem.tabs){
-                _.each(mediaItem.tabs, function(tab){
-                    if(tab.properties){
-                        _props.concat(tab.propeties);
-                    }
-                });
-            }
-
-            //we go through our file resolvers to see if any of them matches the editors
-            var result = "";
-            _.each(_mediaFileResolvers, function(resolver, key){
-                var property = _.find(_props, function(property){ return property.editor === key; });
-                
-                if(property){
-                    var file = resolver(property);
-                    if(file){
-                        result = file;
-                    }
-                }
-            });
-
-            return result;            
         }
+        
     };
 }
 angular.module('umbraco.services').factory('mediaHelper', mediaHelper);

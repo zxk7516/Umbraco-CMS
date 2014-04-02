@@ -104,7 +104,7 @@
     </Reference>
     <Reference Include="ClientDependency.Core">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\ClientDependency.1.7.1.1\lib\ClientDependency.Core.dll</HintPath>
+      <HintPath>..\packages\ClientDependency.1.7.1.2\lib\ClientDependency.Core.dll</HintPath>
     </Reference>
     <Reference Include="CookComputing.XmlRpcV2, Version=2.5.0.0, Culture=neutral, PublicKeyToken=a7d6e17aa302004d, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -269,6 +269,7 @@
       <Link>Properties\SolutionInfo.cs</Link>
     </Compile>
     <Compile Include="ApplicationContextExtensions.cs" />
+    <Compile Include="AreaRegistrationContextExtensions.cs" />
     <Compile Include="CacheHelperExtensions.cs" />
     <Compile Include="Cache\ApplicationCacheRefresher.cs" />
     <Compile Include="Cache\ApplicationTreeCacheRefresher.cs" />
@@ -285,9 +286,11 @@
     <Compile Include="Cache\MemberCacheRefresher.cs" />
     <Compile Include="Cache\MemberGroupCacheRefresher.cs" />
     <Compile Include="Cache\PageCacheRefresher.cs" />
+    <Compile Include="Cache\PublicAccessCacheRefresher.cs" />
     <Compile Include="Cache\StylesheetCacheRefresher.cs" />
     <Compile Include="Cache\StylesheetPropertyCacheRefresher.cs" />
     <Compile Include="Cache\TemplateCacheRefresher.cs" />
+    <Compile Include="Cache\UnpublishedPageCacheRefresher.cs" />
     <Compile Include="Cache\UserCacheRefresher.cs" />
     <Compile Include="Cache\UserPermissionsCacheRefresher.cs" />
     <Compile Include="Cache\UserTypeCacheRefresher.cs" />
@@ -301,13 +304,60 @@
     <Compile Include="Editors\DataTypeController.cs" />
     <Compile Include="Editors\DataTypeValidateAttribute.cs" />
     <Compile Include="Editors\EntityControllerActionSelector.cs" />
+    <Compile Include="Editors\EntityControllerConfigurationAttribute.cs" />
     <Compile Include="Editors\ImagesController.cs" />
+    <Compile Include="Models\ContentEditing\ContentBaseItemSave.cs" />
+    <Compile Include="Models\ContentEditing\MediaItemSave.cs" />
+    <Compile Include="Models\ImageCropAnchor.cs" />
+    <Compile Include="Models\ImageCropCoordinates.cs" />
+    <Compile Include="Models\ImageCropDataSet.cs" />
+    <Compile Include="Models\ImageCropFocalPoint.cs" />
+    <Compile Include="Models\ImageCropMode.cs" />
+    <Compile Include="Install\DatabaseHelper.cs" />
+    <Compile Include="Install\InstallException.cs" />
+    <Compile Include="Install\InstallStatusTracker.cs" />
+    <Compile Include="Install\InstallSteps\DatabaseConfigureStep.cs" />
+    <Compile Include="Install\InstallSteps\DatabaseInstallStep.cs" />
+    <Compile Include="Install\InstallSteps\DatabaseUpgradeStep.cs" />
+    <Compile Include="Install\InstallSteps\FilePermissionsStep.cs" />
+    <Compile Include="Install\InstallSteps\MajorVersion7UpgradeReport.cs" />
+    <Compile Include="Install\InstallSteps\SetUmbracoVersionStep.cs" />
+    <Compile Include="Install\InstallSteps\StarterKitCleanupStep.cs" />
+    <Compile Include="Install\InstallSteps\StarterKitDownloadStep.cs" />
+    <Compile Include="Install\InstallSteps\StarterKitInstallStep.cs" />
+    <Compile Include="Install\InstallSteps\UpgradeStep.cs" />
+    <Compile Include="Install\InstallSteps\NewInstallStep.cs" />
+    <Compile Include="Install\Controllers\InstallPackageController.cs" />
+    <Compile Include="Install\Models\DatabaseModel.cs" />
+    <Compile Include="Install\Models\DatabaseType.cs" />
+    <Compile Include="Install\Models\InstallationType.cs" />
+    <Compile Include="Install\Models\InstallInstructions.cs" />
+    <Compile Include="Install\Models\InstallPackageModel.cs" />
+    <Compile Include="Install\Models\InstallProgressResultModel.cs" />
+    <Compile Include="Install\Models\InstallSetup.cs" />
+    <Compile Include="Install\Models\InstallSetupResult.cs" />
+    <Compile Include="Install\Models\InstallSetupStep.cs" />
+    <Compile Include="Install\Models\InstallSetupStepAttribute.cs" />
+    <Compile Include="Install\Models\InstallTrackingItem.cs" />
+    <Compile Include="Install\Models\Package.cs" />
+    <Compile Include="Install\Models\UserModel.cs" />
+    <Compile Include="Install\UmbracoInstallArea.cs" />
+    <Compile Include="Install\Controllers\InstallApiController.cs" />
+    <Compile Include="Install\Controllers\InstallController.cs" />
+    <Compile Include="Install\InstallAuthorizeAttribute.cs" />
     <Compile Include="MediaPropertyExtensions.cs" />
     <Compile Include="Models\ContentEditing\EntityTypeSearchResult.cs" />
     <Compile Include="Models\ContentEditing\ListViewAwareContentItemDisplayBase.cs" />
+    <Compile Include="Models\ContentEditing\PropertyTypeValidation.cs" />
     <Compile Include="Models\ImageCropData.cs" />
     <Compile Include="Models\IRenderModel.cs" />
     <Compile Include="Models\PostRedirectModel.cs" />
+    <Compile Include="Models\PublishedProperty.cs" />
+    <Compile Include="Mvc\RedirectToUmbracoUrlResult.cs" />
+    <Compile Include="PublishedCache\MemberPublishedContent.cs" />
+    <Compile Include="PublishedCache\RawValueProperty.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedFragment.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedFragmentProperty.cs" />
     <Compile Include="Models\RenderModelOfTContent.cs" />
     <Compile Include="Mvc\JsonNetResult.cs" />
     <Compile Include="Mvc\MinifyJavaScriptResultAttribute.cs" />
@@ -371,7 +421,6 @@
     <Compile Include="Editors\MediaPostValidateAttribute.cs" />
     <Compile Include="Editors\MemberController.cs" />
     <Compile Include="Editors\CurrentUserController.cs" />
-    <Compile Include="Install\Steps\MajorUpgradeReport.cs" />
     <Compile Include="Models\ContentEditing\DashboardControl.cs" />
     <Compile Include="Models\ContentEditing\DataTypeDisplay.cs" />
     <Compile Include="Models\ContentEditing\DataTypeSave.cs" />
@@ -454,9 +503,11 @@
       <DependentUpon>Reference.map</DependentUpon>
     </Compile>
     <Compile Include="WebApi\AngularJsonMediaTypeFormatter.cs" />
+    <Compile Include="WebApi\AngularJsonOnlyConfigurationAttribute.cs" />
     <Compile Include="WebApi\Binders\MemberBinder.cs" />
     <Compile Include="WebApi\Filters\AngularAntiForgeryHelper.cs" />
     <Compile Include="WebApi\Filters\ClearAngularAntiForgeryTokenAttribute.cs" />
+    <Compile Include="WebApi\Filters\DisableBrowserCacheAttribute.cs" />
     <Compile Include="WebApi\Filters\FilterGrouping.cs" />
     <Compile Include="WebApi\Filters\SetAngularAntiForgeryTokensAttribute.cs" />
     <Compile Include="WebApi\Filters\UmbracoBackOfficeLogoutAttribute.cs" />
@@ -551,6 +602,7 @@
     <Compile Include="Security\Providers\UmbracoMembershipProvider.cs" />
     <Compile Include="Security\Providers\UsersMembershipProvider.cs" />
     <Compile Include="Trees\ContentTreeController.cs" />
+    <Compile Include="Standalone\PowershellAssemblyResolver.cs" />
     <Compile Include="Trees\TreeRenderingEventArgs.cs" />
     <Compile Include="Trees\UrlHelperExtensions.cs" />
     <Compile Include="UI\JavaScript\JsInitialization.cs" />
@@ -578,21 +630,8 @@
     <Compile Include="HttpRequestExtensions.cs" />
     <Compile Include="HttpUrlHelperExtensions.cs" />
     <Compile Include="Install\FilePermissionHelper.cs" />
-    <Compile Include="Install\InstallerStep.cs" />
     <Compile Include="Install\InstallHelper.cs" />
-    <Compile Include="Install\InstallPackageController.cs" />
-    <Compile Include="Install\InstallStepCollection.cs" />
-    <Compile Include="Install\ProgressResult.cs" />
-    <Compile Include="Install\Steps\Database.cs" />
-    <Compile Include="Install\Steps\DefaultUser.cs" />
-    <Compile Include="Install\Steps\FilePermissions.cs" />
-    <Compile Include="Install\Steps\License.cs" />
-    <Compile Include="Install\Steps\RenderingEngine.cs" />
-    <Compile Include="Install\Steps\Skinning.cs" />
-    <Compile Include="Install\Steps\TheEnd.cs" />
-    <Compile Include="Install\Steps\WebPi.cs" />
-    <Compile Include="Install\Steps\Welcome.cs" />
-    <Compile Include="Install\UmbracoInstallAuthorizeAttribute.cs" />
+    <Compile Include="Install\HttpInstallAuthorizeAttribute.cs" />
     <Compile Include="Macros\PartialViewMacroController.cs" />
     <Compile Include="Macros\PartialViewMacroEngine.cs" />
     <Compile Include="Macros\PartialViewMacroPage.cs" />
@@ -645,6 +684,7 @@
     <Compile Include="Search\LuceneIndexerExtensions.cs" />
     <Compile Include="Security\ValidateRequestAttempt.cs" />
     <Compile Include="Security\WebSecurity.cs" />
+    <Compile Include="Standalone\WriteableConfigSystem.cs" />
     <Compile Include="UI\JavaScript\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -668,6 +708,9 @@
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="umbraco.presentation\umbraco\controls\Tree\TreeControl.ascx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="umbraco.presentation\umbraco\create\simple.ascx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="umbraco.presentation\umbraco\developer\Packages\directoryBrowser.aspx.cs">
@@ -1261,13 +1304,6 @@
     <Compile Include="umbraco.presentation\umbraco\create\script.ascx.designer.cs">
       <DependentUpon>script.ascx</DependentUpon>
     </Compile>
-    <Compile Include="umbraco.presentation\umbraco\create\simple.ascx.cs">
-      <DependentUpon>simple.ascx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="umbraco.presentation\umbraco\create\simple.ascx.designer.cs">
-      <DependentUpon>simple.ascx</DependentUpon>
-    </Compile>
     <Compile Include="umbraco.presentation\umbraco\create\languageTasks.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -1816,6 +1852,7 @@
     <EmbeddedResource Include="UI\JavaScript\Main.js" />
     <EmbeddedResource Include="UI\JavaScript\JsInitialize.js" />
     <EmbeddedResource Include="UI\JavaScript\ServerVariables.js" />
+    <EmbeddedResource Include="UI\JavaScript\JsNoCache.js" />
     <Content Include="umbraco.presentation\umbraco\controls\Tree\CustomTreeService.asmx" />
     <Content Include="umbraco.presentation\umbraco\developer\RelationTypes\EditRelationType.aspx" />
     <Content Include="umbraco.presentation\umbraco\developer\RelationTypes\NewRelationType.aspx" />
@@ -1831,7 +1868,9 @@
     <Content Include="umbraco.presentation\umbraco\controls\ProgressBar.ascx">
       <SubType>ASPXCodeBehind</SubType>
     </Content>
-    <Content Include="umbraco.presentation\umbraco\controls\GenericProperties\GenericProperty.ascx" />
+    <Content Include="umbraco.presentation\umbraco\controls\GenericProperties\GenericProperty.ascx">
+      <SubType>ASPXCodeBehind</SubType>
+    </Content>
     <Content Include="umbraco.presentation\umbraco\controls\Images\ImageViewerUpdater.asmx" />
     <Content Include="umbraco.presentation\umbraco\controls\Images\UploadMediaImage.ascx">
       <SubType>ASPXCodeBehind</SubType>
@@ -1944,9 +1983,6 @@
       <SubType>ASPXCodeBehind</SubType>
     </Content>
     <Content Include="umbraco.presentation\umbraco\create\nodeType.ascx" />
-    <Content Include="umbraco.presentation\umbraco\create\simple.ascx">
-      <SubType>ASPXCodeBehind</SubType>
-    </Content>
     <Content Include="umbraco.presentation\umbraco\dashboard\LatestEdits.ascx">
       <SubType>ASPXCodeBehind</SubType>
     </Content>
@@ -2076,9 +2112,7 @@
       <CachedSettingsPropName>umbraco_org_umbraco_update_CheckForUpgrade</CachedSettingsPropName>
     </WebReferenceUrl>
   </ItemGroup>
-  <ItemGroup>
-    <WCFMetadata Include="Service References\" />
-  </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>

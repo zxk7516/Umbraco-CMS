@@ -22,7 +22,7 @@ function cropperHelper(umbRequestHelper, $http) {
 						"imageCropperApiBaseUrl",
 						"GetConfiguration",
 						[{ mediaTypeAlias: mediaTypeAlias}])),
-				'Failed to retreive tinymce configuration');
+				'Failed to retrieve tinymce configuration');
 		},
 
 
@@ -42,6 +42,21 @@ function cropperHelper(umbRequestHelper, $http) {
 		//utill for scaling width / height given a ratio
 		calculateSizeToRatio : function(srcWidth, srcHeight, ratio) {
 			return { width:srcWidth*ratio, height:srcHeight*ratio, ratio: ratio};
+		},
+
+		scaleToMaxSize : function(srcWidth, srcHeight, maxSize) {
+			
+			var retVal = {height: srcHeight, width: srcWidth};
+
+			if(srcWidth > maxSize ||srcHeight > maxSize){
+				var ratio = [maxSize / srcWidth, maxSize / srcHeight ];
+				ratio = Math.min(ratio[0], ratio[1]);
+				
+				retVal.height = srcHeight * ratio;
+				retVal.width = srcWidth * ratio;
+			}
+			
+			return retVal;			
 		},
 
 		//returns a ng-style object with top,left,width,height pixel measurements
