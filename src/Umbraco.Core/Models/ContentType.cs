@@ -120,7 +120,7 @@ namespace Umbraco.Core.Models
 
             return result;
         }
-        
+
         /// <summary>
         /// Method to call when Entity is being saved
         /// </summary>
@@ -142,36 +142,53 @@ namespace Umbraco.Core.Models
             base.UpdatingEntity();
         }
 
-        /// <summary>
-        /// //TODO: REmove this as it's mostly just a shallow clone and not thread safe
-        /// Creates a clone of the current entity
-        /// </summary>
-        /// <returns></returns>
-        public IContentType Clone(string alias)
+        public override object DeepClone()
         {
-            var clone = (ContentType)this.MemberwiseClone();
-            clone.Alias = alias;
-            clone.Key = Guid.Empty;
-            var propertyGroups = this.PropertyGroups.Select(x => x.Clone()).ToList();
+            var clone = (ContentType)base.DeepClone();
+            var propertyGroups = PropertyGroups.Select(x => (PropertyGroup)x.DeepClone()).ToList();
             clone.PropertyGroups = new PropertyGroupCollection(propertyGroups);
-            clone.PropertyTypes = this.PropertyTypeCollection.Select(x => x.Clone()).ToList();
-            clone.ResetIdentity();
+            //set the property types that are not part of a group
+            clone.PropertyTypes = PropertyTypeCollection
+                .Where(x => x.PropertyGroupId == null)
+                .Select(x => (PropertyType)x.DeepClone()).ToList();
+
             clone.ResetDirtyProperties(false);
 
+            return clone;
+        }
+
+        /// <summary>
+        /// Creates a deep clone of the current entity with its identity/alias and it's property identities reset
+        /// </summary>
+        /// <returns></returns>
+        [Obsolete("Use DeepCloneWithResetIdentities instead")]
+        public IContentType Clone(string alias)
+        {            
+            return DeepCloneWithResetIdentities(alias);
+        }
+
+        /// <summary>
+        /// Creates a deep clone of the current entity with its identity/alias and it's property identities reset
+        /// </summary>
+        /// <returns></returns>
+        public IContentType DeepCloneWithResetIdentities(string alias)
+        {
+            var clone = (ContentType)DeepClone();
+            clone.Alias = alias;
+            clone.Key = Guid.Empty;
             foreach (var propertyGroup in clone.PropertyGroups)
             {
                 propertyGroup.ResetIdentity();
-                foreach (var propertyType in propertyGroup.PropertyTypes)
-                {
-                    propertyType.ResetIdentity();
-                }
+                propertyGroup.ResetDirtyProperties(false);
             }
-
-            foreach (var propertyType in clone.PropertyTypes.Where(x => x.HasIdentity))
+            foreach (var propertyType in clone.PropertyTypes)
             {
                 propertyType.ResetIdentity();
+                propertyType.ResetDirtyProperties(false);
             }
 
+            clone.ResetIdentity();
+            clone.ResetDirtyProperties(false);
             return clone;
         }
 
