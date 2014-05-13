@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using System.Linq;
+using Moq;
 using NUnit.Framework;
 using Umbraco.Core.Configuration.UmbracoSettings;
 using Umbraco.Tests.TestHelpers;
@@ -6,6 +7,7 @@ using Umbraco.Tests.TestHelpers.Stubs;
 using Umbraco.Web.Routing;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic.template;
+using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Tests.Routing
 {

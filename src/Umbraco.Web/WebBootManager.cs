@@ -31,6 +31,7 @@ using Umbraco.Web.PropertyEditors;
 using Umbraco.Web.PropertyEditors.ValueConverters;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Routing;
+using Umbraco.Web.Routing.Segments;
 using Umbraco.Web.Security;
 using Umbraco.Web.UI.JavaScript;
 using Umbraco.Web.WebApi;
@@ -291,6 +292,9 @@ namespace Umbraco.Web
         protected override void InitializeResolvers()
         {
             base.InitializeResolvers();
+
+            ContentSegmentProviderResolver.Current = new ContentSegmentProviderResolver(
+                typeof(BrowserCapabilitiesProvider));
 
             XsltExtensionsResolver.Current = new XsltExtensionsResolver(() => PluginManager.Current.ResolveXsltExtensions());
 

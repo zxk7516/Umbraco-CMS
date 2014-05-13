@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Web;
+using Umbraco.Core;
 
-namespace Umbraco.Core.ContentVariations
+namespace Umbraco.Web.Routing.Segments
 {
-
-
 
     /// <summary>
     /// Returns the segment names to assign to the current request
@@ -17,7 +14,7 @@ namespace Umbraco.Core.ContentVariations
     /// <remarks>
     /// The provider also exposes via attributes which static segments can be applied to content variations
     /// </remarks>
-    public abstract class ContentVariationProvider
+    public abstract class ContentSegmentProvider
     {
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private IEnumerable<string> _advertised;
@@ -34,7 +31,7 @@ namespace Umbraco.Core.ContentVariations
                     if (_advertised == null)
                     {
                         lck.UpgradeToWriteLock();
-                        _advertised = this.GetType().GetCustomAttributes<ContentVariationAttribute>(false)
+                        _advertised = this.GetType().GetCustomAttributes<ContentSegmentAttribute>(false)
                             .Select(x => x.SegmentName)
                             .Distinct()
                             .ToArray();
@@ -45,13 +42,13 @@ namespace Umbraco.Core.ContentVariations
         } 
 
         /// <summary>
-        /// Returns the segment names to assign to the current request
+        /// Returns the segment names and values to assign to the current request
         /// </summary>
         /// <param name="originalRequestUrl"></param>
         /// <param name="cleanedRequestUrl"></param>
         /// <param name="httpRequest"></param>
         /// <returns></returns>
-        public abstract IEnumerable<string> GetSegmentsForRequest(
+        public abstract IDictionary<string, object> GetSegmentsForRequest(
             Uri originalRequestUrl,
             Uri cleanedRequestUrl,
             HttpRequestBase httpRequest);

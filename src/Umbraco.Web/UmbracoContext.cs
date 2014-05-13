@@ -4,6 +4,7 @@ using System.Web;
 using Umbraco.Core;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Routing;
+using Umbraco.Web.Routing.Segments;
 using Umbraco.Web.Security;
 using umbraco;
 using umbraco.BusinessLogic;
@@ -312,6 +313,21 @@ namespace Umbraco.Web
                         _umbracoContext = value;
                     }
                 }
+            }
+        }
+
+        private RequestSegments _requestSegments;
+        
+        /// <summary>
+        /// Return the current request segments
+        /// </summary>
+        public RequestSegments RequestSegments
+        {
+            get
+            {
+                return _requestSegments ?? (_requestSegments = new RequestSegments(
+                    ContentSegmentProviderResolver.Current.Providers,
+                    OriginalRequestUrl, CleanedUmbracoUrl, HttpContext.Request));
             }
         }
 

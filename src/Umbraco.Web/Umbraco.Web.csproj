@@ -463,6 +463,11 @@
     <Compile Include="PropertyEditors\PropertyValueEditorWrapper.cs" />
     <Compile Include="PublishedContentQuery.cs" />
     <Compile Include="ImageCropperTemplateExtensions.cs" />
+    <Compile Include="Routing\RequestSegments.cs" />
+    <Compile Include="Routing\Segments\BrowserCapabilitiesProvider.cs" />
+    <Compile Include="Routing\Segments\ContentSegmentAttribute.cs" />
+    <Compile Include="Routing\Segments\ContentSegmentProvider.cs" />
+    <Compile Include="Routing\Segments\ContentSegmentProviderResolver.cs" />
     <Compile Include="Routing\UrlProviderExtensions.cs" />
     <Compile Include="Strategies\Migrations\ClearCsrfCookiesAfterUpgrade.cs" />
     <Compile Include="Strategies\Migrations\ClearMediaXmlCacheForDeletedItemsAfterUpgrade.cs" />

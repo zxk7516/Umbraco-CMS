@@ -7,6 +7,7 @@ using System.Web.Mvc;
 using System.Web.Routing;
 using System.Xml;
 using NUnit.Framework;
+using Umbraco.Web.Routing.Segments;
 using Umbraco.Web.Security;
 using umbraco.BusinessLogic;
 using Umbraco.Core;

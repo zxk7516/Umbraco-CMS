@@ -8,6 +8,7 @@ using Umbraco.Tests.TestHelpers.Stubs;
 using Umbraco.Web;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
+using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Tests.TestHelpers
 {

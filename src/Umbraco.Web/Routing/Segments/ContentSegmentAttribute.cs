@@ -1,13 +1,13 @@
 ﻿using System;
 
-namespace Umbraco.Core.ContentVariations
+namespace Umbraco.Web.Routing.Segments
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    public sealed class ContentVariationAttribute : Attribute
+    public sealed class ContentSegmentAttribute : Attribute
     {
         public string SegmentName { get; private set; }
 
-        public ContentVariationAttribute(string segmentName)
+        public ContentSegmentAttribute(string segmentName)
         {
             SegmentName = segmentName;
         }
