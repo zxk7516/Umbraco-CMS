@@ -20,7 +20,9 @@ namespace Umbraco.Web.Routing.Segments
         private IEnumerable<string> _advertised;
 
         /// <summary>
-        /// Get the advertised segments for this
+        /// Get the advertised segments for this, these can be used for content variants and are also the segments that
+        /// will be persisted to storage (cookie and membership provider) if they match the segment names returned in the 
+        /// GetSegmentsForRequest method
         /// </summary>
         public IEnumerable<string> SegmentsAdvertised
         {

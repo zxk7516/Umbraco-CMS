@@ -146,10 +146,18 @@ namespace Umbraco.Web
             if (HandleHttpResponseStatus(httpContext, pcr))
 		        return;
 
-            if (!pcr.HasPublishedContent)
-				httpContext.RemapHandler(new PublishedContentNotFoundHandler());
-			else
-				RewriteToUmbracoHandler(httpContext, pcr);
+		    if (pcr.HasPublishedContent == false)
+		    {
+                httpContext.RemapHandler(new PublishedContentNotFoundHandler());		        
+		    }
+		    else
+		    {
+                //It's a front-end request, we'll make sure the segments are written
+                umbracoContext.RequestSegments.EnsurePersisted(httpContext.Response);
+
+                RewriteToUmbracoHandler(httpContext, pcr);
+		    }
+				
 		}
 
         /// <summary>

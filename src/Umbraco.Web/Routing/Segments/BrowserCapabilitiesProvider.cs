@@ -13,7 +13,7 @@ namespace Umbraco.Web.Routing.Segments
     {
         public BrowserCapabilitiesProvider()
         {
-            _browserCapabilityProps = typeof(HttpBrowserCapabilities).GetProperties()
+            _browserCapabilityProps = typeof(HttpBrowserCapabilitiesBase).GetProperties()
                 .Where(x => PropNames.Contains(x.Name))
                 .ToArray();
         }

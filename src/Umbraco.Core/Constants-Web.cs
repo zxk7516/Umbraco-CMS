@@ -17,6 +17,11 @@
             /// </summary>
             public const string AuthCookieName = "UMB_UCONTEXT";
 
+            /// <summary>
+            /// The segment cookie name
+            /// </summary>
+            public const string SegmentCookieName = "UMB_SEGMENTS";
+
         }
 	}
 }
