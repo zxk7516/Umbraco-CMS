@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using System.Web.ApplicationServices;
 using Newtonsoft.Json;
 using Umbraco.Core;
-using Umbraco.Web.Routing.Segments;
 
-namespace Umbraco.Web.Routing
+namespace Umbraco.Web.Routing.Segments
 {
     /// <summary>
     /// Used to retreive (and persist) the segments that have been found based on the current request information
@@ -23,7 +23,7 @@ namespace Umbraco.Web.Routing
     public class RequestSegments
     {
         private readonly IEnumerable<ContentSegmentProvider> _segmentProviders;
-        private readonly HttpRequestBase _httpRequest;
+
         private readonly Lazy<IDictionary<string, Tuple<object, bool>>> _assignedSegments;
 
         public RequestSegments(IEnumerable<ContentSegmentProvider> segmentProviders, 
@@ -32,8 +32,7 @@ namespace Umbraco.Web.Routing
             HttpRequestBase httpRequest)
         {
             _segmentProviders = segmentProviders;
-            _httpRequest = httpRequest;
-
+            
             _assignedSegments = new Lazy<IDictionary<string, Tuple<object, bool>>>(() =>
                 GetAllSegmentsForRequest(
                     _segmentProviders,

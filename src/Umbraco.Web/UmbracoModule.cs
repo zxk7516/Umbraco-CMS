@@ -519,6 +519,27 @@ namespace Umbraco.Web
             urlRouting.PostResolveRequestCache(context);
         }
 
+        //TODO : Get this going!
+
+        /// <summary>
+        /// After the handler executes we'll check if the user 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        static void PersistMemberSegmentData(object sender)
+        {
+            if (UmbracoContext.Current != null
+                && Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider().IsUmbracoMembershipProvider())
+            {
+                //TODO: now we can assign really persisted the persisted segments
+
+                var persisted = UmbracoContext.Current.RequestSegments.PersistedSegments.ToArray();
+
+                //TODO: Do we really want to write to the db for epage they are authed for ?
+
+            }
+        }
+
         /// <summary>
         /// Checks if the xml cache file needs to be updated/persisted
         /// </summary>
@@ -609,6 +630,7 @@ namespace Umbraco.Web
 				{
 					var httpContext = ((HttpApplication)sender).Context;
 					PersistXmlCache(new HttpContextWrapper(httpContext));
+                    PersistMemberSegmentData
 				};
 
 			app.EndRequest += (sender, args) =>
