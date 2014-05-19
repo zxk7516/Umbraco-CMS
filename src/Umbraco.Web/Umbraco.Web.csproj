@@ -468,7 +468,10 @@
     <Compile Include="Routing\Segments\ContentSegmentAttribute.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProviderResolver.cs" />
+    <Compile Include="Routing\Segments\Segment.cs" />
+    <Compile Include="Routing\Segments\SegmentCollection.cs" />
     <Compile Include="Routing\UrlProviderExtensions.cs" />
+    <Compile Include="Security\MemberSegments.cs" />
     <Compile Include="Strategies\Migrations\ClearCsrfCookiesAfterUpgrade.cs" />
     <Compile Include="Strategies\Migrations\ClearMediaXmlCacheForDeletedItemsAfterUpgrade.cs" />
     <Compile Include="Strategies\NotificationsHandler.cs" />

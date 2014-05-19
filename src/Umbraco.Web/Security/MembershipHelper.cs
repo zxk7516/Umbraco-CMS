@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
@@ -9,8 +10,10 @@ using Umbraco.Core;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Security;
+using Umbraco.Core.Services;
 using Umbraco.Web.Models;
 using Umbraco.Web.PublishedCache;
+using Umbraco.Web.Routing.Segments;
 using MPE = global::Umbraco.Core.Security.MembershipProviderExtensions;
 
 namespace Umbraco.Web.Security
@@ -21,24 +24,46 @@ namespace Umbraco.Web.Security
     /// </summary>
     public class MembershipHelper
     {
-        private readonly ApplicationContext _applicationContext;
+        private readonly ServiceContext _services;
         private readonly HttpContextBase _httpContext;
+        private readonly RequestSegments _requestSegments;
 
         #region Constructors
+
+        [Obsolete("Use the other constructor accepting a RequestSegments instance")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public MembershipHelper(ApplicationContext applicationContext, HttpContextBase httpContext)
+            : this(applicationContext.Services, httpContext, UmbracoContext.Current.RequestSegments)
         {
-            if (applicationContext == null) throw new ArgumentNullException("applicationContext");
-            if (httpContext == null) throw new ArgumentNullException("httpContext");
-            _applicationContext = applicationContext;
-            _httpContext = httpContext;
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="httpContext"></param>
+        /// <param name="requestSegments"></param>
+        public MembershipHelper(ServiceContext services, HttpContextBase httpContext, RequestSegments requestSegments)
+        {
+            if (services == null) throw new ArgumentNullException("services");
+            if (httpContext == null) throw new ArgumentNullException("httpContext");
+            _services = services;
+            _httpContext = httpContext;
+            _requestSegments = requestSegments;
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="umbracoContext"></param>
         public MembershipHelper(UmbracoContext umbracoContext)
         {
             if (umbracoContext == null) throw new ArgumentNullException("umbracoContext");
             _httpContext = umbracoContext.HttpContext;
-            _applicationContext = umbracoContext.Application;
+            _services = umbracoContext.Application.Services;
+            _requestSegments = umbracoContext.RequestSegments;
         }
+
         #endregion
 
         /// <summary>
@@ -111,7 +136,7 @@ namespace Umbraco.Web.Security
                 }
             }
 
-            _applicationContext.Services.MemberService.Save(member);
+            _services.MemberService.Save(member);
 
             //reset the FormsAuth cookie since the username might have changed
             FormsAuthentication.SetAuthCookie(member.Username, true);
@@ -146,7 +171,7 @@ namespace Umbraco.Web.Security
 
                 if (status != MembershipCreateStatus.Success) return null;
 
-                var member = _applicationContext.Services.MemberService.GetByUsername(membershipUser.UserName);
+                var member = _services.MemberService.GetByUsername(membershipUser.UserName);
                 member.Name = model.Name;
 
                 if (model.MemberProperties != null)
@@ -158,7 +183,7 @@ namespace Umbraco.Web.Security
                     }
                 }
 
-                _applicationContext.Services.MemberService.Save(member);
+                _services.MemberService.Save(member);
             }
             else
             {
@@ -224,7 +249,7 @@ namespace Umbraco.Web.Security
                 throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
             }
 
-            var result = _applicationContext.Services.MemberService.GetByProviderKey(key);
+            var result = _services.MemberService.GetByProviderKey(key);
             return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
         }
 
@@ -236,7 +261,7 @@ namespace Umbraco.Web.Security
                 throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
             }
 
-            var result = _applicationContext.Services.MemberService.GetById(memberId);
+            var result = _services.MemberService.GetById(memberId);
             return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
         }
 
@@ -248,7 +273,7 @@ namespace Umbraco.Web.Security
                 throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
             }
 
-            var result = _applicationContext.Services.MemberService.GetByUsername(username);
+            var result = _services.MemberService.GetByUsername(username);
             return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
         }
 
@@ -260,7 +285,7 @@ namespace Umbraco.Web.Security
                 throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
             }
 
-            var result = _applicationContext.Services.MemberService.GetByEmail(email);
+            var result = _services.MemberService.GetByEmail(email);
             return result == null ? null : new MemberPublishedContent(result, provider.GetUser(result.Username, false));
         }
 
@@ -366,7 +391,7 @@ namespace Umbraco.Web.Security
             if (provider.IsUmbracoMembershipProvider())
             {
                 memberTypeAlias = memberTypeAlias ?? Constants.Conventions.MemberTypes.DefaultAlias;
-                var memberType = _applicationContext.Services.MemberTypeService.Get(memberTypeAlias);
+                var memberType = _services.MemberTypeService.Get(memberTypeAlias);
                 if (memberType == null)
                     throw new InvalidOperationException("Could not find a member type with alias " + memberTypeAlias);
 
@@ -789,6 +814,17 @@ namespace Umbraco.Web.Security
             return Attempt<MembershipUser>.Fail(member);
         }
 
+        #region Segments
+
+        private MemberSegments _segments;
+        public MemberSegments Segments
+        {
+            get { return _segments ?? (_segments = new MemberSegments(this, _requestSegments, _services)); }
+        }
+
+        #endregion
+
+
         /// <summary>
         /// Returns the currently logged in IMember object - this should never be exposed to the front-end since it's returning a business logic entity!
         /// </summary>
@@ -802,9 +838,10 @@ namespace Umbraco.Web.Security
                 throw new NotSupportedException("An IMember model can only be retreived when using the built-in Umbraco membership providers");
             }
             var username = provider.GetCurrentUserName();
-            var member = _applicationContext.Services.MemberService.GetByUsername(username);
+            var member = _services.MemberService.GetByUsername(username);
             return member;
         }
+
 
     }
 }

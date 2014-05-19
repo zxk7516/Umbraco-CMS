@@ -154,7 +154,7 @@ namespace Umbraco.Web
 		    else
 		    {
                 //It's a front-end request, we'll make sure the segments are written
-                umbracoContext.RequestSegments.EnsurePersisted(httpContext.Response);
+                umbracoContext.RequestSegments.EnsurePersisted(httpContext.Response, httpContext.Request);
 
                 RewriteToUmbracoHandler(httpContext, pcr);
 		    }

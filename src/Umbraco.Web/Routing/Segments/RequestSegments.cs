@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Web;
 using System.Web.ApplicationServices;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Umbraco.Core;
 
 namespace Umbraco.Web.Routing.Segments
@@ -15,16 +17,14 @@ namespace Umbraco.Web.Routing.Segments
     /// When retreiving the segments, this is done lazily and during that execution it will also persist the 
     /// matched advertised values to a cookie.
     /// 
-    /// TODO: HOW DO WE GET THAT IN THE MEMBER PROFILE if they are logged in? I think that will need to be part of the 
-    /// membership validation/login logic, we can't do that here as the logic to auth might not have even occured. 
-    /// 
+    /// This class is NOT thread safe
     /// 
     /// </remarks>
     public class RequestSegments
     {
         private readonly IEnumerable<ContentSegmentProvider> _segmentProviders;
 
-        private readonly Lazy<IDictionary<string, Tuple<object, bool>>> _assignedSegments;
+        private readonly Lazy<SegmentCollection> _assignedSegments;
 
         public RequestSegments(IEnumerable<ContentSegmentProvider> segmentProviders, 
             Uri originalRequestUrl,
@@ -32,24 +32,52 @@ namespace Umbraco.Web.Routing.Segments
             HttpRequestBase httpRequest)
         {
             _segmentProviders = segmentProviders;
-            
-            _assignedSegments = new Lazy<IDictionary<string, Tuple<object, bool>>>(() =>
+
+            _assignedSegments = new Lazy<SegmentCollection>(() =>
                 GetAllSegmentsForRequest(
                     _segmentProviders,
                     originalRequestUrl,
                     cleanedRequestUrl,
-                    httpRequest));
+                    httpRequest), 
+                    //This class should ONLY be used by one thread at a time (i.e. current request)
+                    LazyThreadSafetyMode.None);
+        }
+
+        /// <summary>
+        /// This will add a segment to the current instance - this is only used to manually add a segment during a request when
+        /// using the MemberSegment and is for performance improvements so we don't have to go to the db on each usage of MemberSegment.
+        /// </summary>
+        /// <param name="segment"></param>        
+        internal void Add(Segment segment)
+        {
+            _assignedSegments.Value.AddNew(segment);
         }
 
         /// <summary>
         /// This method must be called in order to persist the segments to cookie
         /// </summary>
-        internal void EnsurePersisted(HttpResponseBase response)
+        /// <remarks>
+        /// This will not overwrite cookie data that isn't contained in the current request segments
+        /// </remarks>
+        internal void EnsurePersisted(HttpResponseBase response, HttpRequestBase request)
         {
-            var persisted = PersistedSegments.ToArray();
-            if (persisted.Any())
+            //NOTE: The cookie data will alraedy be part of the PersistedSegments (see GetAllSegmentsForRequest)
+
+            var toPersist = PersistedSegments.ToList();
+            //var cookieData = request.Cookies[Constants.Web.SegmentCookieName] == null
+            //    ? new List<Segment>()
+            //    //TODO: try/catch
+            //    : JsonConvert.DeserializeObject<IEnumerable<Segment>>(request.Cookies[Constants.Web.SegmentCookieName].Value);
+            if (toPersist.Any())
             {
-                var json = JsonConvert.SerializeObject(PersistedSegments);
+                ////find anything in the cookie data that is not in our segments and add it to the segments to be persisted
+                //foreach (var item in cookieData.Where(item => toPersist.Any(x => x.Name == item.Name) == false))
+                //{
+                //    toPersist.Add(item);
+                //}
+
+                var json = JsonConvert.SerializeObject(toPersist);
+                
                 var cookie = new HttpCookie(Constants.Web.SegmentCookieName, json)
                 {
                     //sliding 30 day expiry?
@@ -57,6 +85,16 @@ namespace Umbraco.Web.Routing.Segments
                 };
                 response.SetCookie(cookie);
             }
+            //else if (cookieData.Any())
+            //{
+            //    var json = JsonConvert.SerializeObject(toPersist);
+            //    var cookie = new HttpCookie(Constants.Web.SegmentCookieName, json)
+            //    {
+            //        //sliding 30 day expiry? 
+            //        Expires = DateTime.Now.AddDays(30)
+            //    };
+            //    response.SetCookie(cookie);
+            //}
             else
             {
                 response.SetCookie(new HttpCookie(Constants.Web.SegmentCookieName)
@@ -70,17 +108,17 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Returns the assigned segments for the current request
         /// </summary>
-        public IDictionary<string, object> AssignedSegments
+        public IEnumerable<Segment> AssignedSegments
         {
-            get { return _assignedSegments.Value.ToDictionary(x => x.Key, x => x.Value.Item1); }
+            get { return _assignedSegments.Value; }
         }
 
         /// <summary>
         /// Returns the segments that are persisted (cookie and should be part of the member profile)
         /// </summary>
-        internal IDictionary<string, object> PersistedSegments
+        internal IEnumerable<Segment> PersistedSegments
         {
-            get { return _assignedSegments.Value.Where(x => x.Value.Item2).ToDictionary(x => x.Key, x => x.Value.Item1); }
+            get { return _assignedSegments.Value.Where(x => x.Persist); }
         }
 
         /// <summary>
@@ -93,7 +131,7 @@ namespace Umbraco.Web.Routing.Segments
         /// </remarks>
         public bool RequestIs(string segmentKey)
         {
-            return AssignedSegments.Any(x => x.Key == segmentKey && x.Value is bool && (bool)x.Value);
+            return AssignedSegments.Any(x => x.Name == segmentKey && x.Value is bool && (bool)x.Value);
         }
 
         /// <summary>
@@ -101,9 +139,19 @@ namespace Umbraco.Web.Routing.Segments
         /// </summary>
         /// <param name="segmentVal"></param>
         /// <returns></returns>
-        public bool RequestContains(string segmentVal)
+        public bool RequestContainsValue(string segmentVal)
         {
             return AssignedSegments.Any(x => x.Value.ToString() == segmentVal);
+        }
+
+        /// <summary>
+        /// Returns true if the request contains the specified key
+        /// </summary>
+        /// <param name="segmentKey"></param>
+        /// <returns></returns>
+        public bool RequestContainsKey(string segmentKey)
+        {
+            return AssignedSegments.Any(x => x.Name == segmentKey);
         }
 
         /// <summary>
@@ -114,21 +162,19 @@ namespace Umbraco.Web.Routing.Segments
         /// <returns></returns>
         public bool RequestEquals(string key, object val)
         {
-            return AssignedSegments.Any(x => x.Key == key && x.Value == val);
+            return AssignedSegments.Any(x => x.Name == key && x.Value == val);
         }
 
         /// <summary>
-        /// Internal so it can be tested
+        /// Internal so it can be tested - collects all segments from providers and the ones in the cookie
         /// </summary>
         /// <param name="segmentProviders"></param>
         /// <param name="originalRequestUrl"></param>
         /// <param name="cleanedRequestUrl"></param>
         /// <param name="httpRequest"></param>
         /// <returns>
-        /// The return value is a dictionary of the 'key' (segment name) and a tuple of the 'value' of the segment and a boolean of 
-        /// whether it should be persisted or not (based on a provider's advertised segments)
         /// </returns>
-        internal static IDictionary<string, Tuple<object, bool>> GetAllSegmentsForRequest(
+        internal static SegmentCollection GetAllSegmentsForRequest(
             IEnumerable<ContentSegmentProvider> segmentProviders,
             Uri originalRequestUrl,
             Uri cleanedRequestUrl,
@@ -136,19 +182,24 @@ namespace Umbraco.Web.Routing.Segments
         {
             //get all key/vals, there might be duplicates so we will simply take the last one in
 
-            var d = new Dictionary<string, Tuple<object, bool>>();
+            var d = new List<Segment>();
 
             foreach (var provider in segmentProviders)
             {
                 var segments = provider.GetSegmentsForRequest(originalRequestUrl, cleanedRequestUrl, httpRequest).ToArray();
                 var advertised = provider.SegmentsAdvertised.ToArray();
-                foreach (var s in segments)
-                {
-                    d[s.Key] = new Tuple<object, bool>(s.Value, advertised.Contains(s.Key));
-                }
+                d.AddRange(segments.Select(s => new Segment(s.Key, s.Value, advertised.Contains(s.Key))));
             }
 
-            return d;
+            var cookieData = httpRequest.Cookies[Constants.Web.SegmentCookieName] == null
+                ? new List<Segment>()
+                //TODO: try/catch
+                : JsonConvert.DeserializeObject<IEnumerable<Segment>>(httpRequest.Cookies[Constants.Web.SegmentCookieName].Value);
+
+            //Add anything in the cookie that is not already in the list
+            d.AddRange(cookieData.Where(x => d.Contains(x) == false));
+
+            return new SegmentCollection(d);
         } 
     }
 }
