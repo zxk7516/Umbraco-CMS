@@ -13,6 +13,7 @@ using Umbraco.Core;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Models;
 using Umbraco.Core.Security;
 using Umbraco.Web.Editors;
 using Umbraco.Web.Routing;
@@ -519,24 +520,70 @@ namespace Umbraco.Web
             urlRouting.PostResolveRequestCache(context);
         }
 
-        //TODO : Get this going!
-
         /// <summary>
-        /// After the handler executes we'll check if the user 
+        /// Check if the request is a front-end request, check if the member is logged in, then persist the request segments
+        /// to the member.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void PersistMemberSegmentData(object sender)
+        /// <param name="httpContext"></param>
+        static void PersistMemberSegmentData(HttpContextBase httpContext)
         {
-            if (UmbracoContext.Current != null
+
+            if (httpContext.User != null && httpContext.User.Identity.IsAuthenticated
+                && UmbracoContext.Current != null
+                && UmbracoContext.Current.IsFrontEndUmbracoRequest
                 && Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider().IsUmbracoMembershipProvider())
             {
-                //TODO: now we can assign really persisted the persisted segments
-
                 var persisted = UmbracoContext.Current.RequestSegments.PersistedSegments.ToArray();
 
-                //TODO: Do we really want to write to the db for epage they are authed for ?
+                if (persisted.Any())
+                {
+                    var member = ApplicationContext.Current.Services.MemberService.GetByUsername(
+                        httpContext.User.Identity.Name);
+                    if (member != null)
+                    {
+                        var segmentsProp = member.Properties.FirstOrDefault(x => x.Alias == Constants.Conventions.Member.Segments);
 
+                        if (segmentsProp == null || segmentsProp.HasIdentity == false)
+                        {
+                            //we need to create the segments property
+                            var memberType = member.ContentType;
+                            
+                            try
+                            {
+                                if (segmentsProp == null)
+                                {
+                                    //if there is no property, we'll create it, chances are it exists by default with an empty identity    
+                                    memberType.AddPropertyType(new PropertyType(Constants.PropertyEditors.NoEditAlias, DataTypeDatabaseType.Ntext, true)
+                                    {
+                                        Alias = Constants.Conventions.Member.Segments,
+                                        Name = Constants.Conventions.Member.SegmentsLabel
+                                    });
+                                }
+
+                                ApplicationContext.Current.Services.MemberTypeService.Save(memberType);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogHelper.Error<UmbracoModule>("Could not create the segments property type for the current member", ex);
+                                return;
+                            }
+                            //re-get the member
+                            member = ApplicationContext.Current.Services.MemberService.GetByUsername(
+                                httpContext.User.Identity.Name);
+                        }
+
+                        try
+                        {
+                            //save as json
+                            member.SetValue(Constants.Conventions.Member.Segments, JsonConvert.SerializeObject(persisted));
+                            ApplicationContext.Current.Services.MemberService.Save(member);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.Error<UmbracoModule>("Could not save the segments for the current member", ex);
+                        }
+                    }    
+                }
             }
         }
 
@@ -628,9 +675,9 @@ namespace Umbraco.Web
 			// used to check if the xml cache file needs to be updated/persisted
 			app.PostRequestHandlerExecute += (sender, e) =>
 				{
-					var httpContext = ((HttpApplication)sender).Context;
-					PersistXmlCache(new HttpContextWrapper(httpContext));
-                    PersistMemberSegmentData
+					var httpContext = new HttpContextWrapper(((HttpApplication)sender).Context);
+					PersistXmlCache(httpContext);
+                    PersistMemberSegmentData(httpContext);
 				};
 
 			app.EndRequest += (sender, args) =>

@@ -100,6 +100,16 @@ namespace Umbraco.Core
 		    public static class Member
 		    {
                 /// <summary>
+                /// The label for the field to store the segment data for the member
+                /// </summary>
+		        public const string SegmentsLabel = "Segments";
+                
+                /// <summary>
+                /// The property type alias for the field to store the segment data for the member
+                /// </summary>
+		        public const string Segments = "umbracoMemberSegments";
+
+                /// <summary>
                 /// if a role starts with __umbracoRole we won't show it as it's an internal role used for public access
                 /// </summary>
                 public static readonly string InternalRolePrefix = "__umbracoRole";
@@ -250,6 +260,14 @@ namespace Umbraco.Core
 		                            {
 		                                Alias = PasswordQuestion,
 		                                Name = PasswordQuestionLabel
+		                            }
+		                    },
+                            {
+		                        Segments,
+		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Ntext, true)
+		                            {
+		                                Alias = Segments,
+		                                Name = SegmentsLabel
 		                            }
 		                    }
 		                };
