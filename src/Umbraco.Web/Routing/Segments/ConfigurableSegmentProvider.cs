@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web;
 using Newtonsoft.Json;
 using Umbraco.Core;
 
@@ -21,31 +24,44 @@ namespace Umbraco.Web.Routing.Segments
     /// TODO: We need to decide if configurable segment provider can advertise segments to be used in variations - but I don't think so since they
     /// can be added/removed by users
     /// </remarks>
-    public abstract class ConfigurableSegmentProvider
+    public abstract class ConfigurableSegmentProvider : ContentSegmentProvider
     {
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
         /// <summary>
         /// Returns the current provider's value (i.e. if the provider was a referal provider, this would return the current referrer)
         /// </summary>
-        public abstract string CurrentValue { get; }
+        public abstract string GetCurrentValue(Uri cleanedRequestUrl, HttpRequestBase httpRequest);
 
         /// <summary>
         /// By default this uses a regex statement to match but inheritors could do anything they want (i.e. dynamic compilation)
         /// </summary>
         /// <param name="matchStatement"></param>
+        /// <param name="cleanedRequestUrl"></param>
+        /// <param name="httpRequest"></param>
         /// <returns></returns>
-        public virtual bool IsMatch(string matchStatement)
+        public virtual bool IsMatch(string matchStatement, Uri cleanedRequestUrl,
+            HttpRequestBase httpRequest)
         {
-            return Regex.IsMatch(CurrentValue, matchStatement);
+            if (matchStatement == null) throw new ArgumentNullException("matchStatement");
+            if (cleanedRequestUrl == null) throw new ArgumentNullException("cleanedRequestUrl");
+            if (httpRequest == null) throw new ArgumentNullException("httpRequest");
+            return Regex.IsMatch(GetCurrentValue(cleanedRequestUrl, httpRequest), matchStatement);
         }
 
-        public virtual SegmentCollection GetSegmentsForRequest()
+        public override SegmentCollection GetSegmentsForRequest(Uri originalRequestUrl,
+            Uri cleanedRequestUrl,
+            HttpRequestBase httpRequest)
         {
+            if (originalRequestUrl == null) throw new ArgumentNullException("originalRequestUrl");
+            if (cleanedRequestUrl == null) throw new ArgumentNullException("cleanedRequestUrl");
+            if (httpRequest == null) throw new ArgumentNullException("httpRequest");
+
             var config = ReadConfiguration();
             var result = config
-                .Where(match => IsMatch(match.MatchStatement))
+                .Where(match => IsMatch(match.MatchStatement, cleanedRequestUrl, httpRequest))
                 .Select(match => new Segment(match.Key, match.Value));
+
             return new SegmentCollection(result);
         }
 
