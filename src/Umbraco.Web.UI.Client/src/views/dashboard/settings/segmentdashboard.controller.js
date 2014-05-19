@@ -1,6 +1,12 @@
-function segmentDashboardController($scope, umbRequestHelper, $log, $http) {
+function segmentDashboardController($scope, umbRequestHelper, $log, $http, formHelper) {
 
     $scope.providers = [];
+    $scope.configuring = false;
+    $scope.config = {
+        providerName: "",
+        providerTypeName: "",
+        values: []        
+    };
 
     $scope.toggle = function(provider) {
         umbRequestHelper.resourcePromise(
@@ -12,6 +18,50 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http) {
                 //toggle local var
                 provider.enabled = !provider.enabled;
             });
+    }
+
+    $scope.showConfig = function(item) {
+        $scope.configuring = true;
+        $scope.config.providerName = item.displayName;
+        $scope.config.providerTypeName = item.typeName;
+        $scope.config.values = item.config;
+    }
+
+    $scope.cancel = function() {
+        $scope.configuring = false;
+        $scope.config = {
+            providerName: "",
+            providerTypeName: "",
+            values: []
+        };
+    }
+
+    $scope.addItem = function() {
+        $scope.config.values.push({ matchExpression: "", key: "", value: "" });
+    }
+
+    $scope.removeItem = function(item) {
+        //TODO: Get this going
+    }
+
+    $scope.save = function () {
+        if (formHelper.submitForm({ scope: $scope })) {
+            umbRequestHelper.resourcePromise(
+                $http.post(
+                    umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "PostSaveProviderConfig",
+                    [{ typeName: $scope.config.providerTypeName }]),
+                    $scope.config.values),
+                'Failed to save segment configuration')
+            .then(function () {
+
+                //now that its successful, save the persisted values back to the provider's values
+                var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.config.providerTypeName; });
+                provider.config = $scope.config.values;
+
+                //exit editing config
+                $scope.cancel();
+            });
+        }
     }
 
     umbRequestHelper.resourcePromise(

@@ -1,20 +1,63 @@
 <div ng-controller="Umbraco.Dashboard.SegmentDashboard">
-    <table class="table segment-dashboard">
+    <table class="table segment-dashboard" ng-hide="configuring">
         <tr ng-repeat="item in providers">
             <td>
                 <button class="btn btn-primary" ng-if="!item.enabled" ng-click="toggle(item)">Enable</button>
                 <button class="btn btn-danger" ng-if="item.enabled" ng-click="toggle(item)">Disable</button>
             </td>
             <td>
-                <strong title="{{item.typeName}}">{{item.displayName}}</strong>                
+                <strong title="{{item.typeName}}">{{item.displayName}}</strong>
                 <p>
-                    <small>{{item.description}}</small>    
+                    <small>{{item.description}}</small>
                 </p>
             </td>
             <td>
-                <button class="btn btn-info" ng-if="item.configurable">Configure</button>
+                <button class="btn" ng-if="item.configurable" ng-click="showConfig(item)">Configure</button>
             </td>
         </tr>
     </table>
     
+    <div ng-show="configuring" class="segment-config">
+        
+        <h3>'{{config.providerName}}' Configuration</h3>
+        <form name="segmentConfigForm" novalidate val-form-manager>
+
+            <button class="btn" ng-click="addItem()">Add</button>
+
+            <div ng-repeat="item in config.values">
+
+                <button class="btn btn-danger btn-mini" style="float:right;" ng-click="removeItem(item)">Remove</button>
+
+                <umb-pane>
+
+                    <ng-form name="segmentItemConfigForm">
+
+                        <umb-control-group label="Match Expression" alias="matchExpression" description="The expression used to match against the value provided by the provider">
+                            <input type="text" name="matchExpression" ng-model="$parent.item.matchExpression" required />
+                            <span class="help-inline" val-msg-for="matchExpression" val-toggle-msg="required">Required</span>
+                        </umb-control-group>
+
+                        <umb-control-group label="Segment Key" alias="key" description="The key to store for this segment match">
+                            <input type="text" name="matchExpression" ng-model="$parent.item.key" required />
+                            <span class="help-inline" val-msg-for="key" val-toggle-msg="required">Required</span>
+                        </umb-control-group>
+
+                        <umb-control-group label="Segment Value" alias="value" description="The value to store for this segment match">
+                            <input type="text" name="matchExpression" ng-model="$parent.item.value" required />
+                            <span class="help-inline" val-msg-for="value" val-toggle-msg="required">Required</span>
+                        </umb-control-group>
+
+                    </ng-form>
+
+                </umb-pane>
+
+            </div>
+
+            <button class="btn" ng-click="cancel()">Cancel</button>
+            <button type="submit" class="btn btn-primary" ng-click="save()">Save</button>
+
+        </form>
+
+    </div>
+
 </div>

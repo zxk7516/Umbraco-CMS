@@ -60,7 +60,7 @@ namespace Umbraco.Web.Routing.Segments
 
             var config = ReadConfiguration();
             var result = config
-                .Where(match => IsMatch(match.MatchStatement, cleanedRequestUrl, httpRequest))
+                .Where(match => IsMatch(match.MatchExpression, cleanedRequestUrl, httpRequest))
                 .Select(match => new Segment(match.Key, match.Value));
 
             return new SegmentCollection(result);
@@ -70,12 +70,32 @@ namespace Umbraco.Web.Routing.Segments
         {
             using (new ReadLock(_lock))
             {
-                var fileName = GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".config.json";
+                var fileName = IOHelper.MapPath("~/App_Data/Segments/" + GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".config.json");
                 if (File.Exists(fileName) == false) return Enumerable.Empty<SegmentProviderMatch>();
                 var content = File.ReadAllText(fileName);
-                return JsonConvert.DeserializeObject<IEnumerable<SegmentProviderMatch>>(content);
+                var result = JsonConvert.DeserializeObject<IEnumerable<SegmentProviderMatch>>(content);
+                //remove any entries without keys - safety check
+                return result.Where(x => x.Key.IsNullOrWhiteSpace() == false);
             }
-        } 
+        }
+
+        ///// <summary>
+        ///// Saves an individual config, matches on the existing key. if one is already there it will be overwritten
+        ///// </summary>
+        ///// <param name="existingKey"></param>
+        ///// <param name="config"></param>
+        //public void AddOrUpdateConfiguration(string existingKey, SegmentProviderMatch config)
+        //{
+        //    var currConfig = ReadConfiguration().ToList();
+        //    var existing = currConfig.FirstOrDefault(x => x.Key == existingKey);
+        //    if (existing != null)
+        //    {
+        //        currConfig.Remove(existing);
+        //    }
+        //    currConfig.Add(config);
+
+        //    SaveConfiguration(currConfig);
+        //}
 
         public void SaveConfiguration(IEnumerable<SegmentProviderMatch> config)
         {

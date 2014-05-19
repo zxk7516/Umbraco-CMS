@@ -25,28 +25,40 @@ namespace Umbraco.Web.Editors
 
             var status = ContentSegmentProvidersStatus.GetProviderStatus();
 
-            //var providerSpecificConfig = providers
-            //    .OfType<ConfigurableSegmentProvider>()
-            //    .Select(x => x.ReadConfiguration());
-
             var result = providers
                 .Select(x => new
                 {
                     typeName = ContentSegmentProvider.GetTypeName(x),
                     displayName = ContentSegmentProvider.GetDisplayName(x),
                     description = ContentSegmentProvider.GetDescription(x),
-                    configurable = x is ConfigurableSegmentProvider
+                    asConfigurable = x as ConfigurableSegmentProvider
                 })
                 .Select(x => new
                 {
                     x.typeName,
                     x.displayName,
                     x.description,
-                    x.configurable,
+                    configurable = x.asConfigurable != null,
+                    config = x.asConfigurable != null ? x.asConfigurable.ReadConfiguration() : null,
                     enabled = status.ContainsKey(x.typeName) && status[x.typeName]
                 });
 
             return JArray.FromObject(result);
+        }
+
+        public HttpResponseMessage PostSaveProviderConfig([FromUri]string typeName, IEnumerable<SegmentProviderMatch> config)
+        {
+            //TODO: We need to validate the config to ensure there are no nulls like null keys
+
+            var providers = ContentSegmentProviderResolver.Current.Providers.ToArray();
+            var provider = providers.FirstOrDefault(x => ContentSegmentProvider.GetTypeName(x) == typeName) as ConfigurableSegmentProvider;
+            if (provider == null)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "No provider found with name " + typeName + " or the provider type is not configurable");
+            }
+            provider.SaveConfiguration(config);
+
+            return Request.CreateResponse(HttpStatusCode.OK);
         }
 
         public HttpResponseMessage PostToggleProvider([FromUri]string typeName)
