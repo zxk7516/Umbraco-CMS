@@ -464,7 +464,7 @@
     <Compile Include="PublishedContentQuery.cs" />
     <Compile Include="ImageCropperTemplateExtensions.cs" />
     <Compile Include="Routing\Segments\ConfigurableSegmentProvider.cs" />
-    <Compile Include="Routing\Segments\ReferrerConfiguratbleSegmentProvider.cs" />
+    <Compile Include="Routing\Segments\RefererConfigurableSegmentProvider.cs" />
     <Compile Include="Routing\Segments\RequestSegments.cs" />
     <Compile Include="Routing\Segments\BrowserCapabilitiesProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentAttribute.cs" />

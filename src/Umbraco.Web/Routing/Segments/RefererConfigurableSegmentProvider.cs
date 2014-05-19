@@ -6,7 +6,7 @@ namespace Umbraco.Web.Routing.Segments
     /// <summary>
     /// A configurable provider to match against the referer
     /// </summary>
-    public class ReferrerConfiguratbleSegmentProvider : ConfigurableSegmentProvider
+    public class RefererConfigurableSegmentProvider : ConfigurableSegmentProvider
     {
         public override string GetCurrentValue(Uri cleanedRequestUrl, HttpRequestBase httpRequest)
         {
