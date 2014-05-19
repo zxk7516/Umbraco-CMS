@@ -32,6 +32,8 @@ namespace Umbraco.Web.Security
             _services = services;
         }
 
+        //TODO: Add an GetAll method!
+
         public bool Is(string segmentKey)
         {
             //this will check the request (+ cookie)

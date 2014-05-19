@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.Serialization;
+using Newtonsoft.Json;
 
 namespace Umbraco.Web.Routing.Segments
 {
@@ -17,14 +19,14 @@ namespace Umbraco.Web.Routing.Segments
             Value = value;
         }
 
-        public Segment(string name, object value, bool persist)
+        internal Segment(string name, object value, bool persist)
         {
             Name = name;
             Value = value;
             Persist = persist;
         }
 
-        public Segment(string name, object value, bool persist, int? slidingDays)
+        internal Segment(string name, object value, bool persist, int? slidingDays)
         {
             Name = name;
             Value = value;
@@ -32,7 +34,7 @@ namespace Umbraco.Web.Routing.Segments
             SlidingDays = slidingDays;
         }
 
-        public Segment(string name, object value, bool persist, DateTime? absoluteExpiry)
+        internal Segment(string name, object value, bool persist, DateTime? absoluteExpiry)
         {
             Name = name;
             Value = value;
@@ -53,19 +55,25 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Whether or not this segment is to be persisted (default is false)
         /// </summary>
-        public bool Persist { get; set; }
+        [JsonIgnoreAttribute]
+        [IgnoreDataMember]
+        internal bool Persist { get; set; }
 
         //TODO: We should make use of these expiry settings!
 
         /// <summary>
         /// Defines the sliding expiration date in days from now for this particular segment
         /// </summary>
-        public int? SlidingDays { get; set; }
+        [JsonIgnoreAttribute]
+        [IgnoreDataMember]
+        internal int? SlidingDays { get; set; }
 
         /// <summary>
         /// Defines the absolute expiration date for this particular segment
         /// </summary>
-        public DateTime? AbsoluteExpiry { get; set; }
+        [JsonIgnoreAttribute]
+        [IgnoreDataMember]
+        internal DateTime? AbsoluteExpiry { get; set; }
 
         protected bool Equals(Segment other)
         {

@@ -121,6 +121,8 @@ namespace Umbraco.Web.Routing.Segments
             get { return _assignedSegments.Value.Where(x => x.Persist); }
         }
 
+        //TODO: Add an GetAll method!
+
         /// <summary>
         /// Returns true if any assigned segment value that is a boolean is set to true that matches the specified key
         /// </summary>
@@ -188,7 +190,7 @@ namespace Umbraco.Web.Routing.Segments
             {
                 var segments = provider.GetSegmentsForRequest(originalRequestUrl, cleanedRequestUrl, httpRequest).ToArray();
                 var advertised = provider.SegmentsAdvertised.ToArray();
-                d.AddRange(segments.Select(s => new Segment(s.Key, s.Value, advertised.Contains(s.Key))));
+                d.AddRange(segments.Select(s => new Segment(s.Name, s.Value, advertised.Contains(s.Name))));
             }
 
             var cookieData = httpRequest.Cookies[Constants.Web.SegmentCookieName] == null

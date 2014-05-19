@@ -7,7 +7,6 @@ using Umbraco.Core;
 
 namespace Umbraco.Web.Routing.Segments
 {
-
     /// <summary>
     /// Returns the segment names to assign to the current request
     /// </summary>
@@ -50,7 +49,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <param name="cleanedRequestUrl"></param>
         /// <param name="httpRequest"></param>
         /// <returns></returns>
-        public abstract IDictionary<string, object> GetSegmentsForRequest(
+        public abstract SegmentCollection GetSegmentsForRequest(
             Uri originalRequestUrl,
             Uri cleanedRequestUrl,
             HttpRequestBase httpRequest);

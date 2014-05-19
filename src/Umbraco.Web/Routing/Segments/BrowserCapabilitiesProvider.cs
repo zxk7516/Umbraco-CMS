@@ -31,11 +31,11 @@ namespace Umbraco.Web.Routing.Segments
             "Platform"
         };
 
-        public override IDictionary<string, object> GetSegmentsForRequest(Uri originalRequestUrl, Uri cleanedRequestUrl, HttpRequestBase httpRequest)
+        public override SegmentCollection GetSegmentsForRequest(Uri originalRequestUrl, Uri cleanedRequestUrl, HttpRequestBase httpRequest)
         {
-            return _browserCapabilityProps
-                .Select(x => new {key = x.Name, val = x.GetValue(httpRequest.Browser, null)})
-                .ToDictionary(key => key.key, val => val.val);
+            return new SegmentCollection(
+                _browserCapabilityProps
+                    .Select(x => new Segment(x.Name, x.GetValue(httpRequest.Browser, null))));
         }
     }
 }
