@@ -41,7 +41,7 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
     }
 
     $scope.removeItem = function(item) {
-        //TODO: Get this going
+        $scope.config.values = _.reject($scope.config.values, function(i) { return i === item; });
     }
 
     $scope.save = function () {
