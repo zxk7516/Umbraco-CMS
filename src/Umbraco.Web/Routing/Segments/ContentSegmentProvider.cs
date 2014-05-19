@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Web;
@@ -15,6 +16,25 @@ namespace Umbraco.Web.Routing.Segments
     /// </remarks>
     public abstract class ContentSegmentProvider
     {
+
+        public static string GetDisplayName(ContentSegmentProvider provider)
+        {
+            var att = provider.GetType().GetCustomAttribute<DisplayNameAttribute>(false);
+            return att == null ? GetTypeName(provider) : att.DisplayName;
+        }
+
+        public static string GetDescription(ContentSegmentProvider provider)
+        {
+            var att = provider.GetType().GetCustomAttribute<DescriptionAttribute>(false);
+            return att == null ? string.Empty : att.Description;
+        }
+
+        public static string GetTypeName(ContentSegmentProvider provider)
+        {
+            var type = provider.GetType();
+            return type.Namespace.EnsureEndsWith('.') + type.Name;
+        }
+
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private IEnumerable<string> _advertised;
 

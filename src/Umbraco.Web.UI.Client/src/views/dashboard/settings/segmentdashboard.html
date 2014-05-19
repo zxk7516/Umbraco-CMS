@@ -1,0 +1,20 @@
+<div ng-controller="Umbraco.Dashboard.SegmentDashboard">
+    <table class="table segment-dashboard">
+        <tr ng-repeat="item in providers">
+            <td>
+                <button class="btn btn-primary" ng-if="!item.enabled" ng-click="toggle(item)">Enable</button>
+                <button class="btn btn-danger" ng-if="item.enabled" ng-click="toggle(item)">Disable</button>
+            </td>
+            <td>
+                <strong title="{{item.typeName}}">{{item.displayName}}</strong>                
+                <p>
+                    <small>{{item.description}}</small>    
+                </p>
+            </td>
+            <td>
+                <button class="btn btn-info" ng-if="item.configurable">Configure</button>
+            </td>
+        </tr>
+    </table>
+    
+</div>

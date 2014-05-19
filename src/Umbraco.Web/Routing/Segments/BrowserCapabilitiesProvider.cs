@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Web;
@@ -9,6 +10,8 @@ namespace Umbraco.Web.Routing.Segments
     /// <summary>
     /// Assigns segments based on MS's HttpBrowserCapabilities object
     /// </summary>
+    [DisplayName("Browser capabilities provider")]
+    [Description("Uses ASP.Net HttpBrowserCapabilities object to analyze the current request")]
     internal class BrowserCapabilitiesProvider : ContentSegmentProvider
     {
         public BrowserCapabilitiesProvider()

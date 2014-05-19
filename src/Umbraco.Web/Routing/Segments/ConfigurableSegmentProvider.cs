@@ -8,6 +8,7 @@ using System.Threading;
 using System.Web;
 using Newtonsoft.Json;
 using Umbraco.Core;
+using Umbraco.Core.IO;
 
 namespace Umbraco.Web.Routing.Segments
 {
@@ -82,7 +83,8 @@ namespace Umbraco.Web.Routing.Segments
             {
                 var json = JsonConvert.SerializeObject(config);
                 var fileName = GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".config.json";
-                File.WriteAllText("~/App_Data/Segments/" + fileName, json); 
+                Directory.CreateDirectory(IOHelper.MapPath("~/App_Data/Segments"));
+                File.WriteAllText(IOHelper.MapPath("~/App_Data/Segments/" + fileName), json); 
             }            
         }
     }
