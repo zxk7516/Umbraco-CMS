@@ -25,9 +25,9 @@ namespace Umbraco.Tests.Routing
         [ContentSegment("Test2")]
         private class MyTestProvider : ContentSegmentProvider
         {
-            public override IDictionary<string, object> GetSegmentsForRequest(Uri originalRequestUrl, Uri cleanedRequestUrl, HttpRequestBase httpRequest)
+            public override SegmentCollection GetSegmentsForRequest(Uri originalRequestUrl, Uri cleanedRequestUrl, HttpRequestBase httpRequest)
             {
-                return new Dictionary<string, object>();
+                return new SegmentCollection(Enumerable.Empty<Segment>());
             }
         }
 

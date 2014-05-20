@@ -38,7 +38,8 @@ namespace Umbraco.Web.Routing.Segments
                     _segmentProviders,
                     originalRequestUrl,
                     cleanedRequestUrl,
-                    httpRequest), 
+                    httpRequest,
+                    ContentSegmentProvidersStatus.GetProviderStatus()), 
                     //This class should ONLY be used by one thread at a time (i.e. current request)
                     LazyThreadSafetyMode.None);
         }
@@ -120,9 +121,7 @@ namespace Umbraco.Web.Routing.Segments
         {
             get { return _assignedSegments.Value.Where(x => x.Persist); }
         }
-
-        //TODO: Add an GetAll method!
-
+        
         /// <summary>
         /// Returns true if any assigned segment value that is a boolean is set to true that matches the specified key
         /// </summary>
@@ -174,19 +173,29 @@ namespace Umbraco.Web.Routing.Segments
         /// <param name="originalRequestUrl"></param>
         /// <param name="cleanedRequestUrl"></param>
         /// <param name="httpRequest"></param>
+        /// <param name="providersStatus"></param>
         /// <returns>
         /// </returns>
         internal static SegmentCollection GetAllSegmentsForRequest(
             IEnumerable<ContentSegmentProvider> segmentProviders,
             Uri originalRequestUrl,
             Uri cleanedRequestUrl,
-            HttpRequestBase httpRequest)
+            HttpRequestBase httpRequest,
+            IDictionary<string, bool> providersStatus)
         {
             //get all key/vals, there might be duplicates so we will simply take the last one in
 
             var d = new List<Segment>();
 
-            foreach (var provider in segmentProviders)
+            foreach (var provider in segmentProviders
+                .Select(x => new
+                {
+                    instance = x,
+                    typeName = x.GetType().FullName
+                })
+                //ensure it is enabled
+                .Where(x => providersStatus.ContainsKey(x.typeName) && providersStatus[x.typeName])
+                .Select(x => x.instance))
             {
                 var segments = provider.GetSegmentsForRequest(originalRequestUrl, cleanedRequestUrl, httpRequest).ToArray();
                 var advertised = provider.SegmentsAdvertised.ToArray();

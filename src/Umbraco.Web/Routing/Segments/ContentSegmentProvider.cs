@@ -19,8 +19,9 @@ namespace Umbraco.Web.Routing.Segments
 
         public static string GetDisplayName(ContentSegmentProvider provider)
         {
-            var att = provider.GetType().GetCustomAttribute<DisplayNameAttribute>(false);
-            return att == null ? GetTypeName(provider) : att.DisplayName;
+            var type = provider.GetType();
+            var att = type.GetCustomAttribute<DisplayNameAttribute>(false);
+            return att == null ? type.FullName : att.DisplayName;
         }
 
         public static string GetDescription(ContentSegmentProvider provider)
@@ -28,13 +29,7 @@ namespace Umbraco.Web.Routing.Segments
             var att = provider.GetType().GetCustomAttribute<DescriptionAttribute>(false);
             return att == null ? string.Empty : att.Description;
         }
-
-        public static string GetTypeName(ContentSegmentProvider provider)
-        {
-            var type = provider.GetType();
-            return type.Namespace.EnsureEndsWith('.') + type.Name;
-        }
-
+        
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private IEnumerable<string> _advertised;
 

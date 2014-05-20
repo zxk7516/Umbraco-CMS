@@ -28,7 +28,7 @@ namespace Umbraco.Web.Editors
             var result = providers
                 .Select(x => new
                 {
-                    typeName = ContentSegmentProvider.GetTypeName(x),
+                    typeName = x.GetType().FullName,
                     displayName = ContentSegmentProvider.GetDisplayName(x),
                     description = ContentSegmentProvider.GetDescription(x),
                     asConfigurable = x as ConfigurableSegmentProvider
@@ -51,7 +51,7 @@ namespace Umbraco.Web.Editors
             //TODO: We need to validate the config to ensure there are no nulls like null keys
 
             var providers = ContentSegmentProviderResolver.Current.Providers.ToArray();
-            var provider = providers.FirstOrDefault(x => ContentSegmentProvider.GetTypeName(x) == typeName) as ConfigurableSegmentProvider;
+            var provider = providers.FirstOrDefault(x => x.GetType().FullName == typeName) as ConfigurableSegmentProvider;
             if (provider == null)
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "No provider found with name " + typeName + " or the provider type is not configurable");
@@ -66,7 +66,7 @@ namespace Umbraco.Web.Editors
             var providers = ContentSegmentProviderResolver.Current.Providers.ToArray();
             var status = ContentSegmentProvidersStatus.GetProviderStatus();
 
-            var provider = providers.FirstOrDefault(x => ContentSegmentProvider.GetTypeName(x) == typeName);
+            var provider = providers.FirstOrDefault(x => x.GetType().FullName == typeName);
             if (provider != null)
             {
                 if (status.ContainsKey(typeName))

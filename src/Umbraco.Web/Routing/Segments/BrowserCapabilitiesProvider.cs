@@ -25,6 +25,7 @@ namespace Umbraco.Web.Routing.Segments
 
         private static readonly string[] PropNames =
         {
+            "Browser",
             "IsMobileDevice",
             "JavaApplets",
             "MajorVersion",

@@ -31,8 +31,18 @@ namespace Umbraco.Web.Security
             _reguestSegments = reguestSegments;
             _services = services;
         }
+        
+        public IEnumerable<Segment> AssignedSegments
+        {
+            get
+            {
+                var requestAssigned = _reguestSegments.AssignedSegments.ToArray();
+                var memberPersisted = PersistedSegments;
 
-        //TODO: Add an GetAll method!
+                //combine and return, the request supercedes the persisted
+                return requestAssigned.Union(memberPersisted.Except(requestAssigned));
+            }
+        }
 
         public bool Is(string segmentKey)
         {

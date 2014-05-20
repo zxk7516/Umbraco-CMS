@@ -79,24 +79,6 @@ namespace Umbraco.Web.Routing.Segments
             }
         }
 
-        ///// <summary>
-        ///// Saves an individual config, matches on the existing key. if one is already there it will be overwritten
-        ///// </summary>
-        ///// <param name="existingKey"></param>
-        ///// <param name="config"></param>
-        //public void AddOrUpdateConfiguration(string existingKey, SegmentProviderMatch config)
-        //{
-        //    var currConfig = ReadConfiguration().ToList();
-        //    var existing = currConfig.FirstOrDefault(x => x.Key == existingKey);
-        //    if (existing != null)
-        //    {
-        //        currConfig.Remove(existing);
-        //    }
-        //    currConfig.Add(config);
-
-        //    SaveConfiguration(currConfig);
-        //}
-
         public void SaveConfiguration(IEnumerable<SegmentProviderMatch> config)
         {
             using (new WriteLock(_lock))
