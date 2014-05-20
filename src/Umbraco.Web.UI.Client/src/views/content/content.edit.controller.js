@@ -6,7 +6,7 @@
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http) {
+function ContentEditController($scope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, $location) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -121,8 +121,8 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
     /** Syncs the content item to it's tree node - this occurs on first load and after saving */
     function syncTreeNode(content, path, initialLoad) {        
 
-        //If this is a child of a list view then we can't actually sync the real tree
-        if (!$scope.content.isChildOfListView) {
+        //If this is a child of a list view or a variant then we can't actually sync the real tree
+        if (!$scope.content.isChildOfListView && !$scope.content.isVariant) {
             navigationService.syncTree({ tree: "content", path: path.split(","), forceReload: initialLoad !== true }).then(function (syncArgs) {
                 $scope.currentNode = syncArgs.node;
             });
@@ -279,6 +279,28 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
         }
     };
 
+    $scope.toggleVariant = function (v)
+    {
+        if (v.exists) {
+            //we need to remove it, for now we'll use a normal prompt
+            if (confirm("Are you sure you wish to remove this content variant?")) {
+                //TODO: implement
+            }
+        }
+        else {
+            //we need to create it, for now we'll use a normal prompt
+            if (confirm("Are you sure you wish to create this content variant? (" + v.key + ")")) {
+
+                contentResource.createVariant($scope.content.id, v.key)
+                    .then(function (newId) {
+
+                        $location.path("content/content/edit/" + newId);
+
+                    });
+
+            }
+        }
+    }
 }
 
 angular.module("umbraco").controller("Umbraco.Editors.Content.EditController", ContentEditController);

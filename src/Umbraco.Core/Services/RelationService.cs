@@ -128,6 +128,30 @@ namespace Umbraco.Core.Services
             }
         }
 
+        public IEnumerable<IRelation> GetByParentId(int id, string relationTypeAlias)
+        {
+            using (var repository = _repositoryFactory.CreateRelationRepository(_uowProvider.GetUnitOfWork()))
+            {
+                return repository.GetByParentId(id, relationTypeAlias);
+            }
+        }
+
+        public IEnumerable<IRelation> GetByParentIds(int[] ids, string relationTypeAlias)
+        {
+            using (var repository = _repositoryFactory.CreateRelationRepository(_uowProvider.GetUnitOfWork()))
+            {
+                return repository.GetByParentIds(ids, relationTypeAlias);
+            }
+        }
+
+        public IEnumerable<IRelation> GetByChildIds(int[] ids, string relationTypeAlias)
+        {
+            using (var repository = _repositoryFactory.CreateRelationRepository(_uowProvider.GetUnitOfWork()))
+            {
+                return repository.GetByChildIds(ids, relationTypeAlias);
+            }
+        }
+
         /// <summary>
         /// Gets a list of <see cref="Relation"/> objects by their parent entity
         /// </summary>
@@ -146,6 +170,7 @@ namespace Umbraco.Core.Services
         /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
         public IEnumerable<IRelation> GetByParent(IUmbracoEntity parent, string relationTypeAlias)
         {
+            //TODO: Fix this, it should be filtering via SQL
             return GetByParent(parent).Where(relation => relation.RelationType.Alias == relationTypeAlias);
         }
 
@@ -196,6 +221,14 @@ namespace Umbraco.Core.Services
             {
                 var query = new Query<IRelation>().Where(x => x.ChildId == id || x.ParentId == id);
                 return repository.GetByQuery(query);
+            }
+        }
+
+        public IEnumerable<IRelation> GetByParentOrChildId(int id, string relationTypeAlias)
+        {
+            using (var repository = _repositoryFactory.CreateRelationRepository(_uowProvider.GetUnitOfWork()))
+            {
+                return repository.GetByParentOrChildId(id, relationTypeAlias);
             }
         }
 

@@ -77,8 +77,26 @@ namespace Umbraco.Web.Trees
         protected override TreeNodeCollection PerformGetTreeNodes(string id, FormDataCollection queryStrings)
         {
             var nodes = new TreeNodeCollection();
-            var entities = GetChildEntities(id);
-            nodes.AddRange(entities.Select(entity => GetSingleTreeNode(entity, id, queryStrings)).Where(node => node != null));            
+            var entities = GetChildEntities(id).ToArray();
+
+            //we don't want to show children that are variants
+            int iid;
+            if (int.TryParse(id, out iid) == false)
+            {
+                throw new InvalidCastException("The id for the media tree must be an integer");
+            }
+
+            //all ids of the entities to be rendered
+            var entityIds = entities.Select(x => x.Id).ToArray();
+            //now go lookup all relations of type umbContentVariants by child id, anything returned is
+            // a variant (not a master doc) so we need to exclude them.
+            var variantIds = Services.RelationService.GetByChildIds(entityIds, "umbContentVariants")
+                .Select(x => x.ChildId)
+                .ToArray();
+            //these are the master docs
+            var nonVariants = entities.Where(x => variantIds.Contains(x.Id) == false);
+
+            nodes.AddRange(nonVariants.Select(entity => GetSingleTreeNode(entity, id, queryStrings)).Where(node => node != null));            
             return nodes;
         }
 

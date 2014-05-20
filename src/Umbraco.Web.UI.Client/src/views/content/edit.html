@@ -7,10 +7,27 @@
     <umb-panel ng-class="'editor-breadcrumb'">
         <umb-header tabs="content.tabs">
 
-            <div class="span7">
-                <umb-content-name
-                    placeholder="@placeholders_entername"
-                    ng-model="content.name"/>
+            <div class="span7 umb-content-headline">
+
+                <div class="umb-segment-selector" ng-if="content.variants.length > 0">
+                    <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                        <small>Variants</small>
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu umb-actions pull-right" role="menu">
+                        <li ng-repeat="item in content.variants">
+                            <a href=""
+                               ng-attr-title="{{item.exists ? 'Delete variant' : 'Create variant' }}"
+                               ng-click="toggleVariant(item)">
+                                <i class="icon" ng-class="{'icon-delete': item.exists, 'icon-add' : !item.exists}"></i>
+                                <span class="menu-label ng-binding">{{item.key}}</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <umb-content-name placeholder="@placeholders_entername"
+                                  ng-model="content.name" />
             </div>
 
             <div class="span5">     

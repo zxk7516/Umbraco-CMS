@@ -34,7 +34,7 @@ namespace Umbraco.Core.Services
         /// <param name="ids">Optional array of integer ids to return relations for</param>
         /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
         IEnumerable<IRelation> GetAllRelations(params int[] ids);
-
+        
         /// <summary>
         /// Gets all <see cref="Relation"/> objects by their <see cref="RelationType"/>
         /// </summary>
@@ -62,6 +62,30 @@ namespace Umbraco.Core.Services
         /// <param name="id">Id of the parent to retrieve relations for</param>
         /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
         IEnumerable<IRelation> GetByParentId(int id);
+
+        /// <summary>
+        /// Gets a list of <see cref="Relation"/> objects by their parent Id for a certain relation type
+        /// </summary>
+        /// <param name="id">Id of the parent to retrieve relations for</param>
+        /// <param name="relationTypeAlias"></param>
+        /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
+        IEnumerable<IRelation> GetByParentId(int id, string relationTypeAlias);
+
+        /// <summary>
+        /// Gets a list of <see cref="Relation"/> objects by any of parent Ids for a certain relation type
+        /// </summary>
+        /// <param name="ids">Ids of any parent to retrieve relations for</param>
+        /// <param name="relationTypeAlias"></param>
+        /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
+        IEnumerable<IRelation> GetByParentIds(int[] ids, string relationTypeAlias);
+
+        /// <summary>
+        /// Gets a list of <see cref="Relation"/> objects by any of child Ids for a certain relation type
+        /// </summary>
+        /// <param name="ids">Ids of any child to retrieve relations for</param>
+        /// <param name="relationTypeAlias"></param>
+        /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
+        IEnumerable<IRelation> GetByChildIds(int[] ids, string relationTypeAlias);
 
         /// <summary>
         /// Gets a list of <see cref="Relation"/> objects by their parent entity
@@ -107,6 +131,15 @@ namespace Umbraco.Core.Services
         /// <param name="id">Id of the child or parent to retrieve relations for</param>
         /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
         IEnumerable<IRelation> GetByParentOrChildId(int id);
+
+        /// <summary>
+        /// Gets a list of <see cref="Relation"/> objects by their child or parent Id.
+        /// Using this method will get you all relations regards of it being a child or parent relation.
+        /// </summary>
+        /// <param name="id">Id of the child or parent to retrieve relations for</param>
+        /// <param name="relationTypeAlias"></param>
+        /// <returns>An enumerable list of <see cref="Relation"/> objects</returns>
+        IEnumerable<IRelation> GetByParentOrChildId(int id, string relationTypeAlias);
 
         /// <summary>
         /// Gets a list of <see cref="Relation"/> objects by the Name of the <see cref="RelationType"/>

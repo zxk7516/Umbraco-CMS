@@ -48,19 +48,19 @@ namespace Umbraco.Web.Models.Segments
         /// <summary>
         /// The name of the segment
         /// </summary>
-        public string Key { get; set; }
+        public string Key { get; private set; }
 
         /// <summary>
         /// The value of the segment
         /// </summary>
-        public object Value { get; set; }
+        public object Value { get; private set; }
 
         /// <summary>
         /// Whether or not this segment is to be persisted (default is false)
         /// </summary>
         [JsonIgnore]
         [IgnoreDataMember]
-        internal bool Persist { get; set; }
+        internal bool Persist { get; private set; }
 
         //TODO: We should make use of these expiry settings!
 
@@ -69,14 +69,14 @@ namespace Umbraco.Web.Models.Segments
         /// </summary>
         [JsonIgnore]
         [IgnoreDataMember]
-        internal int? SlidingDays { get; set; }
+        internal int? SlidingDays { get; private set; }
 
         /// <summary>
         /// Defines the absolute expiration date for this particular segment
         /// </summary>
         [JsonIgnore]
         [IgnoreDataMember]
-        internal DateTime? AbsoluteExpiry { get; set; }
+        internal DateTime? AbsoluteExpiry { get; private set; }
 
         protected bool Equals(Segment other)
         {

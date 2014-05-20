@@ -8,6 +8,7 @@ using System.Web.Http.ModelBinding;
 using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Validation;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Models.Trees;
 using Umbraco.Web.Trees;
 
@@ -20,6 +21,11 @@ namespace Umbraco.Web.Models.ContentEditing
     [DataContract(Name = "content", Namespace = "")]
     public class ContentItemDisplay : ListViewAwareContentItemDisplayBase<ContentPropertyDisplay, IContent>
     {
+        public ContentItemDisplay()
+        {
+            ContentVariants = Enumerable.Empty<ContentVariableSegment>();
+        }
+
         [DataMember(Name = "publishDate")]
         public DateTime? PublishDate { get; set; }
 
@@ -44,7 +50,19 @@ namespace Umbraco.Web.Models.ContentEditing
         [DataMember(Name = "allowedActions")]
         public IEnumerable<char> AllowedActions { get; set; }
 
-        
+        /// <summary>
+        /// A list of the content variant segments allowed/assigned to this content item
+        /// </summary>
+        /// <remarks>
+        /// If there are no variants then no drop down is shown
+        /// </remarks>
+        [DataMember(Name = "variants")]
+        public IEnumerable<ContentVariableSegment> ContentVariants { get; set; }
 
+        /// <summary>
+        /// true if the current entity is a variant (non-master doc)
+        /// </summary>
+        [DataMember(Name = "isVariant")]
+        public bool IsVariant { get; set; }
     }
 }

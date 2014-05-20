@@ -16,6 +16,10 @@
   left: 0px;
 }
 
+.umb-panel-header .span7 {
+    position:relative;
+}
+
 .umb-panel-body {
     top: 101px;
     left: 0px;
@@ -252,3 +256,26 @@
 .umb-panel .text-success        { color: @formSuccessText; }
 .umb-panel a.text-success:hover,
 .umb-panel a.text-success:focus { color: darken(@formSuccessText, 10%); }
+
+
+//Don't know where else to put this, putting it here for now, more or less this file seems
+// to be the stying for 'editors' 
+.umb-segment-selector {
+    position:absolute;    
+    right:0px;
+    z-index:2345;
+    top:15px;
+    /*top:-500px;  to hide it completely, we cannot set display:none as normal css trans don't work then (could use keyframes though but is more code) */
+    /*opacity: 0;*/     
+}
+/*.umb-panel-header .umb-content-headline:hover .umb-segment-selector {    
+    top:15px;
+    transition: opacity .5s ease-in;
+    opacity: 1;     
+}*/
+
+.umb-segment-selector ul {
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+}

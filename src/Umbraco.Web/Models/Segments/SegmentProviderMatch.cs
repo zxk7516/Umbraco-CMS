@@ -5,7 +5,7 @@ namespace Umbraco.Web.Models.Segments
     /// <summary>
     /// Used as a configuration item for a configurable segment provider
     /// </summary>
-    [DataContract(Name = "segmentConfig", Namespace = "")]
+    [DataContract(Name = "segment", Namespace = "")]
     public class SegmentProviderMatch
     {
         /// <summary>

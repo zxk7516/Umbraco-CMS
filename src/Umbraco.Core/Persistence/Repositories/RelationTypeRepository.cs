@@ -141,5 +141,22 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         #endregion
+
+        public IRelationType GetByAlias(string relationTypeAlias)
+        {
+            var sql = new Sql();
+            sql.Select("*")
+                .From<RelationTypeDto>()
+                .Where<RelationTypeDto>(d => d.Alias == relationTypeAlias);
+
+            var factory = new RelationTypeFactory();
+            var dto = Database.FirstOrDefault<RelationTypeDto>(sql);
+
+            //TODO: Caching?
+
+            return dto == null
+                ? null
+                : factory.BuildEntity(dto);
+        }
     }
 }

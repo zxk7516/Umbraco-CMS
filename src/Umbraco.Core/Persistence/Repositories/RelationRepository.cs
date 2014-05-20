@@ -47,8 +47,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             var factory = new RelationFactory(relationType);
             var entity = factory.BuildEntity(dto);
-
-            //on initial construction we don't want to have dirty properties tracked
+            // on initial construction we don't want to have dirty properties tracked
             // http://issues.umbraco.org/issue/U4-1946
             ((TracksChangesEntityBase)entity).ResetDirtyProperties(false);
 
@@ -57,6 +56,9 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override IEnumerable<IRelation> PerformGetAll(params int[] ids)
         {
+            //TODO: Performance here is no good, we can easily do a query with an SQL 'IN' operator
+            // to acheive this!!!
+
             if (ids.Any())
             {
                 foreach (var id in ids)
@@ -82,6 +84,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             var dtos = Database.Fetch<RelationDto>(sql);
 
+            //TODO: This is gonna be pretty horrible for performance, should really just convert the already fetched list.
             foreach (var dto in dtos)
             {
                 yield return Get(dto.Id);
@@ -148,5 +151,97 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         #endregion
+
+        public IEnumerable<IRelation> GetByParentId(int id, string relationTypeAlias)
+        {
+            //TODO: Caching?
+
+            var relationType = _relationTypeRepository.GetByAlias(relationTypeAlias);
+            if (relationType == null)
+            {
+                return Enumerable.Empty<IRelation>();
+            }
+
+            var sql = new Sql();
+            sql.Select("umbracoRelation.*")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .Where<RelationDto>(dto => dto.ParentId == id)
+                .Where<RelationTypeDto>(dto => dto.Alias == relationTypeAlias);
+
+            var factory = new RelationFactory(relationType);
+
+            return Database.Fetch<RelationDto>(sql).Select(factory.BuildEntity).ToArray();
+        }
+
+        public IEnumerable<IRelation> GetByParentIds(int[] ids, string relationTypeAlias)
+        {
+            //TODO: Caching?
+
+            var relationType = _relationTypeRepository.GetByAlias(relationTypeAlias);
+            if (relationType == null)
+            {
+                return Enumerable.Empty<IRelation>();
+            }
+
+            var sql = new Sql();
+            sql.Select("umbracoRelation.*")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .Where("umbracoRelation.parentId IN (@ids)", new {ids = ids})
+                .Where<RelationTypeDto>(dto => dto.Alias == relationTypeAlias);
+
+            var factory = new RelationFactory(relationType);
+
+            return Database.Fetch<RelationDto>(sql).Select(factory.BuildEntity).ToArray();
+        }
+
+        public IEnumerable<IRelation> GetByChildIds(int[] ids, string relationTypeAlias)
+        {
+            //TODO: Caching?
+
+            var relationType = _relationTypeRepository.GetByAlias(relationTypeAlias);
+            if (relationType == null)
+            {
+                return Enumerable.Empty<IRelation>();
+            }
+
+            var sql = new Sql();
+            sql.Select("umbracoRelation.*")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .Where("umbracoRelation.childId IN (@ids)", new { ids = ids })
+                .Where<RelationTypeDto>(dto => dto.Alias == relationTypeAlias);
+
+            var factory = new RelationFactory(relationType);
+
+            return Database.Fetch<RelationDto>(sql).Select(factory.BuildEntity).ToArray();
+        }
+
+        public IEnumerable<IRelation> GetByParentOrChildId(int id, string relationTypeAlias)
+        {
+            //TODO: Caching?
+
+            var relationType = _relationTypeRepository.GetByAlias(relationTypeAlias);
+            if (relationType == null)
+            {
+                return Enumerable.Empty<IRelation>();
+            }
+
+            var sql = new Sql();
+            sql.Select("umbracoRelation.*")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .Where<RelationDto>(dto => dto.ParentId == id || dto.ChildId == id)
+                .Where<RelationTypeDto>(dto => dto.Alias == relationTypeAlias);
+
+            var factory = new RelationFactory(relationType);
+
+            return Database.Fetch<RelationDto>(sql).Select(factory.BuildEntity).ToArray();
+        }
     }
 }

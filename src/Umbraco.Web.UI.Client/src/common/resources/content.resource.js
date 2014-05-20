@@ -630,6 +630,23 @@ function contentResource($q, $http, umbDataFormatter, umbRequestHelper) {
                                    [{ id: id }])),
                            'Failed to publish content with id ' + id);
          
+        },
+
+        createVariant: function(id, key) {
+            if (!id) {
+                throw "id cannot be null";
+            }
+            if (!key) {
+                throw "key cannot be null";
+            }
+
+            return umbRequestHelper.resourcePromise(
+                           $http.post(
+                               umbRequestHelper.getApiUrl(
+                                   "contentApiBaseUrl",
+                                   "PostCreateVariant",
+                                   [{ id: id }, {key: key}])),
+                           'Failed to create a content variant for master doc id ' + id + " and key " + key);
         }
 
 

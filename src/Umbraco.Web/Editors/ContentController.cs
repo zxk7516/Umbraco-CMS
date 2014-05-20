@@ -8,6 +8,7 @@ using System.Net.Http.Formatting;
 using System.Text;
 using System.Web.Http;
 using System.Web.Http.ModelBinding;
+using System.Web.Services.Description;
 using AutoMapper;
 using Umbraco.Core;
 using Umbraco.Core.Logging;
@@ -19,7 +20,10 @@ using Umbraco.Core.Services;
 using Umbraco.Web.Models;
 using Umbraco.Web.Models.ContentEditing;
 using Umbraco.Web.Models.Mapping;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Mvc;
+using Umbraco.Web.Routing;
+using Umbraco.Web.Routing.Segments;
 using Umbraco.Web.Security;
 using Umbraco.Web.WebApi;
 using Umbraco.Web.WebApi.Binders;
@@ -89,6 +93,44 @@ namespace Umbraco.Web.Editors
             }
             
             var content = Mapper.Map<IContent, ContentItemDisplay>(foundContent);
+            
+            //we need to lookup the possible assignable segments/languages
+
+            //get all relations for this type for this id (both parents and children)
+            var variantRelations = Services.RelationService.GetByParentOrChildId(id, "umbContentVariants").ToArray();
+
+            //first check if this entity is a non-master doc, we can check this by seeing if this id is a child relation of the above found relations
+            var isVariant = variantRelations.Any(x => x.ChildId == id);
+
+            if (isVariant == false)
+            {
+                //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
+
+                var assignedVariantKeys = variantRelations.Where(x => x.ParentId == id)
+                    //we store the key in the comment field
+                    .Select(x => x.Comment)
+                    .ToArray();
+
+                //These are the assignable segments based on the installed providers (statically advertised segments)
+                var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.SegmentsAdvertised)
+                    .Select(x => new ContentVariableSegment(x, false, assignedVariantKeys.Contains(x)));
+
+                //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
+                var allDomains = DomainHelper.GetAllDomains(false);
+                //now get the ones assigned within the path
+                var splitPath = content.Path.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
+                var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
+                var assignedLanguages = assignedDomains.Select(x => x.Language);
+                var languageSegments = assignedLanguages.Select(x => new ContentVariableSegment(x.CultureAlias, true, assignedVariantKeys.Contains(x.CultureAlias)));
+
+                //assign the variants, NOTE: languages always take precedence if there is overlap
+                content.ContentVariants = languageSegments.Union(assignableSegments);
+            }
+            else
+            {
+                content.IsVariant = true;
+            }
+            
             return content;
        }
 
@@ -557,6 +599,67 @@ namespace Umbraco.Web.Editors
             content.AddSuccessNotification(ui.Text("content", "unPublish"), ui.Text("speechBubbles", "contentUnpublished"));
 
             return content;
+        }
+
+        [EnsureUserPermissionForContent("id", 'C')]
+        public int PostCreateVariant(int id, string key)
+        {
+            var foundContent = GetObjectFromRequest(() => Services.ContentService.GetById(id));
+
+            if (foundContent == null)
+            {
+                HandleContentNotFound(id);
+                return int.MinValue;
+            }
+            
+            var relationType = GetVariantRelationType();
+
+            var existingRelation = Services.RelationService.GetByParentId(id, relationType.Alias).FirstOrDefault(x => x.Comment == key);
+
+            if (existingRelation != null)
+            {
+                throw new InvalidOperationException("A content variant already exists for key " + key + " for master document " + id);
+            }
+
+            //TODO: Do we make a copy? or make a new empty one?
+            //var contentVariant = Services.ContentService.Copy(foundContent, foundContent.ParentId, false, Security.CurrentUser.Id);
+
+            //TODO: We need to create a new method on the content service/repo to create an entity + a relation
+            // so that it is done as one transaction
+
+            var contentVariant = Services.ContentService.CreateContentWithIdentity(
+                string.Format("{0} ({1})", foundContent.Name, key),
+                foundContent.ParentId,
+                foundContent.ContentType.Alias, 
+                Security.CurrentUser.Id);
+
+            //create the relation
+            existingRelation = new Relation(foundContent.Id, contentVariant.Id, relationType)
+            {
+                //TODO: This is a bit flakey but currently it works, the comment MUST equal the key
+                Comment = key
+            };
+            Services.RelationService.Save(existingRelation);
+
+            return contentVariant.Id;
+        }
+
+        /// <summary>
+        /// Gets the variant relation type (creates it if it doesn't exist)
+        /// </summary>
+        /// <returns></returns>
+        private IRelationType GetVariantRelationType()
+        {
+            //TODO: Make umbContentVariants a constant
+
+            //check if it exists before continuing
+            var relationType = Services.RelationService.GetRelationTypeByAlias("umbContentVariants");
+            if (relationType == null)
+            {
+                relationType = new RelationType(new Guid(Constants.ObjectTypes.Document), new Guid(Constants.ObjectTypes.Document), "umbContentVariants");
+                Services.RelationService.Save(relationType);
+            }
+            return relationType;
         }
 
         /// <summary>
