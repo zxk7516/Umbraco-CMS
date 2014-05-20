@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Web;
 using Umbraco.Core;
+using Umbraco.Web.Models.Segments;
 
 namespace Umbraco.Web.Routing.Segments
 {

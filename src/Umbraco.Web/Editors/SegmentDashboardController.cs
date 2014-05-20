@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Web.Http;
 using Newtonsoft.Json.Linq;
 using Umbraco.Core;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Mvc;
 using Umbraco.Web.Routing.Segments;
 using Umbraco.Web.Security;

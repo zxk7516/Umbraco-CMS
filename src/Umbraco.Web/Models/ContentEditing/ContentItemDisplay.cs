@@ -44,5 +44,7 @@ namespace Umbraco.Web.Models.ContentEditing
         [DataMember(Name = "allowedActions")]
         public IEnumerable<char> AllowedActions { get; set; }
 
+        
+
     }
 }

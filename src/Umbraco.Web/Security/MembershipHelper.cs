@@ -12,6 +12,7 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Security;
 using Umbraco.Core.Services;
 using Umbraco.Web.Models;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Routing.Segments;
 using MPE = global::Umbraco.Core.Security.MembershipProviderExtensions;

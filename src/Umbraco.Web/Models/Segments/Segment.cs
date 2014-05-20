@@ -2,8 +2,11 @@ using System;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
 
-namespace Umbraco.Web.Routing.Segments
+namespace Umbraco.Web.Models.Segments
 {
+    /// <summary>
+    /// Defines an assigned segment in a request
+    /// </summary>
     public class Segment
     {
         /// <summary>
@@ -13,30 +16,30 @@ namespace Umbraco.Web.Routing.Segments
         {
         }
 
-        public Segment(string name, object value)
+        public Segment(string key, object value)
         {
-            Name = name;
+            Key = key;
             Value = value;
         }
 
-        internal Segment(string name, object value, bool persist)
+        internal Segment(string key, object value, bool persist)
         {
-            Name = name;
+            Key = key;
             Value = value;
             Persist = persist;
         }
 
-        internal Segment(string name, object value, bool persist, int? slidingDays)
+        internal Segment(string key, object value, bool persist, int? slidingDays)
         {
-            Name = name;
+            Key = key;
             Value = value;
             Persist = persist;
             SlidingDays = slidingDays;
         }
 
-        internal Segment(string name, object value, bool persist, DateTime? absoluteExpiry)
+        internal Segment(string key, object value, bool persist, DateTime? absoluteExpiry)
         {
-            Name = name;
+            Key = key;
             Value = value;
             Persist = persist;
             AbsoluteExpiry = absoluteExpiry;
@@ -45,7 +48,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// The name of the segment
         /// </summary>
-        public string Name { get; set; }
+        public string Key { get; set; }
 
         /// <summary>
         /// The value of the segment
@@ -55,7 +58,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Whether or not this segment is to be persisted (default is false)
         /// </summary>
-        [JsonIgnoreAttribute]
+        [JsonIgnore]
         [IgnoreDataMember]
         internal bool Persist { get; set; }
 
@@ -64,20 +67,20 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Defines the sliding expiration date in days from now for this particular segment
         /// </summary>
-        [JsonIgnoreAttribute]
+        [JsonIgnore]
         [IgnoreDataMember]
         internal int? SlidingDays { get; set; }
 
         /// <summary>
         /// Defines the absolute expiration date for this particular segment
         /// </summary>
-        [JsonIgnoreAttribute]
+        [JsonIgnore]
         [IgnoreDataMember]
         internal DateTime? AbsoluteExpiry { get; set; }
 
         protected bool Equals(Segment other)
         {
-            return string.Equals(Name, other.Name);
+            return string.Equals(Key, other.Key);
         }
 
         public override bool Equals(object obj)
@@ -90,7 +93,7 @@ namespace Umbraco.Web.Routing.Segments
 
         public override int GetHashCode()
         {
-            return Name.GetHashCode();
+            return Key.GetHashCode();
         }
     }
 }

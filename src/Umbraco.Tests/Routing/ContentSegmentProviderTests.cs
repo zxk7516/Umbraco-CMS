@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using NUnit.Framework;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Tests.Routing

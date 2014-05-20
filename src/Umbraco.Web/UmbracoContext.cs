@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Web;
 using Umbraco.Core;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Routing;
 using Umbraco.Web.Routing.Segments;

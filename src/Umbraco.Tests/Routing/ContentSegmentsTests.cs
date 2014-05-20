@@ -4,6 +4,7 @@ using System.Linq;
 using System.Web;
 using Moq;
 using NUnit.Framework;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Routing;
 using Umbraco.Web.Routing.Segments;
 

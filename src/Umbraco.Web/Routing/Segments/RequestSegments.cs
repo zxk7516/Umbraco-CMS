@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Web;
-using System.Web.ApplicationServices;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Umbraco.Core;
+using Umbraco.Web.Models.Segments;
 
 namespace Umbraco.Web.Routing.Segments
 {
@@ -132,7 +131,7 @@ namespace Umbraco.Web.Routing.Segments
         /// </remarks>
         public bool RequestIs(string segmentKey)
         {
-            return AssignedSegments.Any(x => x.Name == segmentKey && x.Value is bool && (bool)x.Value);
+            return AssignedSegments.Any(x => x.Key == segmentKey && x.Value is bool && (bool)x.Value);
         }
 
         /// <summary>
@@ -152,7 +151,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <returns></returns>
         public bool RequestContainsKey(string segmentKey)
         {
-            return AssignedSegments.Any(x => x.Name == segmentKey);
+            return AssignedSegments.Any(x => x.Key == segmentKey);
         }
 
         /// <summary>
@@ -163,7 +162,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <returns></returns>
         public bool RequestEquals(string key, object val)
         {
-            return AssignedSegments.Any(x => x.Name == key && x.Value == val);
+            return AssignedSegments.Any(x => x.Key == key && x.Value == val);
         }
 
         /// <summary>
@@ -199,7 +198,7 @@ namespace Umbraco.Web.Routing.Segments
             {
                 var segments = provider.GetSegmentsForRequest(originalRequestUrl, cleanedRequestUrl, httpRequest).ToArray();
                 var advertised = provider.SegmentsAdvertised.ToArray();
-                d.AddRange(segments.Select(s => new Segment(s.Name, s.Value, advertised.Contains(s.Name))));
+                d.AddRange(segments.Select(s => new Segment(s.Key, s.Value, advertised.Contains(s.Key))));
             }
 
             var cookieData = httpRequest.Cookies[Constants.Web.SegmentCookieName] == null

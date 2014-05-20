@@ -9,6 +9,7 @@ using System.Web;
 using Newtonsoft.Json;
 using Umbraco.Core;
 using Umbraco.Core.IO;
+using Umbraco.Web.Models.Segments;
 
 namespace Umbraco.Web.Routing.Segments
 {

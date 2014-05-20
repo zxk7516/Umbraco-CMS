@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Services;
+using Umbraco.Web.Models.Segments;
 using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Web.Security
@@ -135,7 +136,7 @@ namespace Umbraco.Web.Security
 
         private Segment GetSegmentByKeyFromMember(string segmentKey)
         {
-            var segment = PersistedSegments.FirstOrDefault(x => x.Name == segmentKey);
+            var segment = PersistedSegments.FirstOrDefault(x => x.Key == segmentKey);
             if (segment == null) return null;
             
             //add it to the request so we don't have to lookup in db again

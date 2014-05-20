@@ -1,8 +1,11 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Umbraco.Web.Routing.Segments
+namespace Umbraco.Web.Models.Segments
 {
+    /// <summary>
+    /// A keyed collection of segments
+    /// </summary>
     public class SegmentCollection : KeyedCollection<string, Segment>
     {
         public SegmentCollection(IEnumerable<Segment> segments)
@@ -10,9 +13,9 @@ namespace Umbraco.Web.Routing.Segments
             foreach (var segment in segments)
             {
                 //last one in wins
-                if (Contains(segment.Name))
+                if (Contains(segment.Key))
                 {
-                    Remove(segment.Name);                    
+                    Remove(segment.Key);                    
                 }
 
                 Add(segment);
@@ -22,9 +25,9 @@ namespace Umbraco.Web.Routing.Segments
         internal void AddNew(Segment segment)
         {
             //last one in wins
-            if (Contains(segment.Name))
+            if (Contains(segment.Key))
             {
-                Remove(segment.Name);
+                Remove(segment.Key);
             }
 
             Add(segment);
@@ -32,7 +35,7 @@ namespace Umbraco.Web.Routing.Segments
 
         protected override string GetKeyForItem(Segment item)
         {
-            return item.Name;
+            return item.Key;
         }
     }
 }
