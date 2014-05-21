@@ -198,7 +198,10 @@ angular.module("umbraco")
                         tinymce.DOM.events.domLoaded = true;
                         tinymce.init(baseLineConfigObj);
 
-                        $scope.isLoading = false;
+                        angularHelper.safeApply($scope, function() {
+                            $scope.isLoading = false;
+                        });
+                        
 
                     }, 200, false);
                 }
