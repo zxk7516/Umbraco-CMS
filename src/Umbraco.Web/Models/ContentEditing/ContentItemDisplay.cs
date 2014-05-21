@@ -60,9 +60,11 @@ namespace Umbraco.Web.Models.ContentEditing
         public IEnumerable<ContentVariableSegment> ContentVariants { get; set; }
 
         /// <summary>
-        /// true if the current entity is a variant (non-master doc)
+        /// If this is a variant, the master doc id will not be null
         /// </summary>
-        [DataMember(Name = "isVariant")]
-        public bool IsVariant { get; set; }
+        [DataMember(Name = "masterDocId")]
+        public int? MasterDocId { get; set; }
+
+
     }
 }

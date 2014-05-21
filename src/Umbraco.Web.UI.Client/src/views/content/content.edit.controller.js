@@ -279,13 +279,10 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
         }
     };
 
-    $scope.toggleVariant = function (v)
+    $scope.selectVariant = function (v)
     {
         if (v.exists) {
-            //we need to remove it, for now we'll use a normal prompt
-            if (confirm("Are you sure you wish to remove this content variant?")) {
-                //TODO: implement
-            }
+            $location.path("content/content/edit/" + v.id);
         }
         else {
             //we need to create it, for now we'll use a normal prompt
@@ -300,6 +297,10 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
 
             }
         }
+    }
+
+    $scope.toMasterDoc = function() {
+        $location.path("content/content/edit/" + $scope.content.masterDocId);
     }
 }
 

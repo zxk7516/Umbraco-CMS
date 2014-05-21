@@ -24,7 +24,11 @@ function ContentDeleteController($scope, contentResource, treeService, navigatio
 
             //ensure the recycle bin has child nodes now            
             var recycleBin = treeService.getDescendantNode(rootNode, -20);
-            recycleBin.hasChildren = true;
+
+            //this could be null if the current node is a variant (i.e. it doesn't actually exist in the tree)
+            if (recycleBin) {
+                recycleBin.hasChildren = true;
+            }
 
             navigationService.hideMenu();
         });

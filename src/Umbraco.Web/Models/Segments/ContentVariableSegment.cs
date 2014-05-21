@@ -9,16 +9,29 @@ namespace Umbraco.Web.Models.Segments
     public class ContentVariableSegment
     {
         /// <summary>
-        /// Constructor
+        /// Constructor for a variant that does not exist yet
         /// </summary>
         /// <param name="key"></param>
         /// <param name="isLanguage"></param>
-        /// <param name="exists"></param>
-        public ContentVariableSegment(string key, bool isLanguage, bool exists)
+        public ContentVariableSegment(string key, bool isLanguage)
         {
             Key = key;
             IsLanguage = isLanguage;
-            Exists = exists;
+            Exists = false;
+        }
+        
+        /// <summary>
+        /// COnstructor for a variant that exists
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="isLanguage"></param>
+        /// <param name="variantId"></param>
+        public ContentVariableSegment(string key, bool isLanguage, int variantId)
+        {
+            Key = key;
+            IsLanguage = isLanguage;
+            Exists = true;
+            VariantId = variantId;
         }
 
         /// <summary>
@@ -40,7 +53,13 @@ namespace Umbraco.Web.Models.Segments
         /// Whether or not a content variant current exists for this segment for a content item
         /// </summary>
         [DataMember(Name = "exists")]
-        public bool Exists { get; set; }
+        public bool Exists { get; private set; }
+
+        /// <summary>
+        /// The id of the variant if it exists
+        /// </summary>
+        [DataMember(Name = "id")]
+        public int VariantId { get; private set; }
 
         protected bool Equals(ContentVariableSegment other)
         {

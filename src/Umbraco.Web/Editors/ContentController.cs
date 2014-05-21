@@ -106,14 +106,20 @@ namespace Umbraco.Web.Editors
             {
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
 
-                var assignedVariantKeys = variantRelations.Where(x => x.ParentId == id)
+                var assignedVariants = variantRelations.Where(x => x.ParentId == id)
                     //we store the key in the comment field
-                    .Select(x => x.Comment)
-                    .ToArray();
+                    .Select(x => new
+                    {
+                        key = x.Comment,
+                        id = x.ChildId
+                    }).ToArray();
 
                 //These are the assignable segments based on the installed providers (statically advertised segments)
                 var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.SegmentsAdvertised)
-                    .Select(x => new ContentVariableSegment(x, false, assignedVariantKeys.Contains(x)));
+                    .Select(x => new {segment = x, assigned = assignedVariants.FirstOrDefault(k => k.key == x)})
+                    .Select(x => x.assigned == null
+                        ? new ContentVariableSegment(x.segment, false)
+                        : new ContentVariableSegment(x.segment, false, x.assigned.id));
 
                 //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
                 var allDomains = DomainHelper.GetAllDomains(false);
@@ -121,14 +127,18 @@ namespace Umbraco.Web.Editors
                 var splitPath = content.Path.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
                 var assignedLanguages = assignedDomains.Select(x => x.Language);
-                var languageSegments = assignedLanguages.Select(x => new ContentVariableSegment(x.CultureAlias, true, assignedVariantKeys.Contains(x.CultureAlias)));
+                var languageSegments = assignedLanguages
+                    .Select(x => new {lang = x, assigned = assignedVariants.FirstOrDefault(k => k.key == x.CultureAlias)})
+                    .Select(x => x.assigned == null
+                        ? new ContentVariableSegment(x.lang.CultureAlias, true)
+                        : new ContentVariableSegment(x.lang.CultureAlias, true, x.assigned.id));
 
                 //assign the variants, NOTE: languages always take precedence if there is overlap
                 content.ContentVariants = languageSegments.Union(assignableSegments);
             }
             else
             {
-                content.IsVariant = true;
+                content.MasterDocId = variantRelations.Single(x => x.ChildId == id).ParentId;
             }
             
             return content;
