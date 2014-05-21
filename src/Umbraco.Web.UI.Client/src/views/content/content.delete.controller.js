@@ -6,7 +6,7 @@
  * @description
  * The controller for deleting content
  */
-function ContentDeleteController($scope, contentResource, treeService, navigationService) {
+function ContentDeleteController($scope, contentResource, treeService, navigationService, $location) {
 
     $scope.performDelete = function() {
 
@@ -29,6 +29,12 @@ function ContentDeleteController($scope, contentResource, treeService, navigatio
             if (recycleBin) {
                 recycleBin.hasChildren = true;
             }
+
+            if ($scope.currentNode.metaData && $scope.currentNode.metaData.masterDocId) {
+                //this could be a variant, if it is then we should navigate to it's master
+                $location.path("content/content/edit/" + $scope.currentNode.metaData.masterDocId);
+            }
+            
 
             navigationService.hideMenu();
         });

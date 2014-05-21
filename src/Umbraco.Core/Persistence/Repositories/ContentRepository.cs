@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
@@ -556,6 +557,37 @@ namespace Umbraco.Core.Persistence.Repositories
                     yield return CreateContentFromDto(dto, dto.VersionId);    
                 }
             }
+        }
+
+        public VariantDefinition GetVariantDefinition(IContent content)
+        {
+            var sql = new Sql()
+                .Select("umbracoRelation.*, umbracoNode.trashed")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .InnerJoin<NodeDto>()
+                .On<NodeDto, RelationDto>(dto => dto.NodeId, dto => dto.ChildId)
+                .Where("umbracoRelationType.alias = @alias AND (umbracoRelation.parentId = @parentId OR umbracoRelation.childId = @childId)",
+                    new {parentId = content.Id, childId = content.Id, alias = "umbContentVariants"});
+
+            var result = Database.Fetch<dynamic>(sql);
+
+            //first check if the result has the current content id as a childid in the collection, 
+            // if it does, then it means that this content item is a variant, otherwise if it's id is
+            // contained in any parent ids then it's a master
+            var childVariants = result.Where(x => x.childId == content.Id).ToArray();
+            if (childVariants.Any())
+            {
+                //this content item is a variant itself
+                return new VariantDefinition(
+                    //get it's master doc id
+                    childVariants.Single().parentId);
+            }
+
+            return new VariantDefinition(result
+                .Where(x => x.parentId == content.Id)
+                .Select(x => new ChildVariant(x.comment, x.childId, x.trashed)));
         }
 
         public IContent GetByLanguage(int id, string language)

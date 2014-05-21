@@ -140,6 +140,13 @@ namespace Umbraco.Web.Trees
                 if (Access.IsProtected(e.Id, e.Path))
                     node.SetProtectedStyle();
 
+                //add some data describing that this node is a variant 
+                var variantRelation = Services.RelationService.GetByChild(entity, "umbContentVariants").FirstOrDefault();
+                if (variantRelation != null)
+                {
+                    node.AdditionalData["masterDocId"] = variantRelation.ParentId;
+                }                
+
                 return node;
             }
 

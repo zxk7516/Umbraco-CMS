@@ -29,7 +29,7 @@ namespace Umbraco.Web.Trees
         /// <param name="queryStrings"></param>
         /// <returns></returns>
         [HttpQueryStringFilter("queryStrings")]
-        public TreeNode GetTreeNode(string id, FormDataCollection queryStrings)
+        public virtual TreeNode GetTreeNode(string id, FormDataCollection queryStrings)
         {
             int asInt;
             if (int.TryParse(id, out asInt) == false)

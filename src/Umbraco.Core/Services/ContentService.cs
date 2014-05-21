@@ -9,6 +9,7 @@ using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
@@ -72,6 +73,15 @@ namespace Umbraco.Core.Services
             _publishingStrategy = publishingStrategy;
             _repositoryFactory = repositoryFactory;
             _dataTypeService = dataTypeService;
+        }
+
+        public VariantDefinition GetVariantDefinition(IContent content)
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            {
+                return repository.GetVariantDefinition(content);
+            }
         }
 
         /// <summary>

@@ -93,54 +93,39 @@ namespace Umbraco.Web.Editors
             }
             
             var content = Mapper.Map<IContent, ContentItemDisplay>(foundContent);
-            
-            //we need to lookup the possible assignable segments/languages
 
-            //get all relations for this type for this id (both parents and children)
-            var variantRelations = Services.RelationService.GetByParentOrChildId(id, "umbContentVariants").ToArray();
-
-            //first check if this entity is a non-master doc, we can check this by seeing if this id is a child relation of the above found relations
-            var isVariant = variantRelations.Any(x => x.ChildId == id);
-
-            if (isVariant == false)
+            var variantDef = Services.ContentService.GetVariantDefinition(foundContent);
+            if (variantDef.IsVariant == false)
             {
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
 
-                var assignedVariants = variantRelations.Where(x => x.ParentId == id)
-                    //we store the key in the comment field
-                    .Select(x => new
-                    {
-                        key = x.Comment,
-                        id = x.ChildId
-                    }).ToArray();
-
                 //These are the assignable segments based on the installed providers (statically advertised segments)
                 var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.SegmentsAdvertised)
-                    .Select(x => new {segment = x, assigned = assignedVariants.FirstOrDefault(k => k.key == x)})
+                    .Select(x => new { segment = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x) })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.segment, false)
-                        : new ContentVariableSegment(x.segment, false, x.assigned.id));
+                        : new ContentVariableSegment(x.segment, false, x.assigned.ChildId, x.assigned.IsTrashed));
 
                 //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
                 var allDomains = DomainHelper.GetAllDomains(false);
                 //now get the ones assigned within the path
-                var splitPath = content.Path.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
+                var splitPath = content.Path.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
                 var assignedLanguages = assignedDomains.Select(x => x.Language);
                 var languageSegments = assignedLanguages
-                    .Select(x => new {lang = x, assigned = assignedVariants.FirstOrDefault(k => k.key == x.CultureAlias)})
+                    .Select(x => new { lang = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x.CultureAlias) })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.lang.CultureAlias, true)
-                        : new ContentVariableSegment(x.lang.CultureAlias, true, x.assigned.id));
+                        : new ContentVariableSegment(x.lang.CultureAlias, true, x.assigned.ChildId, x.assigned.IsTrashed));
 
                 //assign the variants, NOTE: languages always take precedence if there is overlap
                 content.ContentVariants = languageSegments.Union(assignableSegments);
             }
             else
             {
-                content.MasterDocId = variantRelations.Single(x => x.ChildId == id).ParentId;
+                content.MasterDocId = variantDef.MasterDocId;
             }
-            
+
             return content;
        }
 

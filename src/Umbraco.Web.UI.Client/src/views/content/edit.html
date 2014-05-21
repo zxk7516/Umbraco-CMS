@@ -22,11 +22,13 @@
                         <span class="caret"></span>
                     </a>
                     <ul class="dropdown-menu umb-actions pull-right" role="menu">
-                        <li ng-repeat="item in content.variants">
+                        <li ng-repeat="item in content.variants" ng-class="{'trashed' : item.isTrashed}">
                             <a href=""
                                ng-attr-title="{{item.exists ? 'Edit variant' : 'Create variant' }}"
                                ng-click="selectVariant(item)">
-                                <i class="icon" ng-class="{'icon-edit': item.exists, 'icon-add' : !item.exists}"></i>
+
+                                <i class="icon" ng-class="item.isTrashed ? 'icon-trash' : item.exists ? 'icon-edit' : 'icon-add'"></i>
+
                                 <span class="menu-label ng-binding">{{item.key}}</span>
                             </a>
                         </li>

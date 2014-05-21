@@ -19,19 +19,21 @@ namespace Umbraco.Web.Models.Segments
             IsLanguage = isLanguage;
             Exists = false;
         }
-        
+
         /// <summary>
         /// COnstructor for a variant that exists
         /// </summary>
         /// <param name="key"></param>
         /// <param name="isLanguage"></param>
         /// <param name="variantId"></param>
-        public ContentVariableSegment(string key, bool isLanguage, int variantId)
+        /// <param name="isTrashed"></param>
+        public ContentVariableSegment(string key, bool isLanguage, int variantId, bool isTrashed)
         {
             Key = key;
             IsLanguage = isLanguage;
             Exists = true;
             VariantId = variantId;
+            IsTrashed = isTrashed;
         }
 
         /// <summary>
@@ -60,6 +62,12 @@ namespace Umbraco.Web.Models.Segments
         /// </summary>
         [DataMember(Name = "id")]
         public int VariantId { get; private set; }
+
+        /// <summary>
+        /// Whether or not the variant is in the trash or not
+        /// </summary>
+        [DataMember(Name = "isTrashed")]
+        public bool IsTrashed { get; private set; }
 
         protected bool Equals(ContentVariableSegment other)
         {

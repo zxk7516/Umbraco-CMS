@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Publishing;
 
@@ -11,6 +12,8 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IContentService : IService
     {
+        VariantDefinition GetVariantDefinition(IContent content);
+
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids
         /// </summary>

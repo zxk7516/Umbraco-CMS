@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Xml.Linq;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Persistence.Querying;
 
@@ -9,6 +10,8 @@ namespace Umbraco.Core.Persistence.Repositories
 {
     public interface IContentRepository : IRepositoryVersionable<int, IContent>
     {
+        VariantDefinition GetVariantDefinition(IContent content);
+
         /// <summary>
         /// Gets a specific language version of an <see cref="IContent"/>
         /// </summary>
