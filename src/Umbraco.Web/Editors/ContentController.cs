@@ -99,12 +99,16 @@ namespace Umbraco.Web.Editors
             {
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
 
-                //These are the assignable segments based on the installed providers (statically advertised segments)
-                var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.SegmentsAdvertised)
-                    .Select(x => new { segment = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x) })
+                //These are the assignable variants based on the installed providers (statically advertised variants)
+                var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.AssignableContentVariants)
+                    .Select(x => new
+                    {
+                        segment = x, 
+                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x.SegmentMatchKey)
+                    })
                     .Select(x => x.assigned == null
-                        ? new ContentVariableSegment(x.segment, false)
-                        : new ContentVariableSegment(x.segment, false, x.assigned.ChildId, x.assigned.IsTrashed));
+                        ? new ContentVariableSegment(x.segment.VariantName, x.segment.SegmentMatchKey, false)
+                        : new ContentVariableSegment(x.segment.VariantName, x.segment.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
 
                 //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
                 var allDomains = DomainHelper.GetAllDomains(false);

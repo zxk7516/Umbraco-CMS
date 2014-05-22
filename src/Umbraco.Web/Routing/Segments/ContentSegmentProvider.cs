@@ -17,45 +17,30 @@ namespace Umbraco.Web.Routing.Segments
     /// </remarks>
     public abstract class ContentSegmentProvider
     {
-
-        public static string GetDisplayName(ContentSegmentProvider provider)
+        protected ContentSegmentProvider()
         {
-            var type = provider.GetType();
-            var att = type.GetCustomAttribute<DisplayNameAttribute>(false);
-            return att == null ? type.FullName : att.DisplayName;
+            //ensure attributes exist
+            var type = GetType();
+            var nameAtt = type.GetCustomAttribute<DisplayNameAttribute>(false);
+            var descAtt = type.GetCustomAttribute<DescriptionAttribute>(false);
+            if (nameAtt == null || descAtt == null)
+            {
+                throw new ApplicationException(
+                    "The segment provider " + type + " must be attributed with two attributes: " + typeof(DisplayNameAttribute) + " and " + typeof(DescriptionAttribute));
+            }
+            Name = nameAtt.DisplayName;
+            Description = descAtt.Description;
         }
 
-        public static string GetDescription(ContentSegmentProvider provider)
-        {
-            var att = provider.GetType().GetCustomAttribute<DescriptionAttribute>(false);
-            return att == null ? string.Empty : att.Description;
-        }
-        
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
-        private IEnumerable<string> _advertised;
+        public string Name { get; private set; }
+        public string Description { get; private set; }
 
         /// <summary>
-        /// Get the advertised segments for this, these can be used for content variants and are also the segments that
-        /// will be persisted to storage (cookie and membership provider) if they match the segment names returned in the 
-        /// GetSegmentsForRequest method
+        /// Returns the Content Variants that this provider supports
         /// </summary>
-        public IEnumerable<string> SegmentsAdvertised
+        public IEnumerable<ContentVariantAttribute> AssignableContentVariants
         {
-            get
-            {
-                using (var lck = new UpgradeableReadLock(_lock))
-                {
-                    if (_advertised == null)
-                    {
-                        lck.UpgradeToWriteLock();
-                        _advertised = this.GetType().GetCustomAttributes<ContentSegmentAttribute>(false)
-                            .Select(x => x.SegmentName)
-                            .Distinct()
-                            .ToArray();
-                    }   
-                }
-                return _advertised;
-            }
+            get { return GetType().GetCustomAttributes<ContentVariantAttribute>(false).ToArray(); }
         } 
 
         /// <summary>

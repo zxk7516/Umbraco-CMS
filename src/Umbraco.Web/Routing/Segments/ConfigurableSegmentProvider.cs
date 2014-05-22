@@ -62,7 +62,7 @@ namespace Umbraco.Web.Routing.Segments
             var config = ReadConfiguration();
             var result = config
                 .Where(match => IsMatch(match.MatchExpression, cleanedRequestUrl, httpRequest))
-                .Select(match => new Segment(match.Key, match.Value));
+                .Select(match => new Segment(match.Key, match.Value, match.Persist));
 
             return new SegmentCollection(result);
         }

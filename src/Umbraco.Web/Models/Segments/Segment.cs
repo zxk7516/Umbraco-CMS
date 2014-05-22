@@ -7,6 +7,10 @@ namespace Umbraco.Web.Models.Segments
     /// <summary>
     /// Defines an assigned segment in a request
     /// </summary>
+    /// <remarks>
+    /// The serialization names are only one letter - this is intentional to keep the cookie size small
+    /// </remarks>
+    [DataContract(Name = "s", Namespace = "")]
     public class Segment
     {
         /// <summary>
@@ -22,7 +26,7 @@ namespace Umbraco.Web.Models.Segments
             Value = value;
         }
 
-        internal Segment(string key, object value, bool persist)
+        public Segment(string key, object value, bool persist)
         {
             Key = key;
             Value = value;
@@ -48,19 +52,20 @@ namespace Umbraco.Web.Models.Segments
         /// <summary>
         /// The name of the segment
         /// </summary>
-        public string Key { get; private set; }
+        [DataMember(Name = "k", IsRequired = true)]
+        public string Key { get; set; }
 
         /// <summary>
         /// The value of the segment
         /// </summary>
-        public object Value { get; private set; }
+        [DataMember(Name = "v")]
+        public object Value { get; set; }
 
         /// <summary>
         /// Whether or not this segment is to be persisted (default is false)
         /// </summary>
-        [JsonIgnore]
-        [IgnoreDataMember]
-        internal bool Persist { get; private set; }
+        [DataMember(Name = "p")]
+        public bool Persist { get; set; }
 
         //TODO: We should make use of these expiry settings!
 

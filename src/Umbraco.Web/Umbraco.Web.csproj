@@ -470,7 +470,7 @@
     <Compile Include="Routing\Segments\RefererSegmentProvider.cs" />
     <Compile Include="Routing\Segments\RequestSegments.cs" />
     <Compile Include="Routing\Segments\BrowserCapabilitiesProvider.cs" />
-    <Compile Include="Routing\Segments\ContentSegmentAttribute.cs" />
+    <Compile Include="Routing\Segments\ContentVariantAttribute.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProviderResolver.cs" />
     <Compile Include="Models\Segments\Segment.cs" />

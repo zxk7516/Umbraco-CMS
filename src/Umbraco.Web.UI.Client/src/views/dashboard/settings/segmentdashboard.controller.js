@@ -28,7 +28,10 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
         $scope.config.values = item.config;
     }
 
-    $scope.cancel = function() {
+    $scope.cancel = function () {
+
+        formHelper.resetForm({ scope: $scope });
+
         $scope.configuring = false;
         $scope.config = {
             providerName: "",
@@ -54,8 +57,6 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
                     $scope.config.values),
                 'Failed to save segment configuration')
             .then(function () {
-
-                formHelper.resetForm({ scope: $scope });
 
                 //now that its successful, save the persisted values back to the provider's values
                 var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.config.providerTypeName; });

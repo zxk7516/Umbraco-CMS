@@ -15,6 +15,7 @@ namespace Umbraco.Web.Models.Segments
         /// <param name="isLanguage"></param>
         public ContentVariableSegment(string key, bool isLanguage)
         {
+            Name = key;
             Key = key;
             IsLanguage = isLanguage;
             Exists = false;
@@ -29,12 +30,51 @@ namespace Umbraco.Web.Models.Segments
         /// <param name="isTrashed"></param>
         public ContentVariableSegment(string key, bool isLanguage, int variantId, bool isTrashed)
         {
+            Name = key;
             Key = key;
             IsLanguage = isLanguage;
             Exists = true;
             VariantId = variantId;
             IsTrashed = isTrashed;
         }
+
+        /// <summary>
+        /// Constructor for a variant that does not exist yet
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="key"></param>
+        /// <param name="isLanguage"></param>
+        public ContentVariableSegment(string name, string key, bool isLanguage)
+        {
+            Name = name;
+            Key = key;
+            IsLanguage = isLanguage;
+            Exists = false;
+        }
+
+        /// <summary>
+        /// COnstructor for a variant that exists
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="key"></param>
+        /// <param name="isLanguage"></param>
+        /// <param name="variantId"></param>
+        /// <param name="isTrashed"></param>
+        public ContentVariableSegment(string name, string key, bool isLanguage, int variantId, bool isTrashed)
+        {
+            Name = name;
+            Key = key;
+            IsLanguage = isLanguage;
+            Exists = true;
+            VariantId = variantId;
+            IsTrashed = isTrashed;
+        }
+
+        /// <summary>
+        /// The friendly name of the segment
+        /// </summary>
+        [DataMember(Name = "name")]       
+        public string Name { get; private set; }
 
         /// <summary>
         /// The segment Key associated with the content variant

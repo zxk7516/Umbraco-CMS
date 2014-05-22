@@ -25,5 +25,15 @@ namespace Umbraco.Web.Models.Segments
         /// </summary>
         [DataMember(Name = "matchExpression")]       
         public string MatchExpression { get; set; }
+
+        /// <summary>
+        /// A flag of whether or not to persist the segment match to the user's cookies (and to the member profile if they are logged in)
+        /// </summary>
+        /// <remarks>
+        /// This might be useful if you want to track a segment from a provider, perhaps if it's a referral provider a segment might be set 
+        /// when coming from mysite.com and you want to know about that later on when the segment no longer exists in the request.
+        /// </remarks>
+        [DataMember(Name = "persist")]
+        public bool Persist { get; set; }
     }
 }

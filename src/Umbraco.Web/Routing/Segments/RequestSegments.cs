@@ -64,37 +64,23 @@ namespace Umbraco.Web.Routing.Segments
             //NOTE: The cookie data will alraedy be part of the PersistedSegments (see GetAllSegmentsForRequest)
 
             var toPersist = PersistedSegments.ToList();
-            //var cookieData = request.Cookies[Constants.Web.SegmentCookieName] == null
-            //    ? new List<Segment>()
-            //    //TODO: try/catch
-            //    : JsonConvert.DeserializeObject<IEnumerable<Segment>>(request.Cookies[Constants.Web.SegmentCookieName].Value);
+            
             if (toPersist.Any())
             {
-                ////find anything in the cookie data that is not in our segments and add it to the segments to be persisted
-                //foreach (var item in cookieData.Where(item => toPersist.Any(x => x.Name == item.Name) == false))
-                //{
-                //    toPersist.Add(item);
-                //}
-
+            
                 var json = JsonConvert.SerializeObject(toPersist);
                 
+                //TODO: Implement the expiry dates in each individual segment - otherwise 
+                // what is going to happen is that any persisted segment will have a sliding expiration 
+                // of 30 days!
+
                 var cookie = new HttpCookie(Constants.Web.SegmentCookieName, json)
                 {
                     //sliding 30 day expiry?
                     Expires = DateTime.Now.AddDays(30)
                 };
                 response.SetCookie(cookie);
-            }
-            //else if (cookieData.Any())
-            //{
-            //    var json = JsonConvert.SerializeObject(toPersist);
-            //    var cookie = new HttpCookie(Constants.Web.SegmentCookieName, json)
-            //    {
-            //        //sliding 30 day expiry? 
-            //        Expires = DateTime.Now.AddDays(30)
-            //    };
-            //    response.SetCookie(cookie);
-            //}
+            }            
             else
             {
                 response.SetCookie(new HttpCookie(Constants.Web.SegmentCookieName)
@@ -197,8 +183,8 @@ namespace Umbraco.Web.Routing.Segments
                 .Select(x => x.instance))
             {
                 var segments = provider.GetSegmentsForRequest(originalRequestUrl, cleanedRequestUrl, httpRequest).ToArray();
-                var advertised = provider.SegmentsAdvertised.ToArray();
-                d.AddRange(segments.Select(s => new Segment(s.Key, s.Value, advertised.Contains(s.Key))));
+                
+                d.AddRange(segments);
             }
 
             var cookieData = httpRequest.Cookies[Constants.Web.SegmentCookieName] == null

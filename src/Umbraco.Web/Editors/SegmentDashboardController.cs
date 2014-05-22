@@ -30,8 +30,8 @@ namespace Umbraco.Web.Editors
                 .Select(x => new
                 {
                     typeName = x.GetType().FullName,
-                    displayName = ContentSegmentProvider.GetDisplayName(x),
-                    description = ContentSegmentProvider.GetDescription(x),
+                    displayName = x.Name,
+                    description = x.Description,
                     asConfigurable = x as ConfigurableSegmentProvider
                 })
                 .Select(x => new
