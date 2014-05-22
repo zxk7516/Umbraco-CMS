@@ -59,7 +59,7 @@ namespace Umbraco.Web.Routing.Segments
             if (cleanedRequestUrl == null) throw new ArgumentNullException("cleanedRequestUrl");
             if (httpRequest == null) throw new ArgumentNullException("httpRequest");
 
-            var config = ReadConfiguration();
+            var config = ReadSegmentConfiguration();
             var result = config
                 .Where(match => IsMatch(match.MatchExpression, cleanedRequestUrl, httpRequest))
                 .Select(match => new Segment(match.Key, match.Value, match.Persist));
@@ -67,11 +67,11 @@ namespace Umbraco.Web.Routing.Segments
             return new SegmentCollection(result);
         }
 
-        public IEnumerable<SegmentProviderMatch> ReadConfiguration()
+        public IEnumerable<SegmentProviderMatch> ReadSegmentConfiguration()
         {
             using (new ReadLock(_lock))
             {
-                var fileName = IOHelper.MapPath("~/App_Data/Segments/" + GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".config.json");
+                var fileName = IOHelper.MapPath("~/App_Data/Segments/" + GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".segments.json");
                 if (File.Exists(fileName) == false) return Enumerable.Empty<SegmentProviderMatch>();
                 var content = File.ReadAllText(fileName);
                 var result = JsonConvert.DeserializeObject<IEnumerable<SegmentProviderMatch>>(content);
@@ -80,12 +80,12 @@ namespace Umbraco.Web.Routing.Segments
             }
         }
 
-        public void SaveConfiguration(IEnumerable<SegmentProviderMatch> config)
+        public void WriteSegmentConfiguration(IEnumerable<SegmentProviderMatch> config)
         {
             using (new WriteLock(_lock))
             {
                 var json = JsonConvert.SerializeObject(config);
-                var fileName = GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".config.json";
+                var fileName = GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".segments.json";
                 Directory.CreateDirectory(IOHelper.MapPath("~/App_Data/Segments"));
                 File.WriteAllText(IOHelper.MapPath("~/App_Data/Segments/" + fileName), json); 
             }            

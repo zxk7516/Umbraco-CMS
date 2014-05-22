@@ -1,5 +1,5 @@
 <div ng-controller="Umbraco.Dashboard.SegmentDashboard">
-    <table class="table segment-dashboard" ng-hide="configuring">
+    <table class="table segment-dashboard" ng-hide="configuringSegments || configuringVariants">
         <tr ng-repeat="item in providers">
             <td>
                 <button class="btn btn-primary" ng-if="!item.enabled" ng-click="toggle(item)">Enable</button>
@@ -12,21 +12,55 @@
                 </p>
             </td>
             <td>
-                <button class="btn" ng-if="item.configurable" ng-click="showConfig(item)">Configure</button>
+                <button class="btn" ng-if="item.variantConfig.length > 0" ng-click="showVariantConfig(item)">Configure variants</button>
+                <button class="btn" ng-if="item.configurable" ng-click="showSegmentConfig(item)">Configure segments</button>
             </td>
         </tr>
     </table>
-    
-    <div ng-show="configuring" class="segment-config">
-        
-        <h3>'{{config.providerName}}' Configuration</h3>
+
+    <div ng-show="configuringVariants" >
+        <h3>'{{providerConfig.providerName}}' Variant Configuration</h3>
+        <p>
+            <small>
+                Here you can enable/disable content variants exposed by this provider
+            </small>    
+        </p>
+
+        <form name="segmentVariantForm" novalidate val-form-manager>
+
+            <div ng-repeat="item in variantConfig">
+                
+                <umb-pane>
+
+                    <umb-control-group label="{{item.name}}" alias="{{item.key}}" description="Variant key: {{item.key}}">
+                        <input type="checkbox" name="{{item.key}}" ng-model="$parent.item.enabled" />
+                    </umb-control-group>
+
+                </umb-pane>
+
+            </div>
+
+            <button class="btn" ng-click="cancel()">Cancel</button>
+            <button type="submit" class="btn btn-primary" ng-click="saveVariantConfig()">Save</button>
+
+        </form>
+
+    </div>
+
+    <div ng-show="configuringSegments" class="segment-config">
+
+        <h3>'{{providerConfig.providerName}}' Segment Configuration</h3>
+        <p>
+            <small>
+                Here you can configure segment keys to assign to a request for this provider
+            </small>    
+        </p>
+
         <form name="segmentConfigForm" novalidate val-form-manager>
 
             <button class="btn" ng-click="addItem()">Add</button>
 
-            <div ng-repeat="item in config.values">
-
-                <button class="btn btn-danger btn-mini" style="float:right;" ng-click="removeItem(item)">Remove</button>
+            <div ng-repeat="item in segmentConfig">
 
                 <umb-pane>
 
@@ -46,19 +80,23 @@
                             <input type="text" name="value" ng-model="$parent.item.value" required />
                             <span class="help-inline" val-msg-for="value" val-toggle-msg="required">Required</span>
                         </umb-control-group>
-                        
-                        <umb-control-group label="Persist segment" alias="value" description="This might be useful if you want to track an assigned segment. For example, if it's a referral provider a segment might be set when coming from 'mysite.com' and you want to know about that later on when the segment no longer exists in the request.">
-                            <input type="checkbox" name="persist" ng-model="$parent.item.persist" />
+
+                        <umb-control-group label="Persist segment" alias="value" description="">
+                            <input type="checkbox" name="persist" ng-model="$parent.item.persist" title="This might be useful if you want to track an assigned segment. For example, if it's a referral provider a segment might be set when coming from 'mysite.com' and you want to know about that later on when the segment no longer exists in the request." />
                         </umb-control-group>
 
                     </ng-form>
+                    
+                    <button class="btn btn-danger btn-mini" ng-click="removeItem(item)">Remove</button>
 
                 </umb-pane>
+                
+                
 
             </div>
 
             <button class="btn" ng-click="cancel()">Cancel</button>
-            <button type="submit" class="btn btn-primary" ng-click="save()">Save</button>
+            <button type="submit" class="btn btn-primary" ng-click="saveSegmentConfig()">Save</button>
 
         </form>
 

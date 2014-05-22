@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Web;
+using Newtonsoft.Json;
 using Umbraco.Core;
+using Umbraco.Core.IO;
 using Umbraco.Web.Models.Segments;
 
 namespace Umbraco.Web.Routing.Segments
@@ -41,7 +44,40 @@ namespace Umbraco.Web.Routing.Segments
         public IEnumerable<ContentVariantAttribute> AssignableContentVariants
         {
             get { return GetType().GetCustomAttributes<ContentVariantAttribute>(false).ToArray(); }
-        } 
+        }
+
+        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+
+        /// <summary>
+        /// Returns the status of enabled/disabled variants for a given provider
+        /// </summary>
+        /// <returns></returns>
+        public IDictionary<string, bool> ReadVariantConfiguration()
+        {
+            using (new ReadLock(_lock))
+            {
+                var fileName = IOHelper.MapPath("~/App_Data/Segments/" + GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".variants.json");
+                if (File.Exists(fileName) == false) return new Dictionary<string, bool>();
+                var contents = File.ReadAllText(fileName);
+                var result = JsonConvert.DeserializeObject<IDictionary<string, bool>>(contents);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Writes the status of enabled/disabled variants for a given provider
+        /// </summary>
+        /// <param name="variantConfig"></param>
+        public void WriteVariantConfiguration(IDictionary<string, bool> variantConfig)
+        {
+            using (new WriteLock(_lock))
+            {
+                var json = JsonConvert.SerializeObject(variantConfig);
+                var fileName = GetType().Namespace.EnsureEndsWith('.') + GetType().Name + ".variants.json";
+                Directory.CreateDirectory(IOHelper.MapPath("~/App_Data/Segments"));
+                File.WriteAllText(IOHelper.MapPath("~/App_Data/Segments/" + fileName), json);
+            }
+        }
 
         /// <summary>
         /// Returns the segment names and values to assign to the current request

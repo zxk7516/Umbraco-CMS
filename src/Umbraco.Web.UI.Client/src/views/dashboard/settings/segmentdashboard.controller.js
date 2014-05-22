@@ -1,12 +1,13 @@
 function segmentDashboardController($scope, umbRequestHelper, $log, $http, formHelper) {
 
     $scope.providers = [];
-    $scope.configuring = false;
-    $scope.config = {
+    $scope.configuringSegments = false;
+    $scope.providerConfig = {
         providerName: "",
         providerTypeName: "",
-        values: []        
-    };
+    }
+    $scope.segmentConfig = [];
+    $scope.variantConfig = [];
 
     $scope.toggle = function(provider) {
         umbRequestHelper.resourcePromise(
@@ -20,52 +21,82 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
             });
     }
 
-    $scope.showConfig = function (item) {
+    $scope.showSegmentConfig = function (item) {
         
-        $scope.configuring = true;
-        $scope.config.providerName = item.displayName;
-        $scope.config.providerTypeName = item.typeName;
-        $scope.config.values = item.config;
+        $scope.configuringSegments = true;
+        $scope.providerConfig.providerName = item.displayName;
+        $scope.providerConfig.providerTypeName = item.typeName;
+        $scope.segmentConfig = item.segmentConfig;
+    }
+
+    $scope.showVariantConfig = function (item) {
+
+        $scope.configuringVariants = true;
+        $scope.providerConfig.providerName = item.displayName;
+        $scope.providerConfig.providerTypeName = item.typeName;
+        $scope.variantConfig = item.variantConfig;
     }
 
     $scope.cancel = function () {
 
         formHelper.resetForm({ scope: $scope });
 
-        $scope.configuring = false;
-        $scope.config = {
+        $scope.configuringVariants = false;
+        $scope.configuringSegments = false;
+
+        $scope.providerConfig = {
             providerName: "",
             providerTypeName: "",
-            values: []
-        };
+        }
+        $scope.segmentConfig = [];
+        $scope.variantConfig = [];
     }
 
     $scope.addItem = function() {
-        $scope.config.values.push({ matchExpression: "", key: "", value: "" });
+        $scope.segmentConfig.push({ matchExpression: "", key: "", value: "" });
     }
 
     $scope.removeItem = function(item) {
-        $scope.config.values = _.reject($scope.config.values, function(i) { return i === item; });
+        $scope.segmentConfig = _.reject($scope.segmentConfig, function (i) { return i === item; });
     }
 
-    $scope.save = function () {
+    $scope.saveSegmentConfig = function () {
         if (formHelper.submitForm({ scope: $scope })) {
             umbRequestHelper.resourcePromise(
                 $http.post(
-                    umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "PostSaveProviderConfig",
-                    [{ typeName: $scope.config.providerTypeName }]),
-                    $scope.config.values),
+                    umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "PostSaveProviderSegmentConfig",
+                    [{ typeName: $scope.providerConfig.providerTypeName }]),
+                    $scope.segmentConfig),
                 'Failed to save segment configuration')
             .then(function () {
 
                 //now that its successful, save the persisted values back to the provider's values
-                var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.config.providerTypeName; });
-                provider.config = $scope.config.values;
+                var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.providerConfig.providerTypeName; });
+                provider.segmentConfig = $scope.segmentConfig;
 
                 //exit editing config
                 $scope.cancel();
             });
         }
+    }
+
+    $scope.saveVariantConfig = function () {
+        
+        umbRequestHelper.resourcePromise(
+                $http.post(
+                    umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "PostSaveProviderVariantConfig",
+                    [{ typeName: $scope.providerConfig.providerTypeName }]),
+                    $scope.variantConfig),
+                'Failed to save variant configuration')
+            .then(function () {
+
+                //now that its successful, save the persisted values back to the provider's values
+                var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.providerConfig.providerTypeName; });
+                provider.variantConfig = $scope.variantConfig;
+
+                //exit editing config
+                $scope.cancel();
+            });
     }
 
     umbRequestHelper.resourcePromise(

@@ -7,10 +7,11 @@ using Umbraco.Core.IO;
 
 namespace Umbraco.Web.Routing.Segments
 {
+
     public class ContentSegmentProvidersStatus
     {
         private readonly static ReaderWriterLockSlim Lock = new ReaderWriterLockSlim();
-
+        
         /// <summary>
         /// Returns a dictionary containing the provider type name and whether it is enabled or not
         /// </summary>

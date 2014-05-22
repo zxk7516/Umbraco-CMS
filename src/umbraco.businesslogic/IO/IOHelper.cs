@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -14,6 +15,7 @@ using umbraco.businesslogic.Exceptions;
 namespace umbraco.IO
 {
 	[Obsolete("Use Umbraco.Core.IO.IOHelper instead")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static class IOHelper
     {        
         public static char DirSepChar
