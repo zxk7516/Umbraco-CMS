@@ -17,10 +17,11 @@ namespace Umbraco.Core.Models.ContentVariations
             ChildVariants = childVariants.ToArray();
         }
 
-        public VariantDefinition(int masterDocId)
+        public VariantDefinition(int masterDocId, string key)
         {
             IsVariant = true;
             MasterDocId = masterDocId;
+            Key = key;
         }
 
         /// <summary>
@@ -32,6 +33,11 @@ namespace Umbraco.Core.Models.ContentVariations
         /// The master doc id if this is a variant
         /// </summary>
         public int MasterDocId { get; private set; }
+
+        /// <summary>
+        /// They key stored with this variant when it is a variant.
+        /// </summary>
+        public string Key { get; private set; }
 
         public IEnumerable<ChildVariant> ChildVariants { get; private set; }
     }

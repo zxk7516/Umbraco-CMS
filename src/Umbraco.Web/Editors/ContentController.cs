@@ -15,6 +15,7 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
+using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using Umbraco.Web.Models;
@@ -93,57 +94,7 @@ namespace Umbraco.Web.Editors
             }
             
             var content = Mapper.Map<IContent, ContentItemDisplay>(foundContent);
-
-            var variantDef = Services.ContentService.GetVariantDefinition(foundContent);
-            if (variantDef.IsVariant == false)
-            {
-                //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
-                var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
-
-                //These are the assignable variants based on the installed providers (statically advertised variants)
-                // that are enabled via the back office. If they are not enabled, they will not show up.
-                var assignableSegments = ContentSegmentProviderResolver.Current.Providers
-                    //don't lookup anything in any providers that are not enabled
-                    .Where(provider => segmentProviderStatus[provider.GetType().FullName] == true)
-                    .Select(provider => new
-                    {
-                        instance = provider,
-                        //get the keys that have been allowed
-                        enabledVariants = provider.ReadVariantConfiguration()
-                            .Where(vari => vari.Value)              // the value == true
-                            .Select(vari => vari.Key).ToArray()     // get the key
-                    })
-                    //only allow the onces that are enabled
-                    .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)))
-                    .Select(variantAttribute => new
-                    {
-                        variantAttribute, 
-                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == variantAttribute.SegmentMatchKey)
-                    })
-                    .Select(x => x.assigned == null
-                        ? new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false)
-                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
-
-                //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
-                var allDomains = DomainHelper.GetAllDomains(false);
-                //now get the ones assigned within the path
-                var splitPath = content.Path.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
-                var assignedLanguages = assignedDomains.Select(x => x.Language);
-                var languageSegments = assignedLanguages
-                    .Select(x => new { lang = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x.CultureAlias) })
-                    .Select(x => x.assigned == null
-                        ? new ContentVariableSegment(x.lang.CultureAlias, true)
-                        : new ContentVariableSegment(x.lang.CultureAlias, true, x.assigned.ChildId, x.assigned.IsTrashed));
-
-                //assign the variants, NOTE: languages always take precedence if there is overlap
-                content.ContentVariants = languageSegments.Union(assignableSegments);
-            }
-            else
-            {
-                content.MasterDocId = variantDef.MasterDocId;
-            }
-
+            MapVariants(foundContent, content);
             return content;
        }
 
@@ -339,6 +290,8 @@ namespace Umbraco.Web.Editors
 
             //return the updated model
             var display = Mapper.Map<IContent, ContentItemDisplay>(contentItem.PersistedContent);
+
+            MapVariants(contentItem.PersistedContent, display);
 
             //lasty, if it is not valid, add the modelstate to the outgoing object and throw a 403
             HandleInvalidModelState(display);
@@ -852,6 +805,88 @@ namespace Umbraco.Web.Editors
             }
             return allowed;
         }
+
+
+        private void MapVariants(IContent content, ContentItemDisplay display)
+        {
+            var variantDef = Services.ContentService.GetVariantDefinition(content);
+            if (variantDef.IsVariant == false)
+            {
+                //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
+                var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
+
+                //These are the assignable variants based on the installed providers (statically advertised variants)
+                // that are enabled via the back office. If they are not enabled, they will not show up.
+                var assignableSegments = ContentSegmentProviderResolver.Current.Providers
+                    //don't lookup anything in any providers that are not enabled
+                    .Where(provider => segmentProviderStatus[provider.GetType().FullName] == true)
+                    .Select(provider => new
+                    {
+                        instance = provider,
+                        //get the keys that have been allowed
+                        enabledVariants = provider.ReadVariantConfiguration()
+                            .Where(vari => vari.Value)              // the value == true
+                            .Select(vari => vari.Key).ToArray()     // get the key
+                    })
+                    //only allow the onces that are enabled
+                    .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)))
+                    .Select(variantAttribute => new
+                    {
+                        variantAttribute,
+                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == variantAttribute.SegmentMatchKey)
+                    })
+                    .Select(x => x.assigned == null
+                        ? new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false)
+                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
+                
+                var assignedLanguages = GetAssignedLanguageVariants(display);
+
+                var languageSegments = assignedLanguages
+                    .Select(x => new { lang = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x) })
+                    .Select(x => x.assigned == null
+                        ? new ContentVariableSegment(x.lang, true)
+                        : new ContentVariableSegment(x.lang, true, x.assigned.ChildId, x.assigned.IsTrashed));
+
+                //assign the variants, NOTE: languages always take precedence if there is overlap
+                display.ContentVariants = languageSegments.Union(assignableSegments);
+            }
+            else
+            {
+                display.MasterDocId = variantDef.MasterDocId;
+
+                //we want to change the URL property because it shouldn't show urls if it's a variant, the URL will be specific
+                // to the master doc - if it is NOT a language variant.
+                
+                var assignedLanguages = GetAssignedLanguageVariants(display);
+                if (assignedLanguages.Contains(variantDef.Key) == false)
+                {
+                    //it's not a language, so remove the url
+
+                    //TODO: show a message? or just remove the prop?
+                    //var labelEditor = PropertyEditorResolver.Current.GetByAlias(Constants.PropertyEditors.NoEditAlias).ValueEditor.View;
+                    var genericTab = display.Tabs.Single(x => x.Id == 0);
+                    var urlProp = genericTab.Properties.Single(x => x.Alias == string.Format("{0}urls", Constants.PropertyEditors.InternalGenericPropertiesPrefix));
+                    genericTab.Properties = genericTab.Properties.Except(new[] {urlProp});
+                    //urlProp.Value = "The URL is the same as the master doc, custom variants do not have different URLs";
+                    //urlProp.Label = "";
+                    //urlProp.View = labelEditor;
+                    
+                }
+
+            }
+
+
+        }
+
+        private IEnumerable<string> GetAssignedLanguageVariants(ContentItemDisplay display)
+        {
+            //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
+            var allDomains = DomainHelper.GetAllDomains(false);
+            //now get the ones assigned within the path
+            var splitPath = display.Path.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
+            return assignedDomains.Select(x => x.Language.CultureAlias);
+        } 
 
     }
 }

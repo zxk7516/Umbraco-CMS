@@ -14,6 +14,7 @@ namespace Umbraco.Web.Routing.Segments
     [DisplayName("Browser capabilities provider")]
     [Description("Uses ASP.Net HttpBrowserCapabilities object to analyze the current request")]
     [ContentVariant("Mobile users", "IsMobileDevice")]
+    [ContentVariant("Java applet people", "JavaApplets")]
     internal class BrowserCapabilitiesProvider : ContentSegmentProvider
     {
         public BrowserCapabilitiesProvider()

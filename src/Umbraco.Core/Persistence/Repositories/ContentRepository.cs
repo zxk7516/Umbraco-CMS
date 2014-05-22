@@ -579,10 +579,12 @@ namespace Umbraco.Core.Persistence.Repositories
             var childVariants = result.Where(x => x.childId == content.Id).ToArray();
             if (childVariants.Any())
             {
+                var row = childVariants.Single();
                 //this content item is a variant itself
                 return new VariantDefinition(
                     //get it's master doc id
-                    childVariants.Single().parentId);
+                    row.parentId,
+                    row.comment);
             }
 
             return new VariantDefinition(result
