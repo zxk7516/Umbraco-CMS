@@ -8,29 +8,33 @@
 **/
 function valTab() {
     return {
-        require: "^form",
+        //this means the form is optional and will not throw an exception if not found
+        // if the form is not found, then this directive will not do anything
+        require: "^?form", 
         restrict: "A",
         link: function (scope, element, attr, formCtrl) {
             
-            var tabId = "tab" + scope.tab.id;
-                        
-            scope.tabHasError = false;
+            if (formCtrl) {
+                var tabId = "tab" + scope.tab.id;
 
-            //listen for form validation changes
-            scope.$on("valStatusChanged", function(evt, args) {
-                if (!args.form.$valid) {
-                    var tabContent = element.closest(".umb-panel").find("#" + tabId);
-                    //check if the validation messages are contained inside of this tabs 
-                    if (tabContent.find(".ng-invalid").length > 0) {
-                        scope.tabHasError = true;
-                    } else {
+                scope.tabHasError = false;
+
+                //listen for form validation changes
+                scope.$on("valStatusChanged", function (evt, args) {
+                    if (!args.form.$valid) {
+                        var tabContent = element.closest(".umb-panel").find("#" + tabId);
+                        //check if the validation messages are contained inside of this tabs 
+                        if (tabContent.find(".ng-invalid").length > 0) {
+                            scope.tabHasError = true;
+                        } else {
+                            scope.tabHasError = false;
+                        }
+                    }
+                    else {
                         scope.tabHasError = false;
                     }
-                }
-                else {
-                    scope.tabHasError = false;
-                }
-            });
+                });
+            }
 
         }
     };
