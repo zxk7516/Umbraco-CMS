@@ -94,6 +94,11 @@ namespace Umbraco.Web.Editors
             return Request.CreateResponse(HttpStatusCode.OK);
         }
 
+        /// <summary>
+        /// Enabled/disable a provider
+        /// </summary>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
         public HttpResponseMessage PostToggleProvider([FromUri]string typeName)
         {
             var providers = ContentSegmentProviderResolver.Current.Providers.ToArray();

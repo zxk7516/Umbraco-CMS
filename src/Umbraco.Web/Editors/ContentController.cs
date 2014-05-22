@@ -98,17 +98,31 @@ namespace Umbraco.Web.Editors
             if (variantDef.IsVariant == false)
             {
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
+                var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
 
                 //These are the assignable variants based on the installed providers (statically advertised variants)
-                var assignableSegments = ContentSegmentProviderResolver.Current.Providers.SelectMany(x => x.AssignableContentVariants)
-                    .Select(x => new
+                // that are enabled via the back office. If they are not enabled, they will not show up.
+                var assignableSegments = ContentSegmentProviderResolver.Current.Providers
+                    //don't lookup anything in any providers that are not enabled
+                    .Where(provider => segmentProviderStatus[provider.GetType().FullName] == true)
+                    .Select(provider => new
                     {
-                        segment = x, 
-                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x.SegmentMatchKey)
+                        instance = provider,
+                        //get the keys that have been allowed
+                        enabledVariants = provider.ReadVariantConfiguration()
+                            .Where(vari => vari.Value)              // the value == true
+                            .Select(vari => vari.Key).ToArray()     // get the key
+                    })
+                    //only allow the onces that are enabled
+                    .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)))
+                    .Select(variantAttribute => new
+                    {
+                        variantAttribute, 
+                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == variantAttribute.SegmentMatchKey)
                     })
                     .Select(x => x.assigned == null
-                        ? new ContentVariableSegment(x.segment.VariantName, x.segment.SegmentMatchKey, false)
-                        : new ContentVariableSegment(x.segment.VariantName, x.segment.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
+                        ? new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false)
+                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
 
                 //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
                 var allDomains = DomainHelper.GetAllDomains(false);
