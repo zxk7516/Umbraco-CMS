@@ -9,6 +9,7 @@ using System.Web.Mvc;
 using System.Web.Routing;
 using AutoMapper;
 using Newtonsoft.Json;
+using umbraco.cms.businesslogic.web;
 using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Mapping;
@@ -314,8 +315,10 @@ namespace Umbraco.Web.Models.Mapping
                 }
                 else
                 {
-                    //it is a language so filter the URLs to the specific one
-                    urlProp.Value = content.GetContentUrl();
+                    //it is a language so only show that specific domain URL.
+                    //TODO: How??? There doesn't seem to be an easy way to do this need to ask Stephen
+                    //urlProp.Value = content.GetContentUrls();
+                 
                 }
             }
         }
@@ -324,9 +327,18 @@ namespace Umbraco.Web.Models.Mapping
         {
             //These are the lanuages assigned to this node (i.e. based on domains assigned to this node or ancestor nodes)
             var allDomains = DomainHelper.GetAllDomains(false);
+
             //now get the ones assigned within the path
-            var splitPath = display.Path.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var splitPath = display.Path.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            if (display.MasterDocId.HasValue)
+            {
+                //we need to add the master doc id to the path, since that is really where the languages are assigned
+                splitPath.Insert(1, display.MasterDocId.Value.ToString(CultureInfo.InvariantCulture));
+            }
+            
             var assignedDomains = allDomains.Where(x => splitPath.Contains(x.RootNodeId.ToString(CultureInfo.InvariantCulture)));
+
             return assignedDomains.Select(x => x.Language.CultureAlias);
         } 
 

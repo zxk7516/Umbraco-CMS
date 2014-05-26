@@ -187,6 +187,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             public string ChildDocumentByUrlNameVar { get; private set; }
             public string RootDocumentWithLowestSortOrder { get; private set; }
 
+            //xpath statements to take into account variants
+            public string RootDocumentsAndVariants { get; private set; }
+            public string ChildDocumentOrVariantByUrlNameVar { get; private set; }
+            public string ChildDocumentOrVariantByUrlName { get; private set; }
+
 			public XPathStringsDefinition(int version)
 			{
 				Version = version;
@@ -195,20 +200,28 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				{
 					// legacy XML schema
 					case 0:
-						RootDocuments = "/root/node";
-						DescendantDocumentById = "//node [@id={0}]";
-						ChildDocumentByUrlName = "/node [@urlName='{0}']";
-						ChildDocumentByUrlNameVar = "/node [@urlName=${0}]";
-						RootDocumentWithLowestSortOrder = "/root/node [not(@sortOrder > ../node/@sortOrder)][1]";
+                        throw new NotSupportedException("The legacy XML schema is no longer supported");
+                        //RootDocuments = "/root/node";
+                        //DescendantDocumentById = "//node [@id={0}]";
+                        //ChildDocumentByUrlName = "/node [@urlName='{0}']";
+                        //ChildDocumentByUrlNameVar = "/node [@urlName=${0}]";
+                        //RootDocumentWithLowestSortOrder = "/root/node [not(@sortOrder > ../node/@sortOrder)][1]";
 						break;
 
 					// default XML schema as of 4.10
 					case 1:
 						RootDocuments = "/root/* [@isDoc]";
+                        RootDocumentsAndVariants = "/root/* [@isDoc or @masterDocId]";
+
 						DescendantDocumentById = "//* [@isDoc and @id={0}]";
+
 						ChildDocumentByUrlName = "/* [@isDoc and @urlName='{0}']";
-						ChildDocumentByUrlNameVar = "/* [@isDoc and @urlName=${0}]";
-						RootDocumentWithLowestSortOrder = "/root/* [@isDoc and not(@sortOrder > ../* [@isDoc]/@sortOrder)][1]";
+                        ChildDocumentOrVariantByUrlName = "/* [(@isDoc or @masterDocId) and @urlName='{0}']";
+						
+                        ChildDocumentByUrlNameVar = "/* [@isDoc and @urlName=${0}]";
+                        ChildDocumentOrVariantByUrlNameVar = "/* [(@isDoc or @masterDocId) and @urlName=${0}]";
+						
+                        RootDocumentWithLowestSortOrder = "/root/* [@isDoc and not(@sortOrder > ../* [@isDoc]/@sortOrder)][1]";
 						break;
 
 					default:
@@ -383,6 +396,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         static readonly char[] SlashChar = new[] { '/' };
 
+        /// <summary>
+        /// Creates an xpath query to lookup a node by route
+        /// </summary>
+        /// <param name="startNodeId"></param>
+        /// <param name="path"></param>
+        /// <param name="hideTopLevelNodeFromPath"></param>
+        /// <param name="vars"></param>
+        /// <returns></returns>
         protected string CreateXpathQuery(int startNodeId, string path, bool hideTopLevelNodeFromPath, out IEnumerable<XPathVariable> vars)
         {
             string xpath;
@@ -424,10 +445,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 if (startNodeId == 0)
                 {
-					if (hideTopLevelNodeFromPath)
-						xpathBuilder.Append(XPathStrings.RootDocuments); // first node is not in the url
-					else
-						xpathBuilder.Append(XPathStringsDefinition.Root);
+                    if (hideTopLevelNodeFromPath)
+                    {
+                        xpathBuilder.Append(XPathStrings.RootDocumentsAndVariants); // first node is not in the url                        
+                    }
+                    else
+                    {
+                        xpathBuilder.Append(XPathStringsDefinition.Root);
+                    }
                 }
                 else
                 {
@@ -444,11 +469,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                         varsList = varsList ?? new List<XPathVariable>();
                         var varName = string.Format("var{0}", partsIndex);
                         varsList.Add(new XPathVariable(varName, part));
-                        xpathBuilder.AppendFormat(XPathStrings.ChildDocumentByUrlNameVar, varName);
+                        xpathBuilder.AppendFormat(XPathStrings.ChildDocumentOrVariantByUrlNameVar, varName);
                     }
                     else
                     {
-                        xpathBuilder.AppendFormat(XPathStrings.ChildDocumentByUrlName, part);
+                        xpathBuilder.AppendFormat(XPathStrings.ChildDocumentOrVariantByUrlName, part);
                         
                     }
                 }

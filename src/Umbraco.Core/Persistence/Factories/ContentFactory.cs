@@ -11,10 +11,10 @@ namespace Umbraco.Core.Persistence.Factories
         private readonly IContentType _contentType;
         private readonly Guid _nodeObjectTypeId;
         private readonly int _id;
-        private readonly Lazy<VariantDefinition> _variantDef;
+        private readonly VariantDefinition _variantDef;
         private int _primaryKey;
 
-        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id, Lazy<VariantDefinition> variantDef)
+        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id, VariantDefinition variantDef)
         {
             _contentType = contentType;
             _nodeObjectTypeId = nodeObjectTypeId;

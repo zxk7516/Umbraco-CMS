@@ -22,9 +22,9 @@ namespace Umbraco.Core.Models
         private int _writer;
         private string _nodeName;//NOTE Once localization is introduced this will be the non-localized Node Name.
         private bool _permissionsChanged;
-        private Lazy<VariantDefinition> _variantDef; 
+        private VariantDefinition _variantDef; 
 
-        public Content(string name, int parentId, IContentType contentType, Lazy<VariantDefinition> variantDef)
+        public Content(string name, int parentId, IContentType contentType, VariantDefinition variantDef)
             : this(name, parentId, contentType, new PropertyCollection())
         {
             Mandate.ParameterNotNull(variantDef, "variantDef");
@@ -102,7 +102,7 @@ namespace Umbraco.Core.Models
             {
                 if (_variantDef != null)
                 {
-                    return _variantDef.Value;
+                    return _variantDef;
                 }
                 throw new NullReferenceException("No " + typeof(VariantDefinition) + " has been specified");
             }
@@ -480,18 +480,7 @@ namespace Umbraco.Core.Models
             clone._contentType = (IContentType)ContentType.DeepClone();
             clone.ResetDirtyProperties(false);
 
-            //TODO: Need to figure out how best to copy a Lazy<T>! We don't want to hang on to stale references in memory but we don't
-            // want to execute the delegate if it's not required either.
-            if (_variantDef.IsValueCreated)
-            {
-                var val = _variantDef.Value;
-                clone._variantDef = new Lazy<VariantDefinition>(() => val, false);
-            }
-            else
-            {
-                clone._variantDef = _variantDef;
-            }
-            
+            clone._variantDef = (VariantDefinition)_variantDef.DeepClone();
 
             return clone;
 

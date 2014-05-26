@@ -7,29 +7,7 @@ using Umbraco.Web.Security;
 namespace Umbraco.Web.Routing
 {
     internal static class UrlProviderExtensions
-    {
-        public static string GetContentUrl(this IContent content, IUser user, UrlProvider urlProvider)
-        {
-            if (content.HasPublishedVersion() == false)
-            {
-                return ui.Text("content", "itemNotPublished", user);
-            }
-
-            return urlProvider.GetUrl(content.Id);    
-        }
-
-        /// <summary>
-        /// Returns the single url for the content item
-        /// </summary>
-        /// <param name="content"></param>
-        /// <returns></returns>
-        public static string GetContentUrl(this IContent content)
-        {
-            return content.GetContentUrl(
-                UmbracoContext.Current.Security.CurrentUser,
-                UmbracoContext.Current.RoutingContext.UrlProvider);
-        }
-
+    {        
         public static IEnumerable<string> GetContentUrls(this IContent content, IUser user, UrlProvider urlProvider)
         {
             var urls = new List<string>();

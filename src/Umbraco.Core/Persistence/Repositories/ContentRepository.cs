@@ -672,7 +672,7 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             var contentType = _contentTypeRepository.Get(dto.ContentVersionDto.ContentDto.ContentTypeId);
 
-            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId, new Lazy<VariantDefinition>(() => GetVariantDefinition(dto.NodeId)));
+            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId, GetVariantDefinition(dto.NodeId));
             var content = (Content)factory.BuildEntity(dto);
 
             //Check if template id is set on DocumentDto, and get ITemplate if it is.

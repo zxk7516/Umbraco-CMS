@@ -9,7 +9,7 @@ namespace Umbraco.Core.Models.ContentVariations
     /// <summary>
     /// A class representing the variant definition(s) of a single node, whether it is a variant itself or a master doc
     /// </summary>
-    public class VariantDefinition
+    public class VariantDefinition : IDeepCloneable
     {
         public VariantDefinition(IEnumerable<ChildVariant> childVariants)
         {
@@ -43,5 +43,21 @@ namespace Umbraco.Core.Models.ContentVariations
         /// The child variants for this node - if it is a master doc
         /// </summary>
         public IEnumerable<ChildVariant> ChildVariants { get; private set; }
+
+        public object DeepClone()
+        {
+            var clone = (VariantDefinition) MemberwiseClone();
+            //set the cloned children
+            if (clone.ChildVariants != null)
+            {
+                clone.ChildVariants = ChildVariants.Select(x => (ChildVariant)x.DeepClone()).ToList();
+            }
+            else
+            {
+                clone.ChildVariants = null;
+            }
+
+            return clone;
+        }
     }
 }

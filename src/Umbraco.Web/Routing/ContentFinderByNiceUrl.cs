@@ -39,6 +39,9 @@ namespace Umbraco.Web.Routing
         {
 			LogHelper.Debug<ContentFinderByNiceUrl>("Test route \"{0}\"", () => route);
 
+            //TODO: If content is found, but it has variants of the language assigned to the domain found here do we
+            // match against the variant? Or do we match against the master? Or do we 404 ?
+
 		    var node = docreq.RoutingContext.UmbracoContext.ContentCache.GetByRoute(route);
             if (node != null)
             {
