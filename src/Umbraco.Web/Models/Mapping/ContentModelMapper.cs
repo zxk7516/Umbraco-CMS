@@ -293,8 +293,12 @@ namespace Umbraco.Web.Models.Mapping
             {
                 display.MasterDocId = variantDef.MasterDocId;
 
-                //we want to change the URL property because it shouldn't show urls if it's a variant, the URL will be specific
+                //We want to change the URL property because it shouldn't show urls if it's a variant, the URL will be specific
                 // to the master doc - if it is NOT a language variant.
+                //For language variants the URL should only reflect the one assigned by domain. 
+
+                var genericTab = display.Tabs.Single(x => x.Id == 0);
+                var urlProp = genericTab.Properties.Single(x => x.Alias == string.Format("{0}urls", Constants.PropertyEditors.InternalGenericPropertiesPrefix));
 
                 var assignedLanguages = GetAssignedLanguageVariants(display);
                 if (assignedLanguages.Contains(variantDef.Key) == false)
@@ -302,14 +306,16 @@ namespace Umbraco.Web.Models.Mapping
                     //it's not a language, so remove the url
 
                     //TODO: show a message? or just remove the prop?
-                    //var labelEditor = PropertyEditorResolver.Current.GetByAlias(Constants.PropertyEditors.NoEditAlias).ValueEditor.View;
-                    var genericTab = display.Tabs.Single(x => x.Id == 0);
-                    var urlProp = genericTab.Properties.Single(x => x.Alias == string.Format("{0}urls", Constants.PropertyEditors.InternalGenericPropertiesPrefix));
-                    genericTab.Properties = genericTab.Properties.Except(new[] { urlProp });
+                    //var labelEditor = PropertyEditorResolver.Current.GetByAlias(Constants.PropertyEditors.NoEditAlias).ValueEditor.View;                    
+                    genericTab.Properties = genericTab.Properties.Except(new[] {urlProp});
                     //urlProp.Value = "The URL is the same as the master doc, custom variants do not have different URLs";
                     //urlProp.Label = "";
                     //urlProp.View = labelEditor;
-
+                }
+                else
+                {
+                    //it is a language so filter the URLs to the specific one
+                    urlProp.Value = content.GetContentUrl();
                 }
             }
         }
