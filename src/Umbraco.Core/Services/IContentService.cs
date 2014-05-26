@@ -12,7 +12,7 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IContentService : IService
     {
-        VariantDefinition GetVariantDefinition(IContent content);
+        
 
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids

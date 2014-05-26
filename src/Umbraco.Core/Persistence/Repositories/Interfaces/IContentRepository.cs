@@ -10,7 +10,6 @@ namespace Umbraco.Core.Persistence.Repositories
 {
     public interface IContentRepository : IRepositoryVersionable<int, IContent>
     {
-        VariantDefinition GetVariantDefinition(IContent content);
 
         /// <summary>
         /// Gets a specific language version of an <see cref="IContent"/>

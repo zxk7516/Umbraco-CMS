@@ -289,5 +289,19 @@ namespace Umbraco.Core
             }
         }
 
+        /// <summary>
+        /// Converts an XContainer to an XmlNode for the given xml document
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="xmlDoc"></param>
+        /// <returns></returns>
+        public static XmlNode ToXmlNode(this XContainer element, XmlDocument xmlDoc)
+        {
+            using (XmlReader xmlReader = element.CreateReader())
+            {
+                return xmlDoc.ReadNode(xmlReader);
+            }
+        }
+
 	}
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Persistence.Mappers;
 
 namespace Umbraco.Core.Models
@@ -9,6 +10,11 @@ namespace Umbraco.Core.Models
     /// </summary>    
     public interface IContent : IContentBase
     {
+        /// <summary>
+        /// Gets the variant definition for this node
+        /// </summary>
+        VariantDefinition VariantDefinition { get; }
+
         /// <summary>
         /// Gets or sets the template used by the Content.
         /// This is used to override the default one from the ContentType.

@@ -402,7 +402,7 @@ namespace umbraco.cms.businesslogic
         public virtual void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
         {
             var props = this.GenericProperties;
-            foreach (property.Property p in props)
+            foreach (var p in props)
                 if (p != null && p.Value != null && string.IsNullOrEmpty(p.Value.ToString()) == false)
                     x.AppendChild(p.ToXml(xd));
 
@@ -534,7 +534,7 @@ namespace umbraco.cms.businesslogic
                 SqlHelper.CreateParameter("@updateDate", versionDate));
 
             List<PropertyType> pts = ContentType.PropertyTypes;
-            foreach (propertytype.PropertyType pt in pts)
+            foreach (var pt in pts)
             {
                 object oldValue = "";
                 if (tempHasVersion)
@@ -545,7 +545,7 @@ namespace umbraco.cms.businesslogic
                     }
                     catch { }
                 }
-                property.Property p = this.addProperty(pt, newVersion);
+                var p = this.addProperty(pt, newVersion);
                 if (oldValue != null && oldValue.ToString() != "") p.Value = oldValue;
             }
             this.Version = newVersion;
@@ -554,8 +554,8 @@ namespace umbraco.cms.businesslogic
 
         protected virtual XmlNode generateXmlWithoutSaving(XmlDocument xd)
         {
-            string nodeName = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : Casing.SafeAliasWithForcingCheck(ContentType.Alias);
-            XmlNode x = xd.CreateNode(XmlNodeType.Element, nodeName, "");
+            var nodeName = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : Casing.SafeAliasWithForcingCheck(ContentType.Alias);
+            var x = xd.CreateNode(XmlNodeType.Element, nodeName, "");
             XmlPopulate(xd, ref x, false);
             return x;
         }

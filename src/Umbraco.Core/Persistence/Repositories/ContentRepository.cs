@@ -559,7 +559,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
         }
 
-        public VariantDefinition GetVariantDefinition(IContent content)
+        internal VariantDefinition GetVariantDefinition(int contentId)
         {
             var sql = new Sql()
                 .Select("umbracoRelation.*, umbracoNode.trashed")
@@ -569,14 +569,14 @@ namespace Umbraco.Core.Persistence.Repositories
                 .InnerJoin<NodeDto>()
                 .On<NodeDto, RelationDto>(dto => dto.NodeId, dto => dto.ChildId)
                 .Where("umbracoRelationType.alias = @alias AND (umbracoRelation.parentId = @parentId OR umbracoRelation.childId = @childId)",
-                    new {parentId = content.Id, childId = content.Id, alias = "umbContentVariants"});
+                    new { parentId = contentId, childId = contentId, alias = "umbContentVariants" });
 
             var result = Database.Fetch<dynamic>(sql);
 
             //first check if the result has the current content id as a childid in the collection, 
             // if it does, then it means that this content item is a variant, otherwise if it's id is
             // contained in any parent ids then it's a master
-            var childVariants = result.Where(x => x.childId == content.Id).ToArray();
+            var childVariants = result.Where(x => x.childId == contentId).ToArray();
             if (childVariants.Any())
             {
                 var row = childVariants.Single();
@@ -588,7 +588,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             return new VariantDefinition(result
-                .Where(x => x.parentId == content.Id)
+                .Where(x => x.parentId == contentId)
                 .Select(x => new ChildVariant(x.comment, x.childId, x.trashed)));
         }
 
@@ -672,8 +672,8 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             var contentType = _contentTypeRepository.Get(dto.ContentVersionDto.ContentDto.ContentTypeId);
 
-            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId);
-            var content = factory.BuildEntity(dto);
+            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId, new Lazy<VariantDefinition>(() => GetVariantDefinition(dto.NodeId)));
+            var content = (Content)factory.BuildEntity(dto);
 
             //Check if template id is set on DocumentDto, and get ITemplate if it is.
             if (dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
@@ -682,7 +682,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             content.Properties = GetPropertyCollection(dto.NodeId, versionId, contentType, content.CreateDate, content.UpdateDate);
-
+            
             //on initial construction we don't want to have dirty properties tracked
             // http://issues.umbraco.org/issue/U4-1946
             ((Entity)content).ResetDirtyProperties(false);

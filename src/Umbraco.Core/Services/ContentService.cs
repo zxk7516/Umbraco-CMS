@@ -74,16 +74,7 @@ namespace Umbraco.Core.Services
             _repositoryFactory = repositoryFactory;
             _dataTypeService = dataTypeService;
         }
-
-        public VariantDefinition GetVariantDefinition(IContent content)
-        {
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateContentRepository(uow))
-            {
-                return repository.GetVariantDefinition(content);
-            }
-        }
-
+        
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids
         /// </summary>

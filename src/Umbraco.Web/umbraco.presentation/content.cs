@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -381,7 +382,7 @@ namespace umbraco
         public static XmlDocument AppendDocumentXml(int id, int level, int parentId, XmlNode docNode, XmlDocument xmlContentCopy)
         {
             // Find the document in the xml cache
-            XmlNode currentNode = xmlContentCopy.GetElementById(id.ToString());
+            XmlNode currentNode = xmlContentCopy.GetElementById(id.ToString(CultureInfo.InvariantCulture));
 
 			// if the document is not there already then it's a new document
 			// we must make sure that its document type exists in the schema
@@ -396,14 +397,31 @@ namespace umbraco
             // Find the parent (used for sortering and maybe creation of new node)
             XmlNode parentNode = level == 1
                                      ? xmlContentCopy.DocumentElement
-                                     : xmlContentCopy.GetElementById(parentId.ToString());
+                                     : xmlContentCopy.GetElementById(parentId.ToString(CultureInfo.InvariantCulture));
+
+
+            //var isVariant = docNode.Attributes.HasAttribute("masterDocId") && docNode.AttributeValue<bool>("masterDocId");
 
             if (parentNode != null)
             {
                 if (currentNode == null)
                 {
                     currentNode = docNode;
-                    parentNode.AppendChild(currentNode);
+
+                    //if (isVariant)
+                    //{
+                    //    var variantContainer = parentNode.SelectSingleNode("/umbvariants");
+                    //    if (variantContainer == null)
+                    //    {
+                    //        variantContainer = xmlContentCopy.CreateElement("umbvariants");
+                    //        parentNode.AppendChild(variantContainer);
+                    //    }
+                    //    variantContainer.AppendChild(currentNode);
+                    //}
+                    //else
+                    //{
+                    parentNode.AppendChild(currentNode);   
+                    //}
                 }
                 else
                 {
@@ -531,25 +549,10 @@ namespace umbraco
         /// Updates the document cache for multiple documents
         /// </summary>
         /// <param name="Documents">The documents.</param>
-        [Obsolete("This is not used and will be removed from the codebase in future versions")]
+        [Obsolete("This is not used and will be removed from the codebase in future versions", true)]
         public virtual void UpdateDocumentCache(List<Document> Documents)
         {
-            // We need to lock content cache here, because we cannot allow other threads
-            // making changes at the same time, they need to be queued
-            int parentid = Documents[0].Id;
-
-            lock (XmlContentInternalSyncLock)
-            {
-                // Make copy of memory content, we cannot make changes to the same document
-                // the is read from elsewhere
-                XmlDocument xmlContentCopy = CloneXmlDoc(XmlContentInternal);
-                foreach (Document d in Documents)
-                {
-                    PublishNodeDo(d, xmlContentCopy, true);
-                }
-                XmlContentInternal = xmlContentCopy;
-                ClearContextCache();
-            }
+            //NOTE: The obsolete attribute with throw a YSOD
         }
         
         /// <summary>
@@ -559,12 +562,7 @@ namespace umbraco
         [Obsolete("Method obsolete in version 4.1 and later, please use UpdateDocumentCache", true)]
         public virtual void UpdateDocumentCacheAsync(int documentId)
         {
-            //SD: WE've obsoleted this but then didn't make it call the method it should! So we've just 
-            // left a bug behind...???? ARGH. 
-            //.... changed now.
-            //ThreadPool.QueueUserWorkItem(delegate { UpdateDocumentCache(documentId); });
-
-            UpdateDocumentCache(documentId);
+            //NOTE: The obsolete attribute with throw a YSOD
         }
 
         /// <summary>
@@ -574,12 +572,7 @@ namespace umbraco
         [Obsolete("Method obsolete in version 4.1 and later, please use ClearDocumentCache", true)]
         public virtual void ClearDocumentCacheAsync(int documentId)
         {
-            //SD: WE've obsoleted this but then didn't make it call the method it should! So we've just 
-            // left a bug behind...???? ARGH.
-            //.... changed now.
-            //ThreadPool.QueueUserWorkItem(delegate { ClearDocumentCache(documentId); });
-
-            ClearDocumentCache(documentId);
+            //NOTE: The obsolete attribute with throw a YSOD
         }
 
         public virtual void ClearDocumentCache(int documentId)
@@ -1175,6 +1168,9 @@ order by umbracoNode.level, umbracoNode.sortOrder";
             // the content tree, so lets return null signifying there is no content available
             return null;
         }
+
+
+        //TODO: Here we need to deal with variants
 
         private static void GenerateXmlDocument(IDictionary<int, List<int>> hierarchy,
                                                 IDictionary<int, XmlNode> nodeIndex, int parentId, XmlNode parentNode)

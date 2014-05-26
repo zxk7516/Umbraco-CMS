@@ -39,6 +39,9 @@ namespace Umbraco.Core.Models.ContentVariations
         /// </summary>
         public string Key { get; private set; }
 
+        /// <summary>
+        /// The child variants for this node - if it is a master doc
+        /// </summary>
         public IEnumerable<ChildVariant> ChildVariants { get; private set; }
     }
 }

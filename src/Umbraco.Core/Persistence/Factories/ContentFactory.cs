@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.Rdbms;
 
 namespace Umbraco.Core.Persistence.Factories
@@ -10,13 +11,15 @@ namespace Umbraco.Core.Persistence.Factories
         private readonly IContentType _contentType;
         private readonly Guid _nodeObjectTypeId;
         private readonly int _id;
+        private readonly Lazy<VariantDefinition> _variantDef;
         private int _primaryKey;
 
-        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id)
+        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id, Lazy<VariantDefinition> variantDef)
         {
             _contentType = contentType;
             _nodeObjectTypeId = nodeObjectTypeId;
             _id = id;
+            _variantDef = variantDef;
         }
 
         public ContentFactory(Guid nodeObjectTypeId, int id)
@@ -29,7 +32,7 @@ namespace Umbraco.Core.Persistence.Factories
 
         public IContent BuildEntity(DocumentDto dto)
         {
-            var content = new Content(dto.Text, dto.ContentVersionDto.ContentDto.NodeDto.ParentId, _contentType)
+            var content = new Content(dto.Text, dto.ContentVersionDto.ContentDto.NodeDto.ParentId, _contentType, _variantDef)
             {
                 Id = _id,
                 Key =

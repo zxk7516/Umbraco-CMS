@@ -39,6 +39,14 @@ namespace Umbraco.Core.Services
             xml.Add(new XAttribute("template", content.Template == null ? "0" : content.Template.Id.ToString(CultureInfo.InvariantCulture)));
             xml.Add(new XAttribute("nodeTypeAlias", content.ContentType.Alias));
 
+            if (content.VariantDefinition.IsVariant)
+            {
+                //remove the isDoc attribute - we don't want peoples normal xpath to find it
+                xml.Attribute("isDoc").Remove();                
+                xml.Add(new XAttribute("masterDocId", content.VariantDefinition.MasterDocId));
+                xml.Add(new XAttribute("variantKey", content.VariantDefinition.Key));
+            }
+
             if (deep)
             {
                 var descendants = contentService.GetDescendants(content).ToArray();

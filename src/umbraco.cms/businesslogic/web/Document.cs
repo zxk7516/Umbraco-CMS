@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Xml;
+using System.Xml.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
@@ -1230,7 +1231,7 @@ namespace umbraco.cms.businesslogic.web
         {
             XmlNode x = generateXmlWithoutSaving(xd);
             // Save to db
-            saveXml(x);
+            SaveXml(x);
         }
 
         /// <summary>
@@ -1248,13 +1249,13 @@ namespace umbraco.cms.businesslogic.web
                 if (_xml == null)
                 {
                     // Load xml from db if _xml hasn't been loaded yet
-                    _xml = importXml();
+                    _xml = ImportXml();
 
                     // Generate xml if xml still null (then it hasn't been initialized before)
                     if (_xml == null)
                     {
                         XmlGenerate(new XmlDocument());
-                        _xml = importXml();
+                        _xml = ImportXml();
                     }
                 }
 
@@ -1284,57 +1285,10 @@ namespace umbraco.cms.businesslogic.web
         /// <param name="Deep">If true the documents childrens xmlrepresentation will be appended to the Xmlnode recursive</param>
         public override void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
         {
-            string urlName = this.Content.GetUrlSegment().ToLower();
-            foreach (Property p in GenericProperties.Where(p => p != null && p.Value != null && string.IsNullOrEmpty(p.Value.ToString()) == false))
-                x.AppendChild(p.ToXml(xd));
+            var resultXml = ApplicationContext.Current.Services.PackagingService.Export(Content, Deep);
 
-            // attributes
-            x.Attributes.Append(addAttribute(xd, "id", Id.ToString()));
-            //            x.Attributes.Append(addAttribute(xd, "version", Version.ToString()));
-            if (Level > 1)
-                x.Attributes.Append(addAttribute(xd, "parentID", Parent.Id.ToString()));
-            else
-                x.Attributes.Append(addAttribute(xd, "parentID", "-1"));
-            x.Attributes.Append(addAttribute(xd, "level", Level.ToString()));
-            x.Attributes.Append(addAttribute(xd, "writerID", Writer.Id.ToString()));
-            x.Attributes.Append(addAttribute(xd, "creatorID", Creator.Id.ToString()));
-            if (ContentType != null)
-                x.Attributes.Append(addAttribute(xd, "nodeType", ContentType.Id.ToString()));
-            x.Attributes.Append(addAttribute(xd, "template", _template.ToString()));
-            x.Attributes.Append(addAttribute(xd, "sortOrder", sortOrder.ToString()));
-            x.Attributes.Append(addAttribute(xd, "createDate", CreateDateTime.ToString("s")));
-            x.Attributes.Append(addAttribute(xd, "updateDate", VersionDate.ToString("s")));
-            x.Attributes.Append(addAttribute(xd, "nodeName", Text));
-            x.Attributes.Append(addAttribute(xd, "urlName", urlName));
-            x.Attributes.Append(addAttribute(xd, "writerName", Writer.Name));
-            x.Attributes.Append(addAttribute(xd, "creatorName", Creator.Name.ToString()));
-            if (ContentType != null && UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-                x.Attributes.Append(addAttribute(xd, "nodeTypeAlias", ContentType.Alias));
-            x.Attributes.Append(addAttribute(xd, "path", Path));
-
-            if (!UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-            {
-                x.Attributes.Append(addAttribute(xd, "isDoc", ""));
-            }
-
-            if (Deep)
-            {
-                //store children array here because iterating over an Array object is very inneficient.
-                var c = Children;
-                foreach (Document d in c)
-                {
-                    XmlNode xml = d.ToXml(xd, true);
-                    if (xml != null)
-                    {
-                        x.AppendChild(xml);
-                    }
-                    else
-                    {
-                        LogHelper.Debug<Document>(string.Format("Document {0} not published so XML cannot be generated", d.Id));
-                    }
-                }
-
-            }
+            //convert it from the result
+            x = resultXml.ToXmlNode(xd);
         }
 
         /// <summary>
@@ -1347,19 +1301,19 @@ namespace umbraco.cms.businesslogic.web
             {
                 if (_xml == null)
                     // Load xml from db if _xml hasn't been loaded yet
-                    _xml = importXml();
+                    _xml = ImportXml();
 
                 // Generate xml if xml still null (then it hasn't been initialized before)
                 if (_xml == null)
                 {
                     XmlGenerate(new XmlDocument());
-                    _xml = importXml();
+                    _xml = ImportXml();
                 }
                 else
                 {
                     // Update the sort order attr
                     _xml.Attributes.GetNamedItem("sortOrder").Value = sortOrder.ToString();
-                    saveXml(_xml);
+                    SaveXml(_xml);
                 }
 
             }
@@ -1529,10 +1483,10 @@ namespace umbraco.cms.businesslogic.web
             VersionDate = versionDate;
         }
 
-        private XmlAttribute addAttribute(XmlDocument Xd, string Name, string Value)
+        private XmlAttribute AddAttribute(XmlDocument xd, string name, string value)
         {
-            XmlAttribute temp = Xd.CreateAttribute(Name);
-            temp.Value = Value;
+            XmlAttribute temp = xd.CreateAttribute(name);
+            temp.Value = value;
             return temp;
         }
 
@@ -1541,7 +1495,7 @@ namespace umbraco.cms.businesslogic.web
         /// </summary>
         /// <param name="x"></param>
         [MethodImpl(MethodImplOptions.Synchronized)]
-        private void saveXml(XmlNode x)
+        private void SaveXml(XmlNode x)
         {
             bool exists = (SqlHelper.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId=@nodeId",
                                             SqlHelper.CreateParameter("@nodeId", Id)) != 0);
@@ -1552,7 +1506,7 @@ namespace umbraco.cms.businesslogic.web
                                       SqlHelper.CreateParameter("@xml", x.OuterXml));
         }
 
-        private XmlNode importXml()
+        private XmlNode ImportXml()
         {
             XmlDocument xmlDoc = new XmlDocument();
             XmlReader xmlRdr = SqlHelper.ExecuteXmlReader(string.Format(

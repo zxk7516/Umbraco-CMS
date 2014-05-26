@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using Umbraco.Core.Models.ContentVariations;
 
 namespace Umbraco.Core.Models
 {
@@ -21,6 +22,16 @@ namespace Umbraco.Core.Models
         private int _writer;
         private string _nodeName;//NOTE Once localization is introduced this will be the non-localized Node Name.
         private bool _permissionsChanged;
+        private Lazy<VariantDefinition> _variantDef; 
+
+        public Content(string name, int parentId, IContentType contentType, Lazy<VariantDefinition> variantDef)
+            : this(name, parentId, contentType, new PropertyCollection())
+        {
+            Mandate.ParameterNotNull(variantDef, "variantDef");
+
+            _variantDef = variantDef;
+        }
+
         /// <summary>
         /// Constructor for creating a Content object
         /// </summary>
@@ -81,6 +92,21 @@ namespace Umbraco.Core.Models
         private static readonly PropertyInfo WriterSelector = ExpressionHelper.GetPropertyInfo<Content, int>(x => x.WriterId);
         private static readonly PropertyInfo NodeNameSelector = ExpressionHelper.GetPropertyInfo<Content, string>(x => x.NodeName);
         private static readonly PropertyInfo PermissionsChangedSelector = ExpressionHelper.GetPropertyInfo<Content, bool>(x => x.PermissionsChanged);
+        
+        /// <summary>
+        /// Gets the variant definition for this content item
+        /// </summary>
+        public VariantDefinition VariantDefinition
+        {
+            get
+            {
+                if (_variantDef != null)
+                {
+                    return _variantDef.Value;
+                }
+                throw new NullReferenceException("No " + typeof(VariantDefinition) + " has been specified");
+            }
+        }
 
         /// <summary>
         /// Gets or sets the template used by the Content.
@@ -453,6 +479,19 @@ namespace Umbraco.Core.Models
             //need to manually clone this since it's not settable
             clone._contentType = (IContentType)ContentType.DeepClone();
             clone.ResetDirtyProperties(false);
+
+            //TODO: Need to figure out how best to copy a Lazy<T>! We don't want to hang on to stale references in memory but we don't
+            // want to execute the delegate if it's not required either.
+            if (_variantDef.IsValueCreated)
+            {
+                var val = _variantDef.Value;
+                clone._variantDef = new Lazy<VariantDefinition>(() => val, false);
+            }
+            else
+            {
+                clone._variantDef = _variantDef;
+            }
+            
 
             return clone;
 
