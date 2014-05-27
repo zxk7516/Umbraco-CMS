@@ -575,54 +575,12 @@ namespace Umbraco.Web.Editors
                 return int.MinValue;
             }
             
-            var relationType = GetVariantRelationType();
-
-            var existingRelation = Services.RelationService.GetByParentId(id, relationType.Alias).FirstOrDefault(x => x.Comment == key);
-
-            if (existingRelation != null)
-            {
-                throw new InvalidOperationException("A content variant already exists for key " + key + " for master document " + id);
-            }
-
-            //TODO: Do we make a copy? or make a new empty one?
-            //var contentVariant = Services.ContentService.Copy(foundContent, foundContent.ParentId, false, Security.CurrentUser.Id);
-
-            //TODO: We need to create a new method on the content service/repo to create an entity + a relation
-            // so that it is done as one transaction
-
-            var contentVariant = Services.ContentService.CreateContentWithIdentity(
-                string.Format("{0} ({1})", foundContent.Name, key),
-                foundContent.ParentId,
-                foundContent.ContentType.Alias, 
-                Security.CurrentUser.Id);
-
-            //create the relation
-            existingRelation = new Relation(foundContent.Id, contentVariant.Id, relationType)
-            {
-                //TODO: This is a bit flakey but currently it works, the comment MUST equal the key
-                Comment = key
-            };
-            Services.RelationService.Save(existingRelation);
+            var contentVariant = Services.ContentService.CreateContentVariantWithIdentity(
+                foundContent,
+                key,
+                string.Format("{0} ({1})", foundContent.Name, key));
 
             return contentVariant.Id;
-        }
-
-        /// <summary>
-        /// Gets the variant relation type (creates it if it doesn't exist)
-        /// </summary>
-        /// <returns></returns>
-        private IRelationType GetVariantRelationType()
-        {
-            //TODO: Make umbContentVariants a constant
-
-            //check if it exists before continuing
-            var relationType = Services.RelationService.GetRelationTypeByAlias("umbContentVariants");
-            if (relationType == null)
-            {
-                relationType = new RelationType(new Guid(Constants.ObjectTypes.Document), new Guid(Constants.ObjectTypes.Document), "umbContentVariants");
-                Services.RelationService.Save(relationType);
-            }
-            return relationType;
         }
 
         /// <summary>

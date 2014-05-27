@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
@@ -27,7 +28,7 @@ namespace Umbraco.Core.Persistence.Repositories
     {
         private readonly IContentTypeRepository _contentTypeRepository;
         private readonly ITemplateRepository _templateRepository;
-        private readonly ITagsRepository _tagRepository;
+        private readonly ITagsRepository _tagRepository;        
         private readonly CacheHelper _cacheHelper;
         private readonly ContentPreviewRepository<IContent> _contentPreviewRepository;
         private readonly ContentXmlRepository<IContent> _contentXmlRepository;
@@ -41,6 +42,7 @@ namespace Umbraco.Core.Persistence.Repositories
             _contentTypeRepository = contentTypeRepository;
             _templateRepository = templateRepository;
 		    _tagRepository = tagRepository;
+            
             _cacheHelper = cacheHelper;
             _contentPreviewRepository = new ContentPreviewRepository<IContent>(work, NullCacheProvider.Current);
             _contentXmlRepository = new ContentXmlRepository<IContent>(work, NullCacheProvider.Current);
@@ -57,6 +59,7 @@ namespace Umbraco.Core.Persistence.Repositories
             _contentTypeRepository = contentTypeRepository;
             _templateRepository = templateRepository;
             _tagRepository = tagRepository;
+
             _cacheHelper = cacheHelper;
             _contentPreviewRepository = new ContentPreviewRepository<IContent>(work, NullCacheProvider.Current);
             _contentXmlRepository = new ContentXmlRepository<IContent>(work, NullCacheProvider.Current);
@@ -174,7 +177,7 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             get { return new Guid(Constants.ObjectTypes.Document); }
         }
-
+        
         #endregion
 
         #region Overrides of VersionableRepositoryBase<IContent>
@@ -339,7 +342,38 @@ namespace Umbraco.Core.Persistence.Repositories
                 property.Id = keyDictionary[property.PropertyTypeId];
             }
 
-            //lastly, check if we are a creating a published version , then update the tags table
+            //Check if this is a content variant, if it is then we need to create a relation accordingly
+            if (entity.VariantDefinition.IsVariant)
+            {
+                var relType = Database.FirstOrDefault<RelationTypeDto>(
+                    new Sql().Select("*").From<RelationTypeDto>().Where<RelationTypeDto>(typeDto => typeDto.Alias == "umbContentVariants"));
+                int relId;
+                if (relType == null)
+                {
+                    relId = (int) Database.Insert(new RelationTypeDto
+                    {
+                        Alias = "umbContentVariants",
+                        ChildObjectType = new Guid(Constants.ObjectTypes.Document),
+                        ParentObjectType = new Guid(Constants.ObjectTypes.Document),
+                        Name = "umbContentVariants"
+                    });
+                }
+                else
+                {
+                    relId = relType.Id;
+                }
+                Database.Insert(new RelationDto
+                {
+                    ChildId = entity.Id,
+                    ParentId = entity.VariantDefinition.MasterDocId,
+                    Datetime = DateTime.Now,
+                    RelationType = relId,
+                    //the comment is the variant key
+                    Comment = entity.VariantDefinition.Key
+                });
+            }
+
+            //check if we are a creating a published version , then update the tags table
             if (entity.Published)
             {
                 UpdatePropertyTags(entity, _tagRepository);
@@ -480,8 +514,8 @@ namespace Umbraco.Core.Persistence.Repositories
                     property.Id = keyDictionary[property.PropertyTypeId];
                 }
             }
-
-            //lastly, check if we are a newly published version and then update the tags table
+            
+            //check if we are a newly published version and then update the tags table
             if (isNewPublishedVersion)
             {
                 UpdatePropertyTags(entity, _tagRepository);

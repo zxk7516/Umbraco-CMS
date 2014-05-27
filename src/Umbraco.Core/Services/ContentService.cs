@@ -74,7 +74,46 @@ namespace Umbraco.Core.Services
             _repositoryFactory = repositoryFactory;
             _dataTypeService = dataTypeService;
         }
-        
+
+        public IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name, int userId = 0)
+        {
+            Mandate.ParameterNotNull(masterContent, "masterContent");
+            Mandate.ParameterNotNullOrEmpty(variantKey, "variantKey");
+            Mandate.ParameterNotNullOrEmpty(name, "name");
+
+            var contentType = masterContent.ContentType;
+            var content = new Content(name, masterContent.ParentId, contentType, new PropertyCollection(), new VariantDefinition(masterContent.Id, variantKey))
+            {
+                CreatorId = userId, 
+                WriterId = userId
+            };
+
+            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(content), this))
+            {
+                content.WasCancelled = true;
+                return content;
+            }
+
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            {
+                content.CreatorId = userId;
+                content.WriterId = userId;
+                repository.AddOrUpdate(content);
+                //Generate a new preview
+                repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+                uow.Commit();
+            }
+
+            Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentType.Alias, masterContent.ParentId), this);
+
+            Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
+
+            Audit.Add(AuditTypes.New, string.Format("Content '{0}' was created", name), content.CreatorId, content.Id);
+
+            return content;
+        }
+
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids
         /// </summary>
@@ -217,10 +256,10 @@ namespace Umbraco.Core.Services
                 uow.Commit();
             }
 
-            Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
-
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentTypeAlias, parentId), this);
 
+            Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
+            
             Audit.Add(AuditTypes.New, string.Format("Content '{0}' was created with Id {1}", name, content.Id), content.CreatorId, content.Id);
 
             return content;

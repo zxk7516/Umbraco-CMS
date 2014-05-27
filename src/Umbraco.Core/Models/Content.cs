@@ -22,14 +22,25 @@ namespace Umbraco.Core.Models
         private int _writer;
         private string _nodeName;//NOTE Once localization is introduced this will be the non-localized Node Name.
         private bool _permissionsChanged;
-        private VariantDefinition _variantDef; 
 
-        public Content(string name, int parentId, IContentType contentType, VariantDefinition variantDef)
-            : this(name, parentId, contentType, new PropertyCollection())
+        public Content(string name, int parentId, IContentType contentType, PropertyCollection properties, VariantDefinition variantDef)
+            : base(name, parentId, contentType, properties)
         {
             Mandate.ParameterNotNull(variantDef, "variantDef");
+            Mandate.ParameterNotNull(contentType, "contentType");
 
-            _variantDef = variantDef;
+            _contentType = contentType;
+            VariantDefinition = variantDef;
+        }
+
+        public Content(string name, IContent parent, IContentType contentType, PropertyCollection properties, VariantDefinition variantDef)
+            : base(name, parent, contentType, properties)
+        {
+            Mandate.ParameterNotNull(contentType, "contentType");
+            Mandate.ParameterNotNull(variantDef, "variantDef");
+
+            _contentType = contentType;
+            VariantDefinition = variantDef;
         }
 
         /// <summary>
@@ -51,11 +62,8 @@ namespace Umbraco.Core.Models
         /// <param name="contentType">ContentType for the current Content object</param>
         /// <param name="properties">Collection of properties</param>
 		public Content(string name, IContent parent, IContentType contentType, PropertyCollection properties)
-			: base(name, parent, contentType, properties)
-		{
-			Mandate.ParameterNotNull(contentType, "contentType");
-
-			_contentType = contentType;
+            : this(name, parent, contentType, properties, new VariantDefinition(Enumerable.Empty<ChildVariant>()))
+        {
 		}
 
         /// <summary>
@@ -77,11 +85,8 @@ namespace Umbraco.Core.Models
         /// <param name="contentType">ContentType for the current Content object</param>
         /// <param name="properties">Collection of properties</param>
         public Content(string name, int parentId, IContentType contentType, PropertyCollection properties) 
-			: base(name, parentId, contentType, properties)
-        {
-            Mandate.ParameterNotNull(contentType, "contentType");
-
-            _contentType = contentType;
+			: this(name, parentId, contentType, properties, new VariantDefinition(Enumerable.Empty<ChildVariant>()))
+        {            
         }
 
         private static readonly PropertyInfo TemplateSelector = ExpressionHelper.GetPropertyInfo<Content, ITemplate>(x => x.Template);
@@ -92,21 +97,11 @@ namespace Umbraco.Core.Models
         private static readonly PropertyInfo WriterSelector = ExpressionHelper.GetPropertyInfo<Content, int>(x => x.WriterId);
         private static readonly PropertyInfo NodeNameSelector = ExpressionHelper.GetPropertyInfo<Content, string>(x => x.NodeName);
         private static readonly PropertyInfo PermissionsChangedSelector = ExpressionHelper.GetPropertyInfo<Content, bool>(x => x.PermissionsChanged);
-        
+
         /// <summary>
         /// Gets the variant definition for this content item
         /// </summary>
-        public VariantDefinition VariantDefinition
-        {
-            get
-            {
-                if (_variantDef != null)
-                {
-                    return _variantDef;
-                }
-                throw new NullReferenceException("No " + typeof(VariantDefinition) + " has been specified");
-            }
-        }
+        public VariantDefinition VariantDefinition { get; private set; }
 
         /// <summary>
         /// Gets or sets the template used by the Content.
@@ -480,7 +475,7 @@ namespace Umbraco.Core.Models
             clone._contentType = (IContentType)ContentType.DeepClone();
             clone.ResetDirtyProperties(false);
 
-            clone._variantDef = (VariantDefinition)_variantDef.DeepClone();
+            clone.VariantDefinition = (VariantDefinition)VariantDefinition.DeepClone();    
 
             return clone;
 
