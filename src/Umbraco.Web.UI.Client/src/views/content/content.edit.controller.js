@@ -15,7 +15,6 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
     $scope.currentSection = appState.getSectionState("currentSection");
     $scope.currentNode = null; //the editors affiliated node
     
-
     //This sets up the action buttons based on what permissions the user has.
     //The allowedActions parameter contains a list of chars, each represents a button by permission so 
     //here we'll build the buttons according to the chars of the user.
@@ -219,9 +218,21 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
 
                 syncTreeNode($scope.content, data.path, true);
 
-            });
+                _.each($scope.content.variants, function(i) {
+                    i.compare = true;
+                });
+                $scope.showCompare = true;
+
+
+        });
     }
 
+    $scope.toggleCompare = function(e,a,b) {
+        e.$setPristine();
+        $scope.showCompare = _.find($scope.content.variants, function (i) {
+            return i.compare === true;
+        });
+    }
 
     $scope.unPublish = function () {
         

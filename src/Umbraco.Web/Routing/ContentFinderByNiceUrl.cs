@@ -49,6 +49,8 @@ namespace Umbraco.Web.Routing
 		    var node = docreq.RoutingContext.UmbracoContext.ContentCache.GetByRoute(route);
             if (node != null)
             {
+                var hasVariant = false;
+
                 //so we have a node but we need to check if a domain is assigned, if one is then we might have a variant for this
                 // particular language, so let's check
                 if (docreq.HasDomain)
@@ -65,9 +67,16 @@ namespace Umbraco.Web.Routing
 
                         //there is a variant for this culture for this domain so we will use that
                         node = variant;
+
+                        hasVariant = true;
                     }
                 }
-                else if (docreq.RoutingContext.UmbracoContext.RequestSegments.AssignedSegments.Any())
+
+                //if no variant was assigned above, then we can check if there's any segment matches and assign a
+                // custom variant if one is found
+                // TODO: Do we want to allow this logic to execute when a Domain is detected? 
+
+                if (hasVariant == false && docreq.RoutingContext.UmbracoContext.RequestSegments.AssignedSegments.Any())
                 {
                     var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
                     var assignableVariants = ContentSegmentProviderResolver.Current.GetAssignableVariants(segmentProviderStatus);
@@ -91,6 +100,7 @@ namespace Umbraco.Web.Routing
                             if (variant != null)
                             {                                
                                 node = variant;
+                                hasVariant = true;
                             }
                         }
                     }

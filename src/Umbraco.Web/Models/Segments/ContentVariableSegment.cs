@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.Serialization;
 
 namespace Umbraco.Web.Models.Segments
@@ -28,7 +29,8 @@ namespace Umbraco.Web.Models.Segments
         /// <param name="isLanguage"></param>
         /// <param name="variantId"></param>
         /// <param name="isTrashed"></param>
-        public ContentVariableSegment(string key, bool isLanguage, int variantId, bool isTrashed)
+        /// <param name="lastUpdated"></param>
+        public ContentVariableSegment(string key, bool isLanguage, int variantId, bool isTrashed, DateTime lastUpdated)
         {
             Name = key;
             Key = key;
@@ -36,6 +38,7 @@ namespace Umbraco.Web.Models.Segments
             Exists = true;
             VariantId = variantId;
             IsTrashed = isTrashed;
+            LastUpdated = lastUpdated;
         }
 
         /// <summary>
@@ -60,7 +63,8 @@ namespace Umbraco.Web.Models.Segments
         /// <param name="isLanguage"></param>
         /// <param name="variantId"></param>
         /// <param name="isTrashed"></param>
-        public ContentVariableSegment(string name, string key, bool isLanguage, int variantId, bool isTrashed)
+        /// <param name="lastUpdated"></param>
+        public ContentVariableSegment(string name, string key, bool isLanguage, int variantId, bool isTrashed, DateTime lastUpdated)
         {
             Name = name;
             Key = key;
@@ -68,6 +72,7 @@ namespace Umbraco.Web.Models.Segments
             Exists = true;
             VariantId = variantId;
             IsTrashed = isTrashed;
+            LastUpdated = lastUpdated;
         }
 
         /// <summary>
@@ -90,6 +95,9 @@ namespace Umbraco.Web.Models.Segments
         /// </remarks>
         [DataMember(Name = "isLanguage")]
         public bool IsLanguage { get; private set; }
+
+        [DataMember(Name = "lastUpdated")]
+        public DateTime? LastUpdated { get; private set; }
 
         /// <summary>
         /// Whether or not a content variant current exists for this segment for a content item

@@ -1,16 +1,16 @@
 /**
 * @ngdoc directive
-* @name umbraco.directives.directive:preventDefault
+* @name umbraco.directives.directive:stopPropagation
 **/
 angular.module("umbraco.directives")
-    .directive('preventDefault', function () {
+    .directive('stopPropagation', function () {
         return function (scope, element, attrs) {
 
             var enabled = true;
             //check if there's a value for the attribute, if there is and it's false then we conditionally don't 
-            //prevent default.
+            //stop propogation
             if (attrs.preventDefault) {
-                attrs.$observe("preventDefault", function (newVal) {
+                attrs.$observe("stopPropagation", function (newVal) {
                     enabled = (newVal === "false" || newVal === 0 || newVal === false) ? false : true;
                 });
             }
@@ -21,9 +21,9 @@ angular.module("umbraco.directives")
                 }
                 else {
                     if (enabled === true) {
-                        event.preventDefault();
+                        event.stopPropagation();
                     }
                 }
             });
         };
-    });
+    }); 

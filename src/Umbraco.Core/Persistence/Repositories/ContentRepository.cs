@@ -596,14 +596,17 @@ namespace Umbraco.Core.Persistence.Repositories
         internal VariantDefinition GetVariantDefinition(int contentId)
         {
             var sql = new Sql()
-                .Select("umbracoRelation.*, umbracoNode.trashed")
+                .Select("umbracoRelation.*, umbracoNode.trashed, MAX(cmsDocument.updateDate) as updateDate")
                 .From<RelationDto>()
                 .InnerJoin<RelationTypeDto>()
                 .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
                 .InnerJoin<NodeDto>()
                 .On<NodeDto, RelationDto>(dto => dto.NodeId, dto => dto.ChildId)
+                .InnerJoin<DocumentDto>()
+                .On<DocumentDto, NodeDto>(dto => dto.NodeId, dto => dto.NodeId)
                 .Where("umbracoRelationType.alias = @alias AND (umbracoRelation.parentId = @parentId OR umbracoRelation.childId = @childId)",
-                    new { parentId = contentId, childId = contentId, alias = "umbContentVariants" });
+                    new {parentId = contentId, childId = contentId, alias = "umbContentVariants"})
+                .GroupBy("umbracoRelation.childId,umbracoRelation.comment,umbracoRelation.datetime,umbracoRelation.id,umbracoRelation.parentId,umbracoRelation.relType,umbracoNode.trashed");
 
             var result = Database.Fetch<dynamic>(sql);
 
@@ -623,7 +626,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             return new VariantDefinition(result
                 .Where(x => x.parentId == contentId)
-                .Select(x => new ChildVariant(x.comment, x.childId, x.trashed)));
+                .Select(x => new ChildVariant(x.comment, x.childId, x.trashed, x.updateDate)));
         }
 
         public IContent GetByLanguage(int id, string language)

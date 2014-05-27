@@ -267,7 +267,7 @@ namespace Umbraco.Web.Models.Mapping
                     })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false)
-                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed));
+                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed, x.assigned.LastUpdated));
 
                 var assignedLanguages = GetAssignedLanguageVariants(display);
 
@@ -275,7 +275,7 @@ namespace Umbraco.Web.Models.Mapping
                     .Select(x => new { lang = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x) })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.lang, true)
-                        : new ContentVariableSegment(x.lang, true, x.assigned.ChildId, x.assigned.IsTrashed));
+                        : new ContentVariableSegment(x.lang, true, x.assigned.ChildId, x.assigned.IsTrashed, x.assigned.LastUpdated));
 
                 //assign the variants, NOTE: languages always take precedence if there is overlap
                 display.ContentVariants = languageSegments.Union(assignableSegments);

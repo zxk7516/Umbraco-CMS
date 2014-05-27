@@ -23,14 +23,28 @@
                     </a>
                     <ul class="dropdown-menu umb-actions pull-right" role="menu">
                         <li ng-repeat="item in content.variants" ng-class="{'trashed' : item.isTrashed}">
-                            <a href=""
-                               ng-attr-title="{{item.exists ? 'Edit variant' : 'Create variant' }}"
-                               ng-click="selectVariant(item)">
+                            
+                            <ng-form name="itemCompare">
+                                <div class="checkbox-container" stop-propagation>
+                                    <input type="checkbox" name="variant" ng-model="item.compare" ng-click="toggleCompare(itemCompare, itemCompare.variant)" />
+                                </div>
 
-                                <i class="icon" ng-class="item.isTrashed ? 'icon-trash' : item.exists ? 'icon-edit' : 'icon-add'"></i>
+                                <a href=""
+                                   ng-attr-title="{{item.exists ? 'Edit variant' : 'Create variant' }}"
+                                   ng-click="selectVariant(item)">
 
-                                <span class="menu-label ng-binding">{{item.name}}</span>
-                            </a>
+                                    <i class="icon" ng-class="item.isTrashed ? 'icon-trash' : item.exists ? 'icon-edit' : 'icon-add'"></i>
+
+                                    <div class="menu-label ng-binding">
+                                        {{item.name}}
+                                        <small ng-if="item.lastUpdated">Updated: {{item.lastUpdated | date : 'medium'}}</small>
+                                        <small ng-if="!item.lastUpdated">Create new variant</small>
+                                    </div>
+                                </a>
+                            </ng-form>
+                        </li>
+                        <li ng-show="showCompare">
+                            <button class="btn btn-mini">Compare</button>
                         </li>
                     </ul>
                 </div>
