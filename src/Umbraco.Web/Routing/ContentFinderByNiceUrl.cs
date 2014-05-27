@@ -2,6 +2,7 @@ using System.Linq;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core;
+using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Web.Routing
 {
@@ -55,15 +56,45 @@ namespace Umbraco.Web.Routing
                     var variant = docreq.RoutingContext.UmbracoContext.ContentCache.GetSingleByXPath(
                         string.Format("/root//* [@masterDocId='{0}' and @variantKey='{1}']", node.Id, docreq.Domain.Language.CultureAlias));
 
+                    //if there is no variant found, then continue using the master doc content
+
                     if (variant != null)
                     {
+                        //TODO: If content is found, but it has variants of the language assigned to the domain found here do we
+                        // match against the variant? Or do we match against the master? Or do we 404 ?
+
                         //there is a variant for this culture for this domain so we will use that
                         node = variant;
                     }
                 }
+                else if (docreq.RoutingContext.UmbracoContext.RequestSegments.AssignedSegments.Any())
+                {
+                    var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
+                    var assignableVariants = ContentSegmentProviderResolver.Current.GetAssignableVariants(segmentProviderStatus);
 
-                //TODO: If content is found, but it has variants of the language assigned to the domain found here do we
-                // match against the variant? Or do we match against the master? Or do we 404 ?
+                    var matchedVariant = assignableVariants.FirstOrDefault(x => 
+                        docreq.RoutingContext.UmbracoContext.RequestSegments.RequestContainsKey(x.SegmentMatchKey));
+                    if (matchedVariant != null)
+                    {
+                        //an advertised key is matched, lets see if there's a match (either on boolean or value)
+                        var isMatch = matchedVariant.SegmentMatchValue == null 
+                            ? docreq.RoutingContext.UmbracoContext.RequestSegments.RequestIs(matchedVariant.SegmentMatchKey) 
+                            : docreq.RoutingContext.UmbracoContext.RequestSegments.RequestEquals(matchedVariant.SegmentMatchKey, matchedVariant.SegmentMatchValue);
+
+                        if (isMatch)
+                        {
+                            //if the request has a matched segment then let's try to lookup the variant
+                            var variant = docreq.RoutingContext.UmbracoContext.ContentCache.GetSingleByXPath(
+                                string.Format("/root//* [@masterDocId='{0}' and @variantKey='{1}']", node.Id, matchedVariant.SegmentMatchKey));
+
+                            //assign the variant if there is one
+                            if (variant != null)
+                            {                                
+                                node = variant;
+                            }
+                        }
+                    }
+                }
 
                 docreq.PublishedContent = node;
                 LogHelper.Debug<ContentFinderByNiceUrl>("Got content, id={0}", () => node.Id);

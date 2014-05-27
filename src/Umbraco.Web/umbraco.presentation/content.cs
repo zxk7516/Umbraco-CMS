@@ -253,7 +253,9 @@ namespace umbraco
 
 			var doctype = xmlDoc.DocumentType;
 			var subset = doctype.InternalSubset;
-			if (!subset.Contains(string.Format("<!ATTLIST {0} id ID #REQUIRED>", docTypeAlias)))
+
+            //do the normal aliases
+			if (subset.Contains(string.Format("<!ATTLIST {0} id ID #REQUIRED>", docTypeAlias)) == false)
 			{
 				subset = string.Format("<!ELEMENT {0} ANY>\r\n<!ATTLIST {0} id ID #REQUIRED>\r\n{1}", docTypeAlias, subset);
 				var xmlDoc2 = new XmlDocument();
@@ -265,6 +267,22 @@ namespace umbraco
 				// apply
 				xmlDoc = xmlDoc2;
 			}
+
+            //TODO: this needs testing! I've just copied from the above so 'should' work
+
+            //now process the aliases with our special 'u' namespace
+            if (subset.Contains(string.Format("<!ATTLIST u:{0} id ID #REQUIRED>", docTypeAlias)) == false)
+            {
+                subset = string.Format("<!ELEMENT u:{0} ANY>\r\n<!ATTLIST u:{0} id ID #REQUIRED>\r\n{1}", docTypeAlias, subset);
+                var xmlDoc2 = new XmlDocument();
+                doctype = xmlDoc2.CreateDocumentType("root", null, null, subset);
+                xmlDoc2.AppendChild(doctype);
+                var root = xmlDoc2.ImportNode(xmlDoc.DocumentElement, true);
+                xmlDoc2.AppendChild(root);
+
+                // apply
+                xmlDoc = xmlDoc2;
+            }
 
 			return xmlDoc;
         }
@@ -399,8 +417,7 @@ namespace umbraco
                                      ? xmlContentCopy.DocumentElement
                                      : xmlContentCopy.GetElementById(parentId.ToString(CultureInfo.InvariantCulture));
 
-
-            //var isVariant = docNode.Attributes.HasAttribute("masterDocId") && docNode.AttributeValue<bool>("masterDocId");
+            var isVariant = docNode.AttributeValue<string>("masterDocId").IsNullOrWhiteSpace() == false;
 
             if (parentNode != null)
             {
@@ -408,20 +425,15 @@ namespace umbraco
                 {
                     currentNode = docNode;
 
-                    //if (isVariant)
-                    //{
-                    //    var variantContainer = parentNode.SelectSingleNode("/umbvariants");
-                    //    if (variantContainer == null)
-                    //    {
-                    //        variantContainer = xmlContentCopy.CreateElement("umbvariants");
-                    //        parentNode.AppendChild(variantContainer);
-                    //    }
-                    //    variantContainer.AppendChild(currentNode);
-                    //}
-                    //else
-                    //{
-                    parentNode.AppendChild(currentNode);   
-                    //}
+                    if (isVariant)
+                    {
+                        //ensure the custom namespace is on the xml doc
+                        xmlContentCopy.DocumentElement.SetAttribute("xmlns:u", "http://umbraco.org/xml-cache");
+                        //clone the node with the correct namespace/prefix
+                        currentNode = XmlHelper.CloneElement((XmlElement)currentNode, xmlContentCopy, "u", "http://umbraco.org/xml-cache");                        
+                    }
+
+                    parentNode.AppendChild(currentNode);                  
                 }
                 else
                 {
@@ -430,6 +442,14 @@ namespace umbraco
 
                     //update the node with it's new values
                     TransferValuesFromDocumentXmlToPublishedXml(docNode, currentNode);
+                    
+                    //if the current node isn't already namespaced (this shouldn't happen), then make it namespaced
+                    if (isVariant && currentNode.Prefix.IsNullOrWhiteSpace())
+                    {
+                        var clone = XmlHelper.CloneElement((XmlElement)currentNode, xmlContentCopy, "u", "http://umbraco.org/xml-cache");
+                        //replace it
+                        parentNode.ReplaceChild(clone, currentNode);
+                    }
 
                     //If the node is being moved we also need to ensure that it exists under the new parent!
                     // http://issues.umbraco.org/issue/U4-2312
@@ -600,7 +620,7 @@ namespace umbraco
                 doc.XmlRemoveFromDB();
 
                 // Check if node present, before cloning
-                x = XmlContentInternal.GetElementById(doc.Id.ToString());
+                x = XmlContentInternal.GetElementById(doc.Id.ToString(CultureInfo.InvariantCulture));
                 if (x == null)
                     return;
 
@@ -613,7 +633,7 @@ namespace umbraco
                     XmlDocument xmlContentCopy = CloneXmlDoc(XmlContentInternal);
 
                     // Find the document in the xml cache
-                    x = xmlContentCopy.GetElementById(doc.Id.ToString());
+                    x = xmlContentCopy.GetElementById(doc.Id.ToString(CultureInfo.InvariantCulture));
                     if (x != null)
                     {
                         // The document already exists in cache, so repopulate it
@@ -1020,7 +1040,7 @@ namespace umbraco
         private static void InitContentDocument(XmlDocument xmlDoc, string dtd)
         {
             // Prime the xml document with an inline dtd and a root element
-            xmlDoc.LoadXml(String.Format("<?xml version=\"1.0\" encoding=\"utf-8\" ?>{0}{1}{0}<root id=\"-1\"/>",
+            xmlDoc.LoadXml(String.Format("<?xml version=\"1.0\" encoding=\"utf-8\" ?>{0}{1}{0}<root id=\"-1\" xmlns:u=\"http://umbraco.org/xml-cache\" />",
                                          Environment.NewLine,
                                          dtd));
         }
@@ -1179,14 +1199,14 @@ order by umbracoNode.level, umbracoNode.sortOrder";
 
             if (hierarchy.TryGetValue(parentId, out children))
             {
-                XmlNode childContainer = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ||
+                var childContainer = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ||
                                          String.IsNullOrEmpty(UmbracoSettings.TEMP_FRIENDLY_XML_CHILD_CONTAINER_NODENAME)
                                              ? parentNode
                                              : parentNode.SelectSingleNode(
                                                  UmbracoSettings.TEMP_FRIENDLY_XML_CHILD_CONTAINER_NODENAME);
 
-                if (!UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema &&
-                    !String.IsNullOrEmpty(UmbracoSettings.TEMP_FRIENDLY_XML_CHILD_CONTAINER_NODENAME))
+                if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema == false &&
+                    String.IsNullOrEmpty(UmbracoSettings.TEMP_FRIENDLY_XML_CHILD_CONTAINER_NODENAME) == false)
                 {
                     if (childContainer == null)
                     {
@@ -1199,7 +1219,15 @@ order by umbracoNode.level, umbracoNode.sortOrder";
 
                 foreach (int childId in children)
                 {
-                    XmlNode childNode = nodeIndex[childId];
+                    var childNode = nodeIndex[childId];
+
+                    //if it's a variant, it needs to be namespaced
+                    var isVariant = childNode.AttributeValue<string>("masterDocId").IsNullOrWhiteSpace() == false;
+                    if (isVariant)
+                    {
+                        //clone it with the correct namespace
+                        childNode = XmlHelper.CloneElement((XmlElement)childNode, parentNode.OwnerDocument, "u", "http://umbraco.org/xml-cache");
+                    }
 
                     if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ||
                         String.IsNullOrEmpty(UmbracoSettings.TEMP_FRIENDLY_XML_CHILD_CONTAINER_NODENAME))

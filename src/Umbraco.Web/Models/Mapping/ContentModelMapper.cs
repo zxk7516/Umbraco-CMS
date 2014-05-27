@@ -255,21 +255,11 @@ namespace Umbraco.Web.Models.Mapping
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
                 var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
 
+                var assignableVariants = ContentSegmentProviderResolver.Current.GetAssignableVariants(segmentProviderStatus);
+
                 //These are the assignable variants based on the installed providers (statically advertised variants)
                 // that are enabled via the back office. If they are not enabled, they will not show up.
-                var assignableSegments = ContentSegmentProviderResolver.Current.Providers
-                    //don't lookup anything in any providers that are not enabled
-                    .Where(provider => segmentProviderStatus[provider.GetType().FullName] == true)
-                    .Select(provider => new
-                    {
-                        instance = provider,
-                        //get the keys that have been allowed
-                        enabledVariants = provider.ReadVariantConfiguration()
-                            .Where(vari => vari.Value)              // the value == true
-                            .Select(vari => vari.Key).ToArray()     // get the key
-                    })
-                    //only allow the onces that are enabled
-                    .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)))
+                var assignableSegments = assignableVariants
                     .Select(variantAttribute => new
                     {
                         variantAttribute,

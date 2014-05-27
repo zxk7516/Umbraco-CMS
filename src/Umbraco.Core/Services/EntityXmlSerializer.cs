@@ -42,7 +42,8 @@ namespace Umbraco.Core.Services
             if (content.VariantDefinition.IsVariant)
             {
                 //remove the isDoc attribute - we don't want peoples normal xpath to find it
-                xml.Attribute("isDoc").Remove();                
+                //xml.Attribute("isDoc").Remove();
+
                 xml.Add(new XAttribute("masterDocId", content.VariantDefinition.MasterDocId));
                 xml.Add(new XAttribute("variantKey", content.VariantDefinition.Key));
             }

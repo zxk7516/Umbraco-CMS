@@ -626,6 +626,10 @@ namespace Umbraco.Core.Services
                         {
                             strictSchemaBuilder.AppendLine(String.Format("<!ELEMENT {0} ANY>", safeAlias));
                             strictSchemaBuilder.AppendLine(String.Format("<!ATTLIST {0} id ID #REQUIRED>", safeAlias));
+
+                            //add with custom namespace
+                            strictSchemaBuilder.AppendLine(String.Format("<!ELEMENT u:{0} ANY>", safeAlias));
+                            strictSchemaBuilder.AppendLine(String.Format("<!ATTLIST u:{0} id ID #REQUIRED>", safeAlias));
                         }
                     }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Umbraco.Core.ObjectResolution;
+using System.Linq;
 
 namespace Umbraco.Web.Routing.Segments
 {
@@ -35,6 +36,28 @@ namespace Umbraco.Web.Routing.Segments
         public IEnumerable<ContentSegmentProvider> Providers
         {
             get { return Values; }
+        }
+
+        public IEnumerable<ContentVariantAttribute> GetAssignableVariants(IDictionary<string, bool> segmentProviderStatus)
+        {
+            //These are the assignable variants based on the installed providers (statically advertised variants)
+            // that are enabled via the back office. If they are not enabled, they will not show up.
+
+            var assignableSegments = this.Providers
+                //don't lookup anything in any providers that are not enabled
+                .Where(provider => segmentProviderStatus[provider.GetType().FullName] == true)
+                .Select(provider => new
+                {
+                    instance = provider,
+                    //get the keys that have been allowed
+                    enabledVariants = provider.ReadVariantConfiguration()
+                        .Where(vari => vari.Value) // the value == true
+                        .Select(vari => vari.Key).ToArray() // get the key
+                })
+                //only allow the onces that are enabled
+                .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)));
+
+            return assignableSegments;
         }
     }
 }

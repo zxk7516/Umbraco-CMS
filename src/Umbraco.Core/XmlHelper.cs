@@ -400,5 +400,21 @@ namespace Umbraco.Core
 			var d = m.Cast<Match>().ToDictionary(attributeSet => attributeSet.Groups["attributeName"].Value.ToString().ToLower(), attributeSet => attributeSet.Groups["attributeValue"].Value.ToString());
 			return d;
 		}
+
+	    public static XmlElement CloneElement(XmlElement current, XmlDocument doc, string prefix, string ns)
+	    {
+	        var clone = doc.CreateElement(prefix, current.LocalName, ns);
+
+            foreach (XmlAttribute att in current.Attributes)
+                clone.SetAttribute(att.Name, att.Value);
+
+            foreach (XmlElement el in current.ChildNodes)
+            {
+                var newDatael = doc.ImportNode(el, true);
+                clone.AppendChild(newDatael);
+            }
+
+	        return clone;
+	    }
     }
 }

@@ -337,7 +337,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		    var parent = _xmlNode == null ? null : _xmlNode.ParentNode;            
             if (parent == null) return;
 
-		    if (parent.Name == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null))
+            if (parent.LocalName == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null))
 		        _parent = (new XmlPublishedContent(parent, _isPreviewing, true)).CreateModel();
 		}
 
@@ -381,7 +381,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		        }
 		        else
 		        {
-		            _docTypeAlias = _xmlNode.Name;
+		            _docTypeAlias = _xmlNode.LocalName;
 		        }
 
 		        if (_xmlNode.Attributes.GetNamedItem("nodeType") != null)
@@ -412,7 +412,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 {
                     var alias = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
                         ? n.Attributes.GetNamedItem("alias").Value
-                        : n.Name;
+                        : n.LocalName;
                     propertyNodes[alias.ToLowerInvariant()] = n;
                 }
 
