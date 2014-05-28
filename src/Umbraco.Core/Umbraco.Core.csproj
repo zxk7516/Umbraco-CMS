@@ -336,7 +336,7 @@
     <Compile Include="Models\ContentTypeCompositionBase.cs" />
     <Compile Include="Models\ContentTypeExtensions.cs" />
     <Compile Include="Models\ContentTypeSort.cs" />
-    <Compile Include="Models\ContentVariations\VariantDefinition.cs" />
+    <Compile Include="Models\ContentVariations\VariantInfo.cs" />
     <Compile Include="Models\ContentVariations\ChildVariant.cs" />
     <Compile Include="Models\ContentXmlEntity.cs" />
     <Compile Include="Models\DeepCloneHelper.cs" />

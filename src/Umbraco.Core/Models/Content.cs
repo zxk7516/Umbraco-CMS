@@ -23,24 +23,24 @@ namespace Umbraco.Core.Models
         private string _nodeName;//NOTE Once localization is introduced this will be the non-localized Node Name.
         private bool _permissionsChanged;
 
-        public Content(string name, int parentId, IContentType contentType, PropertyCollection properties, VariantDefinition variantDef)
+        public Content(string name, int parentId, IContentType contentType, PropertyCollection properties, VariantInfo variantInfo)
             : base(name, parentId, contentType, properties)
         {
-            Mandate.ParameterNotNull(variantDef, "variantDef");
+            Mandate.ParameterNotNull(variantInfo, "variantInfo");
             Mandate.ParameterNotNull(contentType, "contentType");
 
             _contentType = contentType;
-            VariantDefinition = variantDef;
+            VariantInfo = variantInfo;
         }
 
-        public Content(string name, IContent parent, IContentType contentType, PropertyCollection properties, VariantDefinition variantDef)
+        public Content(string name, IContent parent, IContentType contentType, PropertyCollection properties, VariantInfo variantInfo)
             : base(name, parent, contentType, properties)
         {
             Mandate.ParameterNotNull(contentType, "contentType");
-            Mandate.ParameterNotNull(variantDef, "variantDef");
+            Mandate.ParameterNotNull(variantInfo, "variantInfo");
 
             _contentType = contentType;
-            VariantDefinition = variantDef;
+            VariantInfo = variantInfo;
         }
 
         /// <summary>
@@ -62,7 +62,7 @@ namespace Umbraco.Core.Models
         /// <param name="contentType">ContentType for the current Content object</param>
         /// <param name="properties">Collection of properties</param>
 		public Content(string name, IContent parent, IContentType contentType, PropertyCollection properties)
-            : this(name, parent, contentType, properties, new VariantDefinition(Enumerable.Empty<ChildVariant>()))
+            : this(name, parent, contentType, properties, new VariantInfo())
         {
 		}
 
@@ -84,8 +84,8 @@ namespace Umbraco.Core.Models
         /// <param name="parentId">Id of the Parent content</param>
         /// <param name="contentType">ContentType for the current Content object</param>
         /// <param name="properties">Collection of properties</param>
-        public Content(string name, int parentId, IContentType contentType, PropertyCollection properties) 
-			: this(name, parentId, contentType, properties, new VariantDefinition(Enumerable.Empty<ChildVariant>()))
+        public Content(string name, int parentId, IContentType contentType, PropertyCollection properties)
+            : this(name, parentId, contentType, properties, new VariantInfo())
         {            
         }
 
@@ -101,7 +101,7 @@ namespace Umbraco.Core.Models
         /// <summary>
         /// Gets the variant definition for this content item
         /// </summary>
-        public VariantDefinition VariantDefinition { get; private set; }
+        public VariantInfo VariantInfo { get; private set; }
 
         /// <summary>
         /// Gets or sets the template used by the Content.
@@ -475,7 +475,7 @@ namespace Umbraco.Core.Models
             clone._contentType = (IContentType)ContentType.DeepClone();
             clone.ResetDirtyProperties(false);
 
-            clone.VariantDefinition = (VariantDefinition)VariantDefinition.DeepClone();    
+            clone.VariantInfo = (VariantInfo)VariantInfo.DeepClone();    
 
             return clone;
 

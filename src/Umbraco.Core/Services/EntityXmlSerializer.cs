@@ -39,13 +39,13 @@ namespace Umbraco.Core.Services
             xml.Add(new XAttribute("template", content.Template == null ? "0" : content.Template.Id.ToString(CultureInfo.InvariantCulture)));
             xml.Add(new XAttribute("nodeTypeAlias", content.ContentType.Alias));
 
-            if (content.VariantDefinition.IsVariant)
+            if (content.VariantInfo.IsVariant)
             {                
                 //normally this is empty, now we can use the value
                 xml.Attribute("isDoc").Value = "variant";
 
-                xml.Add(new XAttribute("masterDocId", content.VariantDefinition.MasterDocId));
-                xml.Add(new XAttribute("variantKey", content.VariantDefinition.Key));
+                xml.Add(new XAttribute("masterDocId", content.VariantInfo.MasterDocId));
+                xml.Add(new XAttribute("variantKey", content.VariantInfo.Key));
             }
 
             if (deep)

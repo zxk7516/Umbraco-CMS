@@ -257,8 +257,12 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             ((Content)entity).AddingEntity();
 
-            //Ensure unique name on the same level
-            entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name);
+            //Ensure unique name on the same level when it is NOT a variant
+            if (entity.VariantInfo.IsVariant == false)
+            {                
+                entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name);    
+            }
+            
 
             var factory = new ContentFactory(NodeObjectTypeId, entity.Id);
             var dto = factory.BuildDto(entity);
@@ -343,7 +347,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             //Check if this is a content variant, if it is then we need to create a relation accordingly
-            if (entity.VariantDefinition.IsVariant)
+            if (entity.VariantInfo.IsVariant)
             {
                 var relType = Database.FirstOrDefault<RelationTypeDto>(
                     new Sql().Select("*").From<RelationTypeDto>().Where<RelationTypeDto>(typeDto => typeDto.Alias == "umbContentVariants"));
@@ -365,11 +369,11 @@ namespace Umbraco.Core.Persistence.Repositories
                 Database.Insert(new RelationDto
                 {
                     ChildId = entity.Id,
-                    ParentId = entity.VariantDefinition.MasterDocId,
+                    ParentId = entity.VariantInfo.MasterDocId,
                     Datetime = DateTime.Now,
                     RelationType = relId,
                     //the comment is the variant key
-                    Comment = entity.VariantDefinition.Key
+                    Comment = entity.VariantInfo.Key
                 });
             }
 
@@ -398,8 +402,11 @@ namespace Umbraco.Core.Persistence.Repositories
                 entity.UpdateDate = DateTime.Now;
             }
 
-            //Ensure unique name on the same level
-            entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name, entity.Id);
+            //Ensure unique name on the same level when it is NOT a variant
+            if (entity.VariantInfo.IsVariant == false)
+            {
+                entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name, entity.Id);
+            }
 
             //Look up parent to get and set the correct Path and update SortOrder if ParentId has changed
             if (((ICanBeDirty)entity).IsPropertyDirty("ParentId"))
@@ -593,20 +600,15 @@ namespace Umbraco.Core.Persistence.Repositories
             }
         }
 
-        internal VariantDefinition GetVariantDefinition(int contentId)
+        internal VariantInfo GetVariantInfo(int contentId)
         {
             var sql = new Sql()
-                .Select("umbracoRelation.*, umbracoNode.trashed, MAX(cmsDocument.updateDate) as updateDate")
+                .Select("umbracoRelation.*")
                 .From<RelationDto>()
                 .InnerJoin<RelationTypeDto>()
-                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
-                .InnerJoin<NodeDto>()
-                .On<NodeDto, RelationDto>(dto => dto.NodeId, dto => dto.ChildId)
-                .InnerJoin<DocumentDto>()
-                .On<DocumentDto, NodeDto>(dto => dto.NodeId, dto => dto.NodeId)
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)                
                 .Where("umbracoRelationType.alias = @alias AND (umbracoRelation.parentId = @parentId OR umbracoRelation.childId = @childId)",
-                    new {parentId = contentId, childId = contentId, alias = "umbContentVariants"})
-                .GroupBy("umbracoRelation.childId,umbracoRelation.comment,umbracoRelation.datetime,umbracoRelation.id,umbracoRelation.parentId,umbracoRelation.relType,umbracoNode.trashed");
+                    new {parentId = contentId, childId = contentId, alias = "umbContentVariants"});
 
             var result = Database.Fetch<dynamic>(sql);
 
@@ -618,15 +620,33 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 var row = childVariants.Single();
                 //this content item is a variant itself
-                return new VariantDefinition(
+                return new VariantInfo(
                     //get it's master doc id
                     row.parentId,
                     row.comment);
             }
 
-            return new VariantDefinition(result
-                .Where(x => x.parentId == contentId)
-                .Select(x => new ChildVariant(x.comment, x.childId, x.trashed, x.updateDate)));
+            //it's a master doc
+            return new VariantInfo();
+        }
+
+        public IEnumerable<IContent> GetChildVariants(IContent masterContent)
+        {
+            var sql = new Sql()
+                .Select("umbracoRelation.*")
+                .From<RelationDto>()
+                .InnerJoin<RelationTypeDto>()
+                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
+                .Where("umbracoRelationType.alias = @alias AND umbracoRelation.parentId = @parentId",
+                    new {parentId = masterContent.Id, alias = "umbContentVariants"});
+
+            var result = Database.Fetch<dynamic>(sql);
+
+            var childIds = result.Select(x => (int)x.childId).ToArray();
+
+            //TODO: This isn't going to perform very well, It will execute the full sql required to create a single IContent
+            // but I suppose we have this problem with many other parts of our repository layer
+            return GetAll(childIds);
         }
 
         public IContent GetByLanguage(int id, string language)
@@ -709,7 +729,7 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             var contentType = _contentTypeRepository.Get(dto.ContentVersionDto.ContentDto.ContentTypeId);
 
-            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId, GetVariantDefinition(dto.NodeId));
+            var factory = new ContentFactory(contentType, NodeObjectTypeId, dto.NodeId, GetVariantInfo(dto.NodeId));
             var content = (Content)factory.BuildEntity(dto);
 
             //Check if template id is set on DocumentDto, and get ITemplate if it is.

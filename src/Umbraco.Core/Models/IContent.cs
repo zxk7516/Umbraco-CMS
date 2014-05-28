@@ -13,7 +13,7 @@ namespace Umbraco.Core.Models
         /// <summary>
         /// Gets the variant definition for this node
         /// </summary>
-        VariantDefinition VariantDefinition { get; }
+        VariantInfo VariantInfo { get; }
 
         /// <summary>
         /// Gets or sets the template used by the Content.

@@ -11,15 +11,15 @@ namespace Umbraco.Core.Persistence.Factories
         private readonly IContentType _contentType;
         private readonly Guid _nodeObjectTypeId;
         private readonly int _id;
-        private readonly VariantDefinition _variantDef;
+        private readonly VariantInfo _variantInfo;
         private int _primaryKey;
 
-        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id, VariantDefinition variantDef)
+        public ContentFactory(IContentType contentType, Guid nodeObjectTypeId, int id, VariantInfo variantInfo)
         {
             _contentType = contentType;
             _nodeObjectTypeId = nodeObjectTypeId;
             _id = id;
-            _variantDef = variantDef;
+            _variantInfo = variantInfo;
         }
 
         public ContentFactory(Guid nodeObjectTypeId, int id)
@@ -32,7 +32,7 @@ namespace Umbraco.Core.Persistence.Factories
 
         public IContent BuildEntity(DocumentDto dto)
         {
-            var content = new Content(dto.Text, dto.ContentVersionDto.ContentDto.NodeDto.ParentId, _contentType, new PropertyCollection(), _variantDef)
+            var content = new Content(dto.Text, dto.ContentVersionDto.ContentDto.NodeDto.ParentId, _contentType, new PropertyCollection(), _variantInfo)
             {
                 Id = _id,
                 Key =

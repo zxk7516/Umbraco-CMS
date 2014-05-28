@@ -55,7 +55,7 @@ namespace Umbraco.Web.Models.Mapping
                       expression => expression.MapFrom(content => content.Parent().ContentType.IsContainer))
                   .ForMember(
                       dto => dto.PublishDate,
-                      expression => expression.MapFrom(content => GetPublishedDate(content, applicationContext)))
+                      expression => expression.MapFrom(content => GetPublishedDate(content, applicationContext.Services.ContentService)))
                   .ForMember(
                       dto => dto.TemplateAlias, expression => expression.MapFrom(content => content.Template.Alias))
                   .ForMember(
@@ -72,7 +72,7 @@ namespace Umbraco.Web.Models.Mapping
                   .ForMember(display => display.Tabs, expression => expression.ResolveUsing<TabsAndPropertiesResolver>())
                   .ForMember(display => display.AllowedActions, expression => expression.ResolveUsing(
                       new ActionButtonsResolver(new Lazy<IUserService>(() => applicationContext.Services.UserService))))
-                  .AfterMap(AfterMap);
+                  .AfterMap((content, display) => AfterMap(content, display, applicationContext.Services.ContentService));
 
             //FROM IContent TO ContentItemBasic<ContentPropertyBasic, IContent>
             config.CreateMap<IContent, ContentItemBasic<ContentPropertyBasic, IContent>>()
@@ -108,7 +108,8 @@ namespace Umbraco.Web.Models.Mapping
         /// </summary>
         /// <param name="content"></param>
         /// <param name="display"></param>
-        private static void AfterMap(IContent content, ContentItemDisplay display)
+        /// <param name="contentService"></param>
+        private static void AfterMap(IContent content, ContentItemDisplay display, IContentService contentService)
         {
             //map the tree node url
             if (HttpContext.Current != null)
@@ -165,16 +166,16 @@ namespace Umbraco.Web.Models.Mapping
                         View = "urllist" //TODO: Hard coding this because the templatepicker doesn't necessarily need to be a resolvable (real) property editor
                     });
 
-            MapVariants(content, display);
+            MapVariants(content, display, contentService);
         }
 
         /// <summary>
         /// Gets the published date value for the IContent object
         /// </summary>
         /// <param name="content"></param>
-        /// <param name="applicationContext"></param>
+        /// <param name="contentService"></param>
         /// <returns></returns>
-        private static DateTime? GetPublishedDate(IContent content, ApplicationContext applicationContext)
+        private static DateTime? GetPublishedDate(IContent content, IContentService contentService)
         {
             if (content.Published)
             {
@@ -182,7 +183,7 @@ namespace Umbraco.Web.Models.Mapping
             }
             if (content.HasPublishedVersion())
             {
-                var published = applicationContext.Services.ContentService.GetPublishedVersion(content.Id);
+                var published = contentService.GetPublishedVersion(content.Id);
                 return published.UpdateDate;
             }
             return null;
@@ -246,12 +247,14 @@ namespace Umbraco.Web.Models.Mapping
         //TODO: This uses other services which will need to be wired up in order for this mapper to execute, create overloaded ctor's so we ca
         // test or inject these services.
 
-        private static void MapVariants(IContent content, ContentItemDisplay display)
+        private static void MapVariants(IContent content, ContentItemDisplay display, IContentService contentService)
         {
-            //var variantDef = Services.ContentService.GetVariantDefinition(content);
-            var variantDef = content.VariantDefinition;
-            if (variantDef.IsVariant == false)
+
+            //if it's not a variant - go get it's variants
+            if (content.VariantInfo.IsVariant == false)
             {
+                var variantDef = contentService.GetChildVariants(content);
+
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
                 var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
 
@@ -263,26 +266,26 @@ namespace Umbraco.Web.Models.Mapping
                     .Select(variantAttribute => new
                     {
                         variantAttribute,
-                        assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == variantAttribute.SegmentMatchKey)
+                        assigned = variantDef.FirstOrDefault(k => k.VariantInfo.Key == variantAttribute.SegmentMatchKey)
                     })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false)
-                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.ChildId, x.assigned.IsTrashed, x.assigned.LastUpdated));
+                        : new ContentVariableSegment(x.variantAttribute.VariantName, x.variantAttribute.SegmentMatchKey, false, x.assigned.Id, x.assigned.Trashed, x.assigned.UpdateDate));
 
                 var assignedLanguages = GetAssignedLanguageVariants(display);
 
                 var languageSegments = assignedLanguages
-                    .Select(x => new { lang = x, assigned = variantDef.ChildVariants.FirstOrDefault(k => k.Key == x) })
+                    .Select(x => new { lang = x, assigned = variantDef.FirstOrDefault(k => k.VariantInfo.Key == x) })
                     .Select(x => x.assigned == null
                         ? new ContentVariableSegment(x.lang, true)
-                        : new ContentVariableSegment(x.lang, true, x.assigned.ChildId, x.assigned.IsTrashed, x.assigned.LastUpdated));
+                        : new ContentVariableSegment(x.lang, true, x.assigned.Id, x.assigned.Trashed, x.assigned.UpdateDate));
 
                 //assign the variants, NOTE: languages always take precedence if there is overlap
                 display.ContentVariants = languageSegments.Union(assignableSegments);
             }
             else
             {
-                display.MasterDocId = variantDef.MasterDocId;
+                display.MasterDocId = content.VariantInfo.MasterDocId;
 
                 //We want to change the URL property because it shouldn't show urls if it's a variant, the URL will be specific
                 // to the master doc - if it is NOT a language variant.
@@ -292,7 +295,7 @@ namespace Umbraco.Web.Models.Mapping
                 var urlProp = genericTab.Properties.Single(x => x.Alias == string.Format("{0}urls", Constants.PropertyEditors.InternalGenericPropertiesPrefix));
 
                 var assignedLanguages = GetAssignedLanguageVariants(display);
-                if (assignedLanguages.Contains(variantDef.Key) == false)
+                if (assignedLanguages.Contains(content.VariantInfo.Key) == false)
                 {
                     //it's not a language, so remove the url
 

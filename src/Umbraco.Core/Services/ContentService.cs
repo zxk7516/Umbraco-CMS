@@ -75,14 +75,27 @@ namespace Umbraco.Core.Services
             _dataTypeService = dataTypeService;
         }
 
-        public IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name, int userId = 0)
+        public IEnumerable<IContent> GetChildVariants(IContent masterContent)
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            {
+                return repository.GetChildVariants(masterContent);
+            }
+        }
+
+        public IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name = null, int userId = 0)
         {
             Mandate.ParameterNotNull(masterContent, "masterContent");
             Mandate.ParameterNotNullOrEmpty(variantKey, "variantKey");
-            Mandate.ParameterNotNullOrEmpty(name, "name");
+
+            if (name.IsNullOrWhiteSpace())
+            {
+                name = masterContent.Name;
+            }
 
             var contentType = masterContent.ContentType;
-            var content = new Content(name, masterContent.ParentId, contentType, new PropertyCollection(), new VariantDefinition(masterContent.Id, variantKey))
+            var content = new Content(name, masterContent.ParentId, contentType, new PropertyCollection(), new VariantInfo(masterContent.Id, variantKey))
             {
                 CreatorId = userId, 
                 WriterId = userId
@@ -109,7 +122,7 @@ namespace Umbraco.Core.Services
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
-            Audit.Add(AuditTypes.New, string.Format("Content '{0}' was created", name), content.CreatorId, content.Id);
+            Audit.Add(AuditTypes.New, string.Format("Content variant '{0}' was created", name), content.CreatorId, content.Id);
 
             return content;
         }

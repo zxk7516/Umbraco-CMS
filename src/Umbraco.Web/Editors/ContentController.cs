@@ -577,8 +577,7 @@ namespace Umbraco.Web.Editors
             
             var contentVariant = Services.ContentService.CreateContentVariantWithIdentity(
                 foundContent,
-                key,
-                string.Format("{0} ({1})", foundContent.Name, key));
+                key);
 
             return contentVariant.Id;
         }
