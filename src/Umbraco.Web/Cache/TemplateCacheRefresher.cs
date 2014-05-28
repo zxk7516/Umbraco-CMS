@@ -52,6 +52,11 @@ namespace Umbraco.Web.Cache
 
         private void RemoveFromCache(int id)
         {
+            //We'll need to clear all content cache because ITemplate is a property of IContent which
+            // is cached against each intance of IContent :(
+            // TODO: Re-think how we are caching full entities.
+            RuntimeCacheProvider.Current.Clear(typeof(IContent));
+
             ApplicationContext.Current.ApplicationCache.ClearCacheItem(
                 string.Format("{0}{1}", CacheKeys.TemplateFrontEndCacheKey, id));
 
