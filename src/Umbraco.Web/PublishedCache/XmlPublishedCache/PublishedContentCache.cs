@@ -210,18 +210,31 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
 					// default XML schema as of 4.10
 					case 1:
-						RootDocuments = "/root/* [@isDoc]";
-                        RootDocumentsAndVariants = "/root/* [@isDoc or @masterDocId]";
 
-						DescendantDocumentById = "//* [@isDoc and @id={0}]";
+                        //variants have isDoc='variant' so we don't want those
+						RootDocuments = "/root/* [@isDoc='']";  
+                        
+                        //master + variants both have isDoc
+                        RootDocumentsAndVariants = "/root/* [@isDoc]";
 
-						ChildDocumentByUrlName = "/* [@isDoc and @urlName='{0}']";
-                        ChildDocumentOrVariantByUrlName = "/* [(@isDoc or @masterDocId) and @urlName='{0}']";
-						
-                        ChildDocumentByUrlNameVar = "/* [@isDoc and @urlName=${0}]";
-                        ChildDocumentOrVariantByUrlNameVar = "/* [(@isDoc or @masterDocId) and @urlName=${0}]";
-						
-                        RootDocumentWithLowestSortOrder = "/root/* [@isDoc and not(@sortOrder > ../* [@isDoc]/@sortOrder)][1]";
+                        //variants have isDoc='variant' so we don't want those
+						DescendantDocumentById = "//* [@isDoc='' and @id={0}]";
+
+                        //variants have isDoc='variant' so we don't want those
+						ChildDocumentByUrlName = "/* [@isDoc='' and @urlName='{0}']";
+
+                        //master + variants both have isDoc
+                        ChildDocumentOrVariantByUrlName = "/* [@isDoc and @urlName='{0}']";
+
+                        //variants have isDoc='variant' so we don't want those
+                        ChildDocumentByUrlNameVar = "/* [@isDoc='' and @urlName=${0}]";
+
+                        //master + variants both have isDoc
+                        ChildDocumentOrVariantByUrlNameVar = "/* [@isDoc and @urlName=${0}]";
+
+                        //variants have isDoc='variant' so we don't want those
+                        RootDocumentWithLowestSortOrder = "/root/* [@isDoc='' and not(@sortOrder > ../* [@isDoc='']/@sortOrder)][1]";
+
 						break;
 
 					default:
@@ -428,7 +441,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 					// read http://stackoverflow.com/questions/1128745/how-can-i-use-xpath-to-find-the-minimum-value-of-an-attribute-in-a-set-of-elemen
                     
 					// so that one does not work, because min(@sortOrder) maybe 1
-					// xpath = "/root/*[@isDoc and @sortOrder='0']";
+					// xpath = "/root/*[@isDoc='' and @sortOrder='0']";
 
 					// and we can't use min() because that's XPath 2.0
 					// that one works

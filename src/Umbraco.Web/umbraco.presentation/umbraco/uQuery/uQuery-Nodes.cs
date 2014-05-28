@@ -148,7 +148,8 @@ namespace umbraco
 			}
 			else
 			{
-				return uQuery.GetNodesByXPath(string.Concat("descendant::", documentTypeAlias, "[@isDoc]"));
+                //variants have isDoc='variant' so we don't want those
+				return uQuery.GetNodesByXPath(string.Concat("descendant::", documentTypeAlias, "[@isDoc='']"));
 			}
 		}
 

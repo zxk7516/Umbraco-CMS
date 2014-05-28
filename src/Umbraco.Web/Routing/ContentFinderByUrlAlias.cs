@@ -88,6 +88,10 @@ namespace Umbraco.Web.Routing
 			{
 				Version = version;
 
+                //TODO: Need to figure out where variants fit in here, probably in most cases below
+                // we'd want to do isDoc='' so that we don't match variants. I have done this for now
+                // since we'd rather not match variants than do match them.
+
 				switch (version)
 				{
 					// legacy XML schema
@@ -101,8 +105,10 @@ namespace Umbraco.Web.Routing
 
 					// default XML schema as of 4.10
 					case 1:
-						DescendantDocumentById = "//* [@isDoc and @id={0}]";
-						DescendantDocumentByAlias = "//* [@isDoc and ("
+
+                        //variants have isDoc='variant' so we don't want those
+						DescendantDocumentById = "//* [@isDoc='' and @id={0}]";
+                        DescendantDocumentByAlias = "//* [@isDoc='' and ("
 							+ "contains(concat(',',translate(umbracoUrlAlias, ' ', ''),','),',{0},')"
 							+ " or contains(concat(',',translate(umbracoUrlAlias, ' ', ''),','),',/{0},')"
 							+ ")]";

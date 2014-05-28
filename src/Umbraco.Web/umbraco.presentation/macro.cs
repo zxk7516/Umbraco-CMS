@@ -1291,7 +1291,7 @@ namespace umbraco
                     var nav = contentNavigator.Clone();
                     if (nav.MoveToId(contentId))
                     {
-                        var descendantIterator = nav.Select("./* [@isDoc]");
+                        var descendantIterator = nav.Select("./* [@isDoc='']");
                         if (descendantIterator.MoveNext())
                         {
                             // not empty - and won't change

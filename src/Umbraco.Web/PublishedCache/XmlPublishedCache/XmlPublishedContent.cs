@@ -433,7 +433,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	        if (_xmlNode == null) return;
 
             // load children
-            var childXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : "* [@isDoc]";
+            //variants have isDoc='variant' so we don't want those
+            var childXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : "* [@isDoc='']";
             var nav = _xmlNode.CreateNavigator();
             var expr = nav.Compile(childXPath);
             expr.AddSort("@sortOrder", XmlSortOrder.Ascending, XmlCaseOrder.None, "", XmlDataType.Number);
