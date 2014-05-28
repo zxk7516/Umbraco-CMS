@@ -227,8 +227,7 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
         });
     }
 
-    $scope.toggleCompare = function(e,a,b) {
-        e.$setPristine();
+    $scope.toggleCompare = function() {
         $scope.showCompare = _.find($scope.content.variants, function (i) {
             return i.compare === true;
         });
