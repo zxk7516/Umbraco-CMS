@@ -2,6 +2,7 @@ using System.Linq;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Web.Routing.Segments;
 
 namespace Umbraco.Web.Routing
@@ -69,6 +70,11 @@ namespace Umbraco.Web.Routing
                         node = variant;
 
                         hasVariant = true;
+
+                        //Set the pcr val
+                        docreq.SetVariantInfo(
+                            node,
+                            new VariantInfo(node.Id, docreq.Domain.Language.CultureAlias));
                     }
                 }
 
@@ -101,12 +107,22 @@ namespace Umbraco.Web.Routing
                             {                                
                                 node = variant;
                                 hasVariant = true;
+
+                                //Set the pcr val
+                                docreq.SetVariantInfo(
+                                    node,
+                                    new VariantInfo(node.Id, matchedVariant.SegmentMatchKey));
                             }
                         }
                     }
                 }
 
-                docreq.PublishedContent = node;
+                if (hasVariant == false)
+                {
+                    //assign the content as per normal
+                    docreq.PublishedContent = node;    
+                }
+                
                 LogHelper.Debug<ContentFinderByNiceUrl>("Got content, id={0}", () => node.Id);
             }
             else

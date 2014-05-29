@@ -9,6 +9,7 @@ using Umbraco.Core.Configuration;
 using Umbraco.Core.Logging;
 using Umbraco.Core;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
 using Umbraco.Web.Routing;
@@ -264,17 +265,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         #region Converters
 
-        private static IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing)
+        private static IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing, VariantInfo variantInfo)
 		{
 		    return xmlNode == null 
-                ? null 
-                : (new XmlPublishedContent(xmlNode, isPreviewing)).CreateModel();
+                ? null
+                : (new XmlPublishedContent(xmlNode, isPreviewing, variantInfo)).CreateModel();
 		}
 
-        private static IEnumerable<IPublishedContent> ConvertToDocuments(XmlNodeList xmlNodes, bool isPreviewing)
+        private static IEnumerable<IPublishedContent> ConvertToDocuments(XmlNodeList xmlNodes, bool isPreviewing, VariantInfo variantInfo)
         {
             return xmlNodes.Cast<XmlNode>()
-                .Select(xmlNode => (new XmlPublishedContent(xmlNode, isPreviewing)).CreateModel());
+                .Select(xmlNode => (new XmlPublishedContent(xmlNode, isPreviewing, variantInfo)).CreateModel());
         }
 
         #endregion
@@ -283,12 +284,18 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public virtual IPublishedContent GetById(UmbracoContext umbracoContext, bool preview, int nodeId)
     	{
-    		return ConvertToDocument(GetXml(umbracoContext, preview).GetElementById(nodeId.ToString(CultureInfo.InvariantCulture)), preview);
+    		return ConvertToDocument(
+                GetXml(umbracoContext, preview).GetElementById(nodeId.ToString(CultureInfo.InvariantCulture)), 
+                preview,
+                umbracoContext.PublishedContentRequest.VariantInfo);
     	}
 
         public virtual IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview)
         {
-            return ConvertToDocuments(GetXml(umbracoContext, preview).SelectNodes(XPathStrings.RootDocuments), preview);
+            return ConvertToDocuments(
+                GetXml(umbracoContext, preview).SelectNodes(XPathStrings.RootDocuments), 
+                preview,
+                umbracoContext.PublishedContentRequest.VariantInfo);
 		}
 
         public virtual IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
@@ -300,7 +307,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var node = vars == null
                 ? xml.SelectSingleNode(xpath)
                 : xml.SelectSingleNode(xpath, vars);
-            return ConvertToDocument(node, preview);
+            return ConvertToDocument(node, preview, umbracoContext.PublishedContentRequest.VariantInfo);
         }
 
         public virtual IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
@@ -311,7 +318,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var node = vars == null
                 ? xml.SelectSingleNode(xpath)
                 : xml.SelectSingleNode(xpath, vars);
-            return ConvertToDocument(node, preview);
+            return ConvertToDocument(node, preview, umbracoContext.PublishedContentRequest.VariantInfo);
         }
 
         public virtual IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
@@ -323,7 +330,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var nodes = vars == null
                 ? xml.SelectNodes(xpath)
                 : xml.SelectNodes(xpath, vars);
-            return ConvertToDocuments(nodes, preview);
+            return ConvertToDocuments(nodes, preview, umbracoContext.PublishedContentRequest.VariantInfo);
         }
 
         public virtual IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
@@ -334,7 +341,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var nodes = vars == null
                 ? xml.SelectNodes(xpath)
                 : xml.SelectNodes(xpath, vars);
-            return ConvertToDocuments(nodes, preview);
+            return ConvertToDocuments(nodes, preview, umbracoContext.PublishedContentRequest.VariantInfo);
         }
 
         public virtual bool HasContent(UmbracoContext umbracoContext, bool preview)

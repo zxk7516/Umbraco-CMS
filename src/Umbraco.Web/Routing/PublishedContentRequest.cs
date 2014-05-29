@@ -6,6 +6,8 @@ using Umbraco.Core.Models;
 
 using umbraco;
 using umbraco.cms.businesslogic.web;
+using Umbraco.Core.Models.ContentVariations;
+using Umbraco.Web.PublishedCache;
 using RenderingEngine = Umbraco.Core.RenderingEngine;
 
 namespace Umbraco.Web.Routing
@@ -47,6 +49,7 @@ namespace Umbraco.Web.Routing
 			_engine = new PublishedContentRequestEngine(this);
 
             RenderingEngine = RenderingEngine.Unknown;
+            VariantInfo = new VariantInfo();
 		}
 
 		/// <summary>
@@ -410,6 +413,36 @@ namespace Umbraco.Web.Routing
 			}
 			set { _umbracoPage = value; }
 		}
+
+        /// <summary>
+        /// Assigns the variant info to the request and re-get's the content item from cache so that it
+        /// is initialized with the correct variant info taken from this PCR
+        /// </summary>
+        /// <param name="current"></param>
+        /// <param name="variantInfo"></param>
+	    internal void SetVariantInfo(IPublishedContent current, VariantInfo variantInfo)
+        {
+            //TODO: The way this works is real dodgy! 
+
+            if (current == null) throw new ArgumentNullException("current");
+            if (variantInfo == null) throw new ArgumentNullException("variantInfo");
+            
+            //set the info on the PCR
+            VariantInfo = variantInfo;
+
+            //re-get the item now that the variant info is set
+            var reGet = RoutingContext.UmbracoContext.ContentCache.GetById(
+                RoutingContext.UmbracoContext.InPreviewMode,
+                current.Id);
+
+            //re-assign
+            PublishedContent = reGet;
+        }
+
+        /// <summary>
+        /// Gets the current variant info assigned to the request
+        /// </summary>
+        public VariantInfo VariantInfo { get; private set; }
 
 		#region Status
 

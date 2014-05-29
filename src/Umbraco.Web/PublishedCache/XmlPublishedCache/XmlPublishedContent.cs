@@ -8,6 +8,7 @@ using System.Xml.XPath;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.ContentVariations;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Web.Models;
 
@@ -21,33 +22,39 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	[XmlType(Namespace = "http://umbraco.org/webservices/")]
 	internal class XmlPublishedContent : PublishedContentBase
 	{
-		/// <summary>
-		/// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node.
-		/// </summary>
-		/// <param name="xmlNode">The Xml node.</param>
-        /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
-        public XmlPublishedContent(XmlNode xmlNode, bool isPreviewing)
+	    /// <summary>
+	    /// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node.
+	    /// </summary>
+	    /// <param name="xmlNode">The Xml node.</param>
+	    /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
+	    /// <param name="variantInfo"></param>
+	    public XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, VariantInfo variantInfo)
 		{
-			_xmlNode = xmlNode;
+	        if (variantInfo == null) throw new ArgumentNullException("variantInfo");
+	        _xmlNode = xmlNode;
 		    _isPreviewing = isPreviewing;
-			InitializeStructure();
+		    _variantInfo = variantInfo;
+		    InitializeStructure();
 			Initialize();
             InitializeChildren();
 		}
 
-        /// <summary>
-        /// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node,
-        /// and a value indicating whether to lazy-initialize the instance.
-        /// </summary>
-        /// <param name="xmlNode">The Xml node.</param>
-        /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
-        /// <param name="lazyInitialize">A value indicating whether to lazy-initialize the instance.</param>
-        /// <remarks>Lazy-initializationg is NOT thread-safe.</remarks>
-        internal XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, bool lazyInitialize)
+	    /// <summary>
+	    /// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node,
+	    /// and a value indicating whether to lazy-initialize the instance.
+	    /// </summary>
+	    /// <param name="xmlNode">The Xml node.</param>
+	    /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
+	    /// <param name="lazyInitialize">A value indicating whether to lazy-initialize the instance.</param>
+	    /// <param name="variantInfo"></param>
+	    /// <remarks>Lazy-initializationg is NOT thread-safe.</remarks>
+	    internal XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, bool lazyInitialize, VariantInfo variantInfo)
 		{
-			_xmlNode = xmlNode;
+	        if (variantInfo == null) throw new ArgumentNullException("variantInfo");
+	        _xmlNode = xmlNode;
             _isPreviewing = isPreviewing;
-			InitializeStructure();
+	        _variantInfo = variantInfo;
+	        InitializeStructure();
             if (lazyInitialize == false)
             {
                 Initialize();
@@ -82,6 +89,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		private int _level;
 	    private bool _isDraft;
 	    private readonly bool _isPreviewing;
+	    private readonly VariantInfo _variantInfo;
 	    private PublishedContentType _contentType;
 
 		public override IEnumerable<IPublishedContent> Children
@@ -338,7 +346,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (parent == null) return;
 
             if (parent.LocalName == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null))
-		        _parent = (new XmlPublishedContent(parent, _isPreviewing, true)).CreateModel();
+		        _parent = (new XmlPublishedContent(parent, _isPreviewing, true, _variantInfo)).CreateModel();
 		}
 
 		private void Initialize()
@@ -434,13 +442,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
 	        var workingNode = _xmlNode;
 
-            //determine if this is a variant
-	        if (_xmlNode.Attributes != null && _xmlNode.Attributes["masterDocId"] != null)
+            //if we're current using a variant, we need to go lookup the master since that is
+            // how we navigate the tree - always via the master
+            if (_variantInfo.IsVariant)
 	        {
 	            var masterDocId = _xmlNode.AttributeValue<int>("masterDocId");
 	            //get the master, then children
 	            if (_xmlNode.ParentNode != null)
 	            {
+                    //TODO: There's probably a faster way with the old xml api to do this
 	                var master = _xmlNode.ParentNode.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.AttributeValue<int>("id") == masterDocId);
 	                if (master != null)
 	                {
@@ -456,11 +466,47 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var expr = nav.Compile(childXPath);
             expr.AddSort("@sortOrder", XmlSortOrder.Ascending, XmlCaseOrder.None, "", XmlDataType.Number);
             var iterator = nav.Select(expr);
-            while (iterator.MoveNext())
-		        _children.Add(
-                    (new XmlPublishedContent(((IHasXmlNode)iterator.Current).GetNode(), _isPreviewing, true)).CreateModel());
-            
-            // warn: this is not thread-safe
+	        while (iterator.MoveNext())
+	        {
+	            var xmlChild = ((IHasXmlNode) iterator.Current).GetNode();
+
+	            var useVariant = false;
+
+                //determine which child to add based on the current VariantInfo
+	            if (_variantInfo.IsVariant)
+	            {
+                    //get the master, then children
+                    if (xmlChild.ParentNode != null)
+                    {
+                        //TODO: There's probably a faster way with the old xml api to do this
+                        
+                        //find a variant of the current child for the current variant key
+                        var variant = xmlChild.ParentNode.ChildNodes.OfType<XmlElement>()
+                            .FirstOrDefault(x =>
+                                //find all 
+                                x.AttributeValue<int>("masterDocId") == xmlChild.AttributeValue<int>("id")
+                                && xmlChild.AttributeValue<string>("variantKey") == _variantInfo.Key);
+
+                        if (variant != null)
+                        {
+                            //we found a variant!
+                            _children.Add(
+                                (new XmlPublishedContent(variant, _isPreviewing, true, _variantInfo)).CreateModel());
+                            useVariant = true;
+                        }
+                    }
+	            }
+
+                //no variant used, use the normal child
+	            if (useVariant == false)
+	            {
+                    _children.Add(
+                        (new XmlPublishedContent(xmlChild, _isPreviewing, true, _variantInfo)).CreateModel());        
+	            }
+
+	        }
+
+	        // warn: this is not thread-safe
             _childrenInitialized = true;
 	    }
     }
