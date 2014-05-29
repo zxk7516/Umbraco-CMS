@@ -51,7 +51,7 @@ namespace Umbraco.Web.PropertyEditors
             JObject oldJson = null;
 
             //get the old src path
-            if (string.IsNullOrEmpty(currentValue.ToString()) == false)
+            if (currentValue != null && string.IsNullOrEmpty(currentValue.ToString()) == false)
             {
                 try
                 {
