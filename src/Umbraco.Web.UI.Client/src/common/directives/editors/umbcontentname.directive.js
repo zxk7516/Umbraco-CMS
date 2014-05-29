@@ -15,7 +15,8 @@ angular.module("umbraco.directives")
 			templateUrl: 'views/directives/umb-content-name.html',
 			scope: {
 			    placeholder: '@placeholder',
-			    model: '=ngModel'
+			    model: '=ngModel',
+                readonly: '='
 			},
 			link: function(scope, element, attrs, ngModel) {
 
