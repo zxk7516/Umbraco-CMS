@@ -432,10 +432,27 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    {
 	        if (_xmlNode == null) return;
 
+	        var workingNode = _xmlNode;
+
+            //determine if this is a variant
+	        if (_xmlNode.Attributes != null && _xmlNode.Attributes["masterDocId"] != null)
+	        {
+	            var masterDocId = _xmlNode.AttributeValue<int>("masterDocId");
+	            //get the master, then children
+	            if (_xmlNode.ParentNode != null)
+	            {
+	                var master = _xmlNode.ParentNode.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.AttributeValue<int>("id") == masterDocId);
+	                if (master != null)
+	                {
+	                    workingNode = master;
+	                }
+	            }
+	        }
+
             // load children
             //variants have isDoc='variant' so we don't want those
             var childXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : "* [@isDoc='']";
-            var nav = _xmlNode.CreateNavigator();
+            var nav = workingNode.CreateNavigator();
             var expr = nav.Compile(childXPath);
             expr.AddSort("@sortOrder", XmlSortOrder.Ascending, XmlCaseOrder.None, "", XmlDataType.Number);
             var iterator = nav.Select(expr);
