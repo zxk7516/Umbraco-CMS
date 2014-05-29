@@ -74,16 +74,7 @@ namespace Umbraco.Core.Services
             _repositoryFactory = repositoryFactory;
             _dataTypeService = dataTypeService;
         }
-
-        public IEnumerable<IContent> GetChildVariants(IContent masterContent)
-        {
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateContentRepository(uow))
-            {
-                return repository.GetChildVariants(masterContent);
-            }
-        }
-
+        
         public IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name = null, int userId = 0)
         {
             Mandate.ParameterNotNull(masterContent, "masterContent");
@@ -350,6 +341,9 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IEnumerable<IContent> GetByIds(IEnumerable<int> ids)
         {
+            //if we don't do this, it will return ALL of the content
+            if (ids.Any() == false) return Enumerable.Empty<IContent>();
+
             using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
             {
                 return repository.GetAll(ids.ToArray());

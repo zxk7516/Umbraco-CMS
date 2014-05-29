@@ -162,7 +162,7 @@ namespace Umbraco.Web.Cache
         {
             if (e.RecycleBinEmptiedSuccessfully && e.IsContentRecycleBin)
             {
-                DistributedCache.Instance.RemoveUnpublishedCachePermanently(e.Ids.ToArray());
+                DistributedCache.Instance.RemoveUnpublishedPageCache(e.Ids.ToArray());
             }
         }
         
@@ -177,8 +177,12 @@ namespace Umbraco.Web.Cache
         /// </remarks>
         static void ContentServiceTrashed(IContentService sender, MoveEventArgs<IContent> e)
         {
-            DistributedCache.Instance.RefreshUnpublishedPageCache(
-                e.MoveInfoCollection.Select(x => x.Entity).ToArray());
+            var ids = e.MoveInfoCollection.Select(x => x.Entity.Id).ToList();
+            //ensure the variants are refreshed too
+            ids.AddRange(e.MoveInfoCollection.SelectMany(x => x.Entity.VariantInfo.VariantIds));
+            ids.AddRange(e.MoveInfoCollection.Select(x => x.Entity.VariantInfo.MasterDocId));
+
+            DistributedCache.Instance.RefreshUnpublishedPageCache(ids.ToArray());
         }
 
         /// <summary>
@@ -200,7 +204,13 @@ namespace Umbraco.Web.Cache
             }
 
             //run the un-published cache refresher since copied content is not published
-            DistributedCache.Instance.RefreshUnpublishedPageCache(e.Copy);
+            
+            var ids = new List<int> {e.Copy.Id};
+            //ensure the variants are refreshed too
+            ids.AddRange(e.Copy.VariantInfo.VariantIds);
+            ids.Add(e.Copy.VariantInfo.MasterDocId);
+
+            DistributedCache.Instance.RefreshUnpublishedPageCache(ids.ToArray());
         }
 
         /// <summary>
@@ -210,7 +220,12 @@ namespace Umbraco.Web.Cache
         /// <param name="e"></param>
         static void ContentServiceDeleted(IContentService sender, DeleteEventArgs<IContent> e)
         {
-            DistributedCache.Instance.RemoveUnpublishedPageCache(e.DeletedEntities.ToArray());
+            var ids = e.DeletedEntities.Select(x => x.Id).ToList();
+            //ensure the variants are refreshed too
+            ids.AddRange(e.DeletedEntities.SelectMany(x => x.VariantInfo.VariantIds));
+            ids.AddRange(e.DeletedEntities.Select(x => x.VariantInfo.MasterDocId));
+
+            DistributedCache.Instance.RemoveUnpublishedPageCache(ids.ToArray());
         }
 
         /// <summary>
@@ -249,9 +264,13 @@ namespace Umbraco.Web.Cache
 
             //filter out the entities that have only been saved (not newly published) since
             // newly published ones will be synced with the published page cache refresher
-            var unpublished = e.SavedEntities.Where(x => x.JustPublished() == false);
+            var unpublished = e.SavedEntities.Where(x => x.JustPublished() == false).ToArray();
+            var ids = unpublished.Select(x => x.Id).ToList();
+            ids.AddRange(unpublished.SelectMany(x => x.VariantInfo.VariantIds));
+            ids.AddRange(unpublished.Select(x => x.VariantInfo.MasterDocId));
+
             //run the un-published cache refresher
-            DistributedCache.Instance.RefreshUnpublishedPageCache(unpublished.ToArray());
+            DistributedCache.Instance.RefreshUnpublishedPageCache(ids.ToArray());
         }
 
 

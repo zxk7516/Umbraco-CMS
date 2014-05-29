@@ -105,6 +105,17 @@ namespace Umbraco.Core.Persistence.UnitOfWork
         /// </param>
         internal void Commit(Action<UmbracoDatabase> transactionCompleting)
         {
+            //TODO: Currently the repositories are handling a caching layer BUT if this transaction fails
+            // the repositories are still clearing their cache whereas their cache should only be refreshed
+            // after the transaction is completed - need to re-visit how caching is working in repo's
+            //One way to acheive this could be to return some instructions/results from the "Persist..." methods
+            // then pass these results back to the repository after the transaction is complete and they can
+            // take care of cache refreshing there. The benefit of this is that these operations could return multiple
+            // items to cache refresh since any given operation could affect multiple items, NOT just one!
+            //In the meantime we have to do the regular cache refresher thing but that means having to re-lookup the variants for each
+            // content item and then clear their cache. It might just be possible to simplify cache refreshers by having the 
+            // repositories return a result of all entities that have been modified and just use that to refresh the cache.
+
             using (var transaction = Database.GetTransaction())
             {
                 foreach (var operation in _operations.OrderBy(o => o.ProcessDate))

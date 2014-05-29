@@ -11,7 +11,7 @@ namespace Umbraco.Web.Cache
     /// <summary>
     /// A cache refresher used for non-published content, this is primarily to notify Examine indexes to update and to refresh the RuntimeCacheRefresher
     /// </summary>
-    public sealed class UnpublishedPageCacheRefresher : TypedCacheRefresherBase<UnpublishedPageCacheRefresher, IContent>, IJsonCacheRefresher
+    public sealed class UnpublishedPageCacheRefresher : CacheRefresherBase<UnpublishedPageCacheRefresher>, IJsonCacheRefresher
     {
         protected override UnpublishedPageCacheRefresher Instance
         {
@@ -43,13 +43,13 @@ namespace Umbraco.Web.Cache
         }
 
       
-        internal static string SerializeToJsonPayloadForPermanentDeletion(params int[] contentIds)
+        internal static string SerializeToJsonPayload(OperationType op, params int[] contentIds)
         {
             var serializer = new JavaScriptSerializer();
             var items = contentIds.Select(x => new JsonPayload
             {
                 Id = x,
-                Operation = OperationType.Deleted
+                Operation = op
             }).ToArray();
             var json = serializer.Serialize(items);
             return json;
@@ -61,7 +61,8 @@ namespace Umbraco.Web.Cache
 
         internal enum OperationType
         {            
-            Deleted
+            Deleted,
+            Saved
         }
 
         internal class JsonPayload
@@ -90,21 +91,8 @@ namespace Umbraco.Web.Cache
             base.Remove(id);
         }
 
-
-        public override void Refresh(IContent instance)
-        {
-            RuntimeCacheProvider.Current.Delete(typeof(IContent), instance.Id);
-            base.Refresh(instance);
-        }
-
-        public override void Remove(IContent instance)
-        {
-            RuntimeCacheProvider.Current.Delete(typeof(IContent), instance.Id);
-            base.Remove(instance);
-        }
-
         /// <summary>
-        /// Implement the IJsonCacheRefresher so that we can bulk delete the cache based on multiple IDs for when the recycle bin is emptied
+        /// Implement the IJsonCacheRefresher so that we can bulk delete/refresh the cache based on multiple IDs
         /// </summary>
         /// <param name="jsonPayload"></param>
         public void Refresh(string jsonPayload)

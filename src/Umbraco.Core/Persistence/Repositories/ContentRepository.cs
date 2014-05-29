@@ -402,11 +402,33 @@ namespace Umbraco.Core.Persistence.Repositories
                 entity.UpdateDate = DateTime.Now;
             }
 
+            var factory = new ContentFactory(NodeObjectTypeId, entity.Id);
+
             //Ensure unique name on the same level when it is NOT a variant
             if (entity.VariantInfo.IsVariant == false)
             {
                 entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name, entity.Id);
+
+                //If the name has changed, then change all variants too
+                if (((ICanBeDirty) entity).IsPropertyDirty("Name"))
+                {
+                    if (entity.VariantInfo.VariantIds.Any())
+                    {
+                        var variants = GetAll(entity.VariantInfo.VariantIds);
+                        foreach (var variant in variants)
+                        {
+                            variant.Name = entity.Name;
+
+                            var vdto = factory.BuildDto(variant);
+                            //update umbracoNode
+                            Database.Update(vdto.ContentVersionDto.ContentDto.NodeDto);
+                            //update cmsDocument
+                            Database.Update(vdto);
+                        }   
+                    }                    
+                }
             }
+
 
             //Look up parent to get and set the correct Path and update SortOrder if ParentId has changed
             if (((ICanBeDirty)entity).IsPropertyDirty("ParentId"))
@@ -425,7 +447,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 // Gonna just leave it as is for now, and not re-propogate permissions.
             }
 
-            var factory = new ContentFactory(NodeObjectTypeId, entity.Id);
+            
             //Look up Content entry to get Primary for updating the DTO
             var contentDto = Database.SingleOrDefault<ContentDto>("WHERE nodeId = @Id", new { Id = entity.Id });
             factory.SetPrimaryKey(contentDto.PrimaryKey);
@@ -615,10 +637,10 @@ namespace Umbraco.Core.Persistence.Repositories
             //first check if the result has the current content id as a childid in the collection, 
             // if it does, then it means that this content item is a variant, otherwise if it's id is
             // contained in any parent ids then it's a master
-            var childVariants = result.Where(x => x.childId == contentId).ToArray();
-            if (childVariants.Any())
+            var variant = result.Where(x => x.childId == contentId).ToArray();
+            if (variant.Any())
             {
-                var row = childVariants.Single();
+                var row = variant.Single();
                 //this content item is a variant itself
                 return new VariantInfo(
                     //get it's master doc id
@@ -626,27 +648,12 @@ namespace Umbraco.Core.Persistence.Repositories
                     row.comment);
             }
 
+            var childVariants = result.Where(x => x.parentId == contentId)
+                .Select(x => (int)x.childId)
+                .ToArray();
+
             //it's a master doc
-            return new VariantInfo();
-        }
-
-        public IEnumerable<IContent> GetChildVariants(IContent masterContent)
-        {
-            var sql = new Sql()
-                .Select("umbracoRelation.*")
-                .From<RelationDto>()
-                .InnerJoin<RelationTypeDto>()
-                .On<RelationDto, RelationTypeDto>(dto => dto.RelationType, dto => dto.Id)
-                .Where("umbracoRelationType.alias = @alias AND umbracoRelation.parentId = @parentId",
-                    new {parentId = masterContent.Id, alias = "umbContentVariants"});
-
-            var result = Database.Fetch<dynamic>(sql);
-
-            var childIds = result.Select(x => (int)x.childId).ToArray();
-
-            //TODO: This isn't going to perform very well, It will execute the full sql required to create a single IContent
-            // but I suppose we have this problem with many other parts of our repository layer
-            return GetAll(childIds);
+            return new VariantInfo(childVariants);
         }
 
         public IContent GetByLanguage(int id, string language)

@@ -12,8 +12,7 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IContentService : IService
     {
-        IEnumerable<IContent> GetChildVariants(IContent masterContent);
-
+        
         IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name = null, int userId = 0);
 
         /// <summary>

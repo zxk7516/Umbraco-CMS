@@ -287,7 +287,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     		return ConvertToDocument(
                 GetXml(umbracoContext, preview).GetElementById(nodeId.ToString(CultureInfo.InvariantCulture)), 
                 preview,
-                umbracoContext.PublishedContentRequest.VariantInfo);
+                //TODO: Do something about this :(
+                umbracoContext.PublishedContentRequest == null ? new VariantInfo() : umbracoContext.PublishedContentRequest.VariantInfo);
     	}
 
         public virtual IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview)
@@ -295,7 +296,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return ConvertToDocuments(
                 GetXml(umbracoContext, preview).SelectNodes(XPathStrings.RootDocuments), 
                 preview,
-                umbracoContext.PublishedContentRequest.VariantInfo);
+                //TODO: Do something about this :(
+                umbracoContext.PublishedContentRequest == null ? new VariantInfo() : umbracoContext.PublishedContentRequest.VariantInfo);
 		}
 
         public virtual IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)

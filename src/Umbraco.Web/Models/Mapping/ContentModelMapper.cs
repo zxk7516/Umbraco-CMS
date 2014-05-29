@@ -254,7 +254,7 @@ namespace Umbraco.Web.Models.Mapping
             //if it's not a variant - go get it's variants
             if (content.VariantInfo.IsVariant == false)
             {
-                var variantDef = contentService.GetChildVariants(content);
+                var variantDef = contentService.GetByIds(content.VariantInfo.VariantIds);
 
                 //if it's not a variant, then it's a master-doc so go lookup the possible variant types it can have
                 var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();

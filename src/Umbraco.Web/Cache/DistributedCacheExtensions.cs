@@ -250,31 +250,22 @@ namespace Umbraco.Web.Cache
         /// invokes the unpublished page cache refresher
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshUnpublishedPageCache(this DistributedCache dc, params IContent[] content)
+        /// <param name="contentIds"></param>
+        public static void RefreshUnpublishedPageCache(this DistributedCache dc, params int[] contentIds)
         {
-            dc.Refresh(new Guid(DistributedCache.UnpublishedPageCacheRefresherId), x => x.Id, content);
+            dc.RefreshByJson(new Guid(DistributedCache.UnpublishedPageCacheRefresherId),
+                UnpublishedPageCacheRefresher.SerializeToJsonPayload(UnpublishedPageCacheRefresher.OperationType.Saved, contentIds));
         }
 
         /// <summary>
         /// invokes the unpublished page cache refresher
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RemoveUnpublishedPageCache(this DistributedCache dc, params IContent[] content)
-        {
-            dc.Remove(new Guid(DistributedCache.UnpublishedPageCacheRefresherId), x => x.Id, content);
-        }
-
-        /// <summary>
-        /// invokes the unpublished page cache refresher to mark all ids for permanent removal
-        /// </summary>
-        /// <param name="dc"></param>
         /// <param name="contentIds"></param>
-        public static void RemoveUnpublishedCachePermanently(this DistributedCache dc, params int[] contentIds)
+        public static void RemoveUnpublishedPageCache(this DistributedCache dc, params int[] contentIds)
         {
             dc.RefreshByJson(new Guid(DistributedCache.UnpublishedPageCacheRefresherId),
-                UnpublishedPageCacheRefresher.SerializeToJsonPayloadForPermanentDeletion(contentIds));
+                UnpublishedPageCacheRefresher.SerializeToJsonPayload(UnpublishedPageCacheRefresher.OperationType.Deleted, contentIds));
         }
 
         #endregion

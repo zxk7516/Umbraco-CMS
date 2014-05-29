@@ -11,8 +11,6 @@ namespace Umbraco.Core.Persistence.Repositories
     public interface IContentRepository : IRepositoryVersionable<int, IContent>
     {
 
-        IEnumerable<IContent> GetChildVariants(IContent masterContent);
-
         /// <summary>
         /// Gets a specific language version of an <see cref="IContent"/>
         /// </summary>

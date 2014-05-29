@@ -226,6 +226,12 @@ namespace Umbraco.Core.Persistence.Repositories
             try
             {
                 PersistNewItem((TEntity)entity);
+
+                //TODO: Currently the repositories are handling a caching layer BUT if this transaction fails
+                // the repositories are still clearing their cache whereas their cache should only be refreshed
+                // after the transaction is completed - need to re-visit how caching is working in repo's
+                // This executes BEFORE the transaction is complete!
+
                 _cache.Save(typeof(TEntity), entity);
             }
             catch (Exception)
@@ -247,6 +253,12 @@ namespace Umbraco.Core.Persistence.Repositories
             try
             {
                 PersistUpdatedItem((TEntity)entity);
+
+                //TODO: Currently the repositories are handling a caching layer BUT if this transaction fails
+                // the repositories are still clearing their cache whereas their cache should only be refreshed
+                // after the transaction is completed - need to re-visit how caching is working in repo's
+                // This executes BEFORE the transaction is complete!
+
                 _cache.Save(typeof(TEntity), entity);
             }
             catch (Exception)
@@ -266,6 +278,12 @@ namespace Umbraco.Core.Persistence.Repositories
         public virtual void PersistDeletedItem(IEntity entity)
         {
             PersistDeletedItem((TEntity)entity);
+
+            //TODO: Currently the repositories are handling a caching layer BUT if this transaction fails
+            // the repositories are still clearing their cache whereas their cache should only be refreshed
+            // after the transaction is completed - need to re-visit how caching is working in repo's
+            // This executes BEFORE the transaction is complete!
+
             _cache.Delete(typeof(TEntity), entity);
         }
 

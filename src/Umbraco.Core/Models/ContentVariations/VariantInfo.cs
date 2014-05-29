@@ -14,6 +14,13 @@ namespace Umbraco.Core.Models.ContentVariations
         public VariantInfo()
         {
             IsVariant = false;
+            VariantIds = new int[] {};
+        }
+
+        public VariantInfo(params int[] variantIds)
+        {
+            VariantIds = variantIds;
+            IsVariant = false;
         }
 
         public VariantInfo(int masterDocId, string key)
@@ -22,6 +29,8 @@ namespace Umbraco.Core.Models.ContentVariations
             MasterDocId = masterDocId;
             Key = key;
         }
+
+        public int[] VariantIds { get; set; }
 
         /// <summary>
         /// Whether or not this is a variant (i.e. not a master doc)
@@ -46,15 +55,6 @@ namespace Umbraco.Core.Models.ContentVariations
         public object DeepClone()
         {
             var clone = (VariantInfo)MemberwiseClone();
-            ////set the cloned children
-            //if (clone.ChildVariants != null)
-            //{
-            //    clone.ChildVariants = ChildVariants.Select(x => (ChildVariant)x.DeepClone()).ToList();
-            //}
-            //else
-            //{
-            //    clone.ChildVariants = null;
-            //}
 
             return clone;
         }
