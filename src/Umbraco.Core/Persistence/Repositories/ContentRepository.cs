@@ -751,19 +751,34 @@ namespace Umbraco.Core.Persistence.Repositories
             if (EnsureUniqueNaming == false)
                 return nodeName;
 
-            var sql = new Sql();
-            sql.Select("*")
+            var docSql = new Sql()
+               .Select("*")
                .From<NodeDto>()
                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId && x.ParentId == parentId && x.Text.StartsWith(nodeName));
 
+            //get all variants ids for this level so we can ignore them in the comparison
+            var childVarSql = new Sql()
+               .Select("umbracoNode.id")
+               .From<NodeDto>()
+               .InnerJoin<RelationDto>()
+               .On<RelationDto, NodeDto>(dto => dto.ChildId, dto => dto.NodeId)
+               .InnerJoin<RelationTypeDto>()
+               .On<RelationTypeDto, RelationDto>(dto => dto.Id, dto => dto.RelationType)
+               .Where<RelationTypeDto>(x => x.Alias == "umbContentVariants")
+               .Where<NodeDto>(x => x.ParentId == parentId);
+
             int uniqueNumber = 1;
             var currentName = nodeName;
+            
+            var variantIds = Database.Fetch<int>(childVarSql);
 
-            var dtos = Database.Fetch<NodeDto>(sql);
+            var dtos = Database.Fetch<NodeDto>(docSql)
+                .Where(x => variantIds.Contains(x.NodeId) == false)
+                .OrderBy(x => x.Text, new SimilarNodeNameComparer());
+
             if (dtos.Any())
             {
-                var results = dtos.OrderBy(x => x.Text, new SimilarNodeNameComparer());
-                foreach (var dto in results)
+                foreach (var dto in dtos)
                 {
                     if(id != 0 && id == dto.NodeId) continue;
 

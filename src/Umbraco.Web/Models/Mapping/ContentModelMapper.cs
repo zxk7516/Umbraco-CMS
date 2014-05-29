@@ -286,6 +286,7 @@ namespace Umbraco.Web.Models.Mapping
             else
             {
                 display.MasterDocId = content.VariantInfo.MasterDocId;
+                display.VariantKey = content.VariantInfo.Key;
 
                 //We want to change the URL property because it shouldn't show urls if it's a variant, the URL will be specific
                 // to the master doc - if it is NOT a language variant.

@@ -8,6 +8,8 @@
         <umb-header tabs="content.tabs">
 
             <div class="span7 umb-content-headline">
+                
+                <small ng-if="content.masterDocId != null">Variant: <span>{{content.variantKey}}</span></small>
 
                 <div class="umb-segment-selector" ng-if="content.masterDocId != null">
                     <a class="btn" href="" ng-click="toMasterDoc()">

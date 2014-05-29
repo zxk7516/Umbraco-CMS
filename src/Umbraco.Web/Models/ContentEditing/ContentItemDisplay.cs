@@ -65,6 +65,10 @@ namespace Umbraco.Web.Models.ContentEditing
         [DataMember(Name = "masterDocId")]
         public int? MasterDocId { get; set; }
 
-
+        /// <summary>
+        /// If this is a variant, this is it's key
+        /// </summary>
+        [DataMember(Name = "variantKey")]
+        public string VariantKey { get; set; }
     }
 }
