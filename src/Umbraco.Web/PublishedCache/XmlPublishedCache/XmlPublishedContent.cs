@@ -475,25 +475,21 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 //determine which child to add based on the current VariantInfo
 	            if (_variantInfo.IsVariant)
 	            {
-                    //get the master, then children
-                    if (xmlChild.ParentNode != null)
-                    {
-                        //TODO: There's probably a faster way with the old xml api to do this
-                        
-                        //find a variant of the current child for the current variant key
-                        var variant = xmlChild.ParentNode.ChildNodes.OfType<XmlElement>()
-                            .FirstOrDefault(x =>
-                                //find all 
-                                x.AttributeValue<int>("masterDocId") == xmlChild.AttributeValue<int>("id")
-                                && xmlChild.AttributeValue<string>("variantKey") == _variantInfo.Key);
+                    //TODO: There's probably a faster way with the old xml api to do this
 
-                        if (variant != null)
-                        {
-                            //we found a variant!
-                            _children.Add(
-                                (new XmlPublishedContent(variant, _isPreviewing, true, _variantInfo)).CreateModel());
-                            useVariant = true;
-                        }
+                    //find a variant of the current child for the current variant key
+                    var variant = workingNode.ChildNodes.OfType<XmlElement>()
+                        .FirstOrDefault(x =>
+                            //find all 
+                            x.AttributeValue<int>("masterDocId") == xmlChild.AttributeValue<int>("id")
+                            && x.AttributeValue<string>("variantKey") == _variantInfo.Key);
+
+                    if (variant != null)
+                    {
+                        //we found a variant!
+                        _children.Add(
+                            (new XmlPublishedContent(variant, _isPreviewing, true, _variantInfo)).CreateModel());
+                        useVariant = true;
                     }
 	            }
 

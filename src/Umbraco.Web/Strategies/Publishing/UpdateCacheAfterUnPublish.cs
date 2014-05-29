@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
@@ -53,7 +54,12 @@ namespace Umbraco.Web.Strategies.Publishing
         /// </summary>
         private void UnPublishSingle(IContent content)
         {
-            DistributedCache.Instance.RemovePageCache(content);
+            var ids = new List<int> { content.Id };
+            //ensure the variants are refreshed too
+            ids.AddRange(content.VariantInfo.VariantIds);
+            ids.Add(content.VariantInfo.MasterDocId);
+
+            DistributedCache.Instance.RemovePageCache(ids.ToArray());
         }
     }
 }

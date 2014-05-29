@@ -11,7 +11,7 @@ namespace Umbraco.Web.Cache
     /// <summary>
     /// A cache refresher used for non-published content, this is primarily to notify Examine indexes to update and to refresh the RuntimeCacheRefresher
     /// </summary>
-    public sealed class UnpublishedPageCacheRefresher : CacheRefresherBase<UnpublishedPageCacheRefresher>, IJsonCacheRefresher
+    public sealed class UnpublishedPageCacheRefresher : JsonCacheRefresherBase<UnpublishedPageCacheRefresher>
     {
         protected override UnpublishedPageCacheRefresher Instance
         {
@@ -95,14 +95,14 @@ namespace Umbraco.Web.Cache
         /// Implement the IJsonCacheRefresher so that we can bulk delete/refresh the cache based on multiple IDs
         /// </summary>
         /// <param name="jsonPayload"></param>
-        public void Refresh(string jsonPayload)
+        public override void Refresh(string jsonPayload)
         {
             foreach (var payload in DeserializeFromJsonPayload(jsonPayload))
             {
                 RuntimeCacheProvider.Current.Delete(typeof(IContent), payload.Id);
             }
 
-            OnCacheUpdated(Instance, new CacheRefresherEventArgs(jsonPayload, MessageType.RefreshByJson));
+            base.Refresh(jsonPayload);
         }
         
     }

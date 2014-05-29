@@ -266,6 +266,7 @@ namespace Umbraco.Web.Cache
             // newly published ones will be synced with the published page cache refresher
             var unpublished = e.SavedEntities.Where(x => x.JustPublished() == false).ToArray();
             var ids = unpublished.Select(x => x.Id).ToList();
+            //ensure the variants are refreshed too
             ids.AddRange(unpublished.SelectMany(x => x.VariantInfo.VariantIds));
             ids.AddRange(unpublished.Select(x => x.VariantInfo.MasterDocId));
 

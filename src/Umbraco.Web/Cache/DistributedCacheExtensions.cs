@@ -207,45 +207,27 @@ namespace Umbraco.Web.Cache
         }
 
         /// <summary>
-        /// Refreshes the cache amongst servers for a page
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="documentId"></param>
-        public static void RefreshPageCache(this DistributedCache dc, int documentId)
-        {
-            dc.Refresh(new Guid(DistributedCache.PageCacheRefresherId), documentId);
-        }
-
-        /// <summary>
         /// Refreshes page cache for all instances passed in
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshPageCache(this DistributedCache dc, params IContent[] content)
+        /// <param name="contentIds"></param>
+        public static void RefreshPageCache(this DistributedCache dc, params int[] contentIds)
         {
-            dc.Refresh(new Guid(DistributedCache.PageCacheRefresherId), x => x.Id, content);
+            dc.RefreshByJson(new Guid(DistributedCache.PageCacheRefresherId),
+                PageCacheRefresher.SerializeToJsonPayload(PageCacheRefresher.OperationType.Saved, contentIds));
         }
 
         /// <summary>
         /// Removes the cache amongst servers for a page
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RemovePageCache(this DistributedCache dc, params IContent[] content)
+        /// <param name="contentIds"></param>
+        public static void RemovePageCache(this DistributedCache dc, params int[] contentIds)
         {
-            dc.Remove(new Guid(DistributedCache.PageCacheRefresherId), x => x.Id, content);
+            dc.RefreshByJson(new Guid(DistributedCache.PageCacheRefresherId),
+                PageCacheRefresher.SerializeToJsonPayload(PageCacheRefresher.OperationType.Deleted, contentIds));
         }
-
-        /// <summary>
-        /// Removes the cache amongst servers for a page
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="documentId"></param>
-        public static void RemovePageCache(this DistributedCache dc, int documentId)
-        {
-            dc.Remove(new Guid(DistributedCache.PageCacheRefresherId), documentId);
-        }
-
+        
         /// <summary>
         /// invokes the unpublished page cache refresher
         /// </summary>

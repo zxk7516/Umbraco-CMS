@@ -19,7 +19,10 @@ namespace Umbraco.Core.Models.ContentVariations
 
         public VariantInfo(params int[] variantIds)
         {
-            VariantIds = variantIds;
+            VariantIds = variantIds.Any()
+                ? variantIds
+                : new int[] {};
+            
             IsVariant = false;
         }
 
@@ -28,6 +31,7 @@ namespace Umbraco.Core.Models.ContentVariations
             IsVariant = true;
             MasterDocId = masterDocId;
             Key = key;
+            VariantIds = new int[] { };
         }
 
         public int[] VariantIds { get; set; }

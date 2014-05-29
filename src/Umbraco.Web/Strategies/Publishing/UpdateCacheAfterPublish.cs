@@ -62,7 +62,13 @@ namespace Umbraco.Web.Strategies.Publishing
         /// </summary>
         private void UpdateMultipleContentCache(IEnumerable<IContent> content)
         {
-            DistributedCache.Instance.RefreshPageCache(content.ToArray());          
+            var asArray = content.ToArray();
+            var ids = asArray.Select(x => x.Id).ToList();
+            //ensure the variants are refreshed too
+            ids.AddRange(asArray.SelectMany(x => x.VariantInfo.VariantIds));
+            ids.AddRange(asArray.Select(x => x.VariantInfo.MasterDocId));
+
+            DistributedCache.Instance.RefreshPageCache(ids.ToArray());          
         }
 
         /// <summary>
@@ -70,7 +76,11 @@ namespace Umbraco.Web.Strategies.Publishing
         /// </summary>
         private void UpdateSingleContentCache(IContent content)
         {
-            DistributedCache.Instance.RefreshPageCache(content);
+            var ids = new List<int> {content.Id};
+            //ensure the variants are refreshed too
+            ids.AddRange(content.VariantInfo.VariantIds);
+            ids.Add(content.VariantInfo.MasterDocId);
+            DistributedCache.Instance.RefreshPageCache(ids.ToArray());
         }
     }
 }

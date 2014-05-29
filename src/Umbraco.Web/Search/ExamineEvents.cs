@@ -342,10 +342,14 @@ namespace Umbraco.Web.Search
                                     DeleteIndexForEntity(payload.Id, false);
 
                                     break;
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }                            
-                        }                        
+                                case UnpublishedPageCacheRefresher.OperationType.Saved:
+
+                                    var c5 = ApplicationContext.Current.Services.ContentService.GetById(payload.Id);
+                                    ReIndexForContent(c5, false);
+
+                                    break;
+                            }            
+                        }
                     }
 
                     break;
