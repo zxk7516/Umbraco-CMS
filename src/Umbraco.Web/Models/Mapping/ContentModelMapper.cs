@@ -249,6 +249,7 @@ namespace Umbraco.Web.Models.Mapping
 
         private static void MapVariants(IContent content, ContentItemDisplay display, IContentService contentService)
         {
+            if (content.HasIdentity == false) return;
 
             //if it's not a variant - go get it's variants
             if (content.VariantInfo.IsVariant == false)
