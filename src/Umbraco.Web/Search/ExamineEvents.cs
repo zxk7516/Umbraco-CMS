@@ -344,8 +344,12 @@ namespace Umbraco.Web.Search
                                     break;
                                 case UnpublishedPageCacheRefresher.OperationType.Saved:
 
-                                    var c5 = ApplicationContext.Current.Services.ContentService.GetById(payload.Id);
-                                    ReIndexForContent(c5, false);
+                                    if (payload.Id > 0)
+                                    {
+                                        var c5 = ApplicationContext.Current.Services.ContentService.GetById(payload.Id);
+                                        ReIndexForContent(c5, false);    
+                                    }
+                                    
 
                                     break;
                             }            

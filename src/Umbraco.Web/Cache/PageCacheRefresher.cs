@@ -132,7 +132,9 @@ namespace Umbraco.Web.Cache
         /// <param name="jsonPayload"></param>
         public override void Refresh(string jsonPayload)
         {
-            var payloads = DeserializeFromJsonPayload(jsonPayload);
+            var payloads = DeserializeFromJsonPayload(jsonPayload)
+                .Where(x => x.Id > 0)
+                .ToArray();
 
             if (payloads.Any() == false) return;
 

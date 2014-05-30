@@ -10,6 +10,7 @@ using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.ContentVariations;
+using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
@@ -1646,11 +1647,10 @@ namespace Umbraco.Core.Services
                         x => x.Success || x.Result.StatusType == PublishStatusType.SuccessAlreadyPublished))
                     {
                         item.Result.ContentItem.WriterId = userId;
-                        repository.AddOrUpdate(item.Result.ContentItem);
-                        //add or update a preview
-                        repository.AddOrUpdatePreviewXml(item.Result.ContentItem, c => _entitySerializer.Serialize(this, _dataTypeService, c));
-                        //add or update the published xml
-                        repository.AddOrUpdateContentXml(item.Result.ContentItem, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+
+                        //add or update the item, xml structures and variants
+                        AddOrUpdate(repository, item.Result.ContentItem, true);
+
                         updated.Add(item.Result.ContentItem);
                     }
 
@@ -1757,17 +1757,9 @@ namespace Umbraco.Core.Services
                     }
                     content.WriterId = userId;
 
-                    repository.AddOrUpdate(content);
-
-                    //Generate a new preview
-                    repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+                    //add or update content, xml structures and variants
+                    AddOrUpdate(repository, content, published);
                     
-                    if (published)
-                    {
-                        //Content Xml
-                        repository.AddOrUpdateContentXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
-                    }
-
                     uow.Commit();
                 }
 
@@ -1923,6 +1915,47 @@ namespace Umbraco.Core.Services
 
                 return contentType;
             }
+        }
+
+        private void AddOrUpdate(IContentRepository repository, IContent content, bool isPublished)
+        {
+            //add or update the item
+            repository.AddOrUpdate(content);
+            //add or update a preview
+            repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+            if (isPublished)
+            {
+                //add or update the published xml
+                repository.AddOrUpdateContentXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));    
+            }
+
+            //If the master name has changed, then change all variants too.
+            // NOTE: We do this to keep the variant document name's in-sync with the master
+            // when we do an AddOrUpdate on a variant in the repository it will always ensure to 
+            // set it's name to it's master
+            if (content.VariantInfo.IsVariant == false)
+            {                
+                if (((ICanBeDirty)content).IsPropertyDirty("Name"))
+                {
+                    if (content.VariantInfo.VariantIds.Any())
+                    {
+                        var variants = repository.GetAll(content.VariantInfo.VariantIds);
+                        foreach (var variant in variants)
+                        {
+                            //add or update the item
+                            repository.AddOrUpdate(variant);
+                            //add or update a preview
+                            repository.AddOrUpdatePreviewXml(variant, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+                            if (isPublished)
+                            {
+                                //add or update the published xml
+                                repository.AddOrUpdateContentXml(variant, c => _entitySerializer.Serialize(this, _dataTypeService, c));
+                            }
+                        }
+                    }
+                }
+            }
+            
         }
 
         #endregion

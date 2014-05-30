@@ -97,7 +97,11 @@ namespace Umbraco.Web.Cache
         /// <param name="jsonPayload"></param>
         public override void Refresh(string jsonPayload)
         {
-            foreach (var payload in DeserializeFromJsonPayload(jsonPayload))
+            var payloads = DeserializeFromJsonPayload(jsonPayload)
+                .Where(x => x.Id > 0)
+                .ToArray();
+
+            foreach (var payload in payloads)
             {
                 RuntimeCacheProvider.Current.Delete(typeof(IContent), payload.Id);
             }

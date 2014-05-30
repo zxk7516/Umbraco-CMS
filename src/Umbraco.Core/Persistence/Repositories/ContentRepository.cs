@@ -403,32 +403,18 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             var factory = new ContentFactory(NodeObjectTypeId, entity.Id);
-
-            //Ensure unique name on the same level when it is NOT a variant
-            if (entity.VariantInfo.IsVariant == false)
+            
+            if (entity.VariantInfo.IsVariant)
             {
-                entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name, entity.Id);
-
-                //If the name has changed, then change all variants too
-                if (((ICanBeDirty) entity).IsPropertyDirty("Name"))
-                {
-                    if (entity.VariantInfo.VariantIds.Any())
-                    {
-                        var variants = GetAll(entity.VariantInfo.VariantIds);
-                        foreach (var variant in variants)
-                        {
-                            variant.Name = entity.Name;
-
-                            var vdto = factory.BuildDto(variant);
-                            //update umbracoNode
-                            Database.Update(vdto.ContentVersionDto.ContentDto.NodeDto);
-                            //update cmsDocument
-                            Database.Update(vdto);
-                        }   
-                    }                    
-                }
+                //If it is a variant, ensure it always has the same name as it's master
+                var master = Get(entity.VariantInfo.MasterDocId);
+                entity.Name = master.Name;
             }
-
+            else
+            {
+                //Ensure unique name on the same level when it is NOT a variant
+                entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name, entity.Id);
+            }
 
             //Look up parent to get and set the correct Path and update SortOrder if ParentId has changed
             if (((ICanBeDirty)entity).IsPropertyDirty("ParentId"))
