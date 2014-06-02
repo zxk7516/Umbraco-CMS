@@ -28,7 +28,7 @@
                             
                             <ng-form name="itemCompare">
                                 <div class="checkbox-container" stop-propagation>
-                                    <input type="checkbox" name="variant" ng-model="item.compare" ng-click="toggleCompare()" />
+                                    <input type="checkbox" name="variant" ng-model="item.compare" ng-click="toggleCompare(item)" />
                                 </div>
 
                                 <a href=""
@@ -46,7 +46,7 @@
                             </ng-form>
                         </li>
                         <li ng-show="showCompare">
-                            <button class="btn btn-mini">Compare</button>
+                            <button class="btn btn-mini" type="button" ng-click="compareVariants()">Compare</button>
                         </li>
                     </ul>
                 </div>

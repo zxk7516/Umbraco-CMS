@@ -6,7 +6,7 @@
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, $location) {
+function ContentEditController($scope, $element, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, $location) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -200,8 +200,15 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
             });
     }
     else {
+        
         //we are editing so get the content item from the server
-        contentResource.getById($routeParams.id)
+
+        //When we are comparing content variants, we will render this template in an iteration so we need to check 
+        // where to get the id from, either the routeParams or from the current scope
+
+        var id = (angular.isDefined($scope.$index) && angular.isDefined($scope.id)) ? $scope.id : $routeParams.id;
+
+        contentResource.getById(id)
             .then(function(data) {
                 $scope.loaded = true;
                 $scope.content = data;
@@ -227,7 +234,14 @@ function ContentEditController($scope, $routeParams, $q, $timeout, $window, appS
         });
     }
 
-    $scope.toggleCompare = function() {
+    $scope.compareVariants = function () {
+        var ids = _.map($scope.content.variants, function(i) {
+            return i.id;
+        });
+        $location.path("content/content/compare/" + ids.join(","));
+    }
+
+    $scope.toggleCompare = function(variant) {
         $scope.showCompare = _.find($scope.content.variants, function (i) {
             return i.compare === true;
         });
