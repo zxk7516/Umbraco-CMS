@@ -27,10 +27,7 @@
                         <li ng-repeat="item in content.variants" ng-class="{'trashed' : item.isTrashed}">
                             
                             <ng-form name="itemCompare">
-                                <div class="checkbox-container" stop-propagation>
-                                    <input type="checkbox" name="variant" ng-model="item.compare" ng-click="toggleCompare(item)" />
-                                </div>
-
+                                
                                 <a href=""
                                    ng-attr-title="{{item.exists ? 'Edit variant' : 'Create variant' }}"
                                    ng-click="selectVariant(item)">
@@ -45,9 +42,7 @@
                                 </a>
                             </ng-form>
                         </li>
-                        <li ng-show="showCompare">
-                            <button class="btn btn-mini" type="button" ng-click="compareVariants()">Compare</button>
-                        </li>
+                        
                     </ul>
                 </div>
 
