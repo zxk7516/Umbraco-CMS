@@ -1,5 +1,14 @@
 function segmentDashboardController($scope, umbRequestHelper, $log, $http, formHelper) {
 
+    function refreshData() {
+        return umbRequestHelper.resourcePromise(
+                $http.get(umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "GetProviders")),
+                "Failed to retrieve provider data")
+            .then(function(data) {
+                $scope.providers = data;
+            });
+    }
+
     $scope.providers = [];
     $scope.configuringSegments = false;
     $scope.providerConfig = {
@@ -74,8 +83,11 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
                 var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.providerConfig.providerTypeName; });
                 provider.segmentConfig = $scope.segmentConfig;
 
-                //exit editing config
-                $scope.cancel();
+                refreshData().then(function() {
+                    //exit editing config
+                    $scope.cancel();
+                });
+
             });
         }
     }
@@ -94,17 +106,14 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
                 var provider = _.find($scope.providers, function (i) { return i.typeName === $scope.providerConfig.providerTypeName; });
                 provider.variantConfig = $scope.variantConfig;
 
-                //exit editing config
-                $scope.cancel();
+                refreshData().then(function () {
+                    //exit editing config
+                    $scope.cancel();
+                });
             });
     }
-
-    umbRequestHelper.resourcePromise(
-            $http.get(umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "GetProviders")),
-            "Failed to retrieve provider data")
-        .then(function(data) {
-            $scope.providers = data;
-        });
-
+    
+    //initial data load
+    refreshData();
 }
 angular.module("umbraco").controller("Umbraco.Dashboard.SegmentDashboard", segmentDashboardController);

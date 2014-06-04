@@ -23,12 +23,25 @@ namespace Umbraco.Web.Routing.Segments
     /// which would normally be a regex statement, if it matches the returned value then we will apply the configured key/value as a segment 
     /// in the request.
     /// 
-    /// TODO: We need to decide if configurable segment provider can advertise segments to be used in variations - but I don't think so since they
-    /// can be added/removed by users
     /// </remarks>
     public abstract class ConfigurableSegmentProvider : ContentSegmentProvider
     {
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
+
+        /// <summary>
+        /// Override to return the statically assigned variants for this provider as well as any segments
+        /// that are configured to be variants.
+        /// </summary>
+        public override IEnumerable<ContentVariantAttribute> AssignableContentVariants
+        {
+            get
+            {
+                return base.AssignableContentVariants.Union(
+                    ReadSegmentConfiguration()
+                        .Where(x => x.AllowedAsVariant)
+                        .Select(x => new ContentVariantAttribute(x.Key, x.Key, x.Value)));
+            }
+        }
 
         /// <summary>
         /// Returns the current provider's value (i.e. if the provider was a referal provider, this would return the current referrer)

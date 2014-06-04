@@ -35,5 +35,11 @@ namespace Umbraco.Web.Models.Segments
         /// </remarks>
         [DataMember(Name = "persist")]
         public bool Persist { get; set; }
+
+        /// <summary>
+        /// A flag to determine if this segment is allowed to be a variant (advertised)
+        /// </summary>
+        [DataMember(Name = "asVariant")]
+        public bool AllowedAsVariant { get; set; }
     }
 }

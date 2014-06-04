@@ -50,7 +50,8 @@ namespace Umbraco.Web.Editors
                     {
                         name = vari.VariantName,
                         key = vari.SegmentMatchKey,
-                        enabled = x.variantConfig.ContainsKey(vari.SegmentMatchKey) && x.variantConfig[vari.SegmentMatchKey]
+                        enabled = x.variantConfig.ContainsKey(vari.SegmentMatchKey) && x.variantConfig[vari.SegmentMatchKey],
+                        asVariant = x.variantConfig.ContainsKey(vari.SegmentMatchKey) && x.variantConfig[vari.SegmentMatchKey]
                     })
                     
                 });

@@ -41,7 +41,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Returns the Content Variants that this provider supports
         /// </summary>
-        public IEnumerable<ContentVariantAttribute> AssignableContentVariants
+        public virtual IEnumerable<ContentVariantAttribute> AssignableContentVariants
         {
             get { return GetType().GetCustomAttributes<ContentVariantAttribute>(false).ToArray(); }
         }

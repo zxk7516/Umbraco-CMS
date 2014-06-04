@@ -40,7 +40,8 @@ namespace Umbraco.Web.Routing.Segments
 
         public IEnumerable<ContentVariantAttribute> GetAssignableVariants(IDictionary<string, bool> segmentProviderStatus)
         {
-            //These are the assignable variants based on the installed providers (statically advertised variants)
+            //These are the assignable variants based on the installed providers (statically advertised variants) or
+            // configured segments that have been flagged as variants
             // that are enabled via the back office. If they are not enabled, they will not show up.
 
             var assignableSegments = this.Providers
@@ -55,7 +56,8 @@ namespace Umbraco.Web.Routing.Segments
                         .Select(vari => vari.Key).ToArray() // get the key
                 })
                 //only allow the onces that are enabled
-                .SelectMany(x => x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)));
+                .SelectMany(x => 
+                    x.instance.AssignableContentVariants.Where(vari => x.enabledVariants.Contains(vari.SegmentMatchKey)));
 
             return assignableSegments;
         }
