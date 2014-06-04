@@ -99,9 +99,8 @@ namespace Umbraco.Web.Routing
                     if (matchedVariant != null)
                     {
                         //an advertised key is matched, lets see if there's a match (either on boolean or value)
-                        var isMatch = matchedVariant.SegmentMatchValue == null || matchedVariant.SegmentMatchValue.ToString().IsNullOrWhiteSpace()
-                            ? reqSegments.RequestIs(matchedVariant.SegmentMatchKey)
-                            : reqSegments.RequestEquals(matchedVariant.SegmentMatchKey, matchedVariant.SegmentMatchValue);
+                        var isMatch = reqSegments.RequestIs(matchedVariant.SegmentMatchKey)
+                                      || reqSegments.RequestEquals(matchedVariant.SegmentMatchKey, matchedVariant.SegmentMatchValue);
 
                         if (isMatch)
                         {

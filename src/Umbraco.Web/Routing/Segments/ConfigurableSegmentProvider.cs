@@ -46,7 +46,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <summary>
         /// Returns the current provider's value (i.e. if the provider was a referal provider, this would return the current referrer)
         /// </summary>
-        public abstract string GetCurrentValue(Uri cleanedRequestUrl, HttpRequestBase httpRequest);
+        public abstract object GetCurrentValue(Uri cleanedRequestUrl, HttpRequestBase httpRequest);
 
         /// <summary>
         /// By default this uses a regex statement to match but inheritors could do anything they want (i.e. dynamic compilation)
@@ -61,7 +61,11 @@ namespace Umbraco.Web.Routing.Segments
             if (matchStatement == null) throw new ArgumentNullException("matchStatement");
             if (cleanedRequestUrl == null) throw new ArgumentNullException("cleanedRequestUrl");
             if (httpRequest == null) throw new ArgumentNullException("httpRequest");
-            return Regex.IsMatch(GetCurrentValue(cleanedRequestUrl, httpRequest), matchStatement);
+
+            var val = GetCurrentValue(cleanedRequestUrl, httpRequest);
+            if (val == null) return false;
+
+            return Regex.IsMatch(val.ToString(), matchStatement);
         }
 
         public override SegmentCollection GetSegmentsForRequest(Uri originalRequestUrl,
@@ -73,6 +77,7 @@ namespace Umbraco.Web.Routing.Segments
             if (httpRequest == null) throw new ArgumentNullException("httpRequest");
 
             var config = ReadSegmentConfiguration();
+            var type = this.GetType();
             var result = config
                 .Where(match => IsMatch(match.MatchExpression, cleanedRequestUrl, httpRequest))
                 .Select(match => new Segment(match.Key, match.Value, match.Persist));

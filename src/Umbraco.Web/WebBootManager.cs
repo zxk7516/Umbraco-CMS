@@ -294,8 +294,7 @@ namespace Umbraco.Web
             base.InitializeResolvers();
 
             ContentSegmentProviderResolver.Current = new ContentSegmentProviderResolver(
-                typeof(BrowserCapabilitiesProvider),
-                typeof(RefererSegmentProvider));
+                PluginManager.Current.ResolveTypes<ContentSegmentProvider>());
 
             XsltExtensionsResolver.Current = new XsltExtensionsResolver(() => PluginManager.Current.ResolveXsltExtensions());
 

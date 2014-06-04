@@ -22,12 +22,14 @@ namespace Umbraco.Web.Models.Segments
 
         public Segment(string key, object value)
         {
+            //ProviderTypeHashCode = providerType.GetHashCode();
             Key = key;
             Value = value;
         }
 
         public Segment(string key, object value, bool persist)
         {
+            //ProviderTypeHashCode = providerType.GetHashCode();
             Key = key;
             Value = value;
             Persist = persist;
@@ -35,6 +37,7 @@ namespace Umbraco.Web.Models.Segments
 
         internal Segment(string key, object value, bool persist, int? slidingDays)
         {
+            //ProviderTypeHashCode = providerType.GetHashCode();
             Key = key;
             Value = value;
             Persist = persist;
@@ -43,11 +46,22 @@ namespace Umbraco.Web.Models.Segments
 
         internal Segment(string key, object value, bool persist, DateTime? absoluteExpiry)
         {
+            //ProviderTypeHashCode = providerType.GetHashCode();
             Key = key;
             Value = value;
             Persist = persist;
             AbsoluteExpiry = absoluteExpiry;
         }
+
+        ///// <summary>
+        ///// The md5 of the type of provider that created this segment
+        ///// </summary>
+        ///// <remarks>
+        ///// it will take up 
+        ///// too much space. 
+        ///// </remarks>
+        //[DataMember(Name = "h", IsRequired = true)]
+        //public string ProviderTypeMd5Hash { get; set; }
 
         /// <summary>
         /// The name of the segment

@@ -466,9 +466,10 @@
     <Compile Include="PropertyEditors\PropertyValueEditorWrapper.cs" />
     <Compile Include="PublishedContentQuery.cs" />
     <Compile Include="ImageCropperTemplateExtensions.cs" />
+    <Compile Include="Routing\Segments\BrowserWidthProvider.cs" />
     <Compile Include="Routing\Segments\ConfigurableSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvidersStatus.cs" />
-    <Compile Include="Routing\Segments\RefererSegmentProvider.cs" />
+    <Compile Include="Routing\Segments\ReferrerSegmentProvider.cs" />
     <Compile Include="Routing\Segments\RequestSegments.cs" />
     <Compile Include="Routing\Segments\BrowserCapabilitiesProvider.cs" />
     <Compile Include="Routing\Segments\ContentVariantAttribute.cs" />
