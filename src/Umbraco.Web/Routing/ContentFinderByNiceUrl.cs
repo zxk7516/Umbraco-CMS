@@ -78,23 +78,30 @@ namespace Umbraco.Web.Routing
                     }
                 }
 
+                var reqSegments = docreq.RoutingContext.UmbracoContext.RequestSegments;
+
                 //if no variant was assigned above, then we can check if there's any segment matches and assign a
                 // custom variant if one is found
                 // TODO: Do we want to allow this logic to execute when a Domain is detected? 
 
-                if (hasVariant == false && docreq.RoutingContext.UmbracoContext.RequestSegments.AssignedSegments.Any())
+                if (hasVariant == false && reqSegments.AssignedSegments.Any())
                 {
                     var segmentProviderStatus = ContentSegmentProvidersStatus.GetProviderStatus();
                     var assignableVariants = ContentSegmentProviderResolver.Current.GetAssignableVariants(segmentProviderStatus);
 
-                    var matchedVariant = assignableVariants.FirstOrDefault(x => 
-                        docreq.RoutingContext.UmbracoContext.RequestSegments.RequestContainsKey(x.SegmentMatchKey));
+                    //get all possible variants for this request if the keys exist
+                    var allMatchedVariantsByKey = assignableVariants.Where(x => reqSegments.RequestContainsKey(x.SegmentMatchKey));
+
+                    var matchedVariant = allMatchedVariantsByKey.FirstOrDefault(x =>
+                        reqSegments.RequestIs(x.SegmentMatchKey)
+                        || reqSegments.RequestEquals(x.SegmentMatchKey, x.SegmentMatchValue));
+
                     if (matchedVariant != null)
                     {
                         //an advertised key is matched, lets see if there's a match (either on boolean or value)
-                        var isMatch = matchedVariant.SegmentMatchValue == null 
-                            ? docreq.RoutingContext.UmbracoContext.RequestSegments.RequestIs(matchedVariant.SegmentMatchKey) 
-                            : docreq.RoutingContext.UmbracoContext.RequestSegments.RequestEquals(matchedVariant.SegmentMatchKey, matchedVariant.SegmentMatchValue);
+                        var isMatch = matchedVariant.SegmentMatchValue == null || matchedVariant.SegmentMatchValue.ToString().IsNullOrWhiteSpace()
+                            ? reqSegments.RequestIs(matchedVariant.SegmentMatchKey)
+                            : reqSegments.RequestEquals(matchedVariant.SegmentMatchKey, matchedVariant.SegmentMatchValue);
 
                         if (isMatch)
                         {

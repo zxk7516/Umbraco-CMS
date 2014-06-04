@@ -69,8 +69,10 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
         $scope.segmentConfig = _.reject($scope.segmentConfig, function (i) { return i === item; });
     }
 
-    $scope.saveSegmentConfig = function () {
-        if (formHelper.submitForm({ scope: $scope })) {
+    $scope.saveSegmentConfig = function (formCtrl) {
+
+        if (formHelper.submitForm({ scope: $scope, formCtrl: formCtrl })) {
+
             umbRequestHelper.resourcePromise(
                 $http.post(
                     umbRequestHelper.getApiUrl("segmentDashboardApiBaseUrl", "PostSaveProviderSegmentConfig",
@@ -92,7 +94,7 @@ function segmentDashboardController($scope, umbRequestHelper, $log, $http, formH
         }
     }
 
-    $scope.saveVariantConfig = function () {
+    $scope.saveVariantConfig = function (formCtrl) {
         
         umbRequestHelper.resourcePromise(
                 $http.post(

@@ -125,9 +125,9 @@ namespace Umbraco.Web.Routing.Segments
         /// </summary>
         /// <param name="segmentVal"></param>
         /// <returns></returns>
-        public bool RequestContainsValue(string segmentVal)
+        public bool RequestContainsValue(object segmentVal)
         {
-            return AssignedSegments.Any(x => x.Value.ToString() == segmentVal);
+            return AssignedSegments.Any(x => x.Value.Equals(segmentVal));
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace Umbraco.Web.Routing.Segments
         /// <returns></returns>
         public bool RequestEquals(string key, object val)
         {
-            return AssignedSegments.Any(x => x.Key == key && x.Value == val);
+            return AssignedSegments.Any(x => x.Key == key && x.Value.Equals(val));
         }
 
         /// <summary>

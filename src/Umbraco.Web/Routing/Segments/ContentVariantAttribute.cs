@@ -23,6 +23,9 @@ namespace Umbraco.Web.Routing.Segments
         {
             VariantName = variantName;
             SegmentMatchKey = segmentMatchKey;
+
+            //must equal true for this overload
+            SegmentMatchValue = true;
         }
 
         /// <summary>

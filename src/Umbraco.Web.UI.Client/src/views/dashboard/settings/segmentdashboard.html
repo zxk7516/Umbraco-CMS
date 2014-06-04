@@ -41,7 +41,7 @@
             </div>
 
             <button class="btn" ng-click="cancel()">Cancel</button>
-            <button type="submit" class="btn btn-primary" ng-click="saveVariantConfig()">Save</button>
+            <button type="submit" class="btn btn-primary" ng-click="saveVariantConfig(segmentVariantForm)">Save</button>
 
         </form>
 
@@ -76,9 +76,8 @@
                             <span class="help-inline" val-msg-for="key" val-toggle-msg="required">Required</span>
                         </umb-control-group>
 
-                        <umb-control-group label="Segment Value" alias="value" description="The value to store for this segment match">
-                            <input type="text" name="value" ng-model="$parent.item.value" required />
-                            <span class="help-inline" val-msg-for="value" val-toggle-msg="required">Required</span>
+                        <umb-control-group label="Segment Value" alias="value" description="The optional value to store for this segment match">
+                            <input type="text" name="value" ng-model="$parent.item.value" />
                         </umb-control-group>
 
                         <umb-control-group label="Persist segment" alias="value" description="This might be useful if you want to track an assigned segment">
@@ -100,7 +99,7 @@
             </div>
 
             <button class="btn" ng-click="cancel()">Cancel</button>
-            <button type="submit" class="btn btn-primary" ng-click="saveSegmentConfig()">Save</button>
+            <button type="submit" class="btn btn-primary" ng-click="saveSegmentConfig(segmentConfigForm)">Save</button>
 
         </form>
 
