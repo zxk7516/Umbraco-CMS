@@ -75,11 +75,7 @@
                             <input type="text" name="key" ng-model="$parent.item.key" required />
                             <span class="help-inline" val-msg-for="key" val-toggle-msg="required">Required</span>
                         </umb-control-group>
-
-                        <umb-control-group label="Segment Value" alias="value" description="The optional value to store for this segment match">
-                            <input type="text" name="value" ng-model="$parent.item.value" />
-                        </umb-control-group>
-
+                        
                         <umb-control-group label="Persist segment" alias="value" description="This might be useful if you want to track an assigned segment">
                             <input type="checkbox" name="persist" ng-model="$parent.item.persist" title=" For example, if it's a referral provider a segment might be set when coming from 'mysite.com' and you want to know about that later on when the segment no longer exists in the request." />
                         </umb-control-group>
