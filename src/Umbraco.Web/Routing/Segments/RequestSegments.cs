@@ -77,7 +77,8 @@ namespace Umbraco.Web.Routing.Segments
                 var cookie = new HttpCookie(Constants.Web.SegmentCookieName, json)
                 {
                     //sliding 30 day expiry?
-                    Expires = DateTime.Now.AddDays(30)
+                    Expires = DateTime.Now.AddDays(30),
+                    HttpOnly = true
                 };
                 response.SetCookie(cookie);
             }            
