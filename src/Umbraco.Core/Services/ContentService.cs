@@ -90,6 +90,11 @@ namespace Umbraco.Core.Services
                 // A copy should never be set to published automatically even if the original was.
                 content.ChangePublishedState(PublishedState.Unpublished);
                 content.VariantInfo = new VariantInfo(masterContent.Id, variantKey);
+
+                if (Copying.IsRaisedEventCancelled(new CopyEventArgs<IContent>(masterContent, content, masterContent.ParentId), this))
+                {
+                    return null;
+                }
             }
             else
             {
@@ -97,15 +102,15 @@ namespace Umbraco.Core.Services
                 {
                     CreatorId = userId,
                     WriterId = userId
-                };    
+                };
+
+                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(content), this))
+                {
+                    content.WasCancelled = true;
+                    return content;
+                }
             }
             
-
-            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(content), this))
-            {
-                content.WasCancelled = true;
-                return content;
-            }
 
             var uow = _uowProvider.GetUnitOfWork();
             using (var repository = _repositoryFactory.CreateContentRepository(uow))
@@ -118,10 +123,16 @@ namespace Umbraco.Core.Services
                 uow.Commit();
             }
 
-            Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentType.Alias, masterContent.ParentId), this);
-
-            Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
-
+            if (copyPropertyData)
+            {
+                Copied.RaiseEvent(new CopyEventArgs<IContent>(masterContent, content, false, masterContent.ParentId), this);
+            }
+            else
+            {
+                Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentType.Alias, masterContent.ParentId), this);
+                Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);    
+            }
+            
             Audit.Add(AuditTypes.New, string.Format("Content variant '{0}' was created", content.Name), content.CreatorId, content.Id);
 
             return content;
