@@ -90,7 +90,7 @@ namespace Umbraco.Web.Routing
                     var assignableVariants = ContentSegmentProviderResolver.Current.GetAssignableVariants(segmentProviderStatus);
 
                     //get all possible variants for this request if the keys exist
-                    var allMatchedVariantsByKey = assignableVariants.Where(x => reqSegments.RequestContainsKey(x.SegmentMatchKey));
+                    var allMatchedVariantsByKey = assignableVariants.Where(x => reqSegments.RequestIs(x.SegmentMatchKey));
 
                     var matchedVariant = allMatchedVariantsByKey.FirstOrDefault(x =>
                         reqSegments.RequestIs(x.SegmentMatchKey)

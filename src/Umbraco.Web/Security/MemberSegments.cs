@@ -48,43 +48,19 @@ namespace Umbraco.Web.Security
         public bool Is(string segmentKey)
         {
             //this will check the request (+ cookie)
-            var contains = _reguestSegments.RequestContainsKey(segmentKey);
+            var contains = _reguestSegments.RequestIs(segmentKey);
             //if the request has the key, then return from the request
             if (contains) return _reguestSegments.RequestIs(segmentKey);
 
             //lookup from member
             var fromMember = GetSegmentByKeyFromMember(segmentKey);
-            return fromMember != null && fromMember.Value is bool && (bool)fromMember.Value;
-        }
-
-        public bool ContainsKey(string segmentKey)
-        {
-            //this will check the request (+ cookie)
-            var contains = _reguestSegments.RequestContainsKey(segmentKey);
-            //if the request has the key, then return from the request
-            if (contains) return true;
-
-            //lookup from member
-            var fromMember = GetSegmentByKeyFromMember(segmentKey);
             return fromMember != null;
         }
-
-        public bool ContainsValue(string segmentVal)
-        {
-            //this will check the request (+ cookie)
-            var contains = _reguestSegments.RequestContainsValue(segmentVal);
-            //if the request has the val, then return from the request
-            if (contains) return true;
-
-            //lookup from member
-            var fromMember = PersistedSegments.FirstOrDefault(x => x.Value.ToString() == segmentVal);
-            return fromMember != null;
-        }
-
+        
         public bool Equals(string segmentKey, object val)
         {
             //this will check the request (+ cookie)
-            var contains = _reguestSegments.RequestContainsKey(segmentKey);
+            var contains = _reguestSegments.RequestIs(segmentKey);
             //if the request has the key, then return from the request
             if (contains) return _reguestSegments.RequestEquals(segmentKey, val);
 

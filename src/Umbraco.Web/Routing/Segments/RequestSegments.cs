@@ -109,7 +109,7 @@ namespace Umbraco.Web.Routing.Segments
         }
         
         /// <summary>
-        /// Returns true if any assigned segment value that is a boolean is set to true that matches the specified key
+        /// Returns true if the segment key exists in the request
         /// </summary>
         /// <param name="segmentKey"></param>
         /// <returns></returns>
@@ -118,29 +118,9 @@ namespace Umbraco.Web.Routing.Segments
         /// </remarks>
         public bool RequestIs(string segmentKey)
         {
-            return AssignedSegments.Any(x => x.Key == segmentKey && x.Value is bool && (bool)x.Value);
-        }
-
-        /// <summary>
-        /// Returns true if any assigned segment has a value equal to the one specified
-        /// </summary>
-        /// <param name="segmentVal"></param>
-        /// <returns></returns>
-        public bool RequestContainsValue(object segmentVal)
-        {
-            return AssignedSegments.Any(x => x.Value.Equals(segmentVal));
-        }
-
-        /// <summary>
-        /// Returns true if the request contains the specified key
-        /// </summary>
-        /// <param name="segmentKey"></param>
-        /// <returns></returns>
-        public bool RequestContainsKey(string segmentKey)
-        {
             return AssignedSegments.Any(x => x.Key == segmentKey);
         }
-
+        
         /// <summary>
         /// Returns true if any assigned segment key + value matches the specified parameters
         /// </summary>
