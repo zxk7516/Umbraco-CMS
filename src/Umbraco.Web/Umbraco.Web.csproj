@@ -474,9 +474,7 @@
     <Compile Include="Mvc\UmbracoVirtualNodeRouteHandler.cs" />
     <Compile Include="Routing\Segments\ConfigurableSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvidersStatus.cs" />
-    <Compile Include="Routing\Segments\ReferrerSegmentProvider.cs" />
     <Compile Include="Routing\Segments\RequestSegments.cs" />
-    <Compile Include="Routing\Segments\BrowserCapabilitiesProvider.cs" />
     <Compile Include="Routing\Segments\ContentVariantAttribute.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProviderResolver.cs" />
