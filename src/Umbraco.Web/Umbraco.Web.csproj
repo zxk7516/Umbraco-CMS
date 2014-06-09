@@ -471,7 +471,6 @@
     <Compile Include="PropertyEditors\PropertyValueEditorWrapper.cs" />
     <Compile Include="PublishedContentQuery.cs" />
     <Compile Include="ImageCropperTemplateExtensions.cs" />
-    <Compile Include="Routing\Segments\BrowserWidthProvider.cs" />
     <Compile Include="Mvc\UmbracoVirtualNodeRouteHandler.cs" />
     <Compile Include="Routing\Segments\ConfigurableSegmentProvider.cs" />
     <Compile Include="Routing\Segments\ContentSegmentProvidersStatus.cs" />
