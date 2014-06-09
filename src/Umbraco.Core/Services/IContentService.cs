@@ -13,7 +13,7 @@ namespace Umbraco.Core.Services
     public interface IContentService : IService
     {
         
-        IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name = null, int userId = 0);
+        IContent CreateContentVariant(IContent masterContent, string variantKey, bool copyPropertyData = true, int userId = 0);
 
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids

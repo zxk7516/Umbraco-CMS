@@ -76,22 +76,30 @@ namespace Umbraco.Core.Services
             _dataTypeService = dataTypeService;
         }
         
-        public IContent CreateContentVariantWithIdentity(IContent masterContent, string variantKey, string name = null, int userId = 0)
+        public IContent CreateContentVariant(IContent masterContent, string variantKey, bool copyPropertyData = true, int userId = 0)
         {
             Mandate.ParameterNotNull(masterContent, "masterContent");
             Mandate.ParameterNotNullOrEmpty(variantKey, "variantKey");
-
-            if (name.IsNullOrWhiteSpace())
-            {
-                name = masterContent.Name;
-            }
-
+            
             var contentType = masterContent.ContentType;
-            var content = new Content(name, masterContent.ParentId, contentType, new PropertyCollection(), new VariantInfo(masterContent.Id, variantKey))
+
+            Content content;
+            if (copyPropertyData)
             {
-                CreatorId = userId, 
-                WriterId = userId
-            };
+                content = (Content)masterContent.DeepCloneWithResetIdentities();
+                // A copy should never be set to published automatically even if the original was.
+                content.ChangePublishedState(PublishedState.Unpublished);
+                content.VariantInfo = new VariantInfo(masterContent.Id, variantKey);
+            }
+            else
+            {
+                content = new Content(masterContent.Name, masterContent.ParentId, contentType, new PropertyCollection(), new VariantInfo(masterContent.Id, variantKey))
+                {
+                    CreatorId = userId,
+                    WriterId = userId
+                };    
+            }
+            
 
             if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(content), this))
             {
@@ -114,7 +122,7 @@ namespace Umbraco.Core.Services
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
-            Audit.Add(AuditTypes.New, string.Format("Content variant '{0}' was created", name), content.CreatorId, content.Id);
+            Audit.Add(AuditTypes.New, string.Format("Content variant '{0}' was created", content.Name), content.CreatorId, content.Id);
 
             return content;
         }

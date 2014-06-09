@@ -43,7 +43,7 @@ angular.module("umbraco.directives")
 				    var mouseMoveDebounce = _.throttle(function (e) {
 
                         //don't process if it's null
-				        if (!inputElement) {
+				        if (!inputElement || inputElement.length === 0) {
                             return;
                         }
 
@@ -83,7 +83,7 @@ angular.module("umbraco.directives")
 				scope.goEdit = function(){
 					scope.editMode = true;
 
-					if (inputElement) {
+					if (inputElement && inputElement.length > 0) {
 					    $timeout(function () {
 					        inputElement.focus();
 					    }, 100, false);

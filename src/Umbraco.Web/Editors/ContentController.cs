@@ -575,7 +575,7 @@ namespace Umbraco.Web.Editors
                 return int.MinValue;
             }
             
-            var contentVariant = Services.ContentService.CreateContentVariantWithIdentity(
+            var contentVariant = Services.ContentService.CreateContentVariant(
                 foundContent,
                 key);
 

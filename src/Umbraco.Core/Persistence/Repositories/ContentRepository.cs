@@ -351,10 +351,10 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 var relType = Database.FirstOrDefault<RelationTypeDto>(
                     new Sql().Select("*").From<RelationTypeDto>().Where<RelationTypeDto>(typeDto => typeDto.Alias == "umbContentVariants"));
-                int relId;
+                object relId;
                 if (relType == null)
                 {
-                    relId = (int) Database.Insert(new RelationTypeDto
+                    relId = Database.Insert(new RelationTypeDto
                     {
                         Alias = "umbContentVariants",
                         ChildObjectType = new Guid(Constants.ObjectTypes.Document),
@@ -366,12 +366,15 @@ namespace Umbraco.Core.Persistence.Repositories
                 {
                     relId = relType.Id;
                 }
+
+                var asInt = relId.TryConvertTo<int>();
+
                 Database.Insert(new RelationDto
                 {
                     ChildId = entity.Id,
                     ParentId = entity.VariantInfo.MasterDocId,
                     Datetime = DateTime.Now,
-                    RelationType = relId,
+                    RelationType = asInt.Result,
                     //the comment is the variant key
                     Comment = entity.VariantInfo.Key
                 });
