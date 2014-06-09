@@ -20,7 +20,8 @@ angular.module("umbraco.directives")
 			},
 			link: function(scope, element, attrs, ngModel) {
 
-				var inputElement = element.find("input");
+			    var inputElement = null;
+
 				if(scope.placeholder && scope.placeholder[0] === "@"){
 					localizationService.localize(scope.placeholder.substring(1))
 						.then(function(value){
@@ -40,6 +41,12 @@ angular.module("umbraco.directives")
 				    }
 
 				    var mouseMoveDebounce = _.throttle(function (e) {
+
+                        //don't process if it's null
+				        if (!inputElement) {
+                            return;
+                        }
+
 				        mX = e.pageX;
 				        mY = e.pageY;
 				        // not focused and not over element
@@ -63,18 +70,25 @@ angular.module("umbraco.directives")
 
 				})();
 
-				$timeout(function(){
+				$timeout(function () {
+
+				    inputElement = element.find("input");
+
 					if(!scope.model){
 						scope.goEdit();
 					}
+
 				}, 100, false);
 			
 				scope.goEdit = function(){
 					scope.editMode = true;
 
-					$timeout(function () {					    
-					    inputElement.focus();					    
-					}, 100, false);
+					if (inputElement) {
+					    $timeout(function () {
+					        inputElement.focus();
+					    }, 100, false);
+					}
+					
 				};
 
 				scope.exitEdit = function(){
