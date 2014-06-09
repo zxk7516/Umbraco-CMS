@@ -55,9 +55,8 @@ namespace Umbraco.Web.Strategies.Publishing
         private void UnPublishSingle(IContent content)
         {
             var ids = new List<int> { content.Id };
-            //ensure the variants are refreshed too
+            //ensure the variants unpublished too if it's a master
             ids.AddRange(content.VariantInfo.VariantIds);
-            ids.Add(content.VariantInfo.MasterDocId);
 
             DistributedCache.Instance.RemovePageCache(ids.ToArray());
         }
