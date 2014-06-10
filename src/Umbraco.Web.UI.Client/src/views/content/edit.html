@@ -9,7 +9,10 @@
 
             <div class="span7 umb-content-headline">
                 
-                <small ng-if="content.masterDocId != null">Variant: <span>{{content.variantKey}}</span></small>
+                <!--
+                <small ng-if="content.masterDocId != null">
+                    Variant: <span>{{content.variantKey}}</span>
+                </small>
 
                 <div class="umb-segment-selector" ng-if="content.masterDocId != null">
                     <a class="btn" href="" ng-click="toMasterDoc()">
@@ -17,28 +20,68 @@
                         <span class="caret caret-reversed"></span>
                     </a>
                 </div>
+-->
 
-                <div class="umb-segment-selector" ng-if="content.variants.length > 0">
+
+                <div class="umb-segment-selector" 
+                    ng-if="content.variants.length > 0 || content.masterDocId != null">
+                    
+                    <a href style="float: right" class="btn btn-link dropdown-toggle" data-toggle="dropdown">
+                        <i class="icon-globe"></i>
+                        <span class="caret"></span>
+                    </a>
+
+
+<!--
                     <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
                         <small>Variants</small>
                         <span class="caret"></span>
                     </a>
-                    <ul class="dropdown-menu umb-actions pull-right" role="menu">
-                        <li ng-repeat="item in content.variants" ng-class="{'trashed' : item.isTrashed}">
+-->                    
+                    <ul class="dropdown-menu umb-actions" role="menu">
+                        
+                        <li class="action seb" ng-if="content.masterDocId != null">
+                            <a style="padding-left: 20px" href="" ng-click="toMasterDoc()">
+                                <i class="icon icon-reply-arrow"></i> 
+
+                                <div class="menu-label ng-binding">
+                                    Back to master document
+                                    
+                                    <small>
+                                         
+                                    </small>
+                                </div>
+                            </a>
+                        </li>
+
+                        <li
+                            class="action" 
+                            ng-repeat="item in content.variants" 
+                            ng-class="{'trashed' : item.isTrashed}">
                             
                             <ng-form name="itemCompare">
                                 
                                 <a href=""
+                                    style="padding-left: 20px"
                                    ng-attr-title="{{item.exists ? 'Edit variant' : 'Create variant' }}"
                                    ng-click="selectVariant(item)">
-
-                                    <i class="icon" ng-class="item.isTrashed ? 'icon-trash' : item.exists ? 'icon-edit' : 'icon-add'"></i>
+                                    
+                                    <i class="icon" 
+                                        ng-class="item.isTrashed ? 'icon-trash' : item.exists ? 'icon-edit' : 'icon-add'"></i>
+                                    
 
                                     <div class="menu-label ng-binding">
-                                        {{item.name}}
-                                        <small ng-if="item.lastUpdated">Updated: {{item.lastUpdated | date : 'medium'}}</small>
-                                        <small ng-if="!item.lastUpdated">Create new variant</small>
+                                        {{content.name}} - <span style="opacity: 0.8">{{item.name}}</span>
+
+                                        <small 
+                                            ng-if="item.lastUpdated">Updated: {{item.lastUpdated | date : 'medium'}}
+                                        </small>
+                                        
+                                        <small 
+                                            ng-if="!item.lastUpdated">Create new variant
+                                        </small>
                                     </div>
+
                                 </a>
                             </ng-form>
                         </li>
