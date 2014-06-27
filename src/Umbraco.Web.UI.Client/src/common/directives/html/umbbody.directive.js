@@ -1,9 +1,9 @@
 angular.module("umbraco.directives")
-.directive('umbHeader', function($parse, $timeout){
+.directive('umbBody', function(){
     return {
         restrict: 'E',
         replace: true,
         transclude: 'true',
-        templateUrl: 'views/directives/html/umb-header.html'
+        templateUrl: 'views/directives/html/umb-body.html'
     };
 });

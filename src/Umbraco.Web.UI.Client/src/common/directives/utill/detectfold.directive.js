@@ -9,16 +9,23 @@ angular.module("umbraco.directives.html")
 			restrict: 'A',
 			link: function (scope, el, attrs) {
 				
+				var cl = "umb-editor-buttons";
+
 				var state = false,
-					parent = $(".umb-panel-body"),
-					winHeight = $(window).height(),
-					calculate = _.throttle(function(){
-						if(el && el.is(":visible") && !el.hasClass("umb-bottom-bar")){
+					parent = $(".tab-content"),
+					winHeight = $(window).height();
+
+				if(!parent){
+					parent = $(".umb-body");
+				}	
+
+				var	calculate = _.throttle(function(){
+						if(el && el.is(":visible") && !el.hasClass(cl)){
 							//var parent = el.parent();
 							var hasOverflow = parent.innerHeight() < parent[0].scrollHeight;
 							//var belowFold = (el.offset().top + el.height()) > winHeight;
 							if(hasOverflow){
-								el.addClass("umb-bottom-bar");
+								el.addClass(cl);
 							}
 						}
 						return state;
@@ -27,16 +34,16 @@ angular.module("umbraco.directives.html")
 				scope.$watch(calculate, function(newVal, oldVal) {
 					if(newVal !== oldVal){
 						if(newVal){
-							el.addClass("umb-bottom-bar");
+							el.addClass(cl);
 						}else{
-							el.removeClass("umb-bottom-bar");
+							el.removeClass(cl);
 						}	
 					}
 				});
 
 				$(window).bind("resize", function () {
 				   winHeight = $(window).height();
-				   el.removeClass("umb-bottom-bar");
+				   el.removeClass(cl);
 				   state = false;
 				   calculate();
 				});

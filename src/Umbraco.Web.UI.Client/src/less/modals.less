@@ -5,39 +5,34 @@
 .umb-modalcolumn {
 	background: white;
 }
-
 .umb-modalcolumn-header {
   background: @grayLighter;
   border-bottom: 1px solid @grayLight;
-  height: 94px;
-  padding: 5px 20px 0px 20px;
+  height: 50px;
+  padding: 5px 20px 5px 20px;
   white-space: nowrap
 }
-
 .umb-modalcolumn-header h1{
   margin: 0;
   white-space: nowrap;
   font-size: @fontSizeLarge;
   font-weight: 400;
-  padding-top: 10px !important;
+  padding-top: 5px !important;
   text-transform: capitalize !important;
 }
-
 .umb-modalcolumn-body {
 	padding: 0px;
 	background: @white;
-	top: 100px;
+	top: 61px;
 	position: absolute;
 	left: 0px;
 	right: 0px;
 	bottom: 0px;
 	overflow: auto;
 }
-
 .no-padding .umb-modalcolumn-body {
 	padding: 0px
 }
-
 .umb-modalcolumn .umb-modalcolumn-header .btn {
 	position: absolute;
 	top: 13px;
@@ -90,7 +85,6 @@
     bottom: 90px;
 }
 .umb-dialog-body .umb-pane{margin-top: 15px;}
-
 .umb-dialog-footer{
 		border-top: #efefef 1px solid;
 		position: absolute;
@@ -107,7 +101,7 @@
 .umbracoDialog{
 	width: auto !Important;
 	height: auto !Important;
-  padding: 20px;
+  	padding: 20px;
 }
 .umbracoDialog .umb-pane{margin-left: 0px; margin-right: 0px; margin-top: 0px;}
 .umbracoDialog .umb-dialog-body .umb-pane{margin-left: 20px; margin-right: 20px; margin-top: 20px;}
@@ -117,7 +111,11 @@
 .umbracoDialog .controls-row, 
 .umb-modal .controls-row{margin-left: 0px !important;}
 
-/* modal and umb-modal are used for right.hand dialogs */
+
+
+//***************************
+//  Right hand modals - content pickers etc used by dialog service
+//***************************/
 .modal.fade.in{border: none !important; border-radius: none !important;}
 .umb-modal.fade {
 	outline: none;
@@ -130,7 +128,6 @@
 	transition: opacity 0.3s linear, top 0.3s ease-out;
 	height: 100% !important;
 }
-
 .umb-modal.fade.in {
 	top: 0 !important;
 	left: 100% !important;
@@ -139,7 +136,6 @@
 	height: 100% !important;
 	display: block;
 }
-
 .umb-modal-left.fade {
 	top: 0 !important;
 	left: -100% !important;
@@ -159,7 +155,23 @@
 	display: block;
 }
 
-/*Modal default panel styles*/
+.umb-modal .umb-body{
+	bottom: 99px;
+}
+.umb-modal .umb-footer{
+	height: 40px;
+	background: white;
+	border-top: 1px solid @grayLighter;
+	padding: 10px;
+}
+
+
+
+
+
+
+
+/*Legacy Modal default panel styles*/
 .umb-modal .umb-panel-header {
   padding: 20px;
   background: @white;
@@ -179,7 +191,10 @@
 } 
 .umb-modal .breadcrumb {
 	background: none;
-	padding: 0
+	padding: 0;
+	padding-left: 20px;
+	margin: 5px 0 0 0;
+	height: 20px;
 }
 
 .umb-modal .breadcrumb input {

@@ -31,20 +31,36 @@
 
 </head>
 <body ng-class="{touch:touchDevice}" ng-controller="Umbraco.MainController" id="umbracoMainPageBody">
-    <div ng-hide="!authenticated" ng-cloak id="mainwrapper"  id="mainwrapper" class="clearfix" ng-click="closeDialogs($event)">
 
-        <umb-navigation></umb-navigation>
+    <div ng-hide="!authenticated" ng-cloak id="mainwrapper" class="clearfix" ng-click="closeDialogs($event)">
 
-        <section id="contentwrapper">
-            <div id="contentcolumn" ng-view>
-            </div>
+        <header class="app-header">
+              
+        </header>
+        <section class="app-layout">
+
+            <nav class="app-navigation" ng-controller="Umbraco.NavigationController" ng-mouseleave="leaveTree($event)" ng-mouseenter="enterTree($event)">        
+                <div class="app-navigation-sections">
+                    <umb-sections sections="sections"></umb-sections>
+                </div>
+                
+                <div class="app-navigation-tree">
+                    <umb-tree 
+                        cachekey="_"
+                        eventhandler="treeEventHandler" 
+                        section="{{currentSection}}" >
+                    </umb-tree>
+                </div>
+            </nav>
+        
+            <section id="contentwrapper" class="app-content" ng-view></section>
+
         </section>
-
+        
     </div>
-
+        
     <umb-notifications></umb-notifications>
-
-
+    
     @*
         These are the bare minimal server variables that are required for the application to start without being authenticated,
         we will load the rest of the server vars after the user is authenticated.

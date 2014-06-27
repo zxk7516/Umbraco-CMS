@@ -1,0 +1,226 @@
+/*
+  Contains all styling for editor and page elements. A page is normally divided into these parts:
+
+  umb-page / umb-dialog / umb-tree-dialog
+  	umb-header
+  	umb-body
+	
+		?umb-tabview
+			?umb-tab
+				umb-pane
+					umb-property
+
+  	umb-footer
+*/
+
+
+
+
+/****************************
+//  MAIN ELEMENTS 
+//***************************/
+.umb-page{
+    background: white;
+    position: absolute;
+    top: 0px; bottom: 0px; left: 0px; right: 0px;
+}
+
+/*dialog and tree dialog can override
+//dialog is the right-hand modal, tree-dialog is the modal attached to the tree*/
+.umb-dialog{}
+.umb-tree-dialog{}
+
+
+
+/*Header containing title field and action menu, nothing else*/
+.umb-header{
+	background: @grayLighter;
+	border-bottom: 1px solid @grayLight;
+	position: absolute;
+	height: 40px;
+  padding: 15px 20px 5px 20px;
+	top: 0px;
+	right: 0px;
+	left: 0px;
+}
+
+
+
+/*Body containing properties or a tabview containing properties
+//by default, has room for the footer bar*/
+.umb-body, .umb-panel-body{
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 40px;
+    position: absolute;
+    clear: both;
+    overflow: auto;
+}
+.umb-body.no-footer{
+	bottom: 0 !important;
+}
+
+.umb-body.no-header{
+  top: 0 !important;
+}
+/* Editor buttons */
+.umb-editor-buttons{
+    background: white;
+
+    -webkit-box-shadow: 0 -18px 20px rgba(255, 255, 255, 1);
+    -moz-box-shadow:    0 -18px 20px rgba(255, 255, 255, 1);
+    box-shadow:         0 -18px 20px rgba(255, 255, 255, 1);
+
+    border-top: 1px solid @grayLighter;
+    padding: 10px 0 0 20px;
+
+    position: fixed;
+    bottom: 40px;
+    left: 70px;
+    right: 20px;
+};
+@media (min-width: 1101px) {
+    .umb-editor-buttons {left: 430px;}
+}
+
+
+/*Footer containing breadcrumb and eventually status information*/
+.umb-footer {
+  margin: 0;
+  padding: 20px;
+  z-index: 999;
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+}
+
+
+
+
+//***************************
+//  Buttons - btn toolbar
+//***************************/
+.umb-btn-toolbar .dropdown-menu {
+  right: 0;
+  left: auto;
+  border-radius: @tabsBorderRadius;
+  box-shadow: none;
+  padding: 0
+}
+
+.umb-btn-toolbar .dropdown-menu small {
+  background: #fef9db;
+  display: block;
+  padding: 10px 20px;
+}
+
+.umb-btn-toolbar .dropdown-menu .btn {
+    margin: 20px 29px;
+    width: 80px
+}
+
+
+
+//***************************
+//  Header editor / action menu
+//***************************/
+.umb-header .umb-headline, .umb-header h1 {
+  font-size: 16px;
+  border: none;
+  background: none;
+  padding: 3px 5px;
+  height: auto;
+  width: 100%;
+  border: 1px solid @grayLighter;
+}
+
+.umb-header h1{
+  margin: 0; padding: 0; line-height: 28px;
+}
+
+.umb-header .umb-headline:focus,.umb-header .umb-headline:active  {
+  border: 1px solid @grayLight;
+  background-color: @white;
+}
+
+.umb-headline-editor-wrapper{
+  position: relative;
+}
+
+.umb-headline-editor-wrapper .help-inline{
+  right: 0px;
+  top: 25px;
+  position: absolute;
+  font-size: 10px;
+  color: @red;
+}
+.umb-header .umb-btn-toolbar{
+  margin-top: 0;
+}
+
+
+//***************************
+//  Footer breadcrumb
+//***************************/
+
+.umb-footer .path, .umb-panel-footer-nav{
+    position: absolute;
+    bottom: 0px;
+    height: 30px;
+    left: 0px;
+    right: 0px;
+    background: @grayLighter;
+    border-top: @grayLight 1px solid;
+    display: block;
+    margin: 0;
+}
+
+.umb-footer .path li a, .umb-panel-footer-nav li a{
+  border-radius: 0;
+  display: block;
+  float: left;
+  height: 30px;
+  background: @grayLighter;
+  text-align: center;
+  padding: 8px 0px 8px 30px;
+  position: relative;
+  margin: 0 1px 0 0; 
+  text-decoration: none;
+  color: @gray;
+  font-size: 11px;
+}
+
+.umb-footer .path li a:after, .umb-panel-footer-nav li a:after {
+  content: "";  
+  border-top: 16px solid transparent;
+  border-bottom: 16px solid transparent;
+  border-left: 16px solid @grayLighter;
+  position: absolute; right: -16px; top: 0;
+  z-index: 1;
+}
+      
+.umb-footer .path li a:before, .umb-panel-footer-nav li a:before {
+  content: "";  
+  border-top: 16px solid transparent;
+  border-bottom: 16px solid transparent;
+  border-left: 16px solid @grayLight;
+  position: absolute; left: 0; top: 0;
+}
+
+.umb-footer .path li:first-child a, .umb-panel-footer-nav li:first-child a{
+  padding-left: 20px; 
+}
+
+.umb-footer .path li:first-child a:before, .umb-panel-footer-nav li:first-child a:before {
+  display: none; 
+}
+
+.umb-footer .path li:last-child a:after,  .umb-panel-footer-nav li:first-child a:after {
+  display: none; 
+}
+
+
+
+

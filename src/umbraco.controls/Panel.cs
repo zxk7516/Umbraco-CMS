@@ -88,7 +88,7 @@ namespace umbraco.uicontrols
 
             header.TagName = "div";
             header.ID = base.ClientID + "_header";
-            header.Attributes.Add("class","umb-panel-header");
+            header.Attributes.Add("class","umb-header");
             
             row.TagName = "div";
             row.Attributes.Add("class", "row-fluid");
@@ -109,14 +109,13 @@ namespace umbraco.uicontrols
             row.Controls.Add(rightcol);
 
             body.TagName = "div";
-            body.Attributes.Add("class", "umb-panel-body umb-scrollable row-fluid");
+            body.Attributes.Add("class", "umb-body no-footer");
 
             Width = Unit.Empty;
             Height = Unit.Empty;
 
             Controls.AddAt(0,header);
             
-
             base.CreateChildControls();
         }
         

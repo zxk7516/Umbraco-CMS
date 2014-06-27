@@ -13,19 +13,12 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
-  
   font-family: @baseFontFamily;
   font-size: @baseFontSize;
   line-height: @baseLineHeight;
   color: @textColor;
   background-color: @bodyBackground;
 }
-
-
-.padded {
-  padding: 20px
-}
-
 
 #layout {
   position: relative;
@@ -40,46 +33,41 @@ body {
   margin: 0;
 }
 
-#contentwrapper, #contentcolumn {
-  position: absolute;
-  top: 0px; bottom: 0px; right: 0px; left: 80px;
-  z-index: 10;
-  margin: 0
+header.app-header{
+   height: 50px;
+   top: 0; left: 0; right: 0; position: absolute;
 }
 
-#contentcolumn {
-  left: 0px;
+section.app-layout{
+    top: 51px; left: 0; right: 0; bottom: 0; position: absolute;
 }
 
-#contentcolumn iframe#right {
-  display: block;
-  position: relative;
-  height: 100%;
-  width: 100%;
-  border: none;
+nav.app-navigation{
+    top: 0; left: 0; bottom: 0; position: absolute; width: 70px;
+}
+section.app-content{
+    top: 0; left: 71px; bottom: 0; right:0; position: absolute;
 }
 
-#leftcolumn {
-  height: 100%;
-  z-index: 20;
-  width: 80px;
-  float: left;
-  position: absolute;
+iframe.app-legacy-content{
+  border: none; display: block; left: 0;top: 0;bottom: 0;right: 0;position: absolute;
+  width: 100%; height: 100%;
 }
+
+.umb-abs-fullsize{
+  left: 0;top: 0;bottom: 0;right: 0;position: absolute;
+}
+
 
 #applications {
   z-index: 1000;
-  height: 100%;
-  left: 0px;
-  top: 0;
-  bottom: 0;
-  position: absolute;
+  left: 0;top: 0;bottom: 0;right: 0;position: absolute;
   text-align: center
 }
 
 #applications-tray {
   z-index: 900;
-  left: 80px;
+  left: 70px;
   top: 0;
   bottom: 0;
   position: absolute;
@@ -88,7 +76,7 @@ body {
 }
 
 #search-form {
-  display: block;
+  display: none;
   margin: 0px;
   z-index: 100;
   position: absolute;
@@ -102,7 +90,7 @@ body {
 }
 
 #navigation {
-  left: 80px;
+  left: 70px;
   top: 0;
   bottom: 0;
   position: absolute;
@@ -118,7 +106,7 @@ body {
     bottom: 0px;
     left: 0px;
     right: 0px;
-    padding-top: 100px;
+    padding-top: 20px;
     border-right: 1px solid @grayLight;  
 }
 
@@ -145,6 +133,7 @@ body {
   z-index: 200;
 }
 
+
 #contextMenu {
   z-index: 50;
   position: absolute;
@@ -153,10 +142,11 @@ body {
   min-width: 250px;
 }
 
+
 #speechbubble {
   z-index: 1000;
   position: absolute;
-  bottom: 100px;
+  bottom: 5px;
   left: 0;
   right: 0;
   border-bottom: none;
@@ -168,7 +158,12 @@ body {
 }
 
 @media (min-width: 1101px) {
-  #contentwrapper {left: 440px;}
-  #speechbubble {left: 360px;}
+  #contentwrapper {left: 430px;}
+  #speechbubble {left: 350px;}
 }
 
+/* loading animation for iframes and content pages */
+iframe, .content-column-body {
+    background: center center url(../img/loader.gif) no-repeat;
+    border: none;
+}

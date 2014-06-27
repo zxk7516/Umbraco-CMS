@@ -22,29 +22,36 @@ namespace umbraco.uicontrols {
 
 		private string _status = "";
 
-        private HtmlGenericControl _tabList = new HtmlGenericControl();
+        private HtmlGenericControl _tabNav = new HtmlGenericControl();
         private HtmlGenericControl _body = new HtmlGenericControl();
-        private HtmlGenericControl _tabsHolder = new HtmlGenericControl();
-
+        private HtmlGenericControl _tabView = new HtmlGenericControl();
+        private HtmlGenericControl _tabsHolderInner = new HtmlGenericControl();
+    
         private HiddenField _activeTabHolder = new HiddenField();
 
         protected override void CreateChildControls()
         {
             base.CreateChildControls();
-
-            _tabList.TagName = "ul";
-            _tabList.Attributes.Add("class", "nav nav-tabs umb-nav-tabs span12");
-            base.row.Controls.Add(_tabList);
+            //base.row.Controls.Add(_tabList);
 
             _body.TagName = "div";
-            _body.Attributes.Add("class", "umb-panel-body umb-scrollable row-fluid");
+            _body.Attributes.Add("class", "umb-body row-fluid no-footer");
             base.Controls.Add(_body);
 
-            _tabsHolder.TagName = "div";
-            _tabsHolder.Attributes.Add("class", "tab-content form-horizontal umb-tab-content");
-            _tabsHolder.ID = this.ID + "_content";
-            _body.Controls.Add(_tabsHolder);
-            
+            _tabView.TagName = "div";
+            _tabView.Attributes.Add("class", "umb-tab-view row-fluid tabbable tabs-below");
+            _tabView.ID = this.ID + "_content";
+            _body.Controls.Add(_tabView);
+
+            _tabNav.TagName = "ul";
+            _tabNav.Attributes.Add("class", "nav nav-tabs umb-nav-tabs span12");
+            _tabView.Controls.Add(_tabNav);
+
+            _tabsHolderInner.TagName = "div";
+            _tabsHolderInner.Attributes.Add("class", "tab-content form-horizontal");
+            _tabView.Controls.Add(_tabsHolderInner);
+
+
             for (int i = 0; i < Tabs.Count; i++)
             {
                 var tabPage = TabPages.ElementAt(i).Value;
@@ -53,7 +60,7 @@ namespace umbraco.uicontrols {
                 if (tabPage.ID == ActiveTabId)
                     tabPage.Active = true;
 
-                _tabsHolder.Controls.Add(tabPage);
+                _tabsHolderInner.Controls.Add(tabPage);
             }
 
             _activeTabHolder.ID = "activeTabHolder";
@@ -85,7 +92,7 @@ namespace umbraco.uicontrols {
                 li.TagName = "li";
                 if (tabId == ActiveTabId)
                     li.Attributes.Add("class", "active");
-                _tabList.Controls.Add(li);
+                _tabNav.Controls.Add(li);
 
                 HtmlGenericControl a = new HtmlGenericControl();
                 a.TagName = "a";
@@ -114,7 +121,7 @@ namespace umbraco.uicontrols {
             Panels.Add(tp);
             TabPages.Add(tp.ID, tp);
 
-            _tabsHolder.Controls.Add(tp);
+            _tabsHolderInner.Controls.Add(tp);
             return tp;
         }
 
