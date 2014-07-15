@@ -17,7 +17,7 @@ body {
   font-size: @baseFontSize;
   line-height: @baseLineHeight;
   color: @textColor;
-  background-color: @bodyBackground;
+  background-color: rgba(253, 251, 251, 0.51);
 }
 
 
@@ -30,7 +30,7 @@ body {
 .app-header{
    height: 26px;
    top: 0; left: 0; right: 0; position: absolute;
-   background-color: @blackLight;
+   background-color: @accent-color;
    padding: 12px 20px 12px 20px;
    z-index: 300;
 }
@@ -47,18 +47,23 @@ nav.app-navigation{
 
 div.app-navigation-sections{
   width: 70px;
-  background: rgb(202,202,202);
-  border-right: 1px solid @grayLight;
+  background: #333;
   z-index: 500;
 }
 
 div.app-navigation-tree{
-  left: 71px !important;
+  left: 81px !important;
+  top: 10px !important;
+  bottom: 10px !important;
+  
   padding-left: 10px;
   overflow: auto;
-  background: @grayLighter;
-  border-right: 1px solid @grayLight;
   z-index: 500;
+  background: white;
+  width: 330px;
+
+  box-shadow: 2px 2px 1px rgba(224, 224, 224, 0.24);
+
 }
 
 div.app-navigation-menu{
@@ -77,8 +82,9 @@ div.app-navigation-dialog{
 }
 
 .app-content{
-    top: 0; left: 71px; bottom: 0; right:0; position: absolute;
+    top: 10px; left: 81px; bottom: 10px; right:10px; position: absolute;
     z-index: 100;
+    box-shadow: 2px 2px 1px rgba(224, 224, 224, 0.24);
 }
 
 @media (min-width: 1101px) {

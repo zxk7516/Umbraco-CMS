@@ -4,28 +4,28 @@
 // Give the tabs something to sit on
 .nav-tabs {
   border: none;
-  float: right;
+  
 }
 
 // Make the list-items overlay the bottom border
 .nav-tabs > li {
   margin-bottom: -1px;
-  float: left;
 }
 
 // Actual tabs (as links)
 .nav-tabs > li > a {
-  color: #232323;
-  padding-top: 5px;
-  padding-bottom: 4px;
+  color: #ccc;
+  padding-top: 1px;
+  padding-bottom: 7px;
   line-height: @baseLineHeight;
   border-bottom: 2px solid transparent;
   background: none;
-
+  font-size: 12px;
+  
   &:hover {
       color: #232323;
-      background: none;
-      border-bottom: 2px solid rgba(0,0,0,0.1);
+      background: none; 
+      border-bottom: 2px solid #eee;
   }
 }
 // Active state, and it's :hover/:focus to override normal :hover/:focus
@@ -33,7 +33,8 @@
 .nav-tabs > .active > a:hover,
 .nav-tabs > .active > a:focus {
   cursor: default;
-  border-bottom: 2px solid rgba(255,255,255,0.5);
+  border-bottom: 2px solid @accent-color-alt;
+  color: @accent-color-alt;
 }
 
 //SD: NOTE: Added tab error states
