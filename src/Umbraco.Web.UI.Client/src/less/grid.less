@@ -20,34 +20,72 @@ body {
   background-color: @bodyBackground;
 }
 
-#layout {
-  position: relative;
-  height: 100%;
-  padding: 0;
-  z-index: 1;
-}
 
-#mainwrapper {
+.app-wrapper {
   height: 100%;
   width: 100%;
   margin: 0;
 }
 
-header.app-header{
-   height: 50px;
+.app-header{
+   height: 26px;
    top: 0; left: 0; right: 0; position: absolute;
+   background-color: @blackLight;
+   padding: 12px 20px 12px 20px;
+   z-index: 300;
 }
 
-section.app-layout{
-    top: 51px; left: 0; right: 0; bottom: 0; position: absolute;
+.app-layout{
+    top: 50px; left: 0; right: 0; bottom: 0; position: absolute;
 }
 
 nav.app-navigation{
-    top: 0; left: 0; bottom: 0; position: absolute; width: 70px;
+    top: 0; left: 0; bottom: 0; position: absolute;
+    width: 430px;
+    z-index: 200;
 }
-section.app-content{
+
+div.app-navigation-sections{
+  width: 70px;
+  background: rgb(202,202,202);
+  border-right: 1px solid @grayLight;
+  z-index: 500;
+}
+
+div.app-navigation-tree{
+  left: 71px !important;
+  padding-left: 10px;
+  overflow: auto;
+  background: @grayLighter;
+  border-right: 1px solid @grayLight;
+  z-index: 500;
+}
+
+div.app-navigation-menu{
+  left: 430px !important;
+  overflow: auto;
+  z-index: 300;
+  border-right: 1px solid @grayLight;
+}
+
+div.app-navigation-dialog{
+  left: 430px !important;
+  overflow: auto;
+  z-index: 300;
+  min-width: 500px;
+  border-right: 1px solid @grayLight;
+}
+
+.app-content{
     top: 0; left: 71px; bottom: 0; right:0; position: absolute;
+    z-index: 100;
 }
+
+@media (min-width: 1101px) {
+  .app-content {left: 430px;}
+  .app-notifications {left: 350px;}
+}
+
 
 iframe.app-legacy-content{
   border: none; display: block; left: 0;top: 0;bottom: 0;right: 0;position: absolute;
@@ -55,10 +93,10 @@ iframe.app-legacy-content{
 }
 
 .umb-abs-fullsize{
-  left: 0;top: 0;bottom: 0;right: 0;position: absolute;
+  left: 0;top: 0;bottom: 0;right: 0;position: absolute; height: 100%; 
 }
 
-
+/*
 #applications {
   z-index: 1000;
   left: 0;top: 0;bottom: 0;right: 0;position: absolute;
@@ -74,7 +112,7 @@ iframe.app-legacy-content{
   height: 100%;
   text-align: center;
 }
-
+*/
 #search-form {
   display: none;
   margin: 0px;
@@ -96,8 +134,7 @@ iframe.app-legacy-content{
   position: absolute;
   z-index: 100;
   background: @white;
-  height: 100%;
-   
+  height: 100%; 
 }
 
 .navigation-inner-container{
@@ -157,10 +194,7 @@ iframe.app-legacy-content{
   border-radius: 0;
 }
 
-@media (min-width: 1101px) {
-  #contentwrapper {left: 430px;}
-  #speechbubble {left: 350px;}
-}
+
 
 /* loading animation for iframes and content pages */
 iframe, .content-column-body {

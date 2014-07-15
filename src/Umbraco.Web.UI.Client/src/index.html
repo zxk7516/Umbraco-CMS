@@ -1,28 +1,126 @@
 <!doctype html>
 <html lang="en">
-<head>
-    <base href="/belle/" />
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <head>
+        <base href="/belle/" />
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title ng-bind="locationTitle">Umbraco</title>
-    <link rel="stylesheet" href="assets/css/umbraco.css" />
-</head>
+        <title ng-bind="locationTitle">Umbraco</title>
+        <link rel="stylesheet" href="assets/css/umbraco.css" />
+    </head>
 
-<body ng-class="{touch:touchDevice}" ng-controller="Umbraco.MainController" id="umbracoMainPageBody">
-    <div ng-hide="!authenticated" ng-cloak id="mainwrapper" class="clearfix" ng-click="closeDialogs($event)">
-        <umb-navigation></umb-navigation>
-        
-        <section id="contentwrapper">
-            <div id="contentcolumn">
-                <div class="content-column-body" ng-view></div>
-            </div>
-        </section>
-    </div>
-    <umb-notifications></umb-notifications>
+    <body 
+        ng-class="{touch:touchDevice}" 
+        ng-controller="Umbraco.MainController" 
+        id="umbracoMainPageBody">
+    
+        <div 
+            ng-hide="!authenticated" 
+            ng-cloak 
+            class="app-wrapper umb-abs-fullsize" 
+            ng-click="closeDialogs($event)">
+
+            <header class="app-header"> 
+                <div class="app-header-avatar">
+                    <a href 
+                        ng-click="avatarClick()" 
+                        hotkey="ctrl+shift+u"
+                        title="{{user.name}}" prevent-default>
+                            <img id="avatar-img" ng-src="{{avatar}}" />
+                    </a> 
+                </div>
+
+                <div class="app-header-search">
+                    <input type="text" placeholder="Type to search..." value="" />
+                </div>
+                
+                <div class="app-header-toolbar">
+                    <ul class="inline pull-right">
+                        <li>
+                            <a href class="action-help" hotkey="ctrl+shift+h" ng-click="helpClick()">
+                                <i class="icon-help-alt"></i>
+                                <span><localize key="sections_help">Help</localize></span>
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href class="action-logout">
+                                <i class="icon-logout"></i>
+                            </a>
+                        </li>
+
+                    </ul>
+
+                </div>
+                
+                     
+            </header>
+
+            <main class="app-layout">
+                
+                <nav class="app-navigation" 
+                    ng-controller="Umbraco.NavigationController" 
+                    ng-mouseleave="leaveTree($event)" 
+                    ng-mouseenter="enterTree($event)">        
+                    
+                    <div class="app-navigation-sections umb-abs-fullsize ">
+                        <umb-sections sections="sections"></umb-sections>
+                    </div>
+                    
+
+                    <div class="app-navigation-tree umb-abs-fullsize">
+                        <umb-tree 
+                            cachekey="_"
+                            eventhandler="treeEventHandler" 
+                            section="{{currentSection}}" >
+                        </umb-tree>
+                    </div>
 
 
-<script src="lib/lazyload/lazyload.min.js"></script>
-<script src="js/loader.js"></script>
-</body>
+                    <div 
+                        class="app-navigation-menu umb-abs-fullsize" 
+                        ng-swipe-left="nav.hideMenu()" 
+                        ng-show="showContextMenu" 
+                        ng-animate="'slide'">
+
+                        <umb-context-menu                     
+                            menu-dialog-title="{{menuDialogTitle}}"
+                            current-section="{{currentSection}}"
+                            current-node="menuNode"
+                            menu-actions="menuActions">
+                        </umb-context-menu> 
+                    </div>
+                    
+
+                    <div 
+                        class="app-navigation-dialog umb-abs-fullsize"
+                        ng-swipe-left="nav.hideDialog()"
+                        ng-show="showContextMenuDialog" 
+                        ng-animate="'slide'">
+
+                        <div class='umb-modalcolumn-header'>
+                            <h1>{{menuDialogTitle}}</h1>
+                        </div>
+
+                        <div class='umb-modalcolumn-body'>
+                            
+                        </div>
+                    </div>
+
+
+                </nav>
+            
+                <section class="app-content" ng-view>
+
+                </section>
+            </main>
+        </div>
+
+        <div class="app-notifications">
+            <umb-notifications></umb-notifications>
+        </div>
+
+        <script src="lib/lazyload/lazyload.min.js"></script>
+        <script src="js/loader.js"></script>
+    </body>
 </html>

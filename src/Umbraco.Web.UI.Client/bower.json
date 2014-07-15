@@ -17,7 +17,9 @@
   ],
   "dependencies": {
     "typeahead.js": "~0.10.2",
-    "ace-builds": "~1.1.3",
+    "angular": "~1.2.18",
+    "angular-route": "~1.2.18",
+    "angular-touch": "~1.2.18",
     "rgrove-lazyload": "*"
   }
 }

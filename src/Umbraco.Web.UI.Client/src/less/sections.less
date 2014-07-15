@@ -4,14 +4,13 @@
 ul.sections {
 	margin: 0;
 	display: block;
-	background: @blackLight;
 	height: 100%;
 	width: 70px;
 }
 
 ul.sections li {
 	display: block;
-	border-left: 4px @blackLight solid;
+	border-left: 4px rgba(255,255,255,0) solid;
 	-webkit-transition: all .3s linear;
 	-moz-transition: all .3s linear;
 	transition: all .3s linear;
@@ -21,7 +20,6 @@ ul.sections li [class^="icon-"]:before,
 ul.sections li [class*=" icon-"]:before{
 	font-size: 30px;
 	margin: 1px 0 0 0;
-	opacity: 0.4;
 	-webkit-transition: all .3s linear;
 	-moz-transition: all .3s linear;
 	transition: all .3s linear;
@@ -36,9 +34,8 @@ ul.sections li a {
 	display: block;
 	text-decoration: none;
 	text-align: center;
-	color: @grayLight;
+	color: @blackLight;
 	padding: 20px 4px 4px 0;
-	border-bottom: 1px solid @grayDark;
 	width: 100%;
 	height: 100%;
 	margin: 0 0 0 -4px;
@@ -64,33 +61,13 @@ ul.sections:hover a span {
 // Avatar, Section & Help icons
 // -------------------------
 
-ul.sections li.avatar {
-	height: 60px;
-	text-align: center;
-	margin: 0 0 0 -4px;
-	border-bottom: 1px solid @grayDark;
-}
-
-ul.sections li.avatar a {
-	margin: 0 auto;
-	padding: 0;
-	width: 70px;
-	height: 30px;
-	border: none;
-	padding-top: 15px;	
-}
-
-ul.sections li.avatar a img {
-	border-radius: 16px;
-	width: 25px
-}
 
 .faded ul.sections li {
-	opacity: 0.4
+	//opacity: 0.4
 }
 
-ul.sections li.current, ul.sections li:hover {
-    border-left: 4px @orange solid;
+ul.sections li.current i{
+    color: @turquoiseLight;
 }
 
 ul.sections li.avatar.current, ul.sections li.avatar:hover {

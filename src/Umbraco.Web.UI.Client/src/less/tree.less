@@ -32,17 +32,21 @@
 	display: block
 }
 .umb-tree li.current > div, .umb-tree div.selected {
-	background: @blue;
+	background: transparent;
 }
 .umb-tree li.current > div a.umb-options i, .umb-tree div.selected i{
-	background: #fff;
-	border-color: @blue;
+	background: @accent-color;
+	//border-color: @blue;
 }
 .umb-tree li.current > div a, 
 .umb-tree li.current > div i.icon{
-	color: white !important;
-	background: @blue;
-	border-color: @blue;
+	color: @accent-color !important;
+	//background: @blue;
+	//border-color: @blue;
+}
+
+.umb-tree li.current > div a {
+	border-bottom: 2px solid @accent-color;
 }
 .umb-tree li.root > div {
 	padding-left: 20px;
@@ -53,7 +57,7 @@
 }
 
 .umb-tree li.root > div h5 {
-	margin-top: 10px;
+	margin-top: 17px;
 }
 
 .umb-tree * {
@@ -94,6 +98,7 @@
 
 .umb-tree div > a.umb-options {
 	visibility: hidden;
+	border: none !important;
 }
 .umb-tree div:hover > a.umb-options {
 	visibility: visible;

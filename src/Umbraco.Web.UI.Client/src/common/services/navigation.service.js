@@ -657,7 +657,7 @@ function navigationService($rootScope, $routeParams, $log, $location, $q, $timeo
 
             var dialog = dialogService.open(
                 {
-                    container: $("#dialog div.umb-modalcolumn-body"),
+                    container: $(".app-navigation-dialog .umb-modalcolumn-body"),
                     //The ONLY reason we're passing in scope to the dialogService (which is legacy functionality) is 
                     // for backwards compatibility since many dialogs require $scope.currentNode or $scope.currentAction
                     // to exist

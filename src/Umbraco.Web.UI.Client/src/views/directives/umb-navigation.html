@@ -75,7 +75,12 @@
         <div class="offset6" style="z-index: 10">
             
             <!-- The context menu -->
-            <div id='contextMenu' class="umb-modalcolumn fill shadow" ng-swipe-left="nav.hideMenu()" ng-show="showContextMenu" ng-animate="'slide'">
+            <div id='contextMenu' 
+                class="umb-modalcolumn fill shadow" 
+                ng-swipe-left="nav.hideMenu()" 
+                ng-show="showContextMenu" 
+                ng-animate="'slide'">
+                
                 <umb-context-menu                     
                     menu-dialog-title="{{menuDialogTitle}}"
                     current-section="{{currentSection}}"
@@ -93,6 +98,7 @@
                     <h1>{{menuDialogTitle}}</h1>
                 </div>
                 <div class='umb-modalcolumn-body'>
+                    
                 </div>
             </div>
         </div>
