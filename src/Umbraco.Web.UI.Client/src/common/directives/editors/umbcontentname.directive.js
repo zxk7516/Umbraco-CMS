@@ -49,7 +49,7 @@ angular.module("umbraco.directives")
 				                if (distance <= 155) {
 
 				                    distance = 1 - (100 / 150 * distance / 100);
-				                    inputElement.css("border", "1px solid rgba(255,255,255, " + distance + ")");
+				                    inputElement.css("border-bottom", "1px solid rgba(0,0,0, " + distance + ")");
 				                }
 				            }
 
