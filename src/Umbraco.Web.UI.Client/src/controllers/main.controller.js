@@ -13,7 +13,7 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
     //the null is important because we do an explicit bool check on this in the view
     //the avatar is by default the umbraco logo    
     $scope.authenticated = null;
-    $scope.avatar = "assets/img/application/logo.png";
+    $scope.avatar = "assets/img/application/logo_white.png";
     $scope.touchDevice = appState.getGlobalState("touchDevice");
     //subscribes to notifications in the notification service
     $scope.notifications = notificationsService.current;
