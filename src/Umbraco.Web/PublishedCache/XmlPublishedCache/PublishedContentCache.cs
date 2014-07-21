@@ -174,68 +174,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         #endregion
 
-        #region XPath Strings
-
-        class XPathStringsDefinition
-		{
-			public int Version { get; private set; }
-
-			public static string Root { get { return "/root"; } }
-			public string RootDocuments { get; private set; }
-			public string DescendantDocumentById { get; private set; }
-			public string ChildDocumentByUrlName { get; private set; }
-            public string ChildDocumentByUrlNameVar { get; private set; }
-            public string RootDocumentWithLowestSortOrder { get; private set; }
-
-			public XPathStringsDefinition(int version)
-			{
-				Version = version;
-
-				switch (version)
-				{
-					// legacy XML schema
-					case 0:
-						RootDocuments = "/root/node";
-						DescendantDocumentById = "//node [@id={0}]";
-						ChildDocumentByUrlName = "/node [@urlName='{0}']";
-						ChildDocumentByUrlNameVar = "/node [@urlName=${0}]";
-						RootDocumentWithLowestSortOrder = "/root/node [not(@sortOrder > ../node/@sortOrder)][1]";
-						break;
-
-					// default XML schema as of 4.10
-					case 1:
-						RootDocuments = "/root/* [@isDoc]";
-						DescendantDocumentById = "//* [@isDoc and @id={0}]";
-						ChildDocumentByUrlName = "/* [@isDoc and @urlName='{0}']";
-						ChildDocumentByUrlNameVar = "/* [@isDoc and @urlName=${0}]";
-						RootDocumentWithLowestSortOrder = "/root/* [@isDoc and not(@sortOrder > ../* [@isDoc]/@sortOrder)][1]";
-						break;
-
-					default:
-						throw new Exception(string.Format("Unsupported Xml schema version '{0}').", version));
-				}
-			}
-		}
-
-		static XPathStringsDefinition _xPathStringsValue;
-		static XPathStringsDefinition XPathStrings
-		{
-			get
-			{
-				// in theory XPathStrings should be a static variable that
-				// we should initialize in a static ctor - but then test cases
-				// that switch schemas fail - so cache and refresh when needed,
-				// ie never when running the actual site
-
-				var version = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? 0 : 1;
-				if (_xPathStringsValue == null || _xPathStringsValue.Version != version)
-					_xPathStringsValue = new XPathStringsDefinition(version);
-				return _xPathStringsValue;
-			}
-		}
-
-		#endregion
-
         #region Converters
 
         private static IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing)
@@ -396,7 +334,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 if (startNodeId > 0)
                 {
 					// if in a domain then use the root node of the domain
-					xpath = string.Format(XPathStringsDefinition.Root + XPathStrings.DescendantDocumentById, startNodeId);                    
+					xpath = string.Format(XPathStrings.Root + XPathStrings.DescendantDocumentById, startNodeId);                    
                 }
                 else
                 {
@@ -429,11 +367,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 					if (hideTopLevelNodeFromPath)
 						xpathBuilder.Append(XPathStrings.RootDocuments); // first node is not in the url
 					else
-						xpathBuilder.Append(XPathStringsDefinition.Root);
+						xpathBuilder.Append(XPathStrings.Root);
                 }
                 else
                 {
-					xpathBuilder.AppendFormat(XPathStringsDefinition.Root + XPathStrings.DescendantDocumentById, startNodeId);
+					xpathBuilder.AppendFormat(XPathStrings.Root + XPathStrings.DescendantDocumentById, startNodeId);
 					// always "hide top level" when there's a domain
                 }
 
