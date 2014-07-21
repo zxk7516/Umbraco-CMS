@@ -1,6 +1,7 @@
 using System;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Xml.XPath;
 using Umbraco.Core.Configuration;
 using Umbraco.Web.Templates;
 using umbraco.interfaces;
@@ -56,5 +57,36 @@ namespace umbraco.NodeFactory
 			else
 				throw new ArgumentNullException("Property xml source is null");
 		}
+
+        // fixme - duplicated from Node
+        private static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
+        {
+            if (nav.MoveToAttribute(name, "") == false)
+                return false;
+
+            action(nav);
+            nav.MoveToParent();
+            return true;
+        }
+        
+        public Property(XPathNavigator nav)
+	    {
+            if (nav == null)
+                throw new ArgumentNullException("nav");
+
+            ReadAttribute(nav, "versionID", n => _version = new Guid(n.Value));
+            _alias = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? nav.GetAttribute("alias", "") : nav.LocalName;
+
+            var value = string.Empty;
+            var c = nav.Clone();
+            if (c.MoveToFirstChild())
+            {
+                // first child is text node or cdata node : get its value
+                // no idea what we're doing with InnerXml here?!
+                value = c.Value ?? nav.InnerXml;
+            }
+
+            _value = value.Replace("<!--CDATAOPENTAG-->", "<![CDATA[").Replace("<!--CDATACLOSETAG-->", "]]>");
+        }
 	}
 }

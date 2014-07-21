@@ -28,8 +28,8 @@ namespace umbraco.interfaces
         int Level { get; }
         List<IProperty> PropertiesAsList { get; }
         List<INode> ChildrenAsList { get; }
-        IProperty GetProperty(string Alias);
-        IProperty GetProperty(string Alias, out bool propertyExists);
+        IProperty GetProperty(string alias);
+        IProperty GetProperty(string alias, out bool propertyExists);
         DataTable ChildrenAsTable();
         DataTable ChildrenAsTable(string nodeTypeAliasFilter);
     }
