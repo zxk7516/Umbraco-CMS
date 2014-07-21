@@ -341,9 +341,10 @@ namespace Umbraco.Tests.TestHelpers
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var cache = new PublishedContentCache();
+            var caches = PublishedCachesResolver.Current.Caches;
+            var cache = caches.ContentCache as PublishedContentCache;
 
-            cache.GetXmlDelegate = (context, preview) =>
+            cache.GetXmlDelegate = (preview) =>
                 {
                     var doc = new XmlDocument();
                     doc.LoadXml(GetXmlContent(templateId));
@@ -356,7 +357,7 @@ namespace Umbraco.Tests.TestHelpers
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                new PublishedCaches(cache, new PublishedMediaCache()),
+                caches,
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

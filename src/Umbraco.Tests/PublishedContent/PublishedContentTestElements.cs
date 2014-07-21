@@ -13,16 +13,26 @@ namespace Umbraco.Tests.PublishedContent
 {
     class SolidPublishedCaches : IPublishedCaches
     {
-        public readonly SolidPublishedContentCache ContentCache = new SolidPublishedContentCache();
+        public readonly SolidPublishedContentCache InnerCache = new SolidPublishedContentCache();
 
         public ContextualPublishedContentCache CreateContextualContentCache(UmbracoContext context)
         {
-            return new ContextualPublishedContentCache(ContentCache, context);
+            return new ContextualPublishedContentCache(InnerCache, context);
         }
 
         public ContextualPublishedMediaCache CreateContextualMediaCache(UmbracoContext context)
         {
             return null;
+        }
+
+        public IPublishedContentCache ContentCache
+        {
+            get { return InnerCache; }
+        }
+
+        public IPublishedMediaCache MediaCache
+        {
+            get { return null; }
         }
     }
 
@@ -40,52 +50,52 @@ namespace Umbraco.Tests.PublishedContent
             _content.Clear();
         }
 
-        public void ContentHasChanged(UmbracoContext umbracoContext)
+        public void ContentHasChanged()
         {
             throw new NotImplementedException();
         }
 
-        public IPublishedContent GetByRoute(UmbracoContext umbracoContext, bool preview, string route, bool? hideTopLevelNode = null)
+        public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
             throw new NotImplementedException();
         }
 
-        public string GetRouteById(UmbracoContext umbracoContext, bool preview, int contentId)
+        public string GetRouteById(bool preview, int contentId)
         {
             throw new NotImplementedException();
         }
 
-        public IPublishedContent GetById(UmbracoContext umbracoContext, bool preview, int contentId)
+        public IPublishedContent GetById(bool preview, int contentId)
         {
             return _content.ContainsKey(contentId) ? _content[contentId] : null;
         }
 
-        public IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview)
+        public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             return _content.Values.Where(x => x.Parent == null);
         }
 
-        public IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, Core.Xml.XPathVariable[] vars)
+        public IPublishedContent GetSingleByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
+        public IPublishedContent GetSingleByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, string xpath, Core.Xml.XPathVariable[] vars)
+        public IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
+        public IEnumerable<IPublishedContent> GetByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public System.Xml.XPath.XPathNavigator GetXPathNavigator(UmbracoContext umbracoContext, bool preview)
+        public System.Xml.XPath.XPathNavigator GetXPathNavigator(bool preview)
         {
             throw new NotImplementedException();
         }
@@ -95,7 +105,7 @@ namespace Umbraco.Tests.PublishedContent
             get { throw new NotImplementedException(); }
         }
 
-        public bool HasContent(UmbracoContext umbracoContext, bool preview)
+        public bool HasContent(bool preview)
         {
             return _content.Count > 0;
         }

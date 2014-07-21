@@ -220,7 +220,7 @@ namespace Umbraco.Tests.PublishedContent
         static SolidPublishedCaches CreatePublishedContent()
         {
             var caches = new SolidPublishedCaches();
-            var cache = caches.ContentCache;
+            var cache = caches.InnerCache;
 
             var props = new[]
                     {

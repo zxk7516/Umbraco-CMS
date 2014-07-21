@@ -1,12 +1,9 @@
-using System.Configuration;
 using System.Linq;
 using System.Web.Routing;
 using NUnit.Framework;
-using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using Umbraco.Tests.TestHelpers.Stubs;
 using Umbraco.Web;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
 
 namespace Umbraco.Tests.TestHelpers
@@ -66,7 +63,5 @@ namespace Umbraco.Tests.TestHelpers
 		{
 			return GetRoutingContext(url, 1234, routeData);
 		}
-
-		
 	}
 }

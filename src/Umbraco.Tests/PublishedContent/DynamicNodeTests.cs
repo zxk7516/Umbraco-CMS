@@ -68,7 +68,8 @@ namespace Umbraco.Tests.PublishedContent
 
             var node = new DynamicNode(
                 new DynamicBackingItem(
-                    new Node(cache.GetXml(ctx, ctx.InPreviewMode).SelectSingleNode("//*[@id='" + id + "' and @isDoc]"))));
+                    new Node(id)));
+                //    new Node(cache.GetXml(ctx.InPreviewMode).SelectSingleNode("//*[@id='" + id + "' and @isDoc]"))));
             Assert.IsNotNull(node);
             return (dynamic)node;
         }

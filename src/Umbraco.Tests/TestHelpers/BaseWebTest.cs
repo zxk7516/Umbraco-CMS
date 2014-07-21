@@ -15,6 +15,8 @@ using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using Umbraco.Tests.PublishedContent;
 using Umbraco.Web;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic.cache;
@@ -77,5 +79,12 @@ namespace Umbraco.Tests.TestHelpers
 </root>";
         }
 
+        protected override void FreezeResolution()
+        {
+            PublishedCachesResolver.Current = new PublishedCachesResolver(new PublishedCaches(
+                new PublishedContentCache(), new PublishedMediaCache()));
+
+            base.FreezeResolution();
+        }
     }
 }

@@ -19,74 +19,67 @@ namespace Umbraco.Web.PublishedCache
         /// <summary>
         /// Gets a content identified by its unique identifier.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <param name="contentId">The content unique identifier.</param>
         /// <returns>The content, or null.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IPublishedContent GetById(UmbracoContext umbracoContext, bool preview, int contentId);
+        IPublishedContent GetById(bool preview, int contentId);
 
         /// <summary>
         /// Gets contents at root.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <returns>The contents.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview);
+        IEnumerable<IPublishedContent> GetAtRoot(bool preview);
 
         /// <summary>
         /// Gets a content resulting from an XPath query.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <param name="xpath">The XPath query.</param>
         /// <param name="vars">Optional XPath variables.</param>
         /// <returns>The content, or null.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, XPathVariable[] vars);
+        IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars);
 
         /// <summary>
         /// Gets a content resulting from an XPath query.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <param name="xpath">The XPath query.</param>
         /// <param name="vars">Optional XPath variables.</param>
         /// <returns>The content, or null.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, XPathVariable[] vars);
+        IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars);
 
         /// <summary>
         /// Gets contents resulting from an XPath query.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <param name="xpath">The XPath query.</param>
         /// <param name="vars">Optional XPath variables.</param>
         /// <returns>The contents.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, string xpath, XPathVariable[] vars);
+        IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, XPathVariable[] vars);
 
         /// <summary>
         /// Gets contents resulting from an XPath query.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <param name="xpath">The XPath query.</param>
         /// <param name="vars">Optional XPath variables.</param>
         /// <returns>The contents.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, XPathVariable[] vars);
+        IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars);
 
         /// <summary>
         /// Gets an XPath navigator that can be used to navigate contents.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <returns>The XPath navigator.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        XPathNavigator GetXPathNavigator(UmbracoContext umbracoContext, bool preview);
+        XPathNavigator GetXPathNavigator(bool preview);
 
         /// <summary>
         /// Gets a value indicating whether <c>GetXPathNavigator</c> returns an <c>XPathNavigator</c>
@@ -97,11 +90,10 @@ namespace Umbraco.Web.PublishedCache
         /// <summary>
         /// Gets a value indicating whether the cache contains published content.
         /// </summary>
-        /// <param name="umbracoContext">The context.</param>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <returns>A value indicating whether the cache contains published content.</returns>
         /// <remarks>The value of <paramref name="preview"/> overrides the context.</remarks>
-        bool HasContent(UmbracoContext umbracoContext, bool preview);
+        bool HasContent(bool preview);
         
         //TODO: SD: We should make this happen! This will allow us to natively do a GetByDocumentType query
 	    // on the UmbracoHelper (or an internal DataContext that it uses, etc...)

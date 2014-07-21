@@ -45,7 +45,7 @@ namespace Umbraco.Web.PublishedCache
         /// <remarks>A valid route is either a simple path eg <c>/foo/bar/nil</c> or a root node id and a path, eg <c>123/foo/bar/nil</c>.</remarks>
         public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
-            return InnerCache.GetByRoute(UmbracoContext, preview, route, hideTopLevelNode);
+            return InnerCache.GetByRoute(preview, route, hideTopLevelNode);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Umbraco.Web.PublishedCache
         /// <remarks>Considers published or unpublished content depending on context.</remarks>
         public string GetRouteById(bool preview, int contentId)
         {
-            return InnerCache.GetRouteById(UmbracoContext, preview, contentId);
+            return InnerCache.GetRouteById(preview, contentId);
         }
     }
 }

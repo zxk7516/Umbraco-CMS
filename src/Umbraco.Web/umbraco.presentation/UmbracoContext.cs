@@ -87,7 +87,7 @@ namespace umbraco.presentation
             if (cache == null)
                 throw new InvalidOperationException("Unsupported IPublishedContentCache, only the Xml one is supported.");
 
-            return cache.GetXml(umbracoContext, umbracoContext.InPreviewMode);
+            return cache.GetXml(umbracoContext.InPreviewMode);
         }
 
         /// <summary>

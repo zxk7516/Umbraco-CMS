@@ -87,7 +87,7 @@ namespace Umbraco.Tests.PublishedCache
             _xml.LoadXml(GetXml());
             var cache = new PublishedContentCache
                 {
-                    GetXmlDelegate = (context, preview) => _xml
+                    GetXmlDelegate = (preview) => _xml
                 };
 
 		    _umbracoContext = new UmbracoContext(

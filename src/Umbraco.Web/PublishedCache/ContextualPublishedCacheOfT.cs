@@ -43,7 +43,7 @@ namespace Umbraco.Web.PublishedCache
         /// <returns>The content, or null.</returns>
         public override IPublishedContent GetById(bool preview, int contentId)
         {
-            return _cache.GetById(UmbracoContext, preview, contentId);
+            return _cache.GetById(preview, contentId);
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace Umbraco.Web.PublishedCache
         /// <returns>The contents.</returns>
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
-            return _cache.GetAtRoot(UmbracoContext, preview);
+            return _cache.GetAtRoot(preview);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            return _cache.GetSingleByXPath(UmbracoContext, preview, xpath, vars);
+            return _cache.GetSingleByXPath(preview, xpath, vars);
         }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         public override IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            return _cache.GetSingleByXPath(UmbracoContext, preview, xpath, vars);
+            return _cache.GetSingleByXPath(preview, xpath, vars);
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            return _cache.GetByXPath(UmbracoContext, preview, xpath, vars);
+            return _cache.GetByXPath(preview, xpath, vars);
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            return _cache.GetByXPath(UmbracoContext, preview, xpath, vars);
+            return _cache.GetByXPath(preview, xpath, vars);
         }
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace Umbraco.Web.PublishedCache
         /// <returns>The XPath navigator.</returns>
         public override XPathNavigator GetXPathNavigator(bool preview)
         {
-            return _cache.GetXPathNavigator(UmbracoContext, preview);
+            return _cache.GetXPathNavigator(preview);
         }
 
          /// <summary>
@@ -147,7 +147,7 @@ namespace Umbraco.Web.PublishedCache
         /// <returns>A value indicating whether the underlying non-contextual cache contains content.</returns>
         public override bool HasContent(bool preview)
         {
-            return _cache.HasContent(UmbracoContext, preview);
+            return _cache.HasContent(preview);
         }
     }
 }

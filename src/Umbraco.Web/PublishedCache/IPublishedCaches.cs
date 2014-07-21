@@ -24,5 +24,11 @@ namespace Umbraco.Web.PublishedCache
         /// <param name="context">The context.</param>
         /// <returns>A new contextual media cache for the specified context.</returns>
         ContextualPublishedMediaCache CreateContextualMediaCache(UmbracoContext context);
+
+        // fixme - document
+        IPublishedContentCache ContentCache { get; }
+
+        // fixme - document
+        IPublishedMediaCache MediaCache { get; }
     }
 }

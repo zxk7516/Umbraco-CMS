@@ -95,7 +95,7 @@ namespace Umbraco.Tests.Mvc
             contentCaches.Setup(caches => caches.CreateContextualContentCache(It.IsAny<UmbracoContext>()))
                 .Returns(new ContextualPublishedContentCache(
                     Mock.Of<IPublishedContentCache>(cache =>
-                        cache.GetById(It.IsAny<UmbracoContext>(), false, It.IsAny<int>()) ==
+                        cache.GetById(false, It.IsAny<int>()) ==
                             //return mock of IPublishedContent for any call to GetById
                             Mock.Of<IPublishedContent>(content => content.Id == 2)),
                     umbCtx));
