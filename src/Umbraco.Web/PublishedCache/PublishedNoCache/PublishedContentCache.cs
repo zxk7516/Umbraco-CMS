@@ -21,10 +21,10 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             _contentService = contentService;
         }
 
-        public override IPublishedContent GetByRoute(UmbracoContext umbracoContext, bool preview, string route, bool? hideTopLevelNode = null)
+        public override IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
-            var content = base.GetByRoute(umbracoContext, preview, route, hideTopLevelNode);
-            return content == null ? null : PublishedContentModelFactory.CreateModel(content);
+            var content = base.GetByRoute(preview, route, hideTopLevelNode);
+            return content == null ? null : content.CreateModel();
         }
 
         // no need to override that one
@@ -33,21 +33,16 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         //    return base.GetRouteById(umbracoContext, preview, contentId);
         //}
 
-        public override IPublishedContent GetById(UmbracoContext umbracoContext, bool preview, int contentId)
-        {
-            return GetById(preview, contentId);
-        }
-
-        internal IPublishedContent GetById(bool preview, int contentId)
+        public override IPublishedContent GetById(bool preview, int contentId)
         {
             var content = preview
                 ? _contentService.GetById(contentId) // gets the latest version, including draft
                 : _contentService.GetPublishedVersion(contentId); // gets the published version, or null
 
-            return content == null ? null : PublishedContentModelFactory.CreateModel(new PublishedContent(content, this, preview));
+            return content == null ? null : (new PublishedContent(content, this, preview)).CreateModel();
         }
 
-        public override IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview)
+        public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             var content = _contentService.GetRootContent(); // gets the latest versions, including drafts
 
@@ -58,19 +53,19 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
             return content
                 .OrderBy(c => c.SortOrder)
-                .Select(c => PublishedContentModelFactory.CreateModel(new PublishedContent(c, this, preview)));
+                .Select(c => (new PublishedContent(c, this, preview)).CreateModel());
         }
 
-        public override IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
 
-        public override IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
@@ -86,16 +81,16 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             return xcontent == null ? null : xcontent.InnerContent;
         }
 
-        public override IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
 
-        public override IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
@@ -114,9 +109,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
         }
 
-        public override XPathNavigator GetXPathNavigator(UmbracoContext umbracoContext, bool preview)
+        public override XPathNavigator GetXPathNavigator(bool preview)
         {
-            var source = new Navigable.Source(this, umbracoContext, preview);
+            var source = new Navigable.Source(this, preview);
             var navigator = new NavigableNavigator(source);
             return navigator;
         }
@@ -126,9 +121,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             get { return true; }
         }
 
-        public override bool HasContent(UmbracoContext umbracoContext, bool preview)
+        public override bool HasContent(bool preview)
         {
-            return GetAtRoot(umbracoContext, preview).Any();
+            return GetAtRoot(preview).Any();
         }
     }
 }

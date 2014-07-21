@@ -37,7 +37,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             _contentType = new PublishedContentType(_inner.ContentType);
 
             _properties = Models.PublishedProperty.MapProperties(_contentType.PropertyTypes, _inner.Properties,
-                (t, p, v) => new PublishedProperty(t, this, v))
+                (t, v) => new PublishedProperty(t, this, v))
                 .ToArray();
         }
 
@@ -151,7 +151,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
                 return _inner
                     .Children()
                     .Select(x => _isPreviewing
-                                     ? PublishedContentModelFactory.CreateModel(new PublishedContent(x, _cache, true))
+                                     ? (new PublishedContent(x, _cache, true)).CreateModel()
                                      : _cache.GetById(false, x.Id))
                     .Where(x => x != null)
                     .OrderBy(x => x.SortOrder);

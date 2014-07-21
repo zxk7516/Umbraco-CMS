@@ -18,33 +18,28 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             _mediaService = mediaService;
         }
 
-        public IPublishedContent GetById(UmbracoContext umbracoContext, bool preview, int contentId)
-        {
-            return GetById(preview, contentId);
-        }
-
-        internal IPublishedContent GetById(bool preview, int contentId)
+        public IPublishedContent GetById(bool preview, int contentId)
         {
             var content = _mediaService.GetById(contentId);
-            return content == null ? null : PublishedContentModelFactory.CreateModel(new PublishedMedia(content, this, preview));
+            return content == null ? null : (new PublishedMedia(content, this, preview)).CreateModel();
         }
 
-        public IEnumerable<IPublishedContent> GetAtRoot(UmbracoContext umbracoContext, bool preview)
+        public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             var content = _mediaService.GetRootMedia();
-            return content.Select(c => PublishedContentModelFactory.CreateModel(new PublishedMedia(c, this, preview)));
+            return content.Select(c => (new PublishedMedia(c, this, preview)).CreateModel());
         }
 
-        public IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
+        public IPublishedContent GetSingleByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
 
-        public IPublishedContent GetSingleByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
+        public IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
@@ -60,16 +55,16 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             return xcontent == null ? null : xcontent.InnerContent;
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, string xpath, params XPathVariable[] vars)
+        public IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(UmbracoContext umbracoContext, bool preview, XPathExpression xpath, params XPathVariable[] vars)
+        public IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(umbracoContext, preview);
+            var navigator = GetXPathNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
@@ -88,18 +83,18 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
         }
 
-        public XPathNavigator GetXPathNavigator(UmbracoContext umbracoContext, bool preview)
+        public XPathNavigator GetXPathNavigator(bool preview)
         {
-            var source = new Navigable.Source(this, umbracoContext, preview);
+            var source = new Navigable.Source(this, preview);
             var navigator = new NavigableNavigator(source);
             return navigator;
         }
 
         public bool XPathNavigatorIsNavigable { get { return true; } }
 
-        public bool HasContent(UmbracoContext umbracoContext, bool preview)
+        public bool HasContent(bool preview)
         {
-            return GetAtRoot(umbracoContext, preview).Any();
+            return GetAtRoot(preview).Any();
         }
     }
 }

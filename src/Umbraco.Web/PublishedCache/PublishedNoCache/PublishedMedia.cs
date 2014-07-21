@@ -35,7 +35,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             _contentType = new PublishedContentType(_inner.ContentType);
 
             _properties = Models.PublishedProperty.MapProperties(_contentType.PropertyTypes, _inner.Properties,
-                (t, p, v) => new PublishedProperty(t, this, v))
+                (t, v) => new PublishedProperty(t, this, v))
                 .ToArray();
         }
 
@@ -150,7 +150,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
                 // that's OK if previewing, else we have to get the published items through the cache
                 return _inner
                     .Children()
-                    .Select(x => PublishedContentModelFactory.CreateModel(new PublishedMedia(x, _cache, _isPreviewing)))
+                    .Select(x => (new PublishedMedia(x, _cache, _isPreviewing)).CreateModel())
                     .Where(x => x != null)
                     .OrderBy(x => x.SortOrder);
             }

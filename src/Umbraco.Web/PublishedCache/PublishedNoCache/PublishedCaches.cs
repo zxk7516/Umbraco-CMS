@@ -63,5 +63,17 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             return new ContextualPublishedMediaCache(_mediaCache, context);
         }
+
+        // fixme - document
+        public IPublishedContentCache ContentCache
+        {
+            get { return _contentCache; }
+        }
+
+        // fixme - document
+        public IPublishedMediaCache MediaCache
+        {
+            get { return _mediaCache; }
+        }
     }
 }

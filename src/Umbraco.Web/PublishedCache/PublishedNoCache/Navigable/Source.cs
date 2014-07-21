@@ -8,17 +8,15 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache.Navigable
     class Source : INavigableSource
     {
         private readonly IPublishedCache _cache;
-        private readonly UmbracoContext _umbracoContext;
         private readonly bool _preview;
         private readonly RootContent _root;
 
-        public Source(IPublishedCache cache, UmbracoContext umbracoContext, bool preview)
+        public Source(IPublishedCache cache, bool preview)
         {
             _cache = cache;
-            _umbracoContext = umbracoContext;
             _preview = preview;
 
-            var contentAtRoot = cache.GetAtRoot(umbracoContext, preview);
+            var contentAtRoot = cache.GetAtRoot(preview);
             _root = new RootContent(contentAtRoot.Select(x => x.Id));
         }
 
@@ -26,7 +24,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache.Navigable
         {
             // wrap in a navigable content
 
-            var content = _cache.GetById(_umbracoContext, _preview, contentId);
+            var content = _cache.GetById(_preview, contentId);
             if (content == null) return null;
 
             // content may be a strongly typed model, have to unwrap first
