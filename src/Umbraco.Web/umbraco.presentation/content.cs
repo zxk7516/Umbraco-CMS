@@ -109,6 +109,7 @@ namespace umbraco
             }
         }
 
+        // that one is not used anymore in core
         [Obsolete("Please use: content.Instance.XmlContent")]
         public static XmlDocument xmlContent
         {

@@ -15,7 +15,6 @@ using System.Collections;
 using System.Reflection;
 using umbraco.cms.businesslogic.web;
 using umbraco.cms.businesslogic.propertytype;
-using umbraco.cms.businesslogic.property;
 using umbraco.BusinessLogic;
 using umbraco.DataLayer;
 using umbraco.cms.businesslogic;
@@ -28,6 +27,9 @@ using umbraco.BusinessLogic.Utils;
 using Examine;
 using Examine.SearchCriteria;
 using Examine.LuceneEngine.SearchCriteria;
+using umbraco.NodeFactory;
+using Umbraco.Web;
+using Property = umbraco.cms.businesslogic.property.Property;
 
 namespace umbraco.MacroEngines
 {
@@ -182,8 +184,33 @@ namespace umbraco.MacroEngines
             //if this DN was initialized with an underlying NodeFactory.Node
             if (n != null && n.Type == DynamicBackingItemType.Content)
             {
+                //in test mode, n.Id is 0, let this always succeed
+                if (n.Id == 0)
+                {
+                    var selfList = new List<DynamicNode>() { this };
+                    return new DynamicNodeList(selfList);
+                }
+
+                var nav = UmbracoContext.Current.ContentCache.GetXPathNavigator();
+                if (nav.MoveToId(n.Id.ToString()) == false)
+                    throw new Exception("Couldn't locate the DynamicNode within the content cache.");
+
+                // fixme - might want to initialize DynamicNode from IPublishedContent?
+                // fixme - but that will do for the time being...
+                // fixme - see also CompatibilityHelper?
+
+                var selected = nav.Select(xPath);
+                var nl = new List<NodeFactory.Node>();
+                while (selected.MoveNext())
+                {
+                    nl.Add(new Node(selected.Current));
+                }
+                return new DynamicNodeList(nl);
+
+                /*
                 //get the underlying xml content
                 XmlDocument doc = umbraco.content.Instance.XmlContent;
+
                 if (doc != null)
                 {
                     //get n as a XmlNode (to be used as the context point for the xpath)
@@ -242,6 +269,7 @@ namespace umbraco.MacroEngines
                 {
                     throw new NullReferenceException("umbraco.content.Instance.XmlContent is null");
                 }
+                */
             }
             else
             {
@@ -1913,14 +1941,14 @@ namespace umbraco.MacroEngines
 			get { return new List<INode>(ChildrenAsList.Select(x => x).ToList()); }
 		}
 
-		IProperty INode.GetProperty(string Alias)
+		IProperty INode.GetProperty(string alias)
 		{
-			return GetProperty(Alias);
+			return GetProperty(alias);
 		}
 
-		IProperty INode.GetProperty(string Alias, out bool propertyExists)
+		IProperty INode.GetProperty(string alias, out bool propertyExists)
 		{
-			var p = GetProperty(Alias, false);
+			var p = GetProperty(alias, false);
 			propertyExists = p != null;
 			return p;
 		}
