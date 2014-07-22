@@ -16,10 +16,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     {
         private readonly IContentService _contentService;
 
-        public PublishedContentCache(IContentService contentService)
+        public PublishedContentCache(bool preview, IContentService contentService)
+            : base(null, preview)
         {
             _contentService = contentService;
         }
+
+        // note: PublishedNoCache relies on XmlPublishedCache's routes cache
+        // but does not use the XML cache (passing null as XmlStore in the ctor)
 
         public override IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
