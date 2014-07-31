@@ -1,4 +1,4 @@
-﻿angular.module("umbraco").controller("Umbraco.Dialogs.LoginController", function ($scope, localizationService, userService) {
+﻿angular.module("umbraco").controller("Umbraco.Dialogs.LoginController", function ($scope, userService, legacyJsLoader, $routeParams) {
     
     /**
      * @ngdoc function
@@ -10,11 +10,9 @@
      * signs the user in
      */
     var d = new Date();
-    //var weekday = new Array("Super Sunday", "Manic Monday", "Tremendous Tuesday", "Wonderful Wednesday", "Thunder Thursday", "Friendly Friday", "Shiny Saturday");
-    localizationService.localize("login_greeting"+d.getDay()).then(function(label){
-        $scope.greeting = label;
-    }); // weekday[d.getDay()];
+    var weekday = new Array("Super Sunday", "Manic Monday", "Tremendous Tuesday", "Wonderfull Wednesday", "Thunder Thursday", "Friendly Friday", "Shiny Saturday");
     
+    $scope.today = weekday[d.getDay()];
     $scope.errorMsg = "";
     
     $scope.loginSubmit = function (login, password) {
@@ -35,7 +33,7 @@
 
         userService.authenticate(login, password)
             .then(function (data) {               
-                $scope.submit(true);
+                $scope.submit(true);                
             }, function (reason) {
                 $scope.errorMsg = reason.errorMsg;
                 

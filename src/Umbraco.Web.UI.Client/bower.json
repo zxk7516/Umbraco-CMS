@@ -17,9 +17,15 @@
   ],
   "dependencies": {
     "typeahead.js": "~0.10.2",
-    "angular": "~1.2.18",
-    "angular-route": "~1.2.18",
-    "angular-touch": "~1.2.18",
-    "rgrove-lazyload": "*"
+    "angular": "~1.2.20",
+    "angular-route": "~1.2.20",
+    "angular-touch": "~1.2.20",
+    "angular-mocks": "~1.2.20",
+    "angular-cookies": "~1.2.20",
+    "angular-sanitize": "~1.2.20",
+    "angular-animate": "~1.2.20",
+    "rgrove-lazyload": "*",
+    "animate.css": "3.2.0",
+    "lodash": "~2.4.1"
   }
 }

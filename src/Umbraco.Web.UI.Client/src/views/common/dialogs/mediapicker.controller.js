@@ -1,117 +1,99 @@
 //used for the media picker dialog
 angular.module("umbraco")
     .controller("Umbraco.Dialogs.MediaPickerController",
-        function ($scope, mediaResource, umbRequestHelper, entityResource, $log, mediaHelper, eventsService, treeService, $cookies) {
+        function ($scope, mediaResource, umbRequestHelper, entityResource, $log, imageHelper, eventsService) {
 
-            var dialogOptions = $scope.dialogOptions;
-
-            $scope.onlyImages = dialogOptions.onlyImages;
-            $scope.showDetails = dialogOptions.showDetails;
-            $scope.multiPicker = (dialogOptions.multiPicker && dialogOptions.multiPicker !== "0") ? true : false;
-            $scope.startNodeId = dialogOptions.startNodeId ? dialogOptions.startNodeId : -1;
-
-
+            var dialogOptions = $scope.$parent.dialogOptions;
             $scope.options = {
                 url: umbRequestHelper.getApiUrl("mediaApiBaseUrl", "PostAddFile"),
                 autoUpload: true,
-                formData: {
+                formData:{
                     currentFolder: -1
                 }
             };
 
-            //preload selected item
-            $scope.target = undefined;
-            if(dialogOptions.currentTarget){
-                $scope.target = dialogOptions.currentTarget;
-            }
-
-            $scope.submitFolder = function(e) {
-                if (e.keyCode === 13) {
-                    e.preventDefault();
+            $scope.submitFolder = function(e){
+                if(e.keyCode === 13){
                     $scope.showFolderInput = false;
 
                     mediaResource
-                        .addFolder($scope.newFolderName, $scope.options.formData.currentFolder)
-                        .then(function(data) {
-
-                            //we've added a new folder so lets clear the tree cache for that specific item
-                            treeService.clearCache({
-                                cacheKey: "__media", //this is the main media tree cache key
-                                childrenOf: data.parentId //clear the children of the parent
-                            });
-
-                            $scope.gotoFolder(data);
-                        });
+                    .addFolder($scope.newFolderName, $scope.options.formData.currentFolder)
+                    .then(function(data){
+                        
+                        $scope.gotoFolder(data.id);
+                    });
                 }
             };
 
-            $scope.gotoFolder = function(folder) {
+            $scope.gotoFolder = function(folderId){
 
-                if(!folder){
-                    folder = {id: -1, name: "Media", icon: "icon-folder"};
-                }
-
-                if (folder.id > 0) {
-                    entityResource.getAncestors(folder.id, "media")
-                        .then(function(anc) {
-                            // anc.splice(0,1);  
-                            $scope.path = _.filter(anc, function (f) {
-                                return f.path.indexOf($scope.startNodeId) !== -1;
-                            });
+                if(folderId > 0){
+                    entityResource.getAncestors(folderId, "media")
+                        .then(function(anc){
+                           // anc.splice(0,1);  
+                            $scope.path = anc;
                         });
-                }
-                else {
+                }else{
                     $scope.path = [];
                 }
+                
+
 
                 //mediaResource.rootMedia()
-                mediaResource.getChildren(folder.id)
+                mediaResource.getChildren(folderId)
                     .then(function(data) {
+                        
+                        $scope.images = [];
                         $scope.searchTerm = "";
-                        $scope.images = data.items ? data.items : [];
+                        $scope.images = data.items;
+                        //update the thumbnail property
+                        _.each($scope.images, function(img) {
+                            img.thumbnail = imageHelper.getThumbnail({ imageModel: img, scope: $scope });
+                        });
                     });
 
-                $scope.options.formData.currentFolder = folder.id;
-                $scope.currentFolder = folder;      
+                $scope.options.formData.currentFolder = folderId;
             };
+               
 
-            $scope.$on('fileuploadstop', function(event, files) {
-                $scope.gotoFolder($scope.currentFolder);
+            $scope.$on('fileuploadstop', function(event, files){
+                $scope.gotoFolder($scope.options.formData.currentFolder);
             });
+            
+            $scope.clickHandler = function(image, ev){
 
-            $scope.clickHandler = function(image, ev, select) {
+                if (image.contentTypeAlias.toLowerCase() == 'folder') {      
+                    $scope.options.formData.currentFolder = image.id;
+                    $scope.gotoFolder(image.id);
+                }else if (image.contentTypeAlias.toLowerCase() == 'image') {
+                    eventsService.publish("Umbraco.Dialogs.MediaPickerController.Select", image).then(function(image){
+                        if(dialogOptions && dialogOptions.multiPicker){
+                            $scope.select(image);
+                            image.cssclass = ($scope.dialogData.selection.indexOf(image) > -1) ? "selected" : "";
+                        }else{
+                            $scope.submit(image);                 
+                        }
+                    });
+                }
+
                 ev.preventDefault();
-                
-                if (image.isFolder && !select) {
-                    $scope.gotoFolder(image);
-                }else{
-                    eventsService.emit("dialogs.mediaPicker.select", image);
-                    
-                    //we have 3 options add to collection (if multi) show details, or submit it right back to the callback
-                    if ($scope.multiPicker) {
-                        $scope.select(image);
-                        image.cssclass = ($scope.dialogData.selection.indexOf(image) > -1) ? "selected" : "";
-                    }else if($scope.showDetails) {
-                        $scope.target= image;
-                        $scope.target.url = mediaHelper.resolveFile(image);
-                    }else{
-                        $scope.submit(image);
-                    }
+            };
+
+            $scope.selectMediaItem = function(image) {
+                if (image.contentTypeAlias.toLowerCase() == 'folder') {      
+                    $scope.options.formData.currentFolder = image.id;
+                    $scope.gotoFolder(image.id);
+                }else if (image.contentTypeAlias.toLowerCase() == 'image') {
+
+                    eventsService.publish("Umbraco.Dialogs.MediaPickerController.Select", image).then(function(image){
+                        if(dialogOptions && dialogOptions.multiPicker){
+                            $scope.select(image);
+                        }else{
+                            $scope.submit(image);                 
+                        }
+                    });
                 }
             };
 
-            $scope.exitDetails = function(){
-                if(!$scope.currentFolder){
-                    $scope.gotoFolder();
-                }
-
-                $scope.target = undefined;
-            };
-
-           
-
-            //default root item
-            if(!$scope.target){
-                $scope.gotoFolder({ id: $scope.startNodeId, name: "Media", icon: "icon-folder" });  
-            }
+            $scope.gotoFolder(-1);
         });

@@ -103,7 +103,7 @@ module.exports = function (grunt) {
         app: ['src/views/**/*.html'],
         common: ['src/common/**/*.tpl.html']
       },
-      less: ['src/less/belle.less'], // recess:build doesn't accept ** in its file patterns
+      less: ['src/less/umbraco.less'], // recess:build doesn't accept ** in its file patterns
       prod: ['<%= distdir %>/js/*.js']
     },
 
@@ -125,6 +125,34 @@ module.exports = function (grunt) {
                 {
                   dest: '<%= distdir %>/lib/lazyload/lazyload.min.js', 
                   src: 'bower_components/rgrove-lazyload/lazyload.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular.min.js', 
+                  src: 'bower_components/angular/angular.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-route.min.js', 
+                  src: 'bower_components/angular-route/angular-route.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-touch.min.js', 
+                  src: 'bower_components/angular-touch/angular-touch.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-cookies.min.js', 
+                  src: 'bower_components/angular-cookies/angular-cookies.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-mocks.js', 
+                  src: 'bower_components/angular-mocks/angular-mocks.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-sanitize.min.js', 
+                  src: 'bower_components/angular-sanitize/angular-sanitize.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular/1.2/angular-animate.min.js',
+                  src: 'bower_components/angular-animate/angular-animate.js'
                 }
               ]
       },

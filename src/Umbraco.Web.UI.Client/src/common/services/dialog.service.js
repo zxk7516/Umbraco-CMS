@@ -34,56 +34,50 @@ angular.module('umbraco.services')
     var dialogs = [];
 
     /** Internal method that removes all dialogs */
-    function removeAllDialogs(args) {
+    function closeAllDialogs(args) {
         for (var i = 0; i < dialogs.length; i++) {
             var dialog = dialogs[i];
-            dialog.close(args);
-        }
-    }
-
-    /** Internal method that closes the dialog properly and cleans up resources */
-    function closeDialog(dialog) {
-
-        if (dialog.element) {
-            dialog.element.modal('hide');
-
-            //this is not entirely enough since the damn webforms scriploader still complains
-            if (dialog.iframe) {
-                dialog.element.find("iframe").attr("src", "about:blank");
-                $timeout(function () {
-                    //we need to do more than just remove the element, this will not destroy the 
-                    // scope in angular 1.1x, in angular 1.2x this is taken care of but if we dont
-                    // take care of this ourselves we have memory leaks.
-                    dialog.element.remove();
-                    //SD: No idea why this is required but was there before - pretty sure it's not required
-                    $("#" + dialog.element.attr("id")).remove();
-                    dialog.scope.$destroy();
-                }, 1000);
-            } else {
-                //we need to do more than just remove the element, this will not destroy the 
-                // scope in angular 1.1x, in angular 1.2x this is taken care of but if we dont
-                // take care of this ourselves we have memory leaks.
-                dialog.element.remove();
-                //SD: No idea why this is required but was there before - pretty sure it's not required
-                $("#" + dialog.element.attr("id")).remove();
-                dialog.scope.$destroy();
+            
+            if(dialog.closeCallback){
+                dialog.closeCallback(data);
             }
         }
 
-        //remove 'this' dialog from the dialogs array
-        dialogs = _.reject(dialogs, function (i) { return i === dialog; });
+        dialogs.length = 0;
+    }
+
+
+    /** Internal method that closes the dialog properly and cleans up resources */
+    function closeDialog(dialog, data) {
+
+        if(data && dialog.closeCallback){
+            dialog.closeCallback(data);
+        }
+
+        removeDialog(dialog);
+    }
+
+    function submitDialog(dialog, data) {
+        if(data && dialog.callback){
+            dialog.callback(data);
+        }
+
+        removeDialog(dialog);
+    }
+
+    function removeDialog(dialog){
+        var index = _.indexOf(dialogs, dialog);
+        dialogs.splice(index, 1);  
     }
 
     /** Internal method that handles opening all dialogs */
     function openDialog(options) {
         var defaults = {
-            container: $("body"),
-            animation: "fade",
-            modalClass: "umb-modal",
+            animation: "slide-in-right",
+            modalClass: "umb-modal shadow-depth-5",
             width: "100%",
             inline: false,
             iframe: false,
-            show: true,
             template: "views/common/notfound.html",
             callback: undefined,
             closeCallback: undefined,
@@ -97,175 +91,24 @@ angular.module('umbraco.services')
         };
 
         var dialog = angular.extend(defaults, options);
-        
-        //NOTE: People should NOT pass in a scope object that is legacy functoinality and causes problems. We will ALWAYS
-        // destroy the scope when the dialog is closed regardless if it is in use elsewhere which is why it shouldn't be done.
-        var scope = options.scope || $rootScope.$new();
-
-        //Modal dom obj and unique id
-        dialog.element = $('<div ng-swipe-right="swipeHide($event)"  data-backdrop="false"></div>');
-        var id = dialog.template.replace('.html', '').replace('.aspx', '').replace(/[\/|\.|:\&\?\=]/g, "-") + '-' + scope.$id;
-
-        if (options.inline) {
-            dialog.animation = "";
-        }
-        else {
-            dialog.element.addClass("modal");
-            dialog.element.addClass("hide");
-        }
-
-        //set the id and add classes
-        dialog.element
-            .attr('id', id)
-            .addClass(dialog.animation)
-            .addClass(dialog.modalClass);
+        dialog.cssClass = [];
+        dialog.cssClass.push(dialog.modalClass);
+        dialog.cssClass.push(dialog.animation);
 
         //push the modal into the global modal collection
         //we halt the .push because a link click will trigger a closeAll right away
-        $timeout(function () {
-            dialogs.push(dialog);
-        }, 500);
-
-
-        dialog.close = function (data) {
-            if (dialog.closeCallback) {
-                dialog.closeCallback(data);
-            }
-
-            closeDialog(dialog);
-        };
-
-        //if iframe is enabled, inject that instead of a template
-        if (dialog.iframe) {
-            var html = $("<iframe src='" + dialog.template + "' class='auto-expand' style='border: none; width: 100%; height: 100%;'></iframe>");
-            dialog.element.html(html);
-
-            //append to body or whatever element is passed in as options.containerElement
-            dialog.container.append(dialog.element);
-
-            // Compile modal content
-            $timeout(function () {
-                $compile(dialog.element)(dialog.scope);
-            });
-
-            dialog.element.css("width", dialog.width);
-
-            //Autoshow 
-            if (dialog.show) {
-                dialog.element.modal('show');
-            }
-
-            dialog.scope = scope;
-            return dialog;
-        }
-        else {
-
-            //We need to load the template with an httpget and once it's loaded we'll compile and assign the result to the container
-            // object. However since the result could be a promise or just data we need to use a $q.when. We still need to return the 
-            // $modal object so we'll actually return the modal object synchronously without waiting for the promise. Otherwise this openDialog
-            // method will always need to return a promise which gets nasty because of promises in promises plus the result just needs a reference
-            // to the $modal object which will not change (only it's contents will change).
-            $q.when($templateCache.get(dialog.template) || $http.get(dialog.template, { cache: true }).then(function (res) { return res.data; }))
-                .then(function onSuccess(template) {
-
-                    // Build modal object
-                    dialog.element.html(template);
-
-                    //append to body or other container element  
-                    dialog.container.append(dialog.element);
-
-                    // Compile modal content
-                    $timeout(function () {
-                        $compile(dialog.element)(scope);
-                    });
-
-                    scope.dialogOptions = dialog;
-
-                    //Scope to handle data from the modal form
-                    scope.dialogData = dialog.dialogData ? dialog.dialogData : {};
-                    scope.dialogData.selection = [];
-
-                    // Provide scope display functions
-                    //this passes the modal to the current scope
-                    scope.$modal = function (name) {
-                        dialog.element.modal(name);
-                    };
-
-                    scope.swipeHide = function (e) {
-                        if (appState.getGlobalState("touchDevice")) {
-                            var selection = window.getSelection();
-                            if (selection.type !== "Range") {
-                                scope.hide();
-                            }
-                        }
-                    };
-
-                    //NOTE: Same as 'close' without the callbacks
-                    scope.hide = function () {
-                        closeDialog(dialog);
-                    };
-
-                    //basic events for submitting and closing
-                    scope.submit = function (data) {
-                        if (dialog.callback) {
-                            dialog.callback(data);
-                        }
-
-                        closeDialog(dialog);
-                    };
-
-                    scope.close = function (data) {
-                        dialog.close(data);
-                    };
-                    
-                    //NOTE: This can ONLY ever be used to show the dialog if dialog.show is false (autoshow). 
-                    // You CANNOT call show() after you call hide(). hide = close, they are the same thing and once
-                    // a dialog is closed it's resources are disposed of.
-                    scope.show = function () {
-                        dialog.element.modal('show');
-                    };
-
-                    scope.select = function (item) {
-                        var i = scope.dialogData.selection.indexOf(item);
-                        if (i < 0) {
-                            scope.dialogData.selection.push(item);
-                        } else {
-                            scope.dialogData.selection.splice(i, 1);
-                        }
-                    };
-
-                    //NOTE: Same as 'close' without the callbacks
-                    scope.dismiss = scope.hide;
-
-                    // Emit modal events
-                    angular.forEach(['show', 'shown', 'hide', 'hidden'], function (name) {
-                        dialog.element.on(name, function (ev) {
-                            scope.$emit('modal-' + name, ev);
-                        });
-                    });
-
-                    // Support autofocus attribute
-                    dialog.element.on('shown', function (event) {
-                        $('input[autofocus]', dialog.element).first().trigger('focus');
-                    });
-
-                    //Autoshow 
-                    if (dialog.show) {
-                        dialog.element.modal('show');
-                    }
-
-                    dialog.scope = scope;
-                });
-
-            //Return the modal object outside of the promise!
-            return dialog;
-        }
+        
+        dialogs.push(dialog); 
+        
+        //Return the modal object outside of the promise!
+        return dialog;        
     }
 
     /** Handles the closeDialogs event */
     eventsService.on("app.closeDialogs", function (evt, args) {
-        removeAllDialogs(args);
+        closeAllDialogs(args);
     });
+
 
     return {
         /**
@@ -292,6 +135,8 @@ angular.module('umbraco.services')
             return openDialog(options);
         },
 
+        current: dialogs,
+
         /**
          * @ngdoc method
          * @name umbraco.services.dialogService#close
@@ -300,12 +145,28 @@ angular.module('umbraco.services')
          * @description
          * Closes a specific dialog
          * @param {Object} dialog the dialog object to close
-         * @param {Object} args if specified this object will be sent to any callbacks registered on the dialogs.
+         * @param {Object} args if specified this object will be sent to any "close" callbacks registered on the dialogs.
          */
         close: function (dialog, args) {
             if (dialog) {
-                dialog.close(args);
+                closeDialog(dialog, args);
             }
+        },
+
+        /**
+         * @ngdoc method
+         * @name umbraco.services.dialogService#submit
+         * @methodOf umbraco.services.dialogService
+         *
+         * @description
+         * Submits and closes a specific dialog
+         * @param {Object} dialog the dialog object to submit and close
+         * @param {Object} args if specified this object will be sent to any "submit" callback registered on the dialogs.
+         */
+        submit: function (dialog, args) {
+           if (dialog) {
+               submitDialog(dialog, args);
+           }
         },
 
         /**
@@ -318,7 +179,7 @@ angular.module('umbraco.services')
          * @param {Object} args if specified this object will be sent to any callbacks registered on the dialogs.
          */
         closeAll: function (args) {
-            removeAllDialogs(args);
+            closeAllDialogs(args);
         },
 
         /**
@@ -335,7 +196,6 @@ angular.module('umbraco.services')
          */
         mediaPicker: function (options) {
             options.template = 'views/common/dialogs/mediaPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -354,7 +214,6 @@ angular.module('umbraco.services')
          */
         contentPicker: function (options) {
             options.template = 'views/common/dialogs/contentPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -371,7 +230,6 @@ angular.module('umbraco.services')
          */
         linkPicker: function (options) {
             options.template = 'views/common/dialogs/linkPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -388,7 +246,6 @@ angular.module('umbraco.services')
          */
         macroPicker: function (options) {
             options.template = 'views/common/dialogs/insertmacro.html';
-            options.show = true;
             options.modalClass = "span7 umb-modal";
             return openDialog(options);
         },
@@ -407,7 +264,6 @@ angular.module('umbraco.services')
          */
         memberPicker: function (options) {
             options.template = 'views/common/dialogs/memberPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -425,7 +281,6 @@ angular.module('umbraco.services')
          */
         memberGroupPicker: function (options) {
             options.template = 'views/common/dialogs/memberGroupPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -442,7 +297,6 @@ angular.module('umbraco.services')
          */
         iconPicker: function (options) {
             options.template = 'views/common/dialogs/iconPicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -462,7 +316,6 @@ angular.module('umbraco.services')
          */
         treePicker: function (options) {
             options.template = 'views/common/dialogs/treePicker.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -481,7 +334,6 @@ angular.module('umbraco.services')
          */
         propertyDialog: function (options) {
             options.template = 'views/common/dialogs/property.html';
-            options.show = true;
             return openDialog(options);
         },
 
@@ -494,8 +346,7 @@ angular.module('umbraco.services')
         */
         embedDialog: function (options) {
             options.template = 'views/common/dialogs/rteembed.html';
-            options.show = true;
-            return openDialog(options);
+             return openDialog(options);
         },
         /**
         * @ngdoc method
@@ -509,12 +360,12 @@ angular.module('umbraco.services')
 
             var newScope = $rootScope.$new();
             newScope.error = ysodError;
+
             return openDialog({
                 modalClass: "umb-modal wide",
                 scope: newScope,
                 //callback: options.callback,
-                template: 'views/common/dialogs/ysod.html',
-                show: true
+                template: 'views/common/dialogs/ysod.html'
             });
         }
     };

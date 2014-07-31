@@ -1,7 +1,7 @@
 //used for the media picker dialog
 angular.module("umbraco").controller("Umbraco.Dialogs.ContentPickerController",
 	function ($scope, eventsService, entityResource, searchService, $log) {	
-	var dialogOptions = $scope.dialogOptions;
+	var dialogOptions = $scope.$parent.dialogOptions;
 	$scope.dialogTreeEventHandler = $({});
 	$scope.results = [];
 
@@ -25,9 +25,7 @@ angular.module("umbraco").controller("Umbraco.Dialogs.ContentPickerController",
 		if($scope.term){
 			if($scope.oldTerm !== $scope.term){
 				$scope.results = [];
-			    searchService.searchContent({ term: $scope.term }).then(function(data) {
-			        $scope.results = data;
-			    });
+				searchService.searchContent({term: $scope.term, results: $scope.results});
 				$scope.showSearch = true;
 				$scope.oldTerm = $scope.term;
 			}
@@ -43,33 +41,34 @@ angular.module("umbraco").controller("Umbraco.Dialogs.ContentPickerController",
 		args.event.preventDefault();
 		args.event.stopPropagation();
 
-		eventsService.emit("dialogs.contentPicker.select", args);
-	    
-		if (dialogOptions && dialogOptions.multiPicker) {
+		eventsService.publish("Umbraco.Dialogs.ContentPickerController.Select", args).then(function(args){
+			if(dialogOptions && dialogOptions.multiPicker){
+				
+				var c = $(args.event.target.parentElement);
+				if(!args.node.selected){
+					args.node.selected = true;
+					
+					var temp = "<i class='icon umb-tree-icon sprTree icon-check blue temporary'></i>";
+					var icon = c.find("i.umb-tree-icon");
+					if(icon.length > 0){
+						icon.hide().after(temp);
+					}else{
+						c.prepend(temp);
+					}
+						
+				}else{
+					args.node.selected = false;
+					c.find(".temporary").remove();
+					c.find("i.umb-tree-icon").show();
+				}
 
-		    var c = $(args.event.target.parentElement);
-		    if (!args.node.selected) {
-		        args.node.selected = true;
+				$scope.select(args.node);
 
-		        var temp = "<i class='icon umb-tree-icon sprTree icon-check blue temporary'></i>";
-		        var icon = c.find("i.umb-tree-icon");
-		        if (icon.length > 0) {
-		            icon.hide().after(temp);
-		        } else {
-		            c.prepend(temp);
-		        }
-
-		    } else {
-		        args.node.selected = false;
-		        c.find(".temporary").remove();
-		        c.find("i.umb-tree-icon").show();
-		    }
-
-		    $scope.select(args.node);
-
-		} else {
-		    $scope.submit(args.node);
-		}
+			}else{
+				$scope.submit(args.node);					
+			}
+			
+		});
 
 	});
 });

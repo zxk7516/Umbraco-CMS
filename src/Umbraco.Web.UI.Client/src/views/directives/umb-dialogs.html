@@ -1,0 +1,21 @@
+<div ng-cloak>
+    <div 
+        ng-repeat="dialog in dialogs"
+        ng-swipe-right="swipeHide($event)"
+        class="alert alert-block alert-{{notification.type}}" >
+
+
+        <div 
+            class="umb-dialog-body"
+            ng-controller="Umbraco.DialogController">
+                <ng-include src="{{dialog.template}}"></ng-include>
+        </div>
+
+        <iframe 
+            ng-if="dialog.iframe == true"
+            style='border: none; width: 100%; height: 100%;' 
+            class="umb-dialog-body umb-dialog-iframe"
+            src="{{dialog.template}}"></iframe>    
+
+    </div>
+</div>

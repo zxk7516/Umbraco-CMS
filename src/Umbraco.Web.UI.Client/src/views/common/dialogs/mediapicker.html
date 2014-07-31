@@ -1,8 +1,9 @@
 <form ng-controller="Umbraco.Dialogs.MediaPickerController" id="fileupload" method="POST" enctype="multipart/form-data" 
 data-file-upload="options" data-file-upload-progress="" data-ng-class="{'fileupload-processing': processing() || loadingFiles}">
 
-<div class="umb-panel umb-dialogs-mediapicker" ng-if="target">
- 	<div class="umb-panel-body no-header with-footer compact">
+<umb-panel ng-class="umb-dialogs-mediapicker">
+	<div ng-if="target">
+	 	<div class="umb-body no-header">
  			<umb-pane>
  				<umb-control-group ng-if="target.url">
 	 				<div class="thumbnail span6 clearfix">
@@ -31,7 +32,7 @@ data-file-upload="options" data-file-upload-progress="" data-ng-class="{'fileupl
  			</umb-pane>
  		</div>
 
- 		<div class="umb-panel-footer" >
+ 		<div class="umb-footer" >
  			<div class="umb-el-wrap umb-panel-buttons">
  		        <div class="btn-toolbar umb-btn-toolbar pull-right">
  		        	<a href ng-click="exitDetails()" class="btn btn-link">
@@ -46,13 +47,10 @@ data-file-upload="options" data-file-upload-progress="" data-ng-class="{'fileupl
  		        </div>
  			</div>
  		</div>
-</div>
+	</div>
 
-
-<div class="umb-panel umb-dialogs-mediapicker" ng-hide="target">
-	<div class="umb-panel-header">
-		
-		<div class="umb-el-wrap umb-panel-buttons">
+	<div ng-hide="target">
+		<umb-header>
 			<div class="span5">
 	                <div class="form-search">
 	                    <i class="icon-search"></i>
@@ -62,75 +60,73 @@ data-file-upload="options" data-file-upload-progress="" data-ng-class="{'fileupl
 	                           placeholder="Filter...">
 	                </div>
 	        </div>
-
 		    <div class="pull-right">
 				    	<span class="btn fileinput-button" ng-class="{disabled: disabled}">
 				    	    <i class="icon-page-up"></i>
 				    	    <input type="file" name="files[]" multiple ng-disabled="disabled">
 				    	</span>
 	        </div>
+		</umb-header>
 
-		</div>
+		<div class="umb-body">
 
-		<div class="row">
-			<ul class="breadcrumb span12">
-				<li ng-hide="startNodeId != -1">
-					<a href ng-click="gotoFolder()" prevent-default>Media</a> / </li>
+			<div class="row">
+				<ul class="breadcrumb">
+					<li ng-hide="startNodeId != -1">
+						<a href ng-click="gotoFolder()" prevent-default>Media</a> / </li>
+					<li ng-repeat="item in path">
+						<a href ng-click="gotoFolder(item)" prevent-default>{{item.name}}</a> / 
+					</li>
+					<li>
+						<a href ng-hide="showFolderInput" ng-click="showFolderInput = true">
+							<i class="icon icon-add small"></i>
+						</a>
+						<input type="text" 
+							class="input-foldername input-mini inline" 
+							ng-show="showFolderInput" 
+							ng-model="newFolderName"
+							ng-keydown="submitFolder($event)"
+							on-blur="showFolderInput = false">
+					</li>
+				</ul>
+			</div>
 
-				<li ng-repeat="item in path">
-					<a href ng-click="gotoFolder(item)" prevent-default>{{item.name}}</a> / 
-				</li>
+			<umb-pane>
+				<div style="height: 10px; margin: 10px 0px 10px 0px" class="umb-loader" ng-hide="active() == 0"></div>
+
+				<umb-photo-folder 
+					min-height="105" 
+					min-width="150"
+					max-height="250"
+				    ideal-items-per-row="3"
+					on-click="clickHandler"
+					ng-model="images"
+					images-only="{{onlyImages}}"
+					filter-by="searchTerm"/>
+
+			</umb-pane>
 				
-				<li>
-					<a href ng-hide="showFolderInput" ng-click="showFolderInput = true">
-						<i class="icon icon-add small"></i>
-					</a>
-
-					<input type="text" 
-						class="input-foldername input-mini inline" 
-						ng-show="showFolderInput" 
-						ng-model="newFolderName"
-						ng-keydown="submitFolder($event)"
-						on-blur="showFolderInput = false">
-				</li>
-			</ul>
 		</div>
-	</div>
+		
 
-	<div class="umb-panel-body with-footer">
-        <div style="height: 10px; margin: 10px 0px 10px 0px" class="umb-loader" 
-        	ng-hide="active() == 0"></div>
-        <umb-photo-folder 
-        	min-height="105" 
-        	min-width="150"
-        	max-height="250"
-            ideal-items-per-row="3"
-        	on-click="clickHandler"
-        	ng-model="images"
-        	images-only="{{onlyImages}}"
-        	filter-by="searchTerm"/>
-	</div>	
-
-
-	<div class="umb-panel-footer" >
-		<div class="umb-el-wrap umb-panel-buttons">
+		<div class="umb-footer" >
 	        <div class="btn-toolbar umb-btn-toolbar pull-right">
-
 	        	<a href ng-click="close()" class="btn btn-link">
 	        		<localize key="general_cancel">Cancel</localize>
 				</a>
-
 				<button
 					class="btn btn-primary"
 					ng-show="multiPicker" 
 					ng-click="submit(dialogData.selection)">
 					<localize key="buttons_select">Select</localize>({{dialogData.selection.length}})
 				</button>
-
 	        </div>
 		</div>
 	</div>
+</umb-panel>
 
-</div>
+
+
+
 
 </form>

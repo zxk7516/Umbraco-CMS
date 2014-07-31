@@ -1,9 +1,8 @@
-﻿<div class="umb-panel ysod" ng-controller="Umbraco.Dialogs.YsodController">
-    
-    <div class="umb-panel-body with-footer no-header">
-
-        <h3 style="padding-left: 20px" class="headline red">Received an error from the server</h3>
-
+﻿<umb-panel ng-class="'umb-dialog ysod'" ng-controller="Umbraco.Dialogs.YsodController">
+    <umb-header>
+            <h1 class="red">Received an error from the server</h1>
+    </umb-header>
+    <umb-body>
         <umb-pane>
             <h4>{{error.errorMsg}}</h4>
             <p>{{error.data.ExceptionMessage || error.data.Message}}</p>
@@ -18,11 +17,10 @@
             <h5>Stacktrace: </h5>
             <pre style="white-space: pre-wrap; overflow-x: auto;">{{error.data.StackTrace}}</pre>
         </umb-pane>
-    </div>
-
-    <div class="umb-panel-footer">
+    </umb-body>
+    <umb-footer>
             <a href ng-click="close()" class="btn pull-right">
                 <localize key="general_close">Close</localize>
             </a>
-    </div>
+    </umb-footer>
 </umb-panel>

@@ -8,13 +8,14 @@
  * The main application controller
  * 
  */
-function MainController($scope, $rootScope, $location, $routeParams, $timeout, $http, $log, appState, treeService, notificationsService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
+function MainController($scope, $rootScope, $location, $routeParams, $timeout, $http, $log, appState, treeService, notificationsService, dialogService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
 
     //the null is important because we do an explicit bool check on this in the view
     //the avatar is by default the umbraco logo    
     $scope.authenticated = null;
     $scope.avatar = "assets/img/application/logo_white.png";
     $scope.touchDevice = appState.getGlobalState("touchDevice");
+    
     //subscribes to notifications in the notification service
     $scope.notifications = notificationsService.current;
     $scope.$watch('notificationsService.current', function (newVal, oldVal, scope) {
@@ -22,6 +23,16 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
             $scope.notifications = newVal;
         }
     });
+
+
+    //subscribes to dialogs in the dialog service
+    $scope.dialogs = dialogService.current;
+    $scope.$watch('dialogService.current', function (newVal, oldVal, scope) {
+        if (newVal) {
+            $scope.dialogs = newVal;
+        }
+    });
+
 
     $scope.removeNotification = function (index) {
         notificationsService.remove(index);
@@ -54,7 +65,8 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
         $scope.user = null;
     });
     
-    //when the app is read/user is logged in, setup the data
+
+    //when the app is ready/user is logged in, setup the data
     eventsService.on("app.ready", function (evt, data) {
         
         $scope.authenticated = data.authenticated;
@@ -98,7 +110,6 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
                 
               }, 3000);  
         }
-
     });
 
 }

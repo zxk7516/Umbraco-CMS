@@ -18,15 +18,24 @@ app.config(function ($routeProvider) {
                     return deferred.promise;
                 }
                 
+
                 userService.isAuthenticated()
                     .then(function () {
 
+                        //if we have a user context
+
+                        //we make sure to load all application assets - this cant be done before after authentication
+                        //due to localization and user access
                         assetsService._loadInitAssets().then(function() {
-                            
+                             
+
                             //This could be the first time has loaded after the user has logged in, in this case
                             // we need to broadcast the authenticated event - this will be handled by the startup (init)
                             // handler to set/broadcast the ready state
+
+                            //if the application is not ready, 
                             if (appState.getGlobalState("isReady") !== true) {
+
                                 userService.getCurrentUser({ broadcastEvent: true }).then(function(user) {
                                     //is auth, check if we allow or reject
                                     if (isRequired) {
@@ -37,26 +46,25 @@ app.config(function ($routeProvider) {
                                         deferred.reject({ path: "/" });
                                     }
                                 });
+
                             }
                             else {
                                 //is auth, check if we allow or reject
                                 if (isRequired) {
-                                    //this will resolve successfully so the route will continue
                                     deferred.resolve(true);
                                 }
                                 else {
-                                    deferred.reject({ path: "/" });
+                                    //this will resolve successfully so the route will continue
+                                    deferred.reject({ path: "/login" });
                                 }
                             }
 
                         });
 
                     }, function () {
-                        //not auth, check if we allow or reject
+                        //not authenticated and if it is required to be so - go to /login/ page
                         if (isRequired) {
-                            //the check=false is checked above so that we don't have to make another http call to check
-                            //if they are logged in since we already know they are not.
-                            deferred.reject({ path: "/login/false" });
+                            deferred.reject({ path: "/login" });
                         }
                         else {
                             //this will resolve successfully so the route will continue
@@ -78,7 +86,7 @@ app.config(function ($routeProvider) {
                     deferred.resolve(true);
                 }, function() {
                     //logout failed somehow ? we'll reject with the login page i suppose
-                    deferred.reject({ path: "/login/false" });
+                    deferred.reject({ path: "/login" });
                 });
                 return deferred.promise;
             }
@@ -169,6 +177,7 @@ app.config(function ($routeProvider) {
             resolve: canRoute(true)
         })        
         .otherwise({ redirectTo: '/login' });
+
     }).config(function ($locationProvider) {
 
         //$locationProvider.html5Mode(false).hashPrefix('!'); //turn html5 mode off

@@ -4,10 +4,12 @@ var app = angular.module('umbraco', [
 	'umbraco.resources',
 	'umbraco.services',
 	'umbraco.httpbackend',
+
+	'ngRoute',
     'ngCookies',
-    'ngMobile',
+    'ngTouch',
     'ngSanitize',
-    /*'ui.sortable',*/
+    'ngAnimate',
     'blueimp.fileupload'
 ]);
 

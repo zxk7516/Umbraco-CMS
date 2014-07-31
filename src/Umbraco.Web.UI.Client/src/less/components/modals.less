@@ -1,0 +1,183 @@
+/* Modals
+// -------------------------*/
+
+.umb-modalcolumn-header {
+  border-bottom: 1px solid #eee;
+  height: 35px;
+  padding: 0px 0px 12px 20px;
+  white-space: nowrap
+}
+.umb-modalcolumn-header h1{
+  margin: 0;
+  white-space: nowrap;
+  font-size: @fontSizeLarge;
+  font-weight: 400;
+  padding-top: 5px !important;
+  text-transform: capitalize !important;
+}
+.umb-modalcolumn-body {
+	padding: 0px;
+	top: 61px;
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	overflow: auto;
+}
+.no-padding .umb-modalcolumn-body {
+	padding: 0px
+}
+.umb-modalcolumn .umb-modalcolumn-header .btn {
+	position: absolute;
+	top: 13px;
+	right: 15px
+}
+
+.umb-modalcolumn iframe.auto-expand, .umb-modal iframe.auto-expand {
+	border: none;
+	padding: 0px;
+	margin: 0px;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+	position: absolute;;	
+}
+
+
+
+
+
+/* umb.dialog is used for the dialogs on the conent tree*/
+.umb-dialog {
+	background: #fff;
+	outline: none;
+	top: 0px;
+	left: 0px;
+	right: 0px;
+	bottom: 0px;
+	position: absolute;
+	padding: 0px;
+	z-index: 1000;
+}
+
+.umb-dialog .umb-btn-toolbar {
+	text-align: right;
+	padding: 15px 20px 10px 20px;
+	margin-top: 30px;
+	clear: both;
+}
+.umb-dialog .umb-btn-toolbar .umb-control-group{
+	border: none;
+	padding: none;
+}
+
+.umb-dialog-body{
+	position: absolute;
+    overflow:auto;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 90px;
+}
+.umb-dialog-body .umb-pane{margin-top: 15px;}
+.umb-dialog-footer{
+		border-top: #efefef 1px solid;
+		position: absolute;
+	    overflow:auto;
+	    text-align: right;
+	    
+	    height: 60px;
+	    left: 0px;
+	    right: 0px;
+	    bottom: 0px;
+}
+
+/*we will always make sure to wrap iframe dialogs in proper padding*/
+.umbracoDialog{
+	width: auto !Important;
+	height: auto !Important;
+  	padding: 20px;
+}
+.umbracoDialog .umb-pane{margin-left: 0px; margin-right: 0px; margin-top: 0px;}
+.umbracoDialog .umb-dialog-body .umb-pane{margin-left: 20px; margin-right: 20px; margin-top: 20px;}
+.umbracoDialog form{height: 100%;}
+
+/*ensures dialogs doesnt have side-by-side labels*/
+.umbracoDialog .controls-row, 
+.umb-modal .controls-row{margin-left: 0px !important;}
+
+
+
+//***************************
+//  Right hand modals - content pickers etc used by dialog service
+//***************************/
+.umb-modal {
+	background: white;
+	outline: none;
+	top: 0px;
+	bottom: 0px;
+	right: 0px;
+	width: 440px;
+	position: absolute;
+	border: none !important; border-radius: none !important;
+}
+
+.umb-modal .umb-body{
+	bottom: 99px;
+}
+
+.umb-modal .umb-footer{
+	height: 40px;
+	background: white;
+	border-top: 1px solid @grayLighter;
+	padding: 10px;
+}
+
+
+.shadow-depth-1{
+	box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+.shadow-depth-2{
+	box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+.shadow-depth-3{
+	box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+}
+.shadow-depth-4{
+	box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+}
+.shadow-depth-5{
+	box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
+}
+
+
+/*Legacy Modal default panel styles*/
+.umb-modal .umb-panel-header {
+  padding: 20px;
+  background: @white;
+  border: none;
+  height: auto; 
+}
+.umb-modal .umb-panel-body{
+	padding: 0px 20px 0px 20px;
+}
+
+.umb-modal.fade.in.wide {
+    margin-left: -640px;
+	width: 640px !important;
+}
+.umb-modal i {
+  font-size: 14px;
+} 
+.umb-modal .breadcrumb {
+	background: none;
+	padding: 0;
+	padding-left: 20px;
+	margin: 5px 0 0 0;
+	height: 20px;
+}
+
+.umb-modal .breadcrumb input {
+	height: 12px
+}

@@ -34,6 +34,19 @@ function NavigationController($scope, $rootScope, $location, $log, $routeParams,
     $scope.currentSection = appState.getSectionState("currentSection");
     $scope.showNavigation = appState.getGlobalState("showNavigation");
 
+    //menu
+    $scope.contextmenu = {};
+    $scope.contextmenu.actions = [];
+    $scope.contextmenu.title = "";
+    $scope.contextmenu.node = undefined;
+    $scope.contextmenu.visible = false;
+
+    //action dialog
+    $scope.actiondialog = {};
+    
+
+
+
     //trigger search with a hotkey:
     keyboardService.bind("ctrl+shift+s", function () {
         navigationService.showSearch();
@@ -56,18 +69,23 @@ function NavigationController($scope, $rootScope, $location, $log, $routeParams,
 
     //Listen for menu state changes
     eventsService.on("appState.menuState.changed", function (e, args) {
+        
         if (args.key === "showMenuDialog") {
             $scope.showContextMenuDialog = args.value;
         }
+        
         if (args.key === "showMenu") {
             $scope.showContextMenu = args.value;
         }
+        
         if (args.key === "dialogTitle") {
             $scope.menuDialogTitle = args.value;
         }
+        
         if (args.key === "menuActions") {
             $scope.menuActions = args.value;
         }
+        
         if (args.key === "currentNode") {
             $scope.menuNode = args.value;
         }

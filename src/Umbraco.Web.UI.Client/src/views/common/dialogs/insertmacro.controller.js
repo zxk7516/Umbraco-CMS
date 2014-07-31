@@ -25,35 +25,13 @@ function InsertMacroController($scope, entityResource, macroResource, umbPropEdi
                     $scope.macroParams = data;
                     
                     //fill in the data if we are editing this macro
-                    if ($scope.dialogData && $scope.dialogData.macroData && $scope.dialogData.macroData.macroParamsDictionary) {
-                        _.each($scope.dialogData.macroData.macroParamsDictionary, function (val, key) {
+                    if ($scope.dialogData && $scope.dialogData.macroData && $scope.dialogData.macroData.marcoParamsDictionary) {
+                        _.each($scope.dialogData.macroData.marcoParamsDictionary, function (val, key) {
                             var prop = _.find($scope.macroParams, function (item) {
                                 return item.alias == key;
                             });
                             if (prop) {
-
-                                if (_.isString(val)) {
-                                    //we need to unescape values as they have most likely been escaped while inserted 
-                                    val = _.unescape(val);
-
-                                    //detect if it is a json string
-                                    if (val.detectIsJson()) {
-                                        try {
-                                            //Parse it to json
-                                            prop.value = angular.fromJson(val);
-                                        }
-                                        catch (e) {
-                                            // not json
-                                            prop.value = val;
-                                        }
-                                    }
-                                    else {
-                                        prop.value = val;
-                                    }
-                                }
-                                else {
-                                    prop.value = val;
-                                }
+                                prop.value = val;
                             }
                         });
 
@@ -70,21 +48,7 @@ function InsertMacroController($scope, entityResource, macroResource, umbPropEdi
         //create a dictionary for the macro params
         var paramDictionary = {};
         _.each($scope.macroParams, function (item) {
-
-            var val = item.value;
-
-            if (!_.isString(item.value)) {
-                try {
-                    val = angular.toJson(val);
-                }
-                catch (e) {
-                    // not json           
-                }
-            }
-            
-            //each value needs to be xml escaped!! since the value get's stored as an xml attribute
-            paramDictionary[item.alias] = _.escape(val);
-
+            paramDictionary[item.alias] = item.value;
         });
         
         //need to find the macro alias for the selected id
@@ -93,16 +57,16 @@ function InsertMacroController($scope, entityResource, macroResource, umbPropEdi
         //get the syntax based on the rendering engine
         var syntax;
         if ($scope.dialogData.renderingEngine && $scope.dialogData.renderingEngine === "WebForms") {
-            syntax = macroService.generateWebFormsSyntax({ macroAlias: macroAlias, macroParamsDictionary: paramDictionary });
+            syntax = macroService.generateWebFormsSyntax({ macroAlias: macroAlias, marcoParamsDictionary: paramDictionary });
         }
         else if ($scope.dialogData.renderingEngine && $scope.dialogData.renderingEngine === "Mvc") {
-            syntax = macroService.generateMvcSyntax({ macroAlias: macroAlias, macroParamsDictionary: paramDictionary });
+            syntax = macroService.generateMvcSyntax({ macroAlias: macroAlias, marcoParamsDictionary: paramDictionary });
         }
         else {
-            syntax = macroService.generateMacroSyntax({ macroAlias: macroAlias, macroParamsDictionary: paramDictionary });
+            syntax = macroService.generateMacroSyntax({ macroAlias: macroAlias, marcoParamsDictionary: paramDictionary });
         }
 
-        $scope.submit({ syntax: syntax, macroAlias: macroAlias, macroParamsDictionary: paramDictionary });
+        $scope.submit({ syntax: syntax, macroAlias: macroAlias, marcoParamsDictionary: paramDictionary });
     }
 
     $scope.macros = [];
@@ -145,7 +109,7 @@ function InsertMacroController($scope, entityResource, macroResource, umbPropEdi
                 });
                 if (found) {
                     //select the macro and go to next screen
-                    $scope.selectedMacro = found;
+                    $scope.selectedMacro = found.id;
                     editParams();
                     return;
                 }
