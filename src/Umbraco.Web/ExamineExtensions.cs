@@ -15,7 +15,7 @@ namespace Umbraco.Web
 	internal static class ExamineExtensions
 	{
         internal static PublishedContentSet<IPublishedContent> ConvertSearchResultToPublishedContent(this IEnumerable<SearchResult> results,
-			ContextualPublishedCache cache)
+			IPublishedCache cache)
 		{
 			//TODO: The search result has already returned a result which SHOULD include all of the data to create an IPublishedContent, 
 			// however this is currently not the case: 

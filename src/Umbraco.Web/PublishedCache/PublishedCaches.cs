@@ -19,25 +19,26 @@
             _mediaCache = mediaCache;
         }
 
-        /// <summary>
-        /// Creates a contextual content cache for a specified context.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <returns>A new contextual content cache for the specified context.</returns>
-        public ContextualPublishedContentCache CreateContextualContentCache(UmbracoContext context)
-        {
-            return new ContextualPublishedContentCache(_contentCache, context);
-        }
+        // fixme - remove
+        ///// <summary>
+        ///// Creates a contextual content cache for a specified context.
+        ///// </summary>
+        ///// <param name="context">The context.</param>
+        ///// <returns>A new contextual content cache for the specified context.</returns>
+        //public ContextualPublishedContentCache CreateContextualContentCache(UmbracoContext context)
+        //{
+        //    return new ContextualPublishedContentCache(_contentCache, context);
+        //}
 
-        /// <summary>
-        /// Creates a contextual media cache for a specified context.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <returns>A new contextual media cache for the specified context.</returns>
-        public ContextualPublishedMediaCache CreateContextualMediaCache(UmbracoContext context)
-        {
-            return new ContextualPublishedMediaCache(_mediaCache, context);            
-        }
+        ///// <summary>
+        ///// Creates a contextual media cache for a specified context.
+        ///// </summary>
+        ///// <param name="context">The context.</param>
+        ///// <returns>A new contextual media cache for the specified context.</returns>
+        //public ContextualPublishedMediaCache CreateContextualMediaCache(UmbracoContext context)
+        //{
+        //    return new ContextualPublishedMediaCache(_mediaCache, context);            
+        //}
 
         // fixme - document
         public IPublishedContentCache ContentCache

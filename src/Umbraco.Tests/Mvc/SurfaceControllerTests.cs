@@ -76,12 +76,12 @@ namespace Umbraco.Tests.Mvc
             //TODO: Need to either make this public or make all methods on the UmbracoHelper or 
             // in v7 the PublishedContentQuery object virtual so we can just mock the methods
 
-            var contentCaches = new Mock<IPublishedCaches>();
+            var contentCachesFactory = new Mock<IPublishedCachesFactory>();
             
             //init content resolver
             //TODO: This is not public so people cannot actually do this!
             
-            PublishedCachesResolver.Current = new PublishedCachesResolver(contentCaches.Object);
+            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(contentCachesFactory.Object);
 
             //init umb context
 
@@ -92,17 +92,13 @@ namespace Umbraco.Tests.Mvc
 
             //setup the mock
 
-            contentCaches.Setup(caches => caches.CreateContextualContentCache(It.IsAny<UmbracoContext>()))
-                .Returns(new ContextualPublishedContentCache(
-                    Mock.Of<IPublishedContentCache>(cache =>
-                        cache.GetById(false, It.IsAny<int>()) ==
-                            //return mock of IPublishedContent for any call to GetById
-                            Mock.Of<IPublishedContent>(content => content.Id == 2)),
-                    umbCtx));
-
-            
-
-            
+            contentCachesFactory.Setup(factory => factory.CreatePublishedCaches(It.IsAny<bool>()))
+                .Returns(Mock.Of<IPublishedCaches>(caches => caches.ContentCache
+                                                             == Mock.Of<IPublishedContentCache>(cache =>
+                                                                 cache.GetById(It.IsAny<int>()) ==
+                                                                 //return mock of IPublishedContent for any call to GetById
+                                                                 Mock.Of<IPublishedContent>(content => content.Id == 2))
+                    ));           
             
             using (var uTest = new DisposableUmbracoTest(appCtx))
             {

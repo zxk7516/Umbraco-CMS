@@ -240,7 +240,7 @@ namespace Umbraco.Web.Cache
                     // SD is cleaning cache refreshers up.
                     if (UmbracoContext.Current != null)
                     {
-                        var contentCache = UmbracoContext.Current.ContentCache.InnerCache as PublishedContentCache;
+                        var contentCache = UmbracoContext.Current.ContentCache as PublishedContentCache;
                         if (contentCache != null)
                             contentCache.RoutesCache.Clear();
                     }

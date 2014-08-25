@@ -83,7 +83,7 @@ namespace umbraco.presentation
         public XmlDocument GetXml()
         {
             var umbracoContext = Umbraco.Web.UmbracoContext.Current;
-            var cache = umbracoContext.ContentCache.InnerCache as Umbraco.Web.PublishedCache.XmlPublishedCache.PublishedContentCache;
+            var cache = umbracoContext.ContentCache as Umbraco.Web.PublishedCache.XmlPublishedCache.PublishedContentCache;
             if (cache == null)
                 throw new InvalidOperationException("Unsupported IPublishedContentCache, only the Xml one is supported.");
 

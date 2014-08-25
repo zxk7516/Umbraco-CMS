@@ -18,8 +18,6 @@ using Umbraco.Core.Xml;
 using Umbraco.Web.Models;
 using UmbracoExamine;
 using umbraco;
-using umbraco.cms.businesslogic;
-using ContentType = umbraco.cms.businesslogic.ContentType;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -29,11 +27,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	/// <remarks>
 	/// NOTE: In the future if we want to properly cache all media this class can be extended or replaced when these classes/interfaces are exposed publicly.
 	/// </remarks>
-    internal class PublishedMediaCache : IPublishedMediaCache
+    internal class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
 	{
 		public PublishedMediaCache()
-		{			
-		}
+            : base(false)
+		{ }
 
 	    /// <summary>
 	    /// Generally used for unit testing to use an explicit examine searcher
@@ -41,6 +39,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    /// <param name="searchProvider"></param>
 	    /// <param name="indexProvider"></param>
 	    internal PublishedMediaCache(BaseSearchProvider searchProvider, BaseIndexProvider indexProvider)
+            : base(false)
 	    {
 		    _searchProvider = searchProvider;
 		    _indexProvider = indexProvider;
@@ -49,12 +48,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    private readonly BaseSearchProvider _searchProvider;
         private readonly BaseIndexProvider _indexProvider;
 
-        public virtual IPublishedContent GetById(bool preview, int nodeId)
+        public override IPublishedContent GetById(bool preview, int nodeId)
 		{
 			return GetUmbracoMedia(nodeId);
 		}
 
-		public virtual IEnumerable<IPublishedContent> GetAtRoot(bool preview)
+        public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
 		{
 			var rootMedia = global::umbraco.cms.businesslogic.media.Media.GetRootMedias();
 			var result = new List<IPublishedContent>();
@@ -69,34 +68,34 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			return result;
 		}
 
-        public virtual IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
 
-        public virtual IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
-        {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
-        }
-        
-        public virtual IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
         {
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
 
-        public virtual IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
 
-        public virtual XPathNavigator GetXPathNavigator(bool preview)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
         {
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
 
-        public bool XPathNavigatorIsNavigable { get { return false; } }
+        public override XPathNavigator GetXPathNavigator(bool preview)
+        {
+            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+        }
 
-        public virtual bool HasContent(bool preview) { throw new NotImplementedException(); }
+        public override bool XPathNavigatorIsNavigable { get { return false; } }
+
+        public override bool HasContent(bool preview) { throw new NotImplementedException(); }
 
         private ExamineManager GetExamineManagerSafe()
 		{
@@ -192,7 +191,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				}	
 			}
 
-			var media = global::umbraco.library.GetMedia(id, true);
+			var media = library.GetMedia(id, true);
 			if (media != null && media.Current != null)
 			{
 				media.MoveNext();
@@ -225,23 +224,23 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
 			var values = new Dictionary<string, string>(searchResult.Fields);
 			//we need to ensure some fields exist, because of the above issue
-			if (!new []{"template", "templateId"}.Any(values.ContainsKey)) 
+			if (new[] {"template", "templateId"}.Any(values.ContainsKey) == false) 
 				values.Add("template", 0.ToString());
-			if (!new[] { "sortOrder" }.Any(values.ContainsKey))
+			if (new[] {"sortOrder"}.Any(values.ContainsKey) == false)
 				values.Add("sortOrder", 0.ToString());
-			if (!new[] { "urlName" }.Any(values.ContainsKey))
+			if (new[] {"urlName"}.Any(values.ContainsKey) == false)
 				values.Add("urlName", "");
-			if (!new[] { "nodeType" }.Any(values.ContainsKey))
+			if (new[] {"nodeType"}.Any(values.ContainsKey) == false)
 				values.Add("nodeType", 0.ToString());
-			if (!new[] { "creatorName" }.Any(values.ContainsKey))
+			if (new[] {"creatorName"}.Any(values.ContainsKey) == false)
 				values.Add("creatorName", "");
-			if (!new[] { "writerID" }.Any(values.ContainsKey))
+			if (new[] {"writerID"}.Any(values.ContainsKey) == false)
 				values.Add("writerID", 0.ToString());
-			if (!new[] { "creatorID" }.Any(values.ContainsKey))
+			if (new[] {"creatorID"}.Any(values.ContainsKey) == false)
 				values.Add("creatorID", 0.ToString());
-			if (!new[] { "createDate" }.Any(values.ContainsKey))
+			if (new[] {"createDate"}.Any(values.ContainsKey) == false)
 				values.Add("createDate", default(DateTime).ToString("yyyy-MM-dd HH:mm:ss"));
-			if (!new[] { "level" }.Any(values.ContainsKey))
+			if (new[] {"level"}.Any(values.ContainsKey) == false)
 			{				
 				values.Add("level", values["__Path"].Split(',').Length.ToString());
 			}
@@ -263,7 +262,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			if (xpath == null) throw new ArgumentNullException("xpath");
 
 			var values = new Dictionary<string, string> {{"nodeName", xpath.GetAttribute("nodeName", "")}};
-			if (!UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
+			if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema == false)
 			{
 			    values["nodeTypeAlias"] = xpath.Name;
 			}
@@ -275,13 +274,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				if (result.Current.MoveToFirstAttribute())
 				{
 					//checking for duplicate keys because of the 'nodeTypeAlias' might already be added above.
-					if (!values.ContainsKey(result.Current.Name))
+					if (values.ContainsKey(result.Current.Name) == false)
 					{
 					    values[result.Current.Name] = result.Current.Value;
 					}
 					while (result.Current.MoveToNextAttribute())
 					{
-						if (!values.ContainsKey(result.Current.Name))
+						if (values.ContainsKey(result.Current.Name) == false)
 						{
 						    values[result.Current.Name] = result.Current.Value;
 						}						
@@ -292,7 +291,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			//add the user props
 			while (result.MoveNext())
 			{
-				if (result.Current != null && !result.Current.HasAttributes)
+				if (result.Current != null && result.Current.HasAttributes == false)
 				{
 					string value = result.Current.Value;
 					if (string.IsNullOrEmpty(value))
@@ -395,14 +394,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 						               ? results.Select(ConvertFromSearchResult) //will already be sorted by lucene
 						               : results.Select(ConvertFromSearchResult).OrderBy(x => x.SortOrder);
 						}
-						else
-						{
-						    //if there's no result then return null. Previously we defaulted back to library.GetMedia below
-                            //but this will always get called for when we are getting descendents since many items won't have 
-                            //children and then we are hitting the database again!
-                            //So instead we're going to rely on Examine to have the correct results like it should.
-						    return Enumerable.Empty<IPublishedContent>();
-						}
+					
+                        //if there's no result then return null. Previously we defaulted back to library.GetMedia below
+					    //but this will always get called for when we are getting descendents since many items won't have 
+					    //children and then we are hitting the database again!
+					    //So instead we're going to rely on Examine to have the correct results like it should.
+					    return Enumerable.Empty<IPublishedContent>();
 					}
 					catch (FileNotFoundException)
 					{
@@ -442,8 +439,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				if (x.Name != "contents")
 				{
 					//make sure it's actually a node, not a property 
-					if (!string.IsNullOrEmpty(x.GetAttribute("path", "")) &&
-						!string.IsNullOrEmpty(x.GetAttribute("id", "")))
+					if (string.IsNullOrEmpty(x.GetAttribute("path", "")) == false &&
+						string.IsNullOrEmpty(x.GetAttribute("id", "")) == false)
 					{
 						mediaList.Add(ConvertFromXPathNavigator(x));
 					}

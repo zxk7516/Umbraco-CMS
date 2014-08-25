@@ -24,8 +24,7 @@ namespace Umbraco.Web
 
         private bool _replacing;
         private bool? _previewing;
-        private Lazy<ContextualPublishedContentCache> _contentCache;
-        private Lazy<ContextualPublishedMediaCache> _mediaCache;
+        private readonly Lazy<IPublishedCaches> _publishedCaches;
 
         /// <summary>
         /// Used if not running in a web application (no real HttpContext)
@@ -177,7 +176,7 @@ namespace Umbraco.Web
             var umbracoContext = new UmbracoContext(
                 httpContext,
                 applicationContext,
-                new Lazy<IPublishedCaches>(() => PublishedCachesResolver.Current.Caches, false),
+                p => PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(p),
                 webSecurity,
                 preview);
 
@@ -216,7 +215,7 @@ namespace Umbraco.Web
             IPublishedCaches publishedCaches,
             WebSecurity webSecurity,
             bool? preview = null)
-            : this(httpContext, applicationContext, new Lazy<IPublishedCaches>(() => publishedCaches), webSecurity, preview)
+            : this(httpContext, applicationContext, _ => publishedCaches, webSecurity, preview)
         {
         }
 
@@ -225,13 +224,13 @@ namespace Umbraco.Web
         /// </summary>
         /// <param name="httpContext"></param>
         /// <param name="applicationContext"> </param>
-        /// <param name="publishedCaches">The published caches.</param>
+        /// <param name="publishedCachesGetter">The published caches getter.</param>
         /// <param name="webSecurity"></param>
         /// <param name="preview">An optional value overriding detection of preview mode.</param>
         internal UmbracoContext(
 			HttpContextBase httpContext, 
 			ApplicationContext applicationContext,
-            Lazy<IPublishedCaches> publishedCaches,
+            Func<bool, IPublishedCaches> publishedCachesGetter,
             WebSecurity webSecurity,
             bool? preview = null)
         {
@@ -250,9 +249,7 @@ namespace Umbraco.Web
             Application = applicationContext;
             Security = webSecurity;
 
-            _contentCache = new Lazy<ContextualPublishedContentCache>(() => publishedCaches.Value.CreateContextualContentCache(this));
-            _mediaCache = new Lazy<ContextualPublishedMediaCache>(() => publishedCaches.Value.CreateContextualMediaCache(this));
-            _previewing = preview;
+            _publishedCaches = new Lazy<IPublishedCaches>(() => publishedCachesGetter(this.InPreviewMode));
             
             // set the urls...
             //original request url
@@ -349,19 +346,27 @@ namespace Umbraco.Web
 		internal Uri CleanedUmbracoUrl { get; private set; }
 
         /// <summary>
-        /// Gets or sets the published content cache.
+        /// Gets the published caches.
         /// </summary>
-        public ContextualPublishedContentCache ContentCache
+        public IPublishedCaches PublishedCaches
         {
-            get { return _contentCache.Value; }
+            get { return _publishedCaches.Value; }
         }
 
         /// <summary>
-        /// Gets or sets the published media cache.
+        /// Gets the published content cache.
         /// </summary>
-        public ContextualPublishedMediaCache MediaCache
+        public IPublishedContentCache ContentCache
         {
-            get { return _mediaCache.Value; }
+            get { return _publishedCaches.Value.ContentCache; }
+        }
+
+        /// <summary>
+        /// Gets the published media cache.
+        /// </summary>
+        public IPublishedMediaCache MediaCache
+        {
+            get { return _publishedCaches.Value.MediaCache; }
         }
 
         /// <summary>

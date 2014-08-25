@@ -53,8 +53,7 @@ namespace umbraco.NodeFactory
 
         public Node()
         {
-            var preview = UmbracoContext.Current != null && UmbracoContext.Current.InPreviewMode;
-            var nav = ContentCache.GetXPathNavigator(preview);
+            var nav = ContentCache.GetXPathNavigator();
             if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"]
                 _nodeNav = nav.Clone(); // each node has its own clone
             // else it remains null
@@ -120,8 +119,7 @@ namespace umbraco.NodeFactory
         {
             if (id == -1)
             {
-                var preview = UmbracoContext.Current != null && UmbracoContext.Current.InPreviewMode;
-                _nodeNav = ContentCache.GetXPathNavigator(preview); // no need to clone
+                _nodeNav = ContentCache.GetXPathNavigator(); // no need to clone
                 _nodeNav.MoveToRoot();
                 _nodeNav.MoveToChild(XPathNodeType.Element);
             }
@@ -143,9 +141,10 @@ namespace umbraco.NodeFactory
 
         #region ContentCache
 
-	    private IPublishedContentCache ContentCache
+	    private static IPublishedContentCache ContentCache
 	    {
-            get { return PublishedCachesResolver.Current.Caches.ContentCache; }
+            // gets the "current" one - what is "current" is managed by the factory
+            get { return PublishedCachesFactoryResolver.Current.Factory.GetPublishedCaches().ContentCache; }
 	    }
 
         #endregion

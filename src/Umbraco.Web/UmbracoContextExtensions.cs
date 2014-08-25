@@ -22,8 +22,10 @@ namespace Umbraco.Web
         /// </remarks>
         public static void ContentHasChanged(this UmbracoContext context)
         {
-            context.ContentCache.ContentHasChanged();
-            context.MediaCache.ContentHasChanged();
+            // fixme - must think about that one
+            throw new NotImplementedException();
+            //context.ContentCache.ContentHasChanged();
+            //context.MediaCache.ContentHasChanged();
         }
     }
 }

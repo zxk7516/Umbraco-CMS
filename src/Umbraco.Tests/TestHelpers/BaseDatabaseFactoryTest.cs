@@ -341,23 +341,26 @@ namespace Umbraco.Tests.TestHelpers
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var caches = PublishedCachesResolver.Current.Caches;
-            var cache = caches.ContentCache as PublishedContentCache;
+            var factory = PublishedCachesFactoryResolver.Current.Factory as PublishedCachesFactory;
+            if (factory == null)
+                throw new Exception("Not a proper XmlPublishedCache.PublishedCachesFactory.");
 
-            cache.GetXmlDelegate = (preview) =>
-                {
-                    var doc = new XmlDocument();
-                    doc.LoadXml(GetXmlContent(templateId));
-                    return doc;
-                };
+            factory.XmlStore.GetXmlDelegate = preview =>
+            {
+                var doc = new XmlDocument();
+                doc.LoadXml(GetXmlContent(templateId));
+                return doc;
+            };
 
+            // fixme - how is this supposed to work?
+            // fixme - cache has already been created so RoutesCache exists so it's too late to change this?!
             PublishedContentCache.UnitTesting = true;
 
             var httpContext = GetHttpContextFactory(url, routeData).HttpContext;
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                caches,
+                factory.CreatePublishedCaches(false),
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

@@ -37,7 +37,7 @@ namespace Umbraco.Tests.PublishedCache
 			var mChild2 = global::umbraco.cms.businesslogic.media.Media.MakeNew("Child2", mType, user, mRoot2.Id);
 			
 			var ctx = GetUmbracoContext("/test", 1234);
-            var cache = new ContextualPublishedMediaCache(new PublishedMediaCache(), ctx);
+            var cache = new PublishedMediaCache();
 			var roots = cache.GetAtRoot();
 			Assert.AreEqual(2, roots.Count());
 			Assert.IsTrue(roots.Select(x => x.Id).ContainsAll(new[] {mRoot1.Id, mRoot2.Id}));
@@ -235,20 +235,29 @@ namespace Umbraco.Tests.PublishedCache
 			if (children == null)
 				children = new List<IPublishedContent>();
             var dicDoc = new PublishedMediaCache.DictionaryPublishedContent(
-				//the dictionary
+				// the dictionary
 				GetDictionary(idVal, parentIdVal, idKey, templateKey, nodeNameKey, nodeTypeAliasKey, pathKey),
-				//callback to get the parent
+				// callback to get the parent
                 d => new PublishedMediaCache.DictionaryPublishedContent(
-						GetDictionary(parentIdVal, -1, idKey, templateKey, nodeNameKey, nodeTypeAliasKey, pathKey),
-					//there is no parent
-						a => null,
-					//we're not going to test this so ignore
-						a => new List<IPublishedContent>(),
-						(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
-						false),
-				//callback to get the children
+                    // the dictionary
+					GetDictionary(parentIdVal, -1, idKey, templateKey, nodeNameKey, nodeTypeAliasKey, pathKey),
+					// callback to get the parent: there is no parent
+				    a => null,
+					// callback to get the children: we're not going to test this so ignore
+					a => new List<IPublishedContent>(),
+                    // callback to get a property
+					(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
+                    // fixme - cache provider
+                    null,
+                    // not from examine
+					false),
+				// callback to get the children
 				d => children,
+                // callback to get a property
 				(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
+                // fixme - cache provider
+                null,
+                // not from examine
 				false);
 			return dicDoc;
 		}

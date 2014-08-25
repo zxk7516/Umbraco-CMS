@@ -146,7 +146,7 @@ namespace Umbraco.Tests
 		/// <returns></returns>
 		private string LegacyGetItem(int nodeId, string alias)
 		{
-            var cache = UmbracoContext.Current.ContentCache.InnerCache as PublishedContentCache;
+            var cache = UmbracoContext.Current.ContentCache as PublishedContentCache;
             if (cache == null) throw new Exception("Unsupported IPublishedContentCache, only the Xml one is supported.");
             var umbracoXML = cache.GetXml(UmbracoContext.Current.InPreviewMode);
 

@@ -15,16 +15,6 @@ namespace Umbraco.Tests.PublishedContent
     {
         public readonly SolidPublishedContentCache InnerCache = new SolidPublishedContentCache();
 
-        public ContextualPublishedContentCache CreateContextualContentCache(UmbracoContext context)
-        {
-            return new ContextualPublishedContentCache(InnerCache, context);
-        }
-
-        public ContextualPublishedMediaCache CreateContextualMediaCache(UmbracoContext context)
-        {
-            return null;
-        }
-
         public IPublishedContentCache ContentCache
         {
             get { return InnerCache; }
@@ -36,9 +26,13 @@ namespace Umbraco.Tests.PublishedContent
         }
     }
 
-    class SolidPublishedContentCache : IPublishedContentCache
+    class SolidPublishedContentCache : PublishedCacheBase, IPublishedContentCache
     {
         private readonly Dictionary<int, IPublishedContent> _content = new Dictionary<int, IPublishedContent>();
+
+        public SolidPublishedContentCache()
+            : base(false)
+        { }
 
         public void Add(SolidPublishedContent content)
         {
@@ -60,52 +54,62 @@ namespace Umbraco.Tests.PublishedContent
             throw new NotImplementedException();
         }
 
+        public IPublishedContent GetByRoute(string route, bool? hideTopLevelNode = null)
+        {
+            throw new NotImplementedException();
+        }
+
         public string GetRouteById(bool preview, int contentId)
         {
             throw new NotImplementedException();
         }
 
-        public IPublishedContent GetById(bool preview, int contentId)
+        public string GetRouteById(int contentId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override IPublishedContent GetById(bool preview, int contentId)
         {
             return _content.ContainsKey(contentId) ? _content[contentId] : null;
         }
 
-        public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
+        public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             return _content.Values.Where(x => x.Parent == null);
         }
 
-        public IPublishedContent GetSingleByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IPublishedContent GetSingleByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
+        public override IPublishedContent GetSingleByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<IPublishedContent> GetByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
+        public override IEnumerable<IPublishedContent> GetByXPath(bool preview, System.Xml.XPath.XPathExpression xpath, Core.Xml.XPathVariable[] vars)
         {
             throw new NotImplementedException();
         }
 
-        public System.Xml.XPath.XPathNavigator GetXPathNavigator(bool preview)
+        public override System.Xml.XPath.XPathNavigator GetXPathNavigator(bool preview)
         {
             throw new NotImplementedException();
         }
 
-        public bool XPathNavigatorIsNavigable
+        public override bool XPathNavigatorIsNavigable
         {
             get { throw new NotImplementedException(); }
         }
 
-        public bool HasContent(bool preview)
+        public override bool HasContent(bool preview)
         {
             return _content.Count > 0;
         }

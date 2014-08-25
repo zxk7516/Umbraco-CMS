@@ -44,7 +44,7 @@ namespace Umbraco.Web.Routing
 			return node != null;
 		}
 
-        private static IPublishedContent FindContentByAlias(ContextualPublishedContentCache cache, int rootNodeId, string alias)
+        private static IPublishedContent FindContentByAlias(IPublishedContentCache cache, int rootNodeId, string alias)
         {
             if (alias == null) throw new ArgumentNullException("alias");
 

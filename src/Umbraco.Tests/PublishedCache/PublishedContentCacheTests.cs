@@ -22,7 +22,7 @@ namespace Umbraco.Tests.PublishedCache
 	{
 		private FakeHttpContextFactory _httpContextFactory;
 		private UmbracoContext _umbracoContext;
-		private ContextualPublishedContentCache _cache;
+		private IPublishedContentCache _cache;
 	    private XmlDocument _xml;
 
 		private string GetLegacyXml()
@@ -85,10 +85,11 @@ namespace Umbraco.Tests.PublishedCache
 		    SettingsForTests.ConfigureSettings(settings);
             _xml = new XmlDocument();
             _xml.LoadXml(GetXml());
-            var cache = new PublishedContentCache
-                {
-                    GetXmlDelegate = (preview) => _xml
-                };
+		    var xmlStore = new XmlStore
+		    {
+		        GetXmlDelegate = preview => _xml
+		    };
+		    var cache = new PublishedContentCache(xmlStore, false); // fixme - but it should always been registered with the factory!
 
 		    _umbracoContext = new UmbracoContext(
                 _httpContextFactory.HttpContext,

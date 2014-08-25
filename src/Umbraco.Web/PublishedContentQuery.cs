@@ -15,10 +15,10 @@ namespace Umbraco.Web
     /// </summary>
     public class PublishedContentQuery
     {
-        private readonly ContextualPublishedContentCache _contentCache;
-        private readonly ContextualPublishedMediaCache _mediaCache;
+        private readonly IPublishedContentCache _contentCache;
+        private readonly IPublishedMediaCache _mediaCache;
 
-        public PublishedContentQuery(ContextualPublishedContentCache contentCache, ContextualPublishedMediaCache mediaCache)
+        public PublishedContentQuery(IPublishedContentCache contentCache, IPublishedMediaCache mediaCache)
         {
             _contentCache = contentCache;
             _mediaCache = mediaCache;
@@ -129,48 +129,48 @@ namespace Umbraco.Web
 
         #region Used by Content/Media
 
-        private IPublishedContent TypedDocumentById(int id, ContextualPublishedCache cache)
+        private IPublishedContent TypedDocumentById(int id, IPublishedCache cache)
         {
             var doc = cache.GetById(id);
             return doc;
         }
 
-        private IPublishedContent TypedDocumentByXPath(string xpath, XPathVariable[] vars, ContextualPublishedContentCache cache)
+        private IPublishedContent TypedDocumentByXPath(string xpath, XPathVariable[] vars, IPublishedContentCache cache)
         {
             var doc = cache.GetSingleByXPath(xpath, vars);
             return doc;
         }
 
         //NOTE: Not used?
-        //private IPublishedContent TypedDocumentByXPath(XPathExpression xpath, XPathVariable[] vars, ContextualPublishedContentCache cache)
+        //private IPublishedContent TypedDocumentByXPath(XPathExpression xpath, XPathVariable[] vars, IPublishedContentCache cache)
         //{
         //    var doc = cache.GetSingleByXPath(xpath, vars);
         //    return doc;
         //}        
 
-        private IEnumerable<IPublishedContent> TypedDocumentsbyIds(ContextualPublishedCache cache, IEnumerable<int> ids)
+        private IEnumerable<IPublishedContent> TypedDocumentsbyIds(IPublishedCache cache, IEnumerable<int> ids)
         {
             return ids.Select(eachId => TypedDocumentById(eachId, cache));
         }
 
-        private IEnumerable<IPublishedContent> TypedDocumentsByXPath(string xpath, XPathVariable[] vars, ContextualPublishedContentCache cache)
+        private IEnumerable<IPublishedContent> TypedDocumentsByXPath(string xpath, XPathVariable[] vars, IPublishedContentCache cache)
         {
             var doc = cache.GetByXPath(xpath, vars);
             return doc;
         }
 
-        private IEnumerable<IPublishedContent> TypedDocumentsByXPath(XPathExpression xpath, XPathVariable[] vars, ContextualPublishedContentCache cache)
+        private IEnumerable<IPublishedContent> TypedDocumentsByXPath(XPathExpression xpath, XPathVariable[] vars, IPublishedContentCache cache)
         {
             var doc = cache.GetByXPath(xpath, vars);
             return doc;
         }
 
-        private IEnumerable<IPublishedContent> TypedDocumentsAtRoot(ContextualPublishedCache cache)
+        private IEnumerable<IPublishedContent> TypedDocumentsAtRoot(IPublishedCache cache)
         {
             return cache.GetAtRoot();
         }
 
-        private dynamic DocumentById(int id, ContextualPublishedCache cache, object ifNotFound)
+        private dynamic DocumentById(int id, IPublishedCache cache, object ifNotFound)
         {
             var doc = cache.GetById(id);
             return doc == null
@@ -178,7 +178,7 @@ namespace Umbraco.Web
                        : new DynamicPublishedContent(doc).AsDynamic();
         }
 
-        private dynamic DocumentByXPath(string xpath, XPathVariable[] vars, ContextualPublishedCache cache, object ifNotFound)
+        private dynamic DocumentByXPath(string xpath, XPathVariable[] vars, IPublishedCache cache, object ifNotFound)
         {
             var doc = cache.GetSingleByXPath(xpath, vars);
             return doc == null
@@ -186,7 +186,7 @@ namespace Umbraco.Web
                        : new DynamicPublishedContent(doc).AsDynamic();
         }
 
-        private dynamic DocumentByXPath(XPathExpression xpath, XPathVariable[] vars, ContextualPublishedCache cache, object ifNotFound)
+        private dynamic DocumentByXPath(XPathExpression xpath, XPathVariable[] vars, IPublishedCache cache, object ifNotFound)
         {
             var doc = cache.GetSingleByXPath(xpath, vars);
             return doc == null
@@ -194,7 +194,7 @@ namespace Umbraco.Web
                        : new DynamicPublishedContent(doc).AsDynamic();
         }
 
-        private dynamic DocumentByIds(ContextualPublishedCache cache, IEnumerable<int> ids)
+        private dynamic DocumentByIds(IPublishedCache cache, IEnumerable<int> ids)
         {
             var dNull = DynamicNull.Null;
             var nodes = ids.Select(eachId => DocumentById(eachId, cache, dNull))
@@ -203,7 +203,7 @@ namespace Umbraco.Web
             return new DynamicPublishedContentList(nodes);
         }
 
-        private dynamic DocumentsByXPath(string xpath, XPathVariable[] vars, ContextualPublishedCache cache)
+        private dynamic DocumentsByXPath(string xpath, XPathVariable[] vars, IPublishedCache cache)
         {
             return new DynamicPublishedContentList(
                 cache.GetByXPath(xpath, vars)
@@ -211,7 +211,7 @@ namespace Umbraco.Web
                 );
         }
 
-        private dynamic DocumentsByXPath(XPathExpression xpath, XPathVariable[] vars, ContextualPublishedCache cache)
+        private dynamic DocumentsByXPath(XPathExpression xpath, XPathVariable[] vars, IPublishedCache cache)
         {
             return new DynamicPublishedContentList(
                 cache.GetByXPath(xpath, vars)
@@ -219,7 +219,7 @@ namespace Umbraco.Web
                 );
         }
 
-        private dynamic DocumentsAtRoot(ContextualPublishedCache cache)
+        private dynamic DocumentsAtRoot(IPublishedCache cache)
         {
             return new DynamicPublishedContentList(
                 cache.GetAtRoot()
