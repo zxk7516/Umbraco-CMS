@@ -72,6 +72,13 @@ namespace Umbraco.Core
                    || (input.StartsWith("[") && input.EndsWith("]"));
         }
 
+        internal static readonly Regex Whitespace = new Regex(@"\s+", RegexOptions.Compiled);
+        internal static readonly string[] JsonEmpties = new [] { "[]", "{}" };
+        internal static bool DetectIsEmptyJson(this string input)
+        {
+            return JsonEmpties.Contains(Whitespace.Replace(input, string.Empty));
+        }
+
         /// <summary>
         /// Returns a JObject/JArray instance if the string can be converted to json, otherwise returns the string
         /// </summary>

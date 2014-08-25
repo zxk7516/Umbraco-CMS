@@ -6,15 +6,14 @@ using System.Threading;
 using System.Xml.Linq;
 using Umbraco.Core.Auditing;
 using Umbraco.Core.Events;
-using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Caching;
+using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
-using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Publishing;
@@ -78,7 +77,7 @@ namespace Umbraco.Core.Services
         {
             var uow = _uowProvider.GetUnitOfWork();
             using (var repository = _repositoryFactory.CreateContentRepository(uow))
-            {                
+            {
                 return repository.Count(contentTypeAlias);
             }
         }
@@ -474,6 +473,31 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
+        /// Gets a collection of <see cref="IContent"/> objects by Parent Id
+        /// </summary>
+        /// <param name="id">Id of the Parent to retrieve Children from</param>
+        /// <param name="pageNumber">Page number</param>
+        /// <param name="pageSize">Page size</param>
+        /// <param name="totalChildren">Total records query would return without paging</param>
+        /// <param name="orderBy">Field to order by</param>
+        /// <param name="orderDirection">Direction to order by</param>
+        /// <param name="filter">Search text filter</param>
+        /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
+        public IEnumerable<IContent> GetPagedChildren(int id, int pageNumber, int pageSize, out int totalChildren,
+            string orderBy, Direction orderDirection, string filter = "")
+        {
+            Mandate.ParameterCondition(pageNumber > 0, "pageSize");
+            Mandate.ParameterCondition(pageSize > 0, "pageSize");
+            using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
+            {
+                var query = Query<IContent>.Builder.Where(x => x.ParentId == id);
+                var contents = repository.GetPagedResultsByQuery(query, pageNumber, pageSize, out totalChildren, orderBy, orderDirection, filter);
+
+                return contents;
+            }
+        }
+
+        /// <summary>
         /// Gets a collection of <see cref="IContent"/> objects by its name or partial name
         /// </summary>
         /// <param name="parentId">Id of the Parent to retrieve Children from</param>
@@ -730,7 +754,7 @@ namespace Umbraco.Core.Services
         {
             var result = SaveAndPublishDo(content, userId);
             LogHelper.Info<ContentService>("Call was made to ContentService.Publish, use PublishWithStatus instead since that method will provide more detailed information on the outcome");
-	        return result.Success;
+            return result.Success;
         }
 
         /// <summary>
@@ -760,7 +784,7 @@ namespace Umbraco.Core.Services
             if (!result.Any(x => x.Result.ContentItem.Id == content.Id))
                 return false;
 
-            return result.Single(x => x.Result.ContentItem.Id == content.Id).Success;	        
+            return result.Single(x => x.Result.ContentItem.Id == content.Id).Success;
         }
 
         /// <summary>
@@ -797,7 +821,7 @@ namespace Umbraco.Core.Services
         public bool SaveAndPublish(IContent content, int userId = 0, bool raiseEvents = true)
         {
             var result = SaveAndPublishDo(content, userId, raiseEvents);
-	        return result.Success;
+            return result.Success;
         }
 
         /// <summary>
@@ -861,7 +885,7 @@ namespace Umbraco.Core.Services
 
                             repository.AddOrUpdate(content);
                             //add or update preview
-                            repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));                            
+                            repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
                         }
                     }
                     else
@@ -872,7 +896,7 @@ namespace Umbraco.Core.Services
                             repository.AddOrUpdate(content);
                             //add or update preview
                             repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
-                        }                        
+                        }
                     }
 
                     uow.Commit();
@@ -1113,7 +1137,7 @@ namespace Umbraco.Core.Services
                     MoveToRecycleBin(content, userId);
                     return;
                 }
-                
+
                 if (Moving.IsRaisedEventCancelled(
                     new MoveEventArgs<IContent>(
                         new MoveEventInfo<IContent>(content, content.Path, parentId)), this))
@@ -1206,37 +1230,15 @@ namespace Umbraco.Core.Services
                     //don't copy tags data in tags table if the item is in the recycle bin
                     if (parentId != Constants.System.RecycleBinContent)
                     {
-                        
+
                         var tags = uow.Database.Fetch<TagRelationshipDto>("WHERE nodeId = @Id", new { Id = content.Id });
                         foreach (var tag in tags)
                         {
                             uow.Database.Insert(new TagRelationshipDto { NodeId = copy.Id, TagId = tag.TagId, PropertyTypeId = tag.PropertyTypeId });
-                        }   
+                        }
                     }
                 }
-
-                //NOTE This 'Relation' part should eventually be delegated to a RelationService
-                //TODO: This should be part of a single commit
-                if (relateToOriginal)
-                {
-                    IRelationType relationType = null;
-                    using (var relationTypeRepository = _repositoryFactory.CreateRelationTypeRepository(uow))
-                    {
-                        relationType = relationTypeRepository.Get(1);
-                    }
-
-                    using (var relationRepository = _repositoryFactory.CreateRelationRepository(uow))
-                    {
-                        var relation = new Relation(content.Id, copy.Id, relationType);
-                        relationRepository.AddOrUpdate(relation);
-                        uow.Commit();
-                    }
-
-                    Audit.Add(AuditTypes.Copy,
-                              string.Format("Copied content with Id: '{0}' related to original content with Id: '{1}'",
-                                            copy.Id, content.Id), copy.WriterId, copy.Id);
-                }
-
+                
                 //Look for children and copy those as well
                 var children = GetChildren(content.Id);
                 foreach (var child in children)
@@ -1246,10 +1248,10 @@ namespace Umbraco.Core.Services
                     Copy(child, copy.Id, relateToOriginal, userId);
                 }
 
-                Copied.RaiseEvent(new CopyEventArgs<IContent>(content, copy, false, parentId), this);
+                Copied.RaiseEvent(new CopyEventArgs<IContent>(content, copy, false, parentId, relateToOriginal), this);
 
                 Audit.Add(AuditTypes.Copy, "Copy Content performed by user", content.WriterId, content.Id);
-                
+
                 //TODO: Don't think we need this here because cache should be cleared by the event listeners
                 // and the correct ICacheRefreshers!?
                 RuntimeCacheProvider.Current.Clear();
@@ -1378,9 +1380,9 @@ namespace Umbraco.Core.Services
                         //add or update a preview
                         repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
                     }
-                    
+
                     foreach (var content in shouldBePublished)
-                    {                    
+                    {
                         //Create and Save ContentXml DTO
                         repository.AddOrUpdateContentXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
                     }
@@ -1571,7 +1573,7 @@ namespace Umbraco.Core.Services
                     //bulk insert it into the database
                     uow.Database.BulkInsertRecords(xmlItems, tr);
 
-                    tr.Complete();    
+                    tr.Complete();
                 }
 
                 Audit.Add(AuditTypes.Publish, "RebuildXmlStructures completed, the xml has been regenerated in the database", 0, -1);
@@ -1758,7 +1760,7 @@ namespace Umbraco.Core.Services
 
                     //Generate a new preview
                     repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, c));
-                    
+
                     if (published)
                     {
                         //Content Xml
@@ -1898,7 +1900,7 @@ namespace Umbraco.Core.Services
             }
 
             return PublishStatusType.Success;
-        }        
+        }
 
         private IContentType FindContentTypeByAlias(string contentTypeAlias)
         {
