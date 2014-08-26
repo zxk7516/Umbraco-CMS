@@ -87,6 +87,7 @@ namespace Umbraco.Core.Security
         {
             if (http == null) throw new ArgumentNullException("http");
             if (http.User == null) return null; //there's no user at all so no identity
+            if (http.User.Identity == null) return null; // user with no identity (happens in tests?)
             var identity = http.User.Identity as UmbracoBackOfficeIdentity;
             if (identity != null) return identity;
             if (authenticateRequestIfNotFound == false) return null;

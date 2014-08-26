@@ -481,7 +481,7 @@ namespace Umbraco.Web
 
                 var currentUrl = request.Url.AbsolutePath;
                 if (currentUrl.StartsWith(IOHelper.ResolveUrl(SystemDirectories.Umbraco))) return null;
-                if (UmbracoUser == null) return null;
+                if (Security.CurrentUser == null) return null;
 
                 var previewToken = request.GetPreviewCookieValue(); // may be null or empty
                 return previewToken.IsNullOrWhiteSpace() ? null : previewToken;

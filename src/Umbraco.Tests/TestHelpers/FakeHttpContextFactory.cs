@@ -91,6 +91,7 @@ namespace Umbraco.Tests.TestHelpers
 			serverMock.Setup(x => x.MapPath(It.IsAny<string>())).Returns(Environment.CurrentDirectory);
 
             //User
+            // note: creates a user with no Identity?
 		    var user = new Mock<IPrincipal>().Object;
 
 			//HTTP Context

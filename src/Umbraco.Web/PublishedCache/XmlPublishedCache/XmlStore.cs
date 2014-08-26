@@ -41,6 +41,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xmlDocument = xmlDocument;
         }
 
+        // internal for unit tests
+        internal XmlStore(Func<XmlDocument> getXmlDocument)
+        {
+            GetXmlDocument = getXmlDocument;
+        }
+
         /// <summary>
         /// Gets or sets the delegate used to retrieve the Xml content, used for unit tests, else should
         /// be null and then the default content will be used. For non-preview content only.
