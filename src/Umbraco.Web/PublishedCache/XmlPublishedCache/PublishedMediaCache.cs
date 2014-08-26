@@ -30,33 +30,35 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	/// </remarks>
     internal class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
 	{
-		public PublishedMediaCache()
-            : base(false)
-		{ }
+	    public PublishedMediaCache(ICacheProvider cacheProvider)
+	        : base(false)
+	    {
+	        _cacheProvider = cacheProvider;
+	    }
 
 	    /// <summary>
 	    /// Generally used for unit testing to use an explicit examine searcher
 	    /// </summary>
 	    /// <param name="searchProvider"></param>
 	    /// <param name="indexProvider"></param>
-	    internal PublishedMediaCache(BaseSearchProvider searchProvider, BaseIndexProvider indexProvider)
+	    /// <param name="cacheProvider"></param>
+	    internal PublishedMediaCache(BaseSearchProvider searchProvider, BaseIndexProvider indexProvider, ICacheProvider cacheProvider)
             : base(false)
 	    {
 		    _searchProvider = searchProvider;
 		    _indexProvider = indexProvider;
-		}
+	        _cacheProvider = cacheProvider;
+	    }
 
         // by default these are null unless specified by the ctor dedicated to tests
         // when they are null the cache derives them from the ExamineManager, see
-        // method GetExamineManagerSafe()
-        //
-        // fixme - examine manager should be provided by the factory through the ctor
+        // method GetExamineManagerSafe().
         //
 	    private readonly BaseSearchProvider _searchProvider;
         private readonly BaseIndexProvider _indexProvider;
 
-        // fixme - there should be a way to set our own (via a ctor or whatever)
-        private readonly ICacheProvider _cacheProvider =  ApplicationContext.Current.ApplicationCache.RequestCache;
+        // must be specified by the ctor
+	    private readonly ICacheProvider _cacheProvider;
 
         public override IPublishedContent GetById(bool preview, int nodeId)
 		{

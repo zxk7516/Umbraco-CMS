@@ -5,6 +5,7 @@ using System.Xml;
 using Examine;
 using NUnit.Framework;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Tests.PublishedContent;
@@ -37,7 +38,7 @@ namespace Umbraco.Tests.PublishedCache
 			var mChild2 = global::umbraco.cms.businesslogic.media.Media.MakeNew("Child2", mType, user, mRoot2.Id);
 			
 			var ctx = GetUmbracoContext("/test", 1234);
-            var cache = new PublishedMediaCache();
+            var cache = new PublishedMediaCache(new StaticCacheProvider());
 			var roots = cache.GetAtRoot();
 			Assert.AreEqual(2, roots.Count());
 			Assert.IsTrue(roots.Select(x => x.Id).ContainsAll(new[] {mRoot1.Id, mRoot2.Id}));
@@ -144,7 +145,7 @@ namespace Umbraco.Tests.PublishedCache
 			result.Fields.Add("updateDate", "2012-07-16T10:34:09");
 			result.Fields.Add("writerName", "Shannon");
 
-			var store = new PublishedMediaCache();
+            var store = new PublishedMediaCache(new StaticCacheProvider());
 			var doc = store.ConvertFromSearchResult(result);
 
 			DoAssert(doc, 1234, 0, 0, "", "Image", 0, "Shannon", "", 0, 0, "-1,1234", default(DateTime), DateTime.Parse("2012-07-16T10:34:09"), 2);
@@ -156,7 +157,7 @@ namespace Umbraco.Tests.PublishedCache
 		{
 			var xmlDoc = GetMediaXml();
 			var navigator = xmlDoc.SelectSingleNode("/root/Image").CreateNavigator();
-            var cache = new PublishedMediaCache();
+            var cache = new PublishedMediaCache(new StaticCacheProvider());
 			var doc = cache.ConvertFromXPathNavigator(navigator);
 
 			DoAssert(doc, 2000, 0, 2, "image1", "Image", 2044, "Shannon", "Shannon2", 22, 33, "-1,2000", DateTime.Parse("2012-06-12T14:13:17"), DateTime.Parse("2012-07-20T18:50:43"), 1);

@@ -4,6 +4,7 @@ using System.Xml;
 using Moq;
 using NUnit.Framework;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.PropertyEditors;
@@ -91,7 +92,7 @@ namespace Umbraco.Tests.PublishedCache
 		    _umbracoContext = new UmbracoContext(
                 _httpContextFactory.HttpContext,
                 ApplicationContext.Current,
-                new PublishedCaches(cache, new PublishedMediaCache()),
+                new PublishedCaches(cache, new PublishedMediaCache(new StaticCacheProvider())),
                 new WebSecurity(_httpContextFactory.HttpContext, ApplicationContext.Current));
 
 		    _cache = _umbracoContext.ContentCache;

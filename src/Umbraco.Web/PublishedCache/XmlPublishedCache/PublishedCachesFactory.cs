@@ -12,16 +12,16 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             // instanciate an XmlStore
             // we're not going to have an IXmlStore of some sort, so it's ok to do it here
-            // fixme - what-if we instanciate many factories in tests? depends on the store I guess
-            // fixme - for tests we'd pass the store to the factory? initialized with an XmlDocument?
             _xmlStore = new XmlStore();
         }
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
+            var requestCache = ApplicationContext.Current.ApplicationCache.RequestCache;
+
             return new PublishedCaches(
                 new PublishedContentCache(_xmlStore, previewToken),
-                new PublishedMediaCache()); // fixme - search providers
+                new PublishedMediaCache(requestCache)); // fixme - search providers
         }
 
         /// <summary>
