@@ -698,7 +698,7 @@
     <Compile Include="PublishedCache\PublishedNoCache\Navigable\Source.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedContent.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedContentCache.cs" />
-    <Compile Include="PublishedCache\PublishedNoCache\PublishedContentProperty.cs" />
+    <Compile Include="PublishedCache\PublishedNoCache\PublishedProperty.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMedia.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMediaCache.cs" />
     <Compile Include="PublishedCache\IPublishedCaches.cs" />
