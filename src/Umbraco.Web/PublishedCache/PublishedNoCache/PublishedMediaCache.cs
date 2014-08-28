@@ -25,6 +25,11 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             return content == null ? null : (new PublishedMedia(content, this, preview)).CreateModel();
         }
 
+        public override bool HasById(bool preview, int contentId)
+        {
+            return _mediaService.GetById(contentId) != null;
+        }
+
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             var content = _mediaService.GetRootMedia();

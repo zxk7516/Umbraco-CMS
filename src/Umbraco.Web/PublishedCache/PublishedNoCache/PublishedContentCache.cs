@@ -178,6 +178,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             return content == null ? null : (new PublishedContent(content, this, preview)).CreateModel();
         }
 
+        public override bool HasById(bool preview, int contentId)
+        {
+            var content = preview
+                ? _contentService.GetById(contentId) // gets the latest version, including draft
+                : _contentService.GetPublishedVersion(contentId); // gets the published version, or null
+            return content != null;
+        }
+
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             var content = _contentService.GetRootContent(); // gets the latest versions, including drafts
