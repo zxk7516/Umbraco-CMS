@@ -32,7 +32,12 @@ namespace umbraco
 			xpath = uQuery.ResolveXPath(xpath);
 
 			// Get Umbraco Xml
-			var xPathNavigator = content.Instance.XmlContent.CreateNavigator();
+
+            // must work whether we have a context or not?
+		    var cache = Umbraco.Web.UmbracoContext.Current != null
+                ? Umbraco.Web.UmbracoContext.Current.ContentCache
+                : Umbraco.Web.PublishedCache.PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(null).ContentCache;
+		    var xPathNavigator = cache.GetXPathNavigator();
 			XPathExpression xPathExpression;
 
 			// Check to see if XPathExpression is in the cache

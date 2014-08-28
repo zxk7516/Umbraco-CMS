@@ -122,7 +122,14 @@ namespace umbraco
 		/// </returns>
 		public static bool IsDocumentPublished(string id)
 		{
-			return umbraco.content.Instance.XmlContent.GetElementById(id) != null;
+		    int intId;
+		    if (int.TryParse(id, out intId) == false) return false;
+
+            // must work whether we have a context or not?
+            var cache = Umbraco.Web.UmbracoContext.Current != null
+                ? Umbraco.Web.UmbracoContext.Current.ContentCache
+                : Umbraco.Web.PublishedCache.PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(null).ContentCache;
+		    return cache.HasById(intId);
 		}
 
 		/// <summary>
