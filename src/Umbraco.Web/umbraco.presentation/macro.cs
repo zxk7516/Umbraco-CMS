@@ -1234,7 +1234,7 @@ namespace umbraco
                     if (string.IsNullOrEmpty(macroPropertyValue) == false)
                     {
                         var c = new Content(int.Parse(macroPropertyValue));
-                        macroXmlNode.AppendChild(macroXml.ImportNode(c.ToXml(umbraco.content.Instance.XmlContent, false), true));
+                        macroXmlNode.AppendChild(macroXml.ImportNode(c.ToXml(umbracoXml, false), true));
                     }
                     break;
 
