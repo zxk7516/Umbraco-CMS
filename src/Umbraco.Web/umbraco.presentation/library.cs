@@ -18,6 +18,7 @@ using Umbraco.Core.Configuration.UmbracoSettings;
 using Umbraco.Core.Logging;
 using Umbraco.Web;
 using Umbraco.Web.Cache;
+using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Templates;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic;
@@ -1381,30 +1382,25 @@ namespace umbraco
         /// <returns>Returns the node with the specified id as xml in the form of a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeById(string id)
         {
-            // 4.7.1 UmbracoContext is null if we're running in publishing thread which we need to support
-            XmlDocument xmlDoc = GetThreadsafeXmlDocument();
+            var nav = GetSafeXPathNavigator();
 
-            if (xmlDoc.GetElementById(id) != null)
-            {
-                XPathNavigator xp = xmlDoc.CreateNavigator();
-                xp.MoveToId(id);
-                return xp.Select(".");
-            }
-            else
-            {
-                XmlDocument xd = new XmlDocument();
-                xd.LoadXml(string.Format("<error>No published item exist with id {0}</error>", id));
-                return xd.CreateNavigator().Select(".");
-            }
+            if (nav.MoveToId(id))
+                return nav.Select(".");
+
+            var xd = new XmlDocument();
+            xd.LoadXml(string.Format("<error>No published item exist with id {0}</error>", id));
+            return xd.CreateNavigator().Select(".");
         }
 
-        //TODO: WTF, why is this here? This won't matter if there's an UmbracoContext or not, it will call the same underlying method!
-        // only difference is that the UmbracoContext way will check if its in preview mode.
-        private static XmlDocument GetThreadsafeXmlDocument()
+        // get an XPathNavigator over the XML content
+        // must work whether we have a context or not (ie in a thread, whatever)
+        // in which case we need to create our own set of caches
+        private static XPathNavigator GetSafeXPathNavigator()
         {
-            return UmbracoContext.Current != null
-                       ? UmbracoContext.Current.GetXml()
-                       : content.Instance.XmlContent;
+            var cache = Umbraco.Web.UmbracoContext.Current != null
+                ? Umbraco.Web.UmbracoContext.Current.ContentCache
+                : PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(null).ContentCache;
+            return cache.GetXPathNavigator();
         }
 
         /// <summary>
@@ -1414,9 +1410,7 @@ namespace umbraco
         /// <returns>Returns nodes matching the xpath query as a XpathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeByXPath(string xpathQuery)
         {
-            XPathNavigator xp = GetThreadsafeXmlDocument().CreateNavigator();
-
-            return xp.Select(xpathQuery);
+            return GetSafeXPathNavigator().Select(xpathQuery);
         }
 
         /// <summary>
@@ -1425,8 +1419,7 @@ namespace umbraco
         /// <returns>Returns the entire umbraco Xml cache as a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlAll()
         {
-            XPathNavigator xp = GetThreadsafeXmlDocument().CreateNavigator();
-            return xp.Select("/root");
+            return GetSafeXPathNavigator().Select("/root");
         }
 
         /// <summary>
