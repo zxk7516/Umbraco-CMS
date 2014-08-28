@@ -74,6 +74,11 @@ namespace Umbraco.Tests.PublishedContent
             return _content.ContainsKey(contentId) ? _content[contentId] : null;
         }
 
+        public override bool HasById(bool preview, int contentId)
+        {
+            return _content.ContainsKey(contentId);
+        }
+
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             return _content.Values.Where(x => x.Parent == null);

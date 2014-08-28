@@ -65,7 +65,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			return GetUmbracoMedia(nodeId);
 		}
 
-        public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
+	    public override bool HasById(bool preview, int contentId)
+	    {
+            return GetUmbracoMedia(contentId) != null;
+	    }
+
+	    public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
 		{
 			var rootMedia = global::umbraco.cms.businesslogic.media.Media.GetRootMedias();
 			var result = new List<IPublishedContent>();

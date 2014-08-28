@@ -22,6 +22,13 @@ namespace Umbraco.Web.PublishedCache
             return GetById(CurrentPreview, contentId);
         }
 
+        public abstract bool HasById(bool preview, int contentId);
+
+        public bool HasById(int contentId)
+        {
+            return HasById(CurrentPreview, contentId);
+        }
+
         public abstract IEnumerable<IPublishedContent> GetAtRoot(bool preview);
 
         public IEnumerable<IPublishedContent> GetAtRoot()

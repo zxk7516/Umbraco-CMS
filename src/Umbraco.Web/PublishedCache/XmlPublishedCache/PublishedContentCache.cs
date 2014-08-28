@@ -212,6 +212,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     		return ConvertToDocument(GetXml(preview).GetElementById(nodeId.ToString(CultureInfo.InvariantCulture)), preview, _cacheProvider);
     	}
 
+        public override bool HasById(bool preview, int contentId)
+        {
+            return GetXml(preview).CreateNavigator().MoveToId(contentId.ToString(CultureInfo.InvariantCulture));
+        }
+
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             return ConvertToDocuments(GetXml(preview).SelectNodes(XPathStrings.RootDocuments), preview, _cacheProvider);
