@@ -382,7 +382,7 @@
     <Compile Include="PublishedCache\PublishedCacheBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceResolver.cs" />
-    <Compile Include="PublishedCache\PublishedNoCache\PublishedCachesFactory.cs" />
+    <Compile Include="PublishedCache\PublishedNoCache\PublishedCachesService.cs" />
     <Compile Include="PublishedCache\RawValueProperty.cs" />
     <Compile Include="Models\RenderModelOfTContent.cs" />
     <Compile Include="Mvc\JsonNetResult.cs" />

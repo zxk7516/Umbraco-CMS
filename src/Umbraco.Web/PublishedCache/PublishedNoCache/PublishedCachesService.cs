@@ -7,11 +7,11 @@ using Umbraco.Core.Services;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
-    class PublishedCachesFactory : PublishedCachesFactoryBase
+    class PublishedCachesService : PublishedCachesServiceBase
     {
         private ServiceContext _services;
 
-        public PublishedCachesFactory(Func<ServiceContext> services)
+        public PublishedCachesService(Func<ServiceContext> services)
         {
             // too soon to resolve the services in the ctor
             // do in when resolution freezes
