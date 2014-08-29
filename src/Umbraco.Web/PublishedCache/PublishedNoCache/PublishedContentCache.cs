@@ -16,8 +16,8 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     {
         private readonly IContentService _contentService;
 
-        public PublishedContentCache(bool preview, IContentService contentService)
-            : base(null, preview)
+        public PublishedContentCache(string previewToken, IContentService contentService)
+            : base(null, previewToken)
         {
             _contentService = contentService;
         }
