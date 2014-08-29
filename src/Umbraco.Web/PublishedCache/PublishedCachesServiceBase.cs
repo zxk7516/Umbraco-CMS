@@ -8,7 +8,7 @@ using Umbraco.Core.Models.Membership;
 
 namespace Umbraco.Web.PublishedCache
 {
-    abstract class PublishedCachesFactoryBase : IPublishedCachesFactory
+    abstract class PublishedCachesServiceBase : IPublishedCachesService
     {
         private Func<IPublishedCaches> _getPublishedCachesFunc = () => UmbracoContext.Current.PublishedCaches;
 

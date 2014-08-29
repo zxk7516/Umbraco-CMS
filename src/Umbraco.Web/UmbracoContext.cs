@@ -175,7 +175,7 @@ namespace Umbraco.Web
             var umbracoContext = new UmbracoContext(
                 httpContext,
                 applicationContext,
-                previewToken => PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(previewToken),
+                previewToken => PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(previewToken),
                 webSecurity,
                 preview);
 

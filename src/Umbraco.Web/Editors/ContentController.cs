@@ -295,7 +295,7 @@ namespace Umbraco.Web.Editors
         /// <param name="contentId"></param>
         private void UpdatePreviewContext(int contentId)
         {
-            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            var factory = PublishedCachesServiceResolver.Current.Service;
             factory.RefreshPreview(Request.GetPreviewCookieValue(), contentId);
 
             //Guid previewGuid;

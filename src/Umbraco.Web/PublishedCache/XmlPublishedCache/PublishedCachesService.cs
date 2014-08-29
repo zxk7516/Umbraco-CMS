@@ -4,12 +4,12 @@ using Umbraco.Core.Models.Membership;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
-    class PublishedCachesFactory : PublishedCachesFactoryBase
+    class PublishedCachesService : PublishedCachesServiceBase
     {
         private readonly XmlStore _xmlStore;
         private readonly RoutesCache _routesCache;
 
-        public PublishedCachesFactory(XmlStore xmlStore, RoutesCache routesCache)
+        public PublishedCachesService(XmlStore xmlStore, RoutesCache routesCache)
         {
             _xmlStore = xmlStore;
             _routesCache = routesCache;

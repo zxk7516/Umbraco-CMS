@@ -144,7 +144,7 @@ namespace umbraco.NodeFactory
 	    private static IPublishedContentCache ContentCache
 	    {
             // gets the "current" one - what is "current" is managed by the factory
-            get { return PublishedCachesFactoryResolver.Current.Factory.GetPublishedCaches().ContentCache; }
+            get { return PublishedCachesServiceResolver.Current.Service.GetPublishedCaches().ContentCache; }
 	    }
 
         #endregion

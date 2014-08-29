@@ -76,12 +76,12 @@ namespace Umbraco.Tests.Mvc
             //TODO: Need to either make this public or make all methods on the UmbracoHelper or 
             // in v7 the PublishedContentQuery object virtual so we can just mock the methods
 
-            var contentCachesFactory = new Mock<IPublishedCachesFactory>();
+            var contentCachesFactory = new Mock<IPublishedCachesService>();
             
             //init content resolver
             //TODO: This is not public so people cannot actually do this!
             
-            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(contentCachesFactory.Object);
+            PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(contentCachesFactory.Object);
 
             //init umb context
 

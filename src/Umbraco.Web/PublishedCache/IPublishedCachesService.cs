@@ -7,7 +7,7 @@ using Umbraco.Core.Models.Membership;
 
 namespace Umbraco.Web.PublishedCache
 {
-    interface IPublishedCachesFactory
+    interface IPublishedCachesService
     {
         /* Various places (such as Node) want to access the XML content, today as an XmlDocument
          * but to migrate to a new cache, they're migrating to an XPathNavigator. Still, they need

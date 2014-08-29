@@ -1399,7 +1399,7 @@ namespace umbraco
         {
             var cache = Umbraco.Web.UmbracoContext.Current != null
                 ? Umbraco.Web.UmbracoContext.Current.ContentCache
-                : PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(null).ContentCache;
+                : PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
             return cache.GetXPathNavigator();
         }
 

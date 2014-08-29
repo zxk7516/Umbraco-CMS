@@ -10,7 +10,7 @@ namespace umbraco.presentation
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            var factory = PublishedCachesServiceResolver.Current.Service;
             var previewToken = (new HttpRequestWrapper(Request)).GetPreviewCookieValue();
             factory.ExitPreview(previewToken);
 

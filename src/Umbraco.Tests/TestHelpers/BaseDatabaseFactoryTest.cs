@@ -341,7 +341,7 @@ namespace Umbraco.Tests.TestHelpers
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var factory = PublishedCachesFactoryResolver.Current.Factory as PublishedCachesFactory;
+            var factory = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
             if (factory == null)
                 throw new Exception("Not a proper XmlPublishedCache.PublishedCachesFactory.");
             factory.XmlStore.GetXmlDocument = () => 

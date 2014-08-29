@@ -336,15 +336,15 @@ namespace Umbraco.Web
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.TextStringValueConverter>();
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.MarkdownEditorValueConverter>();
 
-            var publishedCachesFactory =
+            var publishedCachesService =
                 // use the Xml cache
-                new PublishedCache.XmlPublishedCache.PublishedCachesFactory(
+                new PublishedCache.XmlPublishedCache.PublishedCachesService(
                     new PublishedCache.XmlPublishedCache.XmlStore(),
                     _isForTesting ? null : new PublishedCache.XmlPublishedCache.RoutesCache());
                 // use the NoCache
                 //new PublishedCache.PublishedNoCache.PublishedCachesFactory(
                 //    () => ApplicationContext.Current.Services);
-            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(publishedCachesFactory);
+            PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(publishedCachesService);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector), 
                 new NamespaceHttpControllerSelector(GlobalConfiguration.Configuration));

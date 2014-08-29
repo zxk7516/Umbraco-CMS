@@ -27,7 +27,7 @@ namespace umbraco.presentation.dialogs
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            var factory = PublishedCachesServiceResolver.Current.Service;
             var contentId = Request.GetItemAs<int>("id");
             var user = Umbraco.Web.UmbracoContext.Current.Security.CurrentUser;
             var previewToken = factory.EnterPreview(user, contentId);

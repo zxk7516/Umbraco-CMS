@@ -240,7 +240,7 @@ namespace Umbraco.Web.Cache
                     // SD is cleaning cache refreshers up.
 
                     // fixme - this is XML-cache specific!
-                    var factory = PublishedCachesFactoryResolver.Current.Factory as PublishedCachesFactory;
+                    var factory = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
                     if (factory != null)
                         factory.RoutesCache.Clear();
                 }                

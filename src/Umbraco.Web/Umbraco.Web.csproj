@@ -377,11 +377,11 @@
     <Compile Include="PropertyEditors\ValueConverters\MacroContainerValueConverter.cs" />
     <Compile Include="PropertyEditors\TagsDataController.cs" />
     <Compile Include="PublishedCache\DrippingPublishedCache\PublishedCachesFactory.cs" />
-    <Compile Include="PublishedCache\IPublishedCachesFactory.cs" />
+    <Compile Include="PublishedCache\IPublishedCachesService.cs" />
     <Compile Include="PublishedCache\MemberPublishedContent.cs" />
     <Compile Include="PublishedCache\PublishedCacheBase.cs" />
-    <Compile Include="PublishedCache\PublishedCachesFactoryBase.cs" />
-    <Compile Include="PublishedCache\PublishedCachesFactoryResolver.cs" />
+    <Compile Include="PublishedCache\PublishedCachesServiceBase.cs" />
+    <Compile Include="PublishedCache\PublishedCachesServiceResolver.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedCachesFactory.cs" />
     <Compile Include="PublishedCache\RawValueProperty.cs" />
     <Compile Include="Models\RenderModelOfTContent.cs" />
@@ -486,7 +486,7 @@
     <Compile Include="PropertyEditors\LabelPropertyEditor.cs" />
     <Compile Include="PropertyEditors\PropertyValueEditorWrapper.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PreviewContent.cs" />
-    <Compile Include="PublishedCache\XmlPublishedCache\PublishedCachesFactory.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedCachesService.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\XmlStore.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\XPathStrings.cs" />
     <Compile Include="PublishedContentQuery.cs" />

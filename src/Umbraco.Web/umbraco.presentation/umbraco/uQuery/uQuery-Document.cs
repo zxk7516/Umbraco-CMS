@@ -128,7 +128,7 @@ namespace umbraco
             // must work whether we have a context or not?
             var cache = Umbraco.Web.UmbracoContext.Current != null
                 ? Umbraco.Web.UmbracoContext.Current.ContentCache
-                : Umbraco.Web.PublishedCache.PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(null).ContentCache;
+                : Umbraco.Web.PublishedCache.PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
 		    return cache.HasById(intId);
 		}
 
