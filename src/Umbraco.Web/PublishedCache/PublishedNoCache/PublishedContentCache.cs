@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Xml.XPath;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
@@ -16,8 +17,8 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     {
         private readonly IContentService _contentService;
 
-        public PublishedContentCache(string previewToken, IContentService contentService)
-            : base(null, previewToken)
+        public PublishedContentCache(string previewToken, IContentService contentService, ICacheProvider cacheProvider)
+            : base(null, cacheProvider, previewToken)
         {
             _contentService = contentService;
         }
