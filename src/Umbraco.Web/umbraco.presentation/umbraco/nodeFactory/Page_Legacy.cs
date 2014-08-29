@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Web;
 using System.Xml;
 using System.Xml.Serialization;
 using System.Xml.XPath;
 using Umbraco.Core.Configuration;
+using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Templates;
 using umbraco.cms.businesslogic;
 using umbraco.cms.businesslogic.propertytype;
@@ -20,34 +24,121 @@ namespace umbraco.presentation.nodeFactory
     [Obsolete("This class is obsolete; use class umbraco.NodeFactory.Node instead", false)]
     public class Node
     {
-        private Hashtable _aliasToNames = new Hashtable();
+        private readonly XPathNavigator _nodeNav;
+        private bool _initialized;
 
-        private bool _initialized = false;
-        private Nodes _children = new Nodes();
-        private Node _parent = null;
+        private readonly Nodes _children = new Nodes();
+        private Node _parent;
+        private readonly Properties _properties = new Properties();
+
         private int _id;
         private int _template;
         private string _name;
         private string _nodeTypeAlias;
         private string _writerName;
         private string _creatorName;
-        private int _writerID;
-        private int _creatorID;
+        private int _writerId;
+        private int _creatorId;
 
         private string _path;
         private DateTime _createDate;
         private DateTime _updateDate;
         private Guid _version;
-        private Properties _properties = new Properties();
-        private XmlNode _pageXmlNode;
         private int _sortOrder;
+
+        private readonly Hashtable _aliasToNames = new Hashtable();
+
+        #region Constructors
+
+        public Node()
+        {
+            var nav = ContentCache.GetXPathNavigator(); // safe (no need to clone)
+            if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"]
+                _nodeNav = nav;
+            // else it remains null
+
+            InitializeStructure();
+            Initialize();
+        }
+
+        internal Node(XPathNavigator nav, bool doNotInitialize = false)
+        {
+            _nodeNav = nav.Clone();  // assume garbage-in, clone
+            InitializeStructure();
+            if (doNotInitialize == false)
+                Initialize();
+        }
+
+        public Node(XmlNode xmlNode)
+            : this(xmlNode.CreateNavigator())
+        { }
+
+        public Node(XmlNode xmlNode, bool doNotInitialize)
+            : this(xmlNode.CreateNavigator(), doNotInitialize)
+        { }
+
+        /// <summary>
+        /// Special constructor for by-passing published vs. preview xml to use
+        /// when updating the SiteMapProvider
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="forcePublishedXml"></param>
+        public Node(int id, bool forcePublishedXml)
+            : this(ContentCache.GetXPathNavigator(false), id, forcePublishedXml == false)
+        {
+            if (forcePublishedXml == false)
+                throw new ArgumentException("Use Node(int NodeId) if not forcing published xml");
+        }
+
+        public Node(int id)
+            : this(ContentCache.GetXPathNavigator(), id, false)
+        { }
+
+        private Node(XPathNavigator nav, int id, bool fail)
+        {
+            if (fail) return;
+
+            // only invoked by one of the two ctors above
+            // so nav is ContentCache.GetXPathNavigator which is safe (no need to clone)
+
+            if (id == -1)
+            {
+                _nodeNav = nav;
+                _nodeNav.MoveToRoot();
+                _nodeNav.MoveToChild(XPathNodeType.Element);
+            }
+            else
+            {
+                if (nav.MoveToId(id.ToString()))
+                    _nodeNav = nav;
+                // else it remains null
+            }
+
+            InitializeStructure();
+            Initialize();
+        }
+
+
+        #endregion
+
+        #region ContentCache
+
+        private static IPublishedContentCache ContentCache
+        {
+            // gets the "current" one - what is "current" is managed by the service
+            get { return PublishedCachesServiceResolver.Current.Service.GetPublishedCaches().ContentCache; }
+        }
+
+        #endregion
+
+        #region Parent & Children
 
         public Nodes Children
         {
             get
             {
-                if (!_initialized)
-                    initialize();
+                if (_initialized == false)
+                    Initialize();
                 return _children;
             }
         }
@@ -56,239 +147,11 @@ namespace umbraco.presentation.nodeFactory
         {
             get
             {
-                if (!_initialized)
-                    initialize();
+                if (_initialized == false)
+                    Initialize();
                 return _parent;
             }
         }
-
-        public int Id
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _id;
-            }
-        }
-
-        public int template
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _template;
-            }
-        }
-
-        public int SortOrder
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _sortOrder;
-            }
-        }
-
-        public string Name
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _name;
-            }
-        }
-
-        public string Url
-        {
-            get { return library.NiceUrl(Id); }
-        }
-
-        public string NodeTypeAlias
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _nodeTypeAlias;
-            }
-        }
-
-        public string WriterName
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _writerName;
-            }
-        }
-
-        public string CreatorName
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _creatorName;
-            }
-        }
-
-        public int WriterID
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _writerID;
-            }
-        }
-
-        public int CreatorID
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _creatorID;
-            }
-        }
-
-
-        public string Path
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _path;
-            }
-        }
-
-        public DateTime CreateDate
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _createDate;
-            }
-        }
-
-        public DateTime UpdateDate
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _updateDate;
-            }
-        }
-
-        public Guid Version
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _version;
-            }
-        }
-
-        public string NiceUrl
-        {
-            get
-            {
-                return library.NiceUrl(_id);
-            }
-        }
-
-        public Properties Properties
-        {
-            get
-            {
-                if (!_initialized)
-                    initialize();
-                return _properties;
-            }
-        }
-
-        public Node()
-        {
-            _pageXmlNode = ((IHasXmlNode)library.GetXmlNodeCurrent().Current).GetNode();
-            initializeStructure();
-            initialize();
-        }
-
-        public Node(XmlNode NodeXmlNode)
-        {
-            _pageXmlNode = NodeXmlNode;
-            initializeStructure();
-            initialize();
-        }
-
-        public Node(XmlNode NodeXmlNode, bool DisableInitializing)
-        {
-            _pageXmlNode = NodeXmlNode;
-            initializeStructure();
-            if (!DisableInitializing)
-                initialize();
-        }
-
-        /// <summary>
-        /// Special constructor for by-passing published vs. preview xml to use
-        /// when updating the SiteMapProvider
-        /// </summary>
-        /// <param name="NodeId"></param>
-        /// <param name="forcePublishedXml"></param>
-        public Node(int NodeId, bool forcePublishedXml)
-        {
-            if (forcePublishedXml)
-            {
-                if (NodeId != -1)
-                    _pageXmlNode = content.Instance.XmlContent.GetElementById(NodeId.ToString());
-                else
-                {
-                    _pageXmlNode = content.Instance.XmlContent.DocumentElement;
-
-                }
-                initializeStructure();
-                initialize();
-            }
-            else
-            {
-                throw new ArgumentException("Use Node(int NodeId) if not forcing published xml");
-
-            }
-        }
-
-        public Node(int NodeId)
-        {
-            if (NodeId != -1)
-                _pageXmlNode = ((IHasXmlNode)library.GetXmlNodeById(NodeId.ToString()).Current).GetNode();
-            else
-            {
-                _pageXmlNode = UmbracoContext.Current.GetXml().DocumentElement;
-
-            }
-            initializeStructure();
-            initialize();
-        }
-
-        public Property GetProperty(string Alias)
-        {
-            foreach (Property p in Properties)
-            {
-                if (p.Alias == Alias)
-                    return p;
-            }
-            return null;
-        }
-
-
 
         public DataTable ChildrenAsTable()
         {
@@ -390,7 +253,7 @@ namespace umbraco.presentation.nodeFactory
                 Hashtable def = new Hashtable();
                 foreach (PropertyType pt in ct.PropertyTypes)
                     def.Add(pt.Alias, pt.Name);
-                System.Web.HttpContext.Current.Application.Lock();
+                System.Web.HttpContext.Current.Application.Lock(); // how nice :-(
                 _aliasToNames.Add(SchemaNode.NodeTypeAlias, def);
                 System.Web.HttpContext.Current.Application.UnLock();
 
@@ -420,101 +283,265 @@ namespace umbraco.presentation.nodeFactory
             }
         }
 
+        #endregion
 
-        private void initializeStructure()
+        #region Url
+
+        public string Url
+        {
+            get { return Umbraco.Web.UmbracoContext.Current.UrlProvider.GetUrl(Id); }
+        }
+
+        public string NiceUrl
+        {
+            get { return Url; }
+        }
+
+        #endregion
+
+        #region Builtin properties
+
+        public int Id
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _id;
+            }
+        }
+
+        public int template
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _template;
+            }
+        }
+
+        public int SortOrder
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _sortOrder;
+            }
+        }
+
+        public string Name
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _name;
+            }
+        }
+
+        public string NodeTypeAlias
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _nodeTypeAlias;
+            }
+        }
+
+        public string WriterName
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _writerName;
+            }
+        }
+
+        public string CreatorName
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _creatorName;
+            }
+        }
+
+        public int WriterID
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _writerId;
+            }
+        }
+
+        public int CreatorID
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _creatorId;
+            }
+        }
+
+
+        public string Path
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _path;
+            }
+        }
+
+        public DateTime CreateDate
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _createDate;
+            }
+        }
+
+        public DateTime UpdateDate
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _updateDate;
+            }
+        }
+
+        public Guid Version
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _version;
+            }
+        }
+
+        #endregion
+
+        #region User Properties
+
+        public Properties Properties
+        {
+            get
+            {
+                if (_initialized == false)
+                    Initialize();
+                return _properties;
+            }
+        }
+
+        public Property GetProperty(string Alias)
+        {
+            return Properties.Cast<Property>().FirstOrDefault(p => p.Alias == Alias);
+        }
+
+        #endregion
+
+        #region Initialize
+
+        private void InitializeStructure()
         {
             // Load parent if it exists and is a node
 
-            if (_pageXmlNode != null && _pageXmlNode.SelectSingleNode("..") != null)
+            if (_nodeNav == null) return; // fixme ?!
+            var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
+
+            if (nav.MoveToParent()
+                && nav.NodeType == XPathNodeType.Element
+                && (nav.LocalName == "node" || nav.Clone().MoveToAttribute("isDoc", "")))
             {
-                XmlNode parent = _pageXmlNode.SelectSingleNode("..");
-                if (parent != null && (parent.Name == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null)))
-                    _parent = new Node(parent, true);
+                _parent = new Node(nav, true);
             }
         }
 
-        private void initialize()
+        // action should NOT move the navigator!
+        internal static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
         {
-            if (_pageXmlNode != null)
-            {
-                _initialized = true;
-                if (_pageXmlNode.Attributes != null)
-                {
-                    _id = int.Parse(_pageXmlNode.Attributes.GetNamedItem("id").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("template") != null)
-                        _template = int.Parse(_pageXmlNode.Attributes.GetNamedItem("template").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("sortOrder") != null)
-                        _sortOrder = int.Parse(_pageXmlNode.Attributes.GetNamedItem("sortOrder").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("nodeName") != null)
-                        _name = _pageXmlNode.Attributes.GetNamedItem("nodeName").Value;
-                    if (_pageXmlNode.Attributes.GetNamedItem("writerName") != null)
-                        _writerName = _pageXmlNode.Attributes.GetNamedItem("writerName").Value;
-                    // Creatorname is new in 2.1, so published xml might not have it!
-                    try
-                    {
-                        _creatorName = _pageXmlNode.Attributes.GetNamedItem("creatorName").Value;
-                    }
-                    catch
-                    {
-                        _creatorName = _writerName;
-                    }
+            if (nav.MoveToAttribute(name, "") == false)
+                return false;
 
-                    //Added the actual userID, as a user cannot be looked up via full name only... 
-                    if (_pageXmlNode.Attributes.GetNamedItem("creatorID") != null)
-                        _creatorID = int.Parse(_pageXmlNode.Attributes.GetNamedItem("creatorID").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("writerID") != null)
-                        _writerID = int.Parse(_pageXmlNode.Attributes.GetNamedItem("writerID").Value);
-
-                    if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-                    {
-                        if (_pageXmlNode.Attributes.GetNamedItem("nodeTypeAlias") != null)
-                            _nodeTypeAlias = _pageXmlNode.Attributes.GetNamedItem("nodeTypeAlias").Value;
-                    }
-                    else
-                    {
-                        _nodeTypeAlias = _pageXmlNode.Name;
-                    }
-
-                    if (_pageXmlNode.Attributes.GetNamedItem("path") != null)
-                        _path = _pageXmlNode.Attributes.GetNamedItem("path").Value;
-                    if (_pageXmlNode.Attributes.GetNamedItem("version") != null)
-                        _version = new Guid(_pageXmlNode.Attributes.GetNamedItem("version").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("createDate") != null)
-                        _createDate = DateTime.Parse(_pageXmlNode.Attributes.GetNamedItem("createDate").Value);
-                    if (_pageXmlNode.Attributes.GetNamedItem("updateDate") != null)
-                        _updateDate = DateTime.Parse(_pageXmlNode.Attributes.GetNamedItem("updateDate").Value);
-                }
-
-                // load data
-                string dataXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "data" : "* [not(@isDoc)]";
-                foreach (XmlNode n in _pageXmlNode.SelectNodes(dataXPath))
-                    _properties.Add(new Property(n));
-
-                // load children
-                string childXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : "* [@isDoc]";
-                XPathNavigator nav = _pageXmlNode.CreateNavigator();
-                XPathExpression expr = nav.Compile(childXPath);
-                expr.AddSort("@sortOrder", XmlSortOrder.Ascending, XmlCaseOrder.None, "", XmlDataType.Number);
-                XPathNodeIterator iterator = nav.Select(expr);
-                while (iterator.MoveNext())
-                {
-                    _children.Add(
-                        new Node(((IHasXmlNode)iterator.Current).GetNode(), true)
-                        );
-                }
-            }
-            //            else
-            //                throw new ArgumentNullException("Node xml source is null");
+            action(nav);
+            nav.MoveToParent();
+            return true;
         }
+
+        private void Initialize()
+        {
+            if (_nodeNav == null) return; // fixme ?!
+            var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
+
+            _initialized = true;
+
+            _id = int.Parse(nav.GetAttribute("id", ""));
+            ReadAttribute(nav, "template", n => _template = n.ValueAsInt);
+            ReadAttribute(nav, "sortOrder", n => _sortOrder = n.ValueAsInt);
+            ReadAttribute(nav, "nodeName", n => _name = n.Value);
+            ReadAttribute(nav, "writerName", n => _writerName = n.Value);
+            //ReadAttribute(nav, "urlName", n => _urlName = n.Value);
+            if (ReadAttribute(nav, "creatorName", n => _creatorName = n.Value) == false)
+                _creatorName = _writerName;
+            ReadAttribute(nav, "creatorID", n => _creatorId = n.ValueAsInt);
+            ReadAttribute(nav, "writerID", n => _writerId = n.ValueAsInt);
+            if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
+                ReadAttribute(nav, "nodeTypeAlias", n => _nodeTypeAlias = n.Value);
+            else
+                _nodeTypeAlias = _nodeNav.LocalName;
+            ReadAttribute(nav, "path", n => _path = n.Value);
+            ReadAttribute(nav, "version", n => _version = new Guid(n.Value));
+            ReadAttribute(nav, "createDate", n => _createDate = n.ValueAsDateTime);
+            ReadAttribute(nav, "updateDate", n => _updateDate = n.ValueAsDateTime);
+            //ReadAttribute(nav, "level", n => _level = n.ValueAsInt);
+
+            // load data, children
+            var children = nav.SelectChildren(XPathNodeType.Element);
+            var legacy = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema;
+            var temp = new List<Node>();
+            while (children.MoveNext())
+            {
+                var n = children.Current;
+                var isNode = legacy ? n.LocalName == "node" : n.Clone().MoveToAttribute("isDoc", "");
+                if (isNode)
+                    temp.Add(new Node(n, true));
+                else
+                    _properties.Add(new Property(n));
+            }
+            foreach (var n in temp.OrderBy(x => x.SortOrder))
+                _children.Add(n);
+        }
+
+        #endregion
+
+        #region Static
 
         public static Node GetCurrent()
         {
-            XmlNode n = ((IHasXmlNode)library.GetXmlNodeCurrent().Current).GetNode();
-            if (n.Attributes == null || n.Attributes.GetNamedItem("id") == null)
-                throw new ArgumentException("Current node is null. This might be due to previewing an unpublished node. As the NodeFactory works with published data, macros using the node factory won't work in preview mode.", "Current node is " + System.Web.HttpContext.Current.Items["pageID"].ToString());
+            if (Umbraco.Web.UmbracoContext.Current.PublishedContentRequest.HasPublishedContent == false)
+                throw new InvalidOperationException("There is no current content.");
+            var id = Umbraco.Web.UmbracoContext.Current.PublishedContentRequest.PublishedContent.Id;
+            return new Node(id);
 
-            return new Node(int.Parse(n.Attributes.GetNamedItem("id").Value));
+            // note: was previously based on HttpContext.Current.Items["pageID"]
+            // but... that should not make a difference, should it?
+            // fixme - conclusion?
         }
+
+        #endregion
     }
 
     [Obsolete("This class is obsolete; use class umbraco.NodeFactory.Nodes instead", false)]
@@ -545,7 +572,7 @@ namespace umbraco.presentation.nodeFactory
             get { return _alias; }
         }
 
-		private string _parsedValue;
+        private string _parsedValue;
 
         public string Value
         {
@@ -560,6 +587,14 @@ namespace umbraco.presentation.nodeFactory
         public Property()
         {
 
+        }
+
+        public Property(XPathNavigator nav)
+        {
+            if (nav == null)
+                throw new ArgumentNullException("nav");
+
+            Node.ReadAttribute(nav, "versionID", n => _version = new Guid(n.Value));
         }
 
         public Property(XmlNode PropertyXmlData)

@@ -53,20 +53,18 @@ namespace umbraco.NodeFactory
 
         public Node()
         {
-            var nav = ContentCache.GetXPathNavigator();
+            var nav = ContentCache.GetXPathNavigator(); // safe (no need to clone)
             if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"]
-                _nodeNav = nav.Clone(); // each node has its own clone
+                _nodeNav = nav;
             // else it remains null
 
             InitializeStructure();
             Initialize();
-
-            //_pageXmlNode = ((IHasXmlNode)library.GetXmlNodeCurrent().Current).GetNode();
         }
 
 	    internal Node(XPathNavigator nav, bool doNotInitialize = false)
 	    {
-	        _nodeNav = nav.Clone(); // each node has its own clone
+	        _nodeNav = nav.Clone(); // assume garbage-in, clone
             InitializeStructure();
             if (doNotInitialize == false)
                 Initialize();
@@ -87,50 +85,34 @@ namespace umbraco.NodeFactory
         /// <param name="id"></param>
         /// <param name="forcePublishedXml"></param>
         public Node(int id, bool forcePublishedXml)
+            : this(ContentCache.GetXPathNavigator(false), id, forcePublishedXml == false)
         {
             if (forcePublishedXml == false)
                 throw new ArgumentException("Use Node(int NodeId) if not forcing published xml");
-
-            const bool preview = false; // force published
-
-            if (id == -1)
-            {
-                _nodeNav = UmbracoContext.Current.ContentCache.GetXPathNavigator(preview); // no need to clone
-                _nodeNav.MoveToRoot();
-                _nodeNav.MoveToChild(XPathNodeType.Element);
-            }
-            else
-            {
-                var nav = UmbracoContext.Current.ContentCache.GetXPathNavigator(preview);
-                if (nav.MoveToId(id.ToString()))
-                    _nodeNav = nav.Clone(); // each node has its own clone
-                // else it remains null
-            }
-
-            //_pageXmlNode = id != -1 
-            //    ? content.Instance.XmlContent.GetElementById(id.ToString()) 
-            //    : content.Instance.XmlContent.DocumentElement;
-
-            InitializeStructure();
-            Initialize();
         }
 
         public Node(int id)
+            : this(ContentCache.GetXPathNavigator(), id, false)
+        { }
+
+        private Node(XPathNavigator nav, int id, bool fail)
         {
+            if (fail) return;
+
+            // only invoked by one of the two ctors above
+            // so nav is ContentCache.GetXPathNavigator which is safe (no need to clone)
+
             if (id == -1)
             {
-                _nodeNav = ContentCache.GetXPathNavigator(); // no need to clone
+                _nodeNav = nav;
                 _nodeNav.MoveToRoot();
                 _nodeNav.MoveToChild(XPathNodeType.Element);
             }
             else
             {
-                var nav = UmbracoContext.Current.ContentCache.GetXPathNavigator();
                 if (nav.MoveToId(id.ToString()))
-                    _nodeNav = nav.Clone(); // each node has its own clone
+                    _nodeNav = nav;
                 // else it remains null
-
-                //_pageXmlNode = ((IHasXmlNode)library.GetXmlNodeById(id.ToString()).Current).GetNode();
             }
 
             InitializeStructure();
@@ -396,7 +378,7 @@ namespace umbraco.NodeFactory
 			// Load parent if it exists and is a node
 
             if (_nodeNav == null) return; // fixme ?!
-            var nav = _nodeNav.Clone();
+            var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
 
             if (nav.MoveToParent() 
                 && nav.NodeType == XPathNodeType.Element
@@ -404,15 +386,9 @@ namespace umbraco.NodeFactory
             {
                 _parent = new Node(nav, true);
             }
-
-            //if (_pageXmlNode != null && _pageXmlNode.SelectSingleNode("..") != null)
-            //{
-            //    XmlNode parent = _pageXmlNode.SelectSingleNode("..");
-            //    if (parent != null && (parent.Name == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null)))
-            //        _parent = new Node(parent, true);
-            //}
 		}
 
+        // action should NOT move the navigator!
 	    private static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
 	    {
 	        if (nav.MoveToAttribute(name, "") == false)
@@ -426,7 +402,7 @@ namespace umbraco.NodeFactory
 		private void Initialize()
 		{
             if (_nodeNav == null) return; // fixme ?!
-            var nav = _nodeNav.Clone();
+            var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
 
             _initialized = true;
 
@@ -466,82 +442,6 @@ namespace umbraco.NodeFactory
 		    }
             foreach (var n in temp.OrderBy(x => x.SortOrder))
                 _children.Add(n);
-
-            //if (_pageXmlNode != null)
-            //{
-            //    _initialized = true;
-            //    if (_pageXmlNode.Attributes != null)
-            //    {
-            //        _id = int.Parse(_pageXmlNode.Attributes.GetNamedItem("id").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("template") != null)
-            //            _template = int.Parse(_pageXmlNode.Attributes.GetNamedItem("template").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("sortOrder") != null)
-            //            _sortOrder = int.Parse(_pageXmlNode.Attributes.GetNamedItem("sortOrder").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("nodeName") != null)
-            //            _name = _pageXmlNode.Attributes.GetNamedItem("nodeName").Value;
-            //        if (_pageXmlNode.Attributes.GetNamedItem("writerName") != null)
-            //            _writerName = _pageXmlNode.Attributes.GetNamedItem("writerName").Value;
-            //        if (_pageXmlNode.Attributes.GetNamedItem("urlName") != null)
-            //            _urlName = _pageXmlNode.Attributes.GetNamedItem("urlName").Value;
-            //        // Creatorname is new in 2.1, so published xml might not have it!
-            //        try
-            //        {
-            //            _creatorName = _pageXmlNode.Attributes.GetNamedItem("creatorName").Value;
-            //        }
-            //        catch
-            //        {
-            //            _creatorName = _writerName;
-            //        }
-
-            //        //Added the actual userID, as a user cannot be looked up via full name only... 
-            //        if (_pageXmlNode.Attributes.GetNamedItem("creatorID") != null)
-            //            _creatorId = int.Parse(_pageXmlNode.Attributes.GetNamedItem("creatorID").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("writerID") != null)
-            //            _writerId = int.Parse(_pageXmlNode.Attributes.GetNamedItem("writerID").Value);
-
-            //        if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-            //        {
-            //            if (_pageXmlNode.Attributes.GetNamedItem("nodeTypeAlias") != null)
-            //                _nodeTypeAlias = _pageXmlNode.Attributes.GetNamedItem("nodeTypeAlias").Value;
-            //        }
-            //        else
-            //        {
-            //            _nodeTypeAlias = _pageXmlNode.Name;
-            //        }
-
-            //        if (_pageXmlNode.Attributes.GetNamedItem("path") != null)
-            //            _path = _pageXmlNode.Attributes.GetNamedItem("path").Value;
-            //        if (_pageXmlNode.Attributes.GetNamedItem("version") != null)
-            //            _version = new Guid(_pageXmlNode.Attributes.GetNamedItem("version").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("createDate") != null)
-            //            _createDate = DateTime.Parse(_pageXmlNode.Attributes.GetNamedItem("createDate").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("updateDate") != null)
-            //            _updateDate = DateTime.Parse(_pageXmlNode.Attributes.GetNamedItem("updateDate").Value);
-            //        if (_pageXmlNode.Attributes.GetNamedItem("level") != null)
-            //            _level = int.Parse(_pageXmlNode.Attributes.GetNamedItem("level").Value);
-
-            //    }
-
-            //    // load data
-            //    string dataXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "data" : "* [not(@isDoc)]";
-            //    foreach (XmlNode n in _pageXmlNode.SelectNodes(dataXPath))
-            //        _properties.Add(new Property(n));
-
-            //    // load children
-            //    string childXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : "* [@isDoc]";
-            //    XPathNavigator nav = _pageXmlNode.CreateNavigator();
-            //    XPathExpression expr = nav.Compile(childXPath);
-            //    expr.AddSort("@sortOrder", XmlSortOrder.Ascending, XmlCaseOrder.None, "", XmlDataType.Number);
-            //    XPathNodeIterator iterator = nav.Select(expr);
-            //    while (iterator.MoveNext())
-            //    {
-            //        _children.Add(
-            //            new Node(((IHasXmlNode)iterator.Current).GetNode(), true)
-            //            );
-            //    }
-            //}
-            ////            else
-            ////                throw new ArgumentNullException("Node xml source is null");
 		}
 
         #endregion
@@ -568,18 +468,8 @@ namespace umbraco.NodeFactory
 
         public static Node GetNodeByXpath(string xpath)
         {
-            // fixme - new cache does not have IHasXmlNode!!
-            XPathNodeIterator itNode = library.GetXmlNodeByXPath(xpath);
-            XmlNode nodeXmlNode = null;
-            if (itNode.MoveNext())
-            {
-                nodeXmlNode = ((IHasXmlNode)itNode.Current).GetNode();
-            }
-            if (nodeXmlNode != null)
-            {
-                return new Node(nodeXmlNode);
-            }
-            return null;
+            var x = ContentCache.GetXPathNavigator().SelectSingleNode(xpath);
+            return x == null ? null : new Node(x);
         }
 
         #endregion
