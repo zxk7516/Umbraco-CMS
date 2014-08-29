@@ -336,9 +336,12 @@ namespace Umbraco.Web
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.TextStringValueConverter>();
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.MarkdownEditorValueConverter>();
 
-            PublishedCachesResolver.Current = new PublishedCachesResolver(new PublishedCaches(
-                new PublishedCache.XmlPublishedCache.PublishedContentCache(),
-                new PublishedCache.XmlPublishedCache.PublishedMediaCache()));
+            var publishedCachesFactory =
+                // use the Xml cache
+                new PublishedCache.XmlPublishedCache.PublishedCachesFactory(
+                    new PublishedCache.XmlPublishedCache.XmlStore(),
+                    _isForTesting ? null : new PublishedCache.XmlPublishedCache.RoutesCache());
+            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(publishedCachesFactory);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector), 
                 new NamespaceHttpControllerSelector(GlobalConfiguration.Configuration));
@@ -383,9 +386,6 @@ namespace Umbraco.Web
             );
 
             SiteDomainHelperResolver.Current = new SiteDomainHelperResolver(new SiteDomainHelper());
-
-            // ain't that a bit dirty?
-            PublishedCache.XmlPublishedCache.PublishedContentCache.UnitTesting = _isForTesting;
 
             ThumbnailProvidersResolver.Current = new ThumbnailProvidersResolver(
                 PluginManager.Current.ResolveThumbnailProviders());

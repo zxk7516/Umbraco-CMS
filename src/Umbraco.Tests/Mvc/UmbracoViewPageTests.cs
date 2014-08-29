@@ -392,9 +392,7 @@ namespace Umbraco.Tests.Mvc
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            // fixme - wrong, wrong? register w/factory etc
-            var xmlStore = new XmlStore();
-            var cache = new PublishedContentCache(xmlStore, new StaticCacheProvider(), null);
+            var cache = new PublishedContentCache(new XmlStore(), new StaticCacheProvider(), null, null);
 
             //cache.GetXmlDelegate = (context, preview) =>
             //{

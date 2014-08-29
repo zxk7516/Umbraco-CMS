@@ -37,7 +37,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             _contentType = new PublishedContentType(_inner.ContentType);
 
             _properties = Models.PublishedProperty.MapProperties(_contentType.PropertyTypes, _inner.Properties,
-                (t, v) => new PublishedProperty(t, this, v))
+                (t, v) => new PublishedProperty(t, v, _isPreviewing))
                 .ToArray();
         }
 

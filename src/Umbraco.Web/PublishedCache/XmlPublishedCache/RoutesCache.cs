@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Umbraco.Core.ObjectResolution;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
+    // Note: RoutesCache closely follows the caching strategy dating from v4, which
+    // is obviously broken in many ways (eg it's a global cache but relying to some
+    // extend to the content cache, which itself is local to each request...).
+    // Not going to fix it anyway.
+
     class RoutesCache
     {
         private ConcurrentDictionary<int, string> _routes;
@@ -119,10 +122,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <param name="nodeId">The node identifier.</param>
         public void ClearNode(int nodeId)
         {
-            if (!_routes.ContainsKey(nodeId)) return;
+            if (_routes.ContainsKey(nodeId) == false) return;
 
             string key;
-            if (!_routes.TryGetValue(nodeId, out key)) return;
+            if (_routes.TryGetValue(nodeId, out key) == false) return;
 
             int val;
             _nodeIds.TryRemove(key, out val);

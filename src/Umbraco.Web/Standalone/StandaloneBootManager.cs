@@ -5,6 +5,7 @@ using System.Text;
 using Umbraco.Core;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
 using Umbraco.Web.Security;
 using umbraco.interfaces;
@@ -56,7 +57,7 @@ namespace Umbraco.Web.Standalone
             base.InitializeResolvers();
 
             PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(
-                new PublishedCache.XmlPublishedCache.PublishedCachesFactory());
+                new PublishedCache.XmlPublishedCache.PublishedCachesFactory(new XmlStore(), new RoutesCache()));
 
             UrlProviderResolver.Current = new UrlProviderResolver(typeof (DefaultUrlProvider));
             SiteDomainHelperResolver.Current = new SiteDomainHelperResolver(new SiteDomainHelper());

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using System.Xml.XPath;
@@ -10,48 +9,39 @@ using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
-using Umbraco.Web;
 using Umbraco.Web.Routing;
-using umbraco;
 using System.Linq;
-using umbraco.BusinessLogic;
 using GlobalSettings = umbraco.GlobalSettings;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     internal class PublishedContentCache : PublishedCacheBase, IPublishedContentCache
     {
-        public PublishedContentCache(XmlStore xmlStore, ICacheProvider cacheProvider, string previewToken)
+        public PublishedContentCache(XmlStore xmlStore, ICacheProvider cacheProvider, RoutesCache routesCache, string previewToken)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _xmlStore = xmlStore;
             _cacheProvider = cacheProvider;
+            _routesCache = routesCache; // may be null for unit-testing
 
             if (previewToken.IsNullOrWhiteSpace() == false)
                 _previewContent = new PreviewContent(previewToken);
         }
 
         private readonly ICacheProvider _cacheProvider;
+        private readonly RoutesCache _routesCache;
 
-        #region Routes cache
-
-        // fixme - all this should move to some other place
-        // fixme - routes cache is common to all PublishedContentCache => manage at factory level?
-
-        private readonly RoutesCache _routesCache = new RoutesCache(UnitTesting == false);
-
-        // for INTERNAL, UNIT TESTS use ONLY
+        // for unit tests
         internal RoutesCache RoutesCache { get { return _routesCache; } }
 
-        // for INTERNAL, UNIT TESTS use ONLY
-        internal static bool UnitTesting = false;
+        #region Routes
 
         public virtual IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
             if (route == null) throw new ArgumentNullException("route");
 
             // try to get from cache if not previewing
-            var contentId = preview ? 0 : _routesCache.GetNodeId(route);
+            var contentId = (preview || _routesCache == null) ? 0 : _routesCache.GetNodeId(route);
 
             // if found id in cache then get corresponding content
             // and clear cache if not found - for whatever reason
@@ -59,7 +49,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (contentId > 0)
             {
                 content = GetById(preview, contentId);
-                if (content == null)
+                if (content == null && _routesCache != null)
                     _routesCache.ClearNode(contentId);
             }
 
@@ -68,10 +58,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             content = content ?? DetermineIdByRoute(preview, route, hideTopLevelNode.Value);
 
             // cache if we have a content and not previewing
-            if (content != null && preview == false)
+            if (content != null && preview == false && _routesCache != null)
             {
                 var domainRootNodeId = route.StartsWith("/") ? -1 : int.Parse(route.Substring(0, route.IndexOf('/')));
-                var iscanon = !UnitTesting && !DomainHelper.ExistsDomainInPath(DomainHelper.GetAllDomains(false), content.Path, domainRootNodeId);
+                var iscanon = DomainHelper.ExistsDomainInPath(DomainHelper.GetAllDomains(false), content.Path, domainRootNodeId) == false;
                 // and only if this is the canonical url (the one GetUrl would return)
                 if (iscanon)
                     _routesCache.Store(contentId, route);
@@ -88,7 +78,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         public virtual string GetRouteById(bool preview, int contentId)
         {
             // try to get from cache if not previewing
-            var route = preview ? null : _routesCache.GetRoute(contentId);
+            var route = (preview || _routesCache == null) ? null : _routesCache.GetRoute(contentId);
 
             // if found in cache then return
             if (route != null)
@@ -98,7 +88,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             route = DetermineRouteById(preview, contentId);
 
             // cache if we have a route and not previewing
-            if (route != null && preview == false)
+            if (route != null && preview == false && _routesCache != null)
                 _routesCache.Store(contentId, route);
 
             return route;
@@ -172,7 +162,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return route;
         }
 
-        void ApplyHideTopLevelNodeFromPath(IPublishedContent node, IList<string> pathParts, bool preview)
+        void ApplyHideTopLevelNodeFromPath(IPublishedContent content, IList<string> segments, bool preview)
         {
             // in theory if hideTopLevelNodeFromPath is true, then there should be only once
             // top-level node, or else domains should be assigned. but for backward compatibility
@@ -182,17 +172,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // "/foo" fails (looking for "/*/foo") we try also "/foo". 
             // this does not make much sense anyway esp. if both "/foo/" and "/bar/foo" exist, but
             // that's the way it works pre-4.10 and we try to be backward compat for the time being
-            if (node.Parent == null)
+            if (content.Parent == null)
             {
                 var rootNode = GetByRoute(preview, "/", true);
                 if (rootNode == null)
                     throw new Exception("Failed to get node at /.");
-                if (rootNode.Id == node.Id) // remove only if we're the default node
-                    pathParts.RemoveAt(pathParts.Count - 1);
+                if (rootNode.Id == content.Id) // remove only if we're the default node
+                    segments.RemoveAt(segments.Count - 1);
             }
             else
             {
-                pathParts.RemoveAt(pathParts.Count - 1);
+                segments.RemoveAt(segments.Count - 1);
             }
         }
 

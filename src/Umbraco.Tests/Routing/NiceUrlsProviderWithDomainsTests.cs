@@ -5,6 +5,7 @@ using Moq;
 using NUnit.Framework;
 using Umbraco.Core.Configuration.UmbracoSettings;
 using Umbraco.Tests.TestHelpers;
+using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
 using umbraco.cms.businesslogic.web;
@@ -32,6 +33,9 @@ namespace Umbraco.Tests.Routing
 
         protected override void FreezeResolution()
         {
+            var factory = new PublishedCachesFactory(new XmlStore(), new RoutesCache());
+            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(factory);
+
             SiteDomainHelperResolver.Current = new SiteDomainHelperResolver(new SiteDomainHelper());
             base.FreezeResolution();
         }

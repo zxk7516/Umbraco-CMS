@@ -64,8 +64,11 @@ namespace Umbraco.Tests.TestHelpers
 
         protected override void FreezeResolution()
         {
-            PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(
-                new PublishedCachesFactory());
+            if (PublishedCachesFactoryResolver.HasCurrent == false)
+            {
+                var factory = new PublishedCachesFactory(new XmlStore(), null);
+                PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(factory);
+            }
 
             base.FreezeResolution();
         }

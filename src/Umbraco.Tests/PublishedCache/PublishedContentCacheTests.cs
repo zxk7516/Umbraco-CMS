@@ -93,7 +93,7 @@ namespace Umbraco.Tests.PublishedCache
                 _httpContextFactory.HttpContext,
                 ApplicationContext.Current,
                 new PublishedCaches(
-                    new PublishedContentCache(xmlStore, cacheProvider, null),
+                    new PublishedContentCache(xmlStore, cacheProvider, null, null),
                     new PublishedMediaCache(cacheProvider)),
                 new WebSecurity(_httpContextFactory.HttpContext, ApplicationContext.Current));
 

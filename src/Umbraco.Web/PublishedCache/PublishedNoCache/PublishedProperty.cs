@@ -10,13 +10,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     class PublishedProperty : PublishedPropertyBase
     {
         private readonly object _dataValue;
-        private readonly IPublishedContentOrMedia _content;
+        private readonly bool _isPreviewing;
 
-        public PublishedProperty(PublishedPropertyType propertyType, IPublishedContentOrMedia content, object dataValue)
+        public PublishedProperty(PublishedPropertyType propertyType, object dataValue, bool isPreviewing)
             : base(propertyType)
         {
             _dataValue = dataValue;
-            _content = content;
+            _isPreviewing = isPreviewing;
         }
 
         public override bool HasValue
@@ -33,8 +33,8 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             get
             {
-                var source = PropertyType.ConvertDataToSource(_dataValue, _content.IsPreviewing);
-                return PropertyType.ConvertSourceToObject(source, _content.IsPreviewing);
+                var source = PropertyType.ConvertDataToSource(_dataValue, _isPreviewing);
+                return PropertyType.ConvertSourceToObject(source, _isPreviewing);
             }
         }
 
@@ -42,8 +42,8 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             get
             {
-                var source = PropertyType.ConvertDataToSource(_dataValue, _content.IsPreviewing);
-                return PropertyType.ConvertSourceToXPath(source, _content.IsPreviewing);
+                var source = PropertyType.ConvertDataToSource(_dataValue, _isPreviewing);
+                return PropertyType.ConvertSourceToXPath(source, _isPreviewing);
             }
         }
     }

@@ -351,10 +351,6 @@ namespace Umbraco.Tests.TestHelpers
                 return doc;
             };
 
-            // fixme - how is this supposed to work?
-            // fixme - cache has already been created so RoutesCache exists so it's too late to change this?!
-            PublishedContentCache.UnitTesting = true;
-
             var httpContext = GetHttpContextFactory(url, routeData).HttpContext;
             var ctx = new UmbracoContext(
                 httpContext,

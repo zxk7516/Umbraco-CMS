@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.XPath;
+using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Services;
@@ -13,30 +15,41 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     // temp - an experimental published cache that does not cache
     // temp - are we handling the published thing correctly? probably NOT?
 
-    class PublishedContentCache : XmlPublishedCache.PublishedContentCache //, IPublishedContentCache
+    class PublishedContentCache : PublishedCacheBase, IPublishedContentCache
     {
         private readonly IContentService _contentService;
 
-        public PublishedContentCache(string previewToken, IContentService contentService, ICacheProvider cacheProvider)
-            : base(null, cacheProvider, previewToken)
+        public PublishedContentCache(string previewToken, IContentService contentService)
+            : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _contentService = contentService;
         }
 
-        // note: PublishedNoCache relies on XmlPublishedCache's routes cache
-        // but does not use the XML cache (passing null as XmlStore in the ctor)
+        #region Routes
 
-        public override IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
+        public IPublishedContent GetByRoute(string route, bool? hideTopLevelNode = null)
         {
-            var content = base.GetByRoute(preview, route, hideTopLevelNode);
-            return content == null ? null : content.CreateModel();
+            return GetByRoute(CurrentPreview, route, hideTopLevelNode);
         }
 
-        // no need to override that one
-        //public override string GetRouteById(UmbracoContext umbracoContext, bool preview, int contentId)
-        //{
-        //    return base.GetRouteById(umbracoContext, preview, contentId);
-        //}
+        public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string GetRouteById(int contentId)
+        {
+            return GetRouteById(CurrentPreview, contentId);
+        }
+
+        public string GetRouteById(bool preview, int contentId)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
+
+        #region Getters
 
         public override IPublishedContent GetById(bool preview, int contentId)
         {
@@ -130,5 +143,18 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             return GetAtRoot(preview).Any();
         }
+
+        #endregion
+
+        #region Detached
+
+        public IPublishedProperty CreateDetachedProperty(PublishedPropertyType propertyType, object value, bool isPreviewing)
+        {
+            if (propertyType.IsDetachedOrNested == false)
+                throw new ArgumentException("Property type is neither detached nor nested.", "propertyType");
+            return new PublishedProperty(propertyType, value, isPreviewing);
+        }
+
+        #endregion
     }
 }

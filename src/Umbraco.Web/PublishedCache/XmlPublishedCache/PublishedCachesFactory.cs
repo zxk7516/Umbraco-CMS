@@ -7,12 +7,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     class PublishedCachesFactory : PublishedCachesFactoryBase
     {
         private readonly XmlStore _xmlStore;
+        private readonly RoutesCache _routesCache;
 
-        public PublishedCachesFactory()
+        public PublishedCachesFactory(XmlStore xmlStore, RoutesCache routesCache)
         {
-            // instanciate an XmlStore
-            // we're not going to have an IXmlStore of some sort, so it's ok to do it here
-            _xmlStore = new XmlStore();
+            _xmlStore = xmlStore;
+            _routesCache = routesCache;
         }
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
@@ -24,7 +24,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var cache = ApplicationContext.Current.ApplicationCache.RequestCache;
 
             return new PublishedCaches(
-                new PublishedContentCache(_xmlStore, cache, previewToken),
+                new PublishedContentCache(_xmlStore, cache, _routesCache, previewToken),
                 new PublishedMediaCache(cache));
         }
 
@@ -32,6 +32,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// Gets the underlying XML store.
         /// </summary>
         public XmlStore XmlStore { get { return _xmlStore; } }
+
+        /// <summary>
+        /// Gets the underlying RoutesCache.
+        /// </summary>
+        public RoutesCache RoutesCache { get { return _routesCache; } }
 
         public override string EnterPreview(IUser user, int contentId)
         {
