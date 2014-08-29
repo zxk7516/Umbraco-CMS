@@ -6,6 +6,8 @@ using System.Xml;
 using umbraco.cms.businesslogic.web;
 using umbraco.interfaces;
 using umbraco.NodeFactory;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace umbraco
 {
@@ -613,6 +615,11 @@ namespace umbraco
         /// <returns>Returns an <c>XmlNode</c> for the selected Node</returns>
         public static XmlNode ToXml(this INode node)
         {
+            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (svc == null)
+                throw new InvalidOperationException("Unsupported IPublishedContentCache, only the Xml one is supported.");
+
+            // then we can use the xml method
             return ((IHasXmlNode)umbraco.library.GetXmlNodeById(node.Id.ToString()).Current).GetNode();
         }
 

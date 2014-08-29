@@ -19,7 +19,14 @@ namespace umbraco.presentation
             HttpContext.Current.Items["pageID"] = PageId;
 
             // setup page properties
-            page pageObject = new page(((System.Xml.IHasXmlNode) library.GetXmlNodeCurrent().Current).GetNode());
+            // assuming an UmbracoPage always run with an Umbraco.Web.UmbracoContext
+            var context = Umbraco.Web.UmbracoContext.Current;
+            if (context == null)
+                throw new Exception("UmbracoContext is null.");
+            var request = context.PublishedContentRequest;
+            if (request.HasPublishedContent == false)
+                throw new Exception("PublishedContentRequest has no current content.");
+            page pageObject = new page(request.PublishedContent);
             System.Web.HttpContext.Current.Items.Add("pageElements", pageObject.Elements);
 
             base.OnPreInit(e);

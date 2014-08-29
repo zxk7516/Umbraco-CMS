@@ -93,7 +93,8 @@ namespace umbraco
 
         public library(int id)
         {
-            _page = new page(((System.Xml.IHasXmlNode)GetXmlNodeById(id.ToString()).Current).GetNode());
+            var content = GetSafeContentCache().GetById(id);
+            _page = new page(content);
         }
 
         /// <summary>
@@ -994,7 +995,7 @@ namespace umbraco
         {
             try
             {
-                page p = new page(((IHasXmlNode)GetXmlNodeById(PageId.ToString()).Current).GetNode());
+                var p = new page(GetSafeContentCache().GetById(PageId));
                 template t = new template(p.Template);
                 Control c = t.parseStringBuilder(new StringBuilder(Text), p);
 
@@ -1038,8 +1039,7 @@ namespace umbraco
             }
             else
             {
-
-                var p = new page(((IHasXmlNode)GetXmlNodeById(PageId.ToString()).Current).GetNode());
+                var p = new page(GetSafeContentCache().GetById(PageId));
                 p.RenderPage(TemplateId);
                 var c = p.PageContentControl;
                 
@@ -1382,7 +1382,7 @@ namespace umbraco
         /// <returns>Returns the node with the specified id as xml in the form of a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeById(string id)
         {
-            var nav = GetSafeXPathNavigator();
+            var nav = GetSafeContentCache().GetXPathNavigator();
 
             if (nav.MoveToId(id))
                 return nav.Select(".");
@@ -1392,15 +1392,15 @@ namespace umbraco
             return xd.CreateNavigator().Select(".");
         }
 
-        // get an XPathNavigator over the XML content
         // must work whether we have a context or not (ie in a thread, whatever)
         // in which case we need to create our own set of caches
-        private static XPathNavigator GetSafeXPathNavigator()
+        // fixme - is this correct?!
+        private static IPublishedContentCache GetSafeContentCache()
         {
             var cache = Umbraco.Web.UmbracoContext.Current != null
                 ? Umbraco.Web.UmbracoContext.Current.ContentCache
                 : PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
-            return cache.GetXPathNavigator();
+            return cache;
         }
 
         /// <summary>
@@ -1410,7 +1410,7 @@ namespace umbraco
         /// <returns>Returns nodes matching the xpath query as a XpathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeByXPath(string xpathQuery)
         {
-            return GetSafeXPathNavigator().Select(xpathQuery);
+            return GetSafeContentCache().GetXPathNavigator().Select(xpathQuery);
         }
 
         /// <summary>
@@ -1419,7 +1419,7 @@ namespace umbraco
         /// <returns>Returns the entire umbraco Xml cache as a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlAll()
         {
-            return GetSafeXPathNavigator().Select("/root");
+            return GetSafeContentCache().GetXPathNavigator().Select("/root");
         }
 
         /// <summary>
