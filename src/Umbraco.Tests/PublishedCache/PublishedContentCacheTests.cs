@@ -87,12 +87,14 @@ namespace Umbraco.Tests.PublishedCache
             _xml = new XmlDocument();
             _xml.LoadXml(GetXml());
 		    var xmlStore = new XmlStore(_xml);
-		    var cache = new PublishedContentCache(xmlStore, null); // fixme - but it should always been registered with the factory!
+		    var cacheProvider = new StaticCacheProvider();
 
 		    _umbracoContext = new UmbracoContext(
                 _httpContextFactory.HttpContext,
                 ApplicationContext.Current,
-                new PublishedCaches(cache, new PublishedMediaCache(new StaticCacheProvider())),
+                new PublishedCaches(
+                    new PublishedContentCache(xmlStore, cacheProvider, null),
+                    new PublishedMediaCache(cacheProvider)),
                 new WebSecurity(_httpContextFactory.HttpContext, ApplicationContext.Current));
 
 		    _cache = _umbracoContext.ContentCache;

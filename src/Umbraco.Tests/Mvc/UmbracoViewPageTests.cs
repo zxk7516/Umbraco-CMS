@@ -394,7 +394,7 @@ namespace Umbraco.Tests.Mvc
         {
             // fixme - wrong, wrong? register w/factory etc
             var xmlStore = new XmlStore();
-            var cache = new PublishedContentCache(xmlStore, null);
+            var cache = new PublishedContentCache(xmlStore, new StaticCacheProvider(), null);
 
             //cache.GetXmlDelegate = (context, preview) =>
             //{

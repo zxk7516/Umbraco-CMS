@@ -712,7 +712,6 @@
     <Compile Include="Mvc\IRenderMvcController.cs" />
     <Compile Include="Mvc\SurfaceRouteHandler.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\RoutesCache.cs" />
-    <Compile Include="PublishedCache\XmlPublishedCache\UmbracoContextCache.cs" />
     <Compile Include="Routing\UrlProviderMode.cs" />
     <Compile Include="Search\ExamineIndexerModel.cs" />
     <Compile Include="Search\LuceneIndexerExtensions.cs" />

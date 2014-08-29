@@ -17,11 +17,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
-            var requestCache = ApplicationContext.Current.ApplicationCache.RequestCache;
+            // used to store recursive properties lookup, etc. both in content
+            // and media cache. Life span should be the current request. Or, ideally
+            // the current caches, but that would mean creating an extra cache (StaticCache
+            // probably) so better use RequestCache.
+            var cache = ApplicationContext.Current.ApplicationCache.RequestCache;
 
             return new PublishedCaches(
-                new PublishedContentCache(_xmlStore, previewToken),
-                new PublishedMediaCache(requestCache)); // fixme - search providers
+                new PublishedContentCache(_xmlStore, cache, previewToken),
+                new PublishedMediaCache(cache));
         }
 
         /// <summary>
