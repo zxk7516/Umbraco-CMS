@@ -85,11 +85,8 @@ namespace Umbraco.Tests.PublishedCache
 		    SettingsForTests.ConfigureSettings(settings);
             _xml = new XmlDocument();
             _xml.LoadXml(GetXml());
-		    var xmlStore = new XmlStore
-		    {
-		        GetXmlDelegate = preview => _xml
-		    };
-		    var cache = new PublishedContentCache(xmlStore, false); // fixme - but it should always been registered with the factory!
+		    var xmlStore = new XmlStore(_xml);
+		    var cache = new PublishedContentCache(xmlStore, null); // fixme - but it should always been registered with the factory!
 
 		    _umbracoContext = new UmbracoContext(
                 _httpContextFactory.HttpContext,

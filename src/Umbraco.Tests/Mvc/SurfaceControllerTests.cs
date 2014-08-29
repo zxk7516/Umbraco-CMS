@@ -92,7 +92,7 @@ namespace Umbraco.Tests.Mvc
 
             //setup the mock
 
-            contentCachesFactory.Setup(factory => factory.CreatePublishedCaches(It.IsAny<bool>()))
+            contentCachesFactory.Setup(factory => factory.CreatePublishedCaches(It.IsAny<string>()))
                 .Returns(Mock.Of<IPublishedCaches>(caches => caches.ContentCache
                                                              == Mock.Of<IPublishedContentCache>(cache =>
                                                                  cache.GetById(It.IsAny<int>()) ==

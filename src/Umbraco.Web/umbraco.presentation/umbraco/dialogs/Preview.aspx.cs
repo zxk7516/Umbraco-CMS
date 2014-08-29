@@ -13,8 +13,8 @@ using System.Web.UI.WebControls.WebParts;
 using System.Xml.Linq;
 using Umbraco.Web;
 using umbraco.cms.businesslogic.web;
-using umbraco.presentation.preview;
 using umbraco.BusinessLogic;
+using Umbraco.Web.PublishedCache;
 
 namespace umbraco.presentation.dialogs
 {
@@ -27,14 +27,23 @@ namespace umbraco.presentation.dialogs
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            var d = new Document(Request.GetItemAs<int>("id"));
-            var pc = new PreviewContent(UmbracoUser, Guid.NewGuid(), false);
-            pc.PrepareDocument(UmbracoUser, d, true);
-            pc.SavePreviewSet();
-            docLit.Text = d.Text;
-            changeSetUrl.Text = pc.PreviewsetPath;
-            pc.ActivatePreviewCookie();
-            Response.Redirect("../../" + d.Id.ToString(CultureInfo.InvariantCulture) + ".aspx", true);
+            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            var contentId = Request.GetItemAs<int>("id");
+            var user = Umbraco.Web.UmbracoContext.Current.Security.CurrentUser;
+            var previewToken = factory.EnterPreview(user, contentId);
+            StateHelper.Cookies.Preview.SetValue(previewToken);
+
+            //var previewContent = new PreviewContent(user, Guid.NewGuid(), false);
+            //previewContent.CreatePreviewSet(contentId, true); // preview branch below that content
+            //previewContent.ActivatePreviewCookie();
+
+            // wtf would we update some fields and then redirect?!
+            //var content = ApplicationContext.Services.ContentService.GetById(contentId);
+            //docLit.Text = content.Name;
+            //changeSetUrl.Text = previewContent._previewSetPath;
+
+            // use a numeric url because content may not be in cache and so .Url would fail
+            Response.Redirect("../../" + contentId + ".aspx", true);
         }
     }
 }

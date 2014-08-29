@@ -20,6 +20,7 @@ using Umbraco.Web.Models;
 using Umbraco.Web.Models.ContentEditing;
 using Umbraco.Web.Models.Mapping;
 using Umbraco.Web.Mvc;
+using Umbraco.Web.PublishedCache;
 using Umbraco.Web.Security;
 using Umbraco.Web.WebApi;
 using Umbraco.Web.WebApi.Binders;
@@ -29,7 +30,6 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Dynamics;
 using umbraco.BusinessLogic.Actions;
 using umbraco.cms.businesslogic.web;
-using umbraco.presentation.preview;
 using Constants = Umbraco.Core.Constants;
 
 namespace Umbraco.Web.Editors
@@ -295,16 +295,15 @@ namespace Umbraco.Web.Editors
         /// <param name="contentId"></param>
         private void UpdatePreviewContext(int contentId)
         {
-            var previewId = Request.GetPreviewCookieValue();
-            if (previewId.IsNullOrWhiteSpace()) return;
-            Guid id;
-            if (Guid.TryParse(previewId, out id))
-            {
-                var d = new Document(contentId);
-                var pc = new PreviewContent(UmbracoUser, id, false);
-                pc.PrepareDocument(UmbracoUser, d, true);
-                pc.SavePreviewSet();
-            }          
+            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            factory.RefreshPreview(Request.GetPreviewCookieValue(), contentId);
+
+            //Guid previewGuid;
+            //if (Guid.TryParse(Request.GetPreviewCookieValue(), out previewGuid))
+            //{
+            //    var previewContent = new PreviewContent(Security.CurrentUser, previewGuid, false);
+            //    previewContent.CreatePreviewSet(contentId, true);
+            //}          
         }
 
         /// <summary>

@@ -9,6 +9,7 @@ using Examine.LuceneEngine.SearchCriteria;
 using Examine.Providers;
 using Lucene.Net.Documents;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Dynamics;
 using Umbraco.Core.Logging;
@@ -45,8 +46,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		    _indexProvider = indexProvider;
 		}
 
+        // by default these are null unless specified by the ctor dedicated to tests
+        // when they are null the cache derives them from the ExamineManager, see
+        // method GetExamineManagerSafe()
+        //
+        // fixme - examine manager should be provided by the factory through the ctor
+        //
 	    private readonly BaseSearchProvider _searchProvider;
         private readonly BaseIndexProvider _indexProvider;
+
+        // fixme - there should be a way to set our own (via a ctor or whatever)
+        private readonly ICacheProvider _cacheProvider =  ApplicationContext.Current.ApplicationCache.RequestCache;
 
         public override IPublishedContent GetById(bool preview, int nodeId)
 		{
@@ -253,6 +263,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			                                      //callback to return the children of the current node
 			                                      d => GetChildrenMedia(d.Id),
 			                                      GetProperty,
+                                                  _cacheProvider,
 			                                      true);
 		    return content.CreateModel();
 		}
@@ -312,6 +323,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				//callback to return the children of the current node based on the xml structure already found
 				d => GetChildrenMedia(d.Id, xpath),
 				GetProperty,
+                _cacheProvider,
 				false);
 		    return content.CreateModel();
 		}
@@ -471,6 +483,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				Func<DictionaryPublishedContent, IPublishedContent> getParent,
 				Func<DictionaryPublishedContent, IEnumerable<IPublishedContent>> getChildren,
 				Func<DictionaryPublishedContent, string, IPublishedProperty> getProperty,
+                ICacheProvider cacheProvider,
 				bool fromExamine)
 			{
 				if (valueDictionary == null) throw new ArgumentNullException("valueDictionary");
@@ -480,6 +493,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				_getParent = getParent;
 				_getChildren = getChildren;
 				_getProperty = getProperty;
+			    _cacheProvider = cacheProvider;
 
 				LoadedFromExamine = fromExamine;
 
@@ -570,6 +584,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			private readonly Func<DictionaryPublishedContent, IPublishedContent> _getParent;
 			private readonly Func<DictionaryPublishedContent, IEnumerable<IPublishedContent>> _getChildren;
 			private readonly Func<DictionaryPublishedContent, string, IPublishedProperty> _getProperty;
+            private readonly ICacheProvider _cacheProvider;
 
 			/// <summary>
 			/// Returns 'Media' as the item type
@@ -701,30 +716,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             {
                 if (recurse == false) return GetProperty(alias);
 
-                IPublishedProperty property;
-                string key = null;
-                var cache = UmbracoContextCache.Current;
-                
-                if (cache != null)
-                {
-                    key = string.Format("RECURSIVE_PROPERTY::{0}::{1}", Id, alias.ToLowerInvariant());
-                    object o;
-                    if (cache.TryGetValue(key, out o))
-                    {
-                        property = o as IPublishedProperty;
-                        if (property == null)
-                            throw new InvalidOperationException("Corrupted cache.");
-                        return property;
-                    }
-                }
-
-                // else get it for real, no cache
-                property = base.GetProperty(alias, true);
-
-                if (cache != null)
-                    cache[key] = property;
-
-                return property;
+                var key = string.Format("XmlPublishedCache.PublishedMediaCache:RecursiveProperty-{0}-{1}", Id, alias.ToLowerInvariant());
+                var cacheProvider = _cacheProvider;
+                return cacheProvider.GetCacheItem<IPublishedProperty>(key, () => base.GetProperty(alias, true));
             }
 
 			private readonly List<string> _keysAdded = new List<string>();

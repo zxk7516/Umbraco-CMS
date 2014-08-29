@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using umbraco;
 using umbraco.BusinessLogic;
-using umbraco.presentation.preview;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -31,50 +30,37 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         static readonly ConditionalWeakTable<UmbracoContext, PreviewContent> PreviewContentCache
             = new ConditionalWeakTable<UmbracoContext, PreviewContent>();
 
-        private Func<bool, XmlDocument> _xmlDelegate;
+        private XmlDocument _xmlDocument;
 
-        /// <summary>
-        /// Gets/sets the delegate used to retrieve the Xml content, generally the setter is only used for unit tests
-        /// and by default if it is not set will use the standard delegate which ONLY works when in the context an Http Request
-        /// </summary>
-        /// <remarks>
-        /// If not defined, we will use the standard delegate which ONLY works when in the context an Http Request
-        /// mostly because the 'content' object heavily relies on HttpContext, SQL connections and a bunch of other stuff
-        /// that when run inside of a unit test fails.
-        /// </remarks>
-        internal Func<bool, XmlDocument> GetXmlDelegate
+        public XmlStore()
+        { }
+
+        // internal for unit tests
+        internal XmlStore(XmlDocument xmlDocument)
         {
-            get
-            {
-                return _xmlDelegate ?? (_xmlDelegate = preview =>
-                {
-                    if (preview)
-                    {
-                        if (UmbracoContext.Current == null)
-                            throw new InvalidOperationException("UmbracoContext.Current is null.");
-                        var previewContent = PreviewContentCache.GetOrCreateValue(UmbracoContext.Current); // will use the ctor with no parameters
-                        previewContent.EnsureInitialized(UmbracoContext.Current.UmbracoUser, StateHelper.Cookies.Preview.GetValue(), true, () =>
-                        {
-                            if (previewContent.ValidPreviewSet)
-                                previewContent.LoadPreviewset();
-                        });
-                        if (previewContent.ValidPreviewSet)
-                            return previewContent.XmlContent;
-                    }
-                    return content.Instance.XmlContent;
-                });
-            }
-            set
-            {
-                // note: bad idea to do this while running
-                // but it's internal anyway so probably safe
-                _xmlDelegate = value;
-            }
+            _xmlDocument = xmlDocument;
         }
 
-        internal XmlDocument GetXml(bool preview)
+        /// <summary>
+        /// Gets or sets the delegate used to retrieve the Xml content, used for unit tests, else should
+        /// be null and then the default content will be used. For non-preview content only.
+        /// </summary>
+        /// <remarks>
+        /// The default content ONLY works when in the context an Http Request mostly because the 
+        /// 'content' object heavily relies on HttpContext, SQL connections and a bunch of other stuff
+        /// that when run inside of a unit test fails.
+        /// </remarks>
+        internal Func<XmlDocument> GetXmlDocument { get; set; }
+
+        // to be used by PublishedContentCache only
+        // for non-preview content only
+        internal XmlDocument GetXml()
         {
-            return GetXmlDelegate(preview);
+            if (_xmlDocument != null)
+                return _xmlDocument;
+            if (GetXmlDocument != null)
+                return _xmlDocument = GetXmlDocument();
+            return content.Instance.XmlContent;
         }
 
         #endregion

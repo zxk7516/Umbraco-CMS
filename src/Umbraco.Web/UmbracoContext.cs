@@ -7,7 +7,6 @@ using Umbraco.Web.Routing;
 using Umbraco.Web.Security;
 using umbraco;
 using umbraco.BusinessLogic;
-using umbraco.presentation.preview;
 using IOHelper = Umbraco.Core.IO.IOHelper;
 using SystemDirectories = Umbraco.Core.IO.SystemDirectories;
 
@@ -176,7 +175,7 @@ namespace Umbraco.Web
             var umbracoContext = new UmbracoContext(
                 httpContext,
                 applicationContext,
-                p => PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(p),
+                previewToken => PublishedCachesFactoryResolver.Current.Factory.CreatePublishedCaches(previewToken),
                 webSecurity,
                 preview);
 
@@ -230,7 +229,7 @@ namespace Umbraco.Web
         internal UmbracoContext(
 			HttpContextBase httpContext, 
 			ApplicationContext applicationContext,
-            Func<bool, IPublishedCaches> publishedCachesGetter,
+            Func<string, IPublishedCaches> publishedCachesGetter,
             WebSecurity webSecurity,
             bool? preview = null)
         {
@@ -249,7 +248,7 @@ namespace Umbraco.Web
             Application = applicationContext;
             Security = webSecurity;
 
-            _publishedCaches = new Lazy<IPublishedCaches>(() => publishedCachesGetter(this.InPreviewMode));
+            _publishedCaches = new Lazy<IPublishedCaches>(() => publishedCachesGetter(PreviewToken));
             
             // set the urls...
             //original request url
@@ -468,25 +467,27 @@ namespace Umbraco.Web
         /// <remarks>Can be internally set by the RTE macro rendering to render macros in the appropriate mode.</remarks>
         public bool InPreviewMode
         {
-            get { return _previewing ?? (_previewing = DetectInPreviewModeFromRequest()).Value; }
+            get { return _previewing ?? (_previewing = (PreviewToken.IsNullOrWhiteSpace() == false)).Value; }
 			set { _previewing = value; }
         }
 
-        private bool DetectInPreviewModeFromRequest()
+        private string PreviewToken
         {
-            var request = GetRequestFromContext();
-            if (request == null || request.Url == null)
-                return false;
+            get
+            {
+                var request = GetRequestFromContext();
+                if (request == null || request.Url == null)
+                    return null;
 
-            var currentUrl = request.Url.AbsolutePath;
-            // zb-00004 #29956 : refactor cookies names & handling
-            return
-                //StateHelper.Cookies.Preview.HasValue // has preview cookie
-                HttpContext.Request.HasPreviewCookie()
-                && currentUrl.StartsWith(IOHelper.ResolveUrl(SystemDirectories.Umbraco)) == false
-                && UmbracoUser != null; // has user
+                var currentUrl = request.Url.AbsolutePath;
+                if (currentUrl.StartsWith(IOHelper.ResolveUrl(SystemDirectories.Umbraco))) return null;
+                if (UmbracoUser == null) return null;
+
+                var previewToken = request.GetPreviewCookieValue(); // may be null or empty
+                return previewToken.IsNullOrWhiteSpace() ? null : previewToken;
+            }
         }
-        
+
         private HttpRequestBase GetRequestFromContext()
         {
             try

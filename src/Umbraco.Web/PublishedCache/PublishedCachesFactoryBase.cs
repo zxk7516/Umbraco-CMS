@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Umbraco.Core.ObjectResolution;
+using Umbraco.Core.Models.Membership;
 
 namespace Umbraco.Web.PublishedCache
 {
@@ -23,7 +24,7 @@ namespace Umbraco.Web.PublishedCache
             }
         }
 
-        public abstract IPublishedCaches CreatePublishedCaches(bool preview);
+        public abstract IPublishedCaches CreatePublishedCaches(string previewToken);
 
         public IPublishedCaches GetPublishedCaches()
         {
@@ -32,5 +33,10 @@ namespace Umbraco.Web.PublishedCache
                 throw new Exception("Carrier's caches is null.");
             return caches;
         }
+
+
+        public abstract string EnterPreview(IUser user, int contentId);
+        public abstract void RefreshPreview(string previewToken, int contentId);
+        public abstract void ExitPreview(string previewToken);
     }
 }

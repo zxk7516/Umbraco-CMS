@@ -2,7 +2,6 @@ using System;
 using System.Web;
 using System.Xml.Linq;
 using Umbraco.Core.IO;
-using umbraco.presentation.preview;
 using umbraco.BusinessLogic;
 using System.Xml;
 
@@ -250,47 +249,6 @@ namespace umbraco.presentation
             }
         }
 
-		[Obsolete("This is no longer used in the codebase and will be removed. ")]
-        private const string XDocumentCacheKey = "XDocumentCache";
-
-        /// <summary>
-        /// Gets the Umbraco XML cache
-        /// </summary>
-        /// <value>The content XML.</value>
-        [Obsolete("This is no longer used in the codebase and will be removed. If you need to access the current XML cache document you can use the Umbraco.Web.Umbraco.Context.GetXml() method.")]
-        public XDocument ContentXml
-        {
-            get
-            {
-                if (UmbracoContext.Current.InPreviewMode)
-                {
-                    var pc = new PreviewContent(new Guid(StateHelper.Cookies.Preview.GetValue()));
-                    pc.LoadPreviewset();
-                    return XmlDocumentToXDocument(pc.XmlContent);
-                }
-                else
-                {
-                    if (HttpContext.Current == null)
-                        return XDocument.Load(ContentXmlPath);
-                    var xml = HttpContext.Current.Items[XDocumentCacheKey] as XDocument;
-                    if (xml == null)
-                    {
-                        xml = XmlDocumentToXDocument(content.Instance.XmlContent);
-                        HttpContext.Current.Items[XDocumentCacheKey] = xml;
-                    }
-                    return xml;
-                }
-            }
-        }
-
-        private XDocument XmlDocumentToXDocument(XmlDocument xml)
-        {
-            using (var nodeReader = new XmlNodeReader(xml))
-            {
-                nodeReader.MoveToContent();
-                return XDocument.Load(nodeReader);
-            }
-        }
         public string DataFolder
         {
             get

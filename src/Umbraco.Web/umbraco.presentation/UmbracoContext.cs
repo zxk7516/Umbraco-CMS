@@ -5,7 +5,6 @@ using umbraco.BasePages;
 using umbraco.cms.businesslogic.web;
 using umbraco.BusinessLogic;
 using System.Xml;
-using umbraco.presentation.preview;
 using Examine.Providers;
 using Examine;
 
@@ -21,7 +20,6 @@ namespace umbraco.presentation
         private UmbracoRequest _request;
         private UmbracoResponse _response;
         private readonly HttpContextBase _httpContext;
-        private PreviewContent _previewContent;
 
         /// <summary>
         /// Creates a new Umbraco context.

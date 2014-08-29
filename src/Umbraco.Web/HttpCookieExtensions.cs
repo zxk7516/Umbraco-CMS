@@ -52,6 +52,12 @@ namespace Umbraco.Web
             return null;
         }
 
+        public static string GetPreviewCookieValue(this HttpRequestBase request)
+        {
+            var cookie = request.Cookies[Constants.Web.PreviewCookieName];
+            return cookie == null ? null : cookie.Value;
+        }
+
         /// <summary>
         /// Does a preview cookie exist ?
         /// </summary>

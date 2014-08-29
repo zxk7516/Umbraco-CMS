@@ -9,21 +9,24 @@ using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
+using Umbraco.Web;
 using Umbraco.Web.Routing;
 using umbraco;
 using System.Linq;
 using umbraco.BusinessLogic;
-using umbraco.presentation.preview;
 using GlobalSettings = umbraco.GlobalSettings;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     internal class PublishedContentCache : PublishedCacheBase, IPublishedContentCache
     {
-        public PublishedContentCache(XmlStore xmlStore, bool preview)
-            : base(preview)
+        public PublishedContentCache(XmlStore xmlStore, string previewToken)
+            : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _xmlStore = xmlStore;
+
+            if (previewToken.IsNullOrWhiteSpace() == false)
+                _previewContent = new PreviewContent(previewToken);
         }
 
         #region Routes cache
@@ -288,10 +291,27 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         #region Legacy Xml
 
         private readonly XmlStore _xmlStore;
+        private readonly PreviewContent _previewContent;
 
         internal XmlDocument GetXml(bool preview)
         {
-            return _xmlStore.GetXmlDelegate(preview);
+            // not trying to be thread-safe here, that's not the point
+
+            if (preview)
+            {
+                // Xml cache does not support retrieving preview content when not previewing
+                // fixme - should it be an exception or a transparent fallback to XmlStore?
+                if (_previewContent == null)
+                    throw new InvalidOperationException("Cannot retrieve preview content when not previewing.");
+
+                // PreviewContent tries to load the Xml once and if it fails,
+                // it invalidates itself and always return null for XmlContent.
+                var previewXml = _previewContent.XmlContent;
+                if (previewXml != null)
+                    return previewXml;
+            }
+
+            return _xmlStore.GetXml();
         }
 
         #endregion

@@ -344,8 +344,7 @@ namespace Umbraco.Tests.TestHelpers
             var factory = PublishedCachesFactoryResolver.Current.Factory as PublishedCachesFactory;
             if (factory == null)
                 throw new Exception("Not a proper XmlPublishedCache.PublishedCachesFactory.");
-
-            factory.XmlStore.GetXmlDelegate = preview =>
+            factory.XmlStore.GetXmlDocument = () => 
             {
                 var doc = new XmlDocument();
                 doc.LoadXml(GetXmlContent(templateId));
@@ -360,7 +359,7 @@ namespace Umbraco.Tests.TestHelpers
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                factory.CreatePublishedCaches(false),
+                factory.CreatePublishedCaches(null),
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
+using umbraco.BusinessLogic;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web;
 
 namespace umbraco.presentation
 {
@@ -11,7 +10,13 @@ namespace umbraco.presentation
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            preview.PreviewContent.ClearPreviewCookie();
+            var factory = PublishedCachesFactoryResolver.Current.Factory;
+            var previewToken = (new HttpRequestWrapper(Request)).GetPreviewCookieValue();
+            factory.ExitPreview(previewToken);
+
+            StateHelper.Cookies.Preview.Clear();
+            //preview.PreviewContent.ClearPreviewCookie();
+
             Response.Redirect(helper.Request("redir"), true);
         }
 
