@@ -341,6 +341,9 @@ namespace Umbraco.Web
                 new PublishedCache.XmlPublishedCache.PublishedCachesFactory(
                     new PublishedCache.XmlPublishedCache.XmlStore(),
                     _isForTesting ? null : new PublishedCache.XmlPublishedCache.RoutesCache());
+                // use the NoCache
+                //new PublishedCache.PublishedNoCache.PublishedCachesFactory(
+                //    () => ApplicationContext.Current.Services);
             PublishedCachesFactoryResolver.Current = new PublishedCachesFactoryResolver(publishedCachesFactory);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector), 
