@@ -27,9 +27,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     {
         #region Legacy Xml
 
-        static readonly ConditionalWeakTable<UmbracoContext, PreviewContent> PreviewContentCache
-            = new ConditionalWeakTable<UmbracoContext, PreviewContent>();
-
         private XmlDocument _xmlDocument;
 
         public XmlStore()
