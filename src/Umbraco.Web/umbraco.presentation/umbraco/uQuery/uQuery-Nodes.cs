@@ -33,10 +33,7 @@ namespace umbraco
 
 			// Get Umbraco Xml
 
-            // must work whether we have a context or not?
-		    var cache = Umbraco.Web.UmbracoContext.Current != null
-                ? Umbraco.Web.UmbracoContext.Current.ContentCache
-                : Umbraco.Web.PublishedCache.PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
+            var cache = library.GetSafeContentCache();
             var xPathNavigator = cache.CreateNavigator();
 			XPathExpression xPathExpression;
 

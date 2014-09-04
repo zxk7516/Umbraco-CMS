@@ -1392,15 +1392,16 @@ namespace umbraco
             return xd.CreateNavigator().Select(".");
         }
 
-        // must work whether we have a context or not (ie in a thread, whatever)
-        // in which case we need to create our own set of caches
-        // fixme - is this correct?!
-        private static IPublishedContentCache GetSafeContentCache()
+        // legacy would access the raw XML from content.Instance ie a static thing
+        // now that we use a PublishedCachesService, and a contextual cache, we need
+        // to have a "context" to handle a cache. UmbracoContext does it for most
+        // cases but in some cases we might not have an UmbracoContext. For backward
+        // compatibility, try to do something here...
+        internal static IPublishedContentCache GetSafeContentCache()
         {
-            var cache = Umbraco.Web.UmbracoContext.Current != null
-                ? Umbraco.Web.UmbracoContext.Current.ContentCache
-                : PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
-            return cache;
+            var caches = PublishedCachesServiceResolver.Current.Service.GetPublishedCaches()
+                ?? PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null);
+            return caches.ContentCache;
         }
 
         /// <summary>

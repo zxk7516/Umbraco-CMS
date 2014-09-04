@@ -125,10 +125,7 @@ namespace umbraco
 		    int intId;
 		    if (int.TryParse(id, out intId) == false) return false;
 
-            // must work whether we have a context or not?
-            var cache = Umbraco.Web.UmbracoContext.Current != null
-                ? Umbraco.Web.UmbracoContext.Current.ContentCache
-                : Umbraco.Web.PublishedCache.PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
+		    var cache = library.GetSafeContentCache();
 		    return cache.HasById(intId);
 		}
 
