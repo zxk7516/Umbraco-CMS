@@ -15,6 +15,7 @@ using System.Xml;
 using System.Xml.XPath;
 using System.Xml.Xsl;
 using umbraco;
+using umbraco.cms.businesslogic.datatype;
 using umbraco.cms.businesslogic.macro;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
@@ -60,7 +61,7 @@ namespace Umbraco.Web.Macros
                 : XsltSettings.Default;
         }
 
-        #region IMacroEngine stuff
+        #region IMacroEngine
 
         public string Name
         {
@@ -90,8 +91,6 @@ namespace Umbraco.Web.Macros
             get { throw new NotSupportedException(); }
         }
 
-        #endregion
-
         // fixme - no idea what that is
         public bool Validate(string code, string tempFileName, global::umbraco.interfaces.INode currentPage, out string errorMessage)
         {
@@ -103,6 +102,8 @@ namespace Umbraco.Web.Macros
         {
             return Execute(macro);
         }
+
+        #endregion
 
         #region Execute Xslt
 
@@ -116,49 +117,54 @@ namespace Umbraco.Web.Macros
                 return string.Empty;
             }
 
-            var httpContext = _getHttpContext();
-
             using (DisposableTimer.DebugDuration<macro>("Executing XSLT: " + model.Xslt))
             {
-                XmlDocument macroXml = null;
+                // need these two here for error reporting
                 MacroNavigator macroNavigator = null;
-                NavigableNavigator contentNavigator = null;
+                XmlDocument macroXml = null;
 
-                var canNavigate =
-                    UmbracoContext.Current.ContentCache.XPathNavigatorIsNavigable &&
-                    UmbracoContext.Current.MediaCache.XPathNavigatorIsNavigable;
+                IXPathNavigable macroNavigable;
+                IXPathNavigable contentNavigable;
 
-                if (canNavigate)
+                var xmlCache = UmbracoContext.Current.ContentCache as PublishedCache.XmlPublishedCache.PublishedContentCache;
+
+                if (xmlCache == null)
                 {
-                    // the content & media caches can be navigated via XPath
-                    // this is the preferred way to render the macro
+                    // a different cache
+                    // inheriting from NavigableNavigator is required
 
-                    contentNavigator = UmbracoContext.Current.ContentCache.GetXPathNavigator() as NavigableNavigator;
-                    var mediaNavigator = UmbracoContext.Current.MediaCache.GetXPathNavigator() as NavigableNavigator;
+                    var contentNavigator = UmbracoContext.Current.ContentCache.CreateNavigator() as NavigableNavigator;
+                    var mediaNavigator = UmbracoContext.Current.MediaCache.CreateNavigator() as NavigableNavigator;
+
+                    if (contentNavigator == null || mediaNavigator == null)
+                        throw new Exception("Published caches XPathNavigator do not inherit from NavigableNavigator.");
 
                     var parameters = new List<MacroNavigator.MacroParameter>();
                     foreach (var prop in model.Properties)
                         AddMacroParameter(parameters, contentNavigator, mediaNavigator, prop.Key, prop.Type, prop.Value);
 
-                    macroNavigator = new MacroNavigator(parameters);
+                    macroNavigable = macroNavigator = new MacroNavigator(parameters);
+                    contentNavigable = UmbracoContext.Current.ContentCache;
                 }
                 else
                 {
-                    // the content or media cache can not be navigated via XPath
-                    // so we have to render the macro on top of the Xml document
+                    // the original XML cache
+                    // render the macro on top of the Xml document
 
-                    var cache = UmbracoContext.Current.ContentCache.InnerCache as PublishedCache.XmlPublishedCache.PublishedContentCache;
-                    if (cache == null) throw new Exception("Unsupported IPublishedContentCache, only the Xml one is supported.");
-                    var umbracoXml = cache.GetXml(UmbracoContext.Current, UmbracoContext.Current.InPreviewMode);
+                    var umbracoXml = xmlCache.GetXml(UmbracoContext.Current.InPreviewMode);
 
                     macroXml = new XmlDocument();
                     macroXml.LoadXml("<macro/>");
 
                     foreach (var prop in model.Properties)
                         AddMacroXmlNode(umbracoXml, macroXml, prop.Key, prop.Type, prop.Value);
+
+                    macroNavigable = macroXml;
+                    contentNavigable = umbracoXml;
                 }
 
                 // fixme - not sure we need to keep this ugly stuff
+                var httpContext = _getHttpContext();
                 if (httpContext.Request.QueryString["umbDebug"] != null && GlobalSettings.DebugMode)
                 {
                     var outerXml = macroXml == null ? macroNavigator.OuterXml : macroXml.OuterXml;
@@ -181,9 +187,8 @@ namespace Umbraco.Web.Macros
                 {
                     try
                     {
-                        return canNavigate
-                            ? XsltTransform(macroNavigator, transform, contentNavigator)
-                            : XsltTransform(macroXml, transform);
+                        var transformed = XsltTransform(macroNavigable, contentNavigable, transform);
+                        return TemplateUtilities.ResolveUrlsFromTextString(transformed);
                     }
                     catch (Exception e)
                     {
@@ -217,10 +222,104 @@ namespace Umbraco.Web.Macros
             return xslt;
         }
 
+        public static string TestXsltTransform(string xsltText, int currentPageId = -1)
+        {
+            IXPathNavigable macroNavigable;
+            IXPathNavigable contentNavigable;
+
+            var xmlCache = UmbracoContext.Current.ContentCache as PublishedCache.XmlPublishedCache.PublishedContentCache;
+
+            var xslParameters = new Dictionary<string, object>();
+            xslParameters["currentPage"] = UmbracoContext.Current.ContentCache
+                .CreateNavigator()
+                .Select(currentPageId > 0 ? ("//* [@id=" + currentPageId + "]") : "//* [@parentID=-1]");
+
+            if (xmlCache == null)
+            {
+                // a different cache
+                // inheriting from NavigableNavigator is required
+
+                var contentNavigator = UmbracoContext.Current.ContentCache.CreateNavigator() as NavigableNavigator;
+                if (contentNavigator == null)
+                    throw new Exception("Published caches XPathNavigator do not inherit from NavigableNavigator.");
+
+                var parameters = new List<MacroNavigator.MacroParameter>();
+                macroNavigable = new MacroNavigator(parameters);
+                contentNavigable = UmbracoContext.Current.ContentCache;
+            }
+            else
+            {
+                // the original XML cache
+                // render the macro on top of the Xml document
+
+                var umbracoXml = xmlCache.GetXml(UmbracoContext.Current.InPreviewMode);
+
+                var macroXml = new XmlDocument();
+                macroXml.LoadXml("<macro/>");
+
+                macroNavigable = macroXml;
+                contentNavigable = umbracoXml;
+            }
+
+            // for a test, do not try...catch
+            // but let the exceptions be thrown
+
+            XslCompiledTransform transform;
+            using (var reader = new XmlTextReader(new StringReader(xsltText)))
+            {
+                transform = GetXsltTransform(reader, true);
+            }
+            var transformed = XsltTransform(macroNavigable, contentNavigable, transform);
+
+            return transformed;
+        }
+
+        public static string ExecuteItemRenderer(XslCompiledTransform transform, string itemData)
+        {
+            IXPathNavigable macroNavigable;
+            IXPathNavigable contentNavigable;
+
+            var xmlCache = UmbracoContext.Current.ContentCache as PublishedCache.XmlPublishedCache.PublishedContentCache;
+
+            if (xmlCache == null)
+            {
+                // a different cache
+                // inheriting from NavigableNavigator is required
+
+                var contentNavigator = UmbracoContext.Current.ContentCache.CreateNavigator() as NavigableNavigator;
+                var mediaNavigator = UmbracoContext.Current.MediaCache.CreateNavigator() as NavigableNavigator;
+
+                if (contentNavigator == null || mediaNavigator == null)
+                    throw new Exception("Published caches XPathNavigator do not inherit from NavigableNavigator.");
+
+                var parameters = new List<MacroNavigator.MacroParameter>();
+
+                macroNavigable = new MacroNavigator(parameters);
+                contentNavigable = UmbracoContext.Current.ContentCache;
+            }
+            else
+            {
+                // the original XML cache
+                // render the macro on top of the Xml document
+
+                var umbracoXml = xmlCache.GetXml(UmbracoContext.Current.InPreviewMode);
+
+                var macroXml = new XmlDocument();
+                macroXml.LoadXml("<macro/>");
+
+                macroNavigable = macroXml;
+                contentNavigable = umbracoXml;
+            }
+
+            var xslParameters = new Dictionary<string, object> { { "itemData", itemData } };
+            return XsltTransform(macroNavigable, contentNavigable, transform, xslParameters);
+        }
+
         #endregion
 
-        #region XmlDocument mode
+        #region XsltTransform
 
+        // running on the XML cache, document mode
         // add parameters to the <macro> root node
         // fixme - contains dirty code...
         private static void AddMacroXmlNode(XmlDocument umbracoXml, XmlDocument macroXml,
@@ -317,13 +416,13 @@ namespace Umbraco.Web.Macros
         }
 
         // gets the result of the xslt transform - XmlDocument mode
-        public static string XsltTransform(IXPathNavigable macroXml, XslCompiledTransform xslt,
+        // FIXME only used by ItemRenderer - must obsolete that one!
+        private static string XsltTransform(IXPathNavigable macroXml, XslCompiledTransform xslt,
             IDictionary<string, object> parameters = null)
         {
             TextWriter tw = new StringWriter();
 
             XsltArgumentList xslArgs;
-
             using (DisposableTimer.DebugDuration<macro>("Adding XSLT Extensions"))
             {
                 xslArgs = GetXsltArgumentListWithExtensions();
@@ -347,13 +446,11 @@ namespace Umbraco.Web.Macros
             {
                 xslt.Transform(nav, xslArgs, tw);
             }
-            return TemplateUtilities.ResolveUrlsFromTextString(tw.ToString());
+
+            return tw.ToString();
         }
 
-        #endregion
-
-        #region Navigator mode
-
+        // running on a navigable cache, navigable mode
         // add parameters to the macro parameters collection
         private static void AddMacroParameter(ICollection<MacroNavigator.MacroParameter> parameters,
             NavigableNavigator contentNavigator, NavigableNavigator mediaNavigator,
@@ -443,9 +540,9 @@ namespace Umbraco.Web.Macros
             }
         }
 
-        // gets the result of the xslt transform - Navigator mode
-        private static string XsltTransform(IXPathNavigable macroNavigator, XslCompiledTransform xslt,
-            XPathNavigator contentNavigator, IDictionary<string, object> parameters = null)
+        // gets the result of the xslt transform
+        private static string XsltTransform(IXPathNavigable macroNavigable, IXPathNavigable contentNavigable,
+            XslCompiledTransform xslt, IDictionary<string, object> xslParameters = null)
         {
             TextWriter tw = new StringWriter();
 
@@ -458,25 +555,24 @@ namespace Umbraco.Web.Macros
             }
 
             // add parameters
-            if (parameters == null || parameters.ContainsKey("currentPage") == false)
+            if (xslParameters == null || xslParameters.ContainsKey("currentPage") == false)
             {
                 // note: "PageId" is a legacy stuff that might be != from what's in current PublishedContentRequest
                 var currentPageId = UmbracoContext.Current.PageId;
-                var current = contentNavigator.Clone().Select("//* [@id=" + currentPageId + "]");
+                var current = contentNavigable.CreateNavigator().Select("//* [@id=" + currentPageId + "]");
                 xslArgs.AddParam("currentPage", string.Empty, current);
             }
-            if (parameters != null)
-            {
-                foreach (var parameter in parameters)
+            if (xslParameters != null)
+                foreach (var parameter in xslParameters)
                     xslArgs.AddParam(parameter.Key, string.Empty, parameter.Value);
-            }
 
             // transform
             using (DisposableTimer.DebugDuration<macro>("Executing XSLT transform"))
             {
-                xslt.Transform(macroNavigator, xslArgs, tw);
+                xslt.Transform(macroNavigable, xslArgs, tw);
             }
-            return TemplateUtilities.ResolveUrlsFromTextString(tw.ToString());
+
+            return tw.ToString();
         }
 
         #endregion
@@ -509,6 +605,7 @@ namespace Umbraco.Web.Macros
             };
 
             xslReader.EntityHandling = EntityHandling.ExpandEntities;
+            xslReader.DtdProcessing = DtdProcessing.Parse;
 
             try
             {
