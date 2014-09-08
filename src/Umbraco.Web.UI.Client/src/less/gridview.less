@@ -7,7 +7,7 @@
  // Sortabel
  // -------------------------
  .usky-grid .ui-sortable-helper  {
-     border: dashed 1px #$000;
+     border: dashed 1px #000;
      background: #ccc;
      opacity: 0.4;
      height: 50px !important;
@@ -125,6 +125,11 @@
 }
 
 
+/*.usky-grid .selectedRow {
+     border: 1px solid rgba(182, 182, 182, 0.3);
+}*/
+
+
 
 
 // CELL
@@ -205,25 +210,28 @@
 // CONTROL
 // -------------------------
 .usky-grid .usky-control {
-    transition: all .20s ease-in-out;
+    /*transition: all .20s ease-in-out;
     -moz-transition: all .20s ease-in-out;
-    -webkit-transition: all .20s ease-in-out;
+    -webkit-transition: all .20s ease-in-out;*/
     position:relative;
     display:block;
     
     border: 1px dashed rgba(255, 0, 0, .0);     
-    border-bottom-width: 2px;
+    border-bottom-width: 1px;
 
     -webkit-background-clip: padding-box; /* for Safari */
     background-clip: padding-box; /* for IE9+, Firefox 4+, Opera, Chrome */
 }
 
 .usky-grid  .usky-control:hover{
-     border-bottom:2px solid rgba(182, 182, 182, 0.3);
+    /*border: 1px solid rgba(182, 182, 182, 0.3);*/
+    border-bottom: 1px solid rgba(182, 182, 182, 0.3);
+
 }
 
 .usky-grid  .usky-control-placeholder:hover{
-     border-bottom:2px solid rgba(182, 182, 182, 0.0) !important;
+    /*border: 1px solid rgba(182, 182, 182, 0);*/
+    border-bottom:1px solid rgba(182, 182, 182, 0.0) !important;
 }
 
 .usky-grid .removingControl{
@@ -293,7 +301,7 @@
      border: none;
      background: #fff;
      outline: none;
-     width: 99%;
+     width: 98%;
      resize: none;
      color: @gray;
  }
@@ -308,7 +316,7 @@
      border: none;
      background: #fff;
      outline: none;
-     width: 99%;
+     width: 98%;
      resize: none;
      font-style: italic;
 }
