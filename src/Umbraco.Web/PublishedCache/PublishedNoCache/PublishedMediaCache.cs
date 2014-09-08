@@ -38,14 +38,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(preview);
+            var navigator = CreateNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
 
         public override IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(preview);
+            var navigator = CreateNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetSingleByXPath(iterator);
         }
@@ -63,14 +63,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(preview);
+            var navigator = CreateNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
 
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, params XPathVariable[] vars)
         {
-            var navigator = GetXPathNavigator(preview);
+            var navigator = CreateNavigator(preview);
             var iterator = navigator.Select(xpath, vars);
             return GetByXPath(iterator);
         }
@@ -89,14 +89,12 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
         }
 
-        public override XPathNavigator GetXPathNavigator(bool preview)
+        public override XPathNavigator CreateNavigator(bool preview)
         {
             var source = new Navigable.Source(this, preview);
             var navigator = new NavigableNavigator(source);
             return navigator;
         }
-
-        public override bool XPathNavigatorIsNavigable { get { return true; } }
 
         public override bool HasContent(bool preview)
         {

@@ -105,12 +105,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
 
-        public override XPathNavigator GetXPathNavigator(bool preview)
+        public override XPathNavigator CreateNavigator(bool preview)
         {
             throw new NotImplementedException("PublishedMediaCache does not support XPath.");
         }
-
-        public override bool XPathNavigatorIsNavigable { get { return false; } }
 
         public override bool HasContent(bool preview) { throw new NotImplementedException(); }
 

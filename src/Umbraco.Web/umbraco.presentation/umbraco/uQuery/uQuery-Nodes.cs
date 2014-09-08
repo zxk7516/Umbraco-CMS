@@ -37,7 +37,7 @@ namespace umbraco
 		    var cache = Umbraco.Web.UmbracoContext.Current != null
                 ? Umbraco.Web.UmbracoContext.Current.ContentCache
                 : Umbraco.Web.PublishedCache.PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null).ContentCache;
-		    var xPathNavigator = cache.GetXPathNavigator();
+            var xPathNavigator = cache.CreateNavigator();
 			XPathExpression xPathExpression;
 
 			// Check to see if XPathExpression is in the cache

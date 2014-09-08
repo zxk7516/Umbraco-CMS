@@ -12,7 +12,7 @@ namespace Umbraco.Web.PublishedCache
     /// <summary>
     /// Provides access to cached contents.
     /// </summary>
-    public interface IPublishedCache
+    public interface IPublishedCache : IXPathNavigable
     {
         /// <summary>
         /// Gets a content identified by its unique identifier.
@@ -139,7 +139,7 @@ namespace Umbraco.Web.PublishedCache
         IEnumerable<IPublishedContent> GetByXPath(XPathExpression xpath, params XPathVariable[] vars);
 
         /// <summary>
-        /// Gets an XPath navigator that can be used to navigate contents.
+        /// Creates an XPath navigator that can be used to navigate contents.
         /// </summary>
         /// <param name="preview">A value indicating whether to consider unpublished content.</param>
         /// <returns>The XPath navigator.</returns>
@@ -147,22 +147,18 @@ namespace Umbraco.Web.PublishedCache
         /// <para>The value of <paramref name="preview"/> overrides the context.</para>
         /// <para>The navigator is already a safe clone (no need to clone it again).</para>
         /// </remarks>
-        XPathNavigator GetXPathNavigator(bool preview);
+        XPathNavigator CreateNavigator(bool preview);
 
         /// <summary>
-        /// Gets an XPath navigator that can be used to navigate contents.
+        /// Creates an XPath navigator that can be used to navigate contents.
         /// </summary>
         /// <returns>The XPath navigator.</returns>
         /// <remarks>
         /// <para>Considers published or unpublished content depending on defaults.</para>
+        /// <para>The navigator is already a safe clone (no need to clone it again).</para>
+        /// <para>Implements IXPathNavigable.CreateNavigator().</para>
         /// </remarks>
-        XPathNavigator GetXPathNavigator();
-
-        /// <summary>
-        /// Gets a value indicating whether <c>GetXPathNavigator</c> returns an <c>XPathNavigator</c>
-        /// and that navigator is a <c>NavigableNavigator</c>.
-        /// </summary>
-        bool XPathNavigatorIsNavigable { get; }
+        //XPathNavigator CreateNavigator();
 
         /// <summary>
         /// Gets a value indicating whether the cache contains published content.

@@ -64,14 +64,12 @@ namespace Umbraco.Web.PublishedCache
             return GetByXPath(CurrentPreview, xpath, vars);
         }
 
-        public abstract XPathNavigator GetXPathNavigator(bool preview);
+        public abstract XPathNavigator CreateNavigator(bool preview);
 
-        public XPathNavigator GetXPathNavigator()
+        public XPathNavigator CreateNavigator()
         {
-            return GetXPathNavigator(CurrentPreview);
+            return CreateNavigator(CurrentPreview);
         }
-
-        public abstract bool XPathNavigatorIsNavigable { get; }
 
         public abstract bool HasContent(bool preview);
 

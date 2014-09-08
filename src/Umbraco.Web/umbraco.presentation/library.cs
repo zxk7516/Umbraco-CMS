@@ -1362,7 +1362,7 @@ namespace umbraco
         {
             try
             {
-                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.GetXPathNavigator();
+                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNavigator();
                 nav.MoveToId(HttpContext.Current.Items["pageID"].ToString());
                 return nav.Select(".");
             }
@@ -1382,7 +1382,7 @@ namespace umbraco
         /// <returns>Returns the node with the specified id as xml in the form of a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeById(string id)
         {
-            var nav = GetSafeContentCache().GetXPathNavigator();
+            var nav = GetSafeContentCache().CreateNavigator();
 
             if (nav.MoveToId(id))
                 return nav.Select(".");
@@ -1410,7 +1410,7 @@ namespace umbraco
         /// <returns>Returns nodes matching the xpath query as a XpathNodeIterator</returns>
         public static XPathNodeIterator GetXmlNodeByXPath(string xpathQuery)
         {
-            return GetSafeContentCache().GetXPathNavigator().Select(xpathQuery);
+            return GetSafeContentCache().CreateNavigator().Select(xpathQuery);
         }
 
         /// <summary>
@@ -1419,7 +1419,7 @@ namespace umbraco
         /// <returns>Returns the entire umbraco Xml cache as a XPathNodeIterator</returns>
         public static XPathNodeIterator GetXmlAll()
         {
-            return GetSafeContentCache().GetXPathNavigator().Select("/root");
+            return GetSafeContentCache().CreateNavigator().Select("/root");
         }
 
         /// <summary>

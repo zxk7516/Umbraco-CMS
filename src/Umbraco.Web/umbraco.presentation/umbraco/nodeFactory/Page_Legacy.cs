@@ -52,7 +52,7 @@ namespace umbraco.presentation.nodeFactory
 
         public Node()
         {
-            var nav = ContentCache.GetXPathNavigator(); // safe (no need to clone)
+            var nav = ContentCache.CreateNavigator(); // safe (no need to clone)
             if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"]
                 _nodeNav = nav;
             // else it remains null
@@ -84,14 +84,14 @@ namespace umbraco.presentation.nodeFactory
         /// <param name="id"></param>
         /// <param name="forcePublishedXml"></param>
         public Node(int id, bool forcePublishedXml)
-            : this(ContentCache.GetXPathNavigator(false), id, forcePublishedXml == false)
+            : this(ContentCache.CreateNavigator(false), id, forcePublishedXml == false)
         {
             if (forcePublishedXml == false)
                 throw new ArgumentException("Use Node(int NodeId) if not forcing published xml");
         }
 
         public Node(int id)
-            : this(ContentCache.GetXPathNavigator(), id, false)
+            : this(ContentCache.CreateNavigator(), id, false)
         { }
 
         private Node(XPathNavigator nav, int id, bool fail)

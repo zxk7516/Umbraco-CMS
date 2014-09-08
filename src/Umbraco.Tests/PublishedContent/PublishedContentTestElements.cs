@@ -104,14 +104,9 @@ namespace Umbraco.Tests.PublishedContent
             throw new NotImplementedException();
         }
 
-        public override System.Xml.XPath.XPathNavigator GetXPathNavigator(bool preview)
+        public override System.Xml.XPath.XPathNavigator CreateNavigator(bool preview)
         {
             throw new NotImplementedException();
-        }
-
-        public override bool XPathNavigatorIsNavigable
-        {
-            get { throw new NotImplementedException(); }
         }
 
         public override bool HasContent(bool preview)

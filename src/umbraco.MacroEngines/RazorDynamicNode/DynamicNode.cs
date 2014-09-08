@@ -191,7 +191,7 @@ namespace umbraco.MacroEngines
                     return new DynamicNodeList(selfList);
                 }
 
-                var nav = UmbracoContext.Current.ContentCache.GetXPathNavigator();
+                var nav = UmbracoContext.Current.ContentCache.CreateNavigator();
                 if (nav.MoveToId(n.Id.ToString()) == false)
                     throw new Exception("Couldn't locate the DynamicNode within the content cache.");
 

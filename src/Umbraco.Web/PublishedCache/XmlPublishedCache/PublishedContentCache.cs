@@ -277,13 +277,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			return node != null;
         }
 
-        public override XPathNavigator GetXPathNavigator(bool preview)
+        public override XPathNavigator CreateNavigator(bool preview)
         {
             var xml = GetXml(preview);
             return xml.CreateNavigator();
         }
-
-        public override bool XPathNavigatorIsNavigable { get { return false; } }
 
         #endregion
 
