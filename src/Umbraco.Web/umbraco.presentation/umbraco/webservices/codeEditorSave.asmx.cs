@@ -13,6 +13,7 @@ using System.Xml;
 using System.Xml.Xsl;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
+using Umbraco.Web.Macros;
 using Umbraco.Web.WebServices;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic.macro;
@@ -84,72 +85,21 @@ namespace umbraco.presentation.webservices
                 IOHelper.ValidateFileExtension(IOHelper.MapPath(SystemDirectories.Xslt + "/" + fileName),
                                                new List<string>() { "xsl", "xslt" });
 
-
-                StreamWriter SW;
-                string tempFileName = IOHelper.MapPath(SystemDirectories.Xslt + "/" + DateTime.Now.Ticks + "_temp.xslt");
-                SW = File.CreateText(tempFileName);
-                SW.Write(fileContents);
-                SW.Close();
-
                 // Test the xslt
                 string errorMessage = "";
 
-                if (!ignoreDebugging)
+                if (ignoreDebugging == false)
                 {
                     try
                     {
-                        // Check if there's any documents yet
-                        string xpath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "/root/node" : "/root/*";
-                        if (content.Instance.XmlContent.SelectNodes(xpath).Count > 0)
-                        {
-                            var macroXML = new XmlDocument();
-                            macroXML.LoadXml("<macro/>");
-
-                            var macroXSLT = new XslCompiledTransform();
-                            var umbPage = new page(content.Instance.XmlContent.SelectSingleNode("//* [@parentID = -1]"));
-
-                            var xslArgs = global::Umbraco.Web.Macros.XsltMacroEngine.GetXsltArgumentListWithExtensions();
-                            var lib = new library(umbPage);
-                            xslArgs.AddExtensionObject("urn:umbraco.library", lib);
-                            HttpContext.Current.Trace.Write("umbracoMacro", "After adding extensions");
-
-                            // Add the current node
-                            xslArgs.AddParam("currentPage", "", library.GetXmlNodeById(umbPage.PageID.ToString()));
-
-                            HttpContext.Current.Trace.Write("umbracoMacro", "Before performing transformation");
-
-                            // Create reader and load XSL file
-                            // We need to allow custom DTD's, useful for defining an ENTITY
-                            var readerSettings = new XmlReaderSettings();
-                            readerSettings.ProhibitDtd = false;
-                            using (var xmlReader = XmlReader.Create(tempFileName, readerSettings))
-                            {
-                                var xslResolver = new XmlUrlResolver();
-                                xslResolver.Credentials = CredentialCache.DefaultCredentials;
-                                macroXSLT.Load(xmlReader, XsltSettings.TrustedXslt, xslResolver);
-                                xmlReader.Close();
-                                // Try to execute the transformation
-                                var macroResult = new HtmlTextWriter(new StringWriter());
-                                macroXSLT.Transform(macroXML, xslArgs, macroResult);
-                                macroResult.Close();
-
-                                File.Delete(tempFileName);
-                            }
-                        }
-                        else
-                        {
-                            //errorMessage = ui.Text("developer", "xsltErrorNoNodesPublished");
-                            File.Delete(tempFileName);
-                            //base.speechBubble(speechBubbleIcon.info, ui.Text("errors", "xsltErrorHeader", base.getUser()), "Unable to validate xslt as no published content nodes exist.");
-                        }
+                        if (UmbracoContext.ContentCache.HasContent())
+                            XsltMacroEngine.TestXsltTransform(fileContents);
                     }
                     catch (Exception errorXslt)
                     {
-                        File.Delete(tempFileName);
-
                         errorMessage = (errorXslt.InnerException ?? errorXslt).ToString();
 
-                        // Full error message
+                        // full error message
                         errorMessage = errorMessage.Replace("\n", "<br/>\n");
                         //closeErrorMessage.Visible = true;
 
@@ -210,9 +160,9 @@ namespace umbraco.presentation.webservices
                                 File.Delete(p);
                         }
 
-                        SW = File.CreateText(savePath);
-                        SW.Write(fileContents);
-                        SW.Close();
+                        var sw = File.CreateText(savePath);
+                        sw.Write(fileContents);
+                        sw.Close();
                         errorMessage = "true";
 
                        
@@ -223,7 +173,11 @@ namespace umbraco.presentation.webservices
                     }
                 }
 
-                File.Delete(tempFileName);
+                 // reformat for proper rendering in a <pre>
+                errorMessage = errorMessage.Replace("<br/>", "\n");
+                errorMessage = errorMessage.Replace("\r", "\n");
+                errorMessage = Regex.Replace(errorMessage, @"^\s*[\n]*", "", RegexOptions.Multiline);
+                errorMessage = HttpUtility.HtmlEncode(errorMessage);
 
                 return errorMessage;
             }

@@ -216,36 +216,32 @@ namespace umbraco.presentation.templateControls
         /// <returns>The transformed content if the XSLT attribute is present, otherwise the original content.</returns>
         protected virtual string XsltTransform(string xpath, string itemData, bool disableEscaping)
         {
-            if (!String.IsNullOrEmpty(xpath))
+            if (string.IsNullOrEmpty(xpath))
+                return itemData;
+
+            // XML-encode the expression and add the itemData parameter to it
+            var xpathEscaped = xpath.Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+            var xpathExpression = string.Format(xpathEscaped, "$itemData");
+
+            // prepare support for XSLT extensions
+            var namespaceList = new StringBuilder();
+            var namespaceDeclaractions = new StringBuilder();
+            foreach (var extension in Umbraco.Web.Macros.XsltMacroEngine.GetXsltExtensions())
             {
-                // XML-encode the expression and add the itemData parameter to it
-                string xpathEscaped = xpath.Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
-                string xpathExpression = string.Format(xpathEscaped, "$itemData");
-
-                // prepare support for XSLT extensions
-                StringBuilder namespaceList = new StringBuilder();
-                StringBuilder namespaceDeclaractions = new StringBuilder();
-                foreach (KeyValuePair<string, object> extension in Umbraco.Web.Macros.XsltMacroEngine.GetXsltExtensions())
-                {
-                    namespaceList.Append(extension.Key).Append(' ');
-                    namespaceDeclaractions.AppendFormat("xmlns:{0}=\"urn:{0}\" ", extension.Key);
-                }
-
-                // add the XSLT expression into the full XSLT document, together with the needed parameters
-                string xslt = string.Format(Umbraco.Web.umbraco.presentation.umbraco.templateControls.Resources.InlineXslt, xpathExpression, disableEscaping ? "yes" : "no",
-                                                                  namespaceList, namespaceDeclaractions);
-
-                // create the parameter
-                Dictionary<string, object> parameters = new Dictionary<string, object>(1);
-                parameters.Add("itemData", itemData);
-
-                // apply the XSLT transformation
-                XmlTextReader xslReader = new XmlTextReader(new StringReader(xslt));
-                System.Xml.Xsl.XslCompiledTransform xsl = Umbraco.Web.Macros.XsltMacroEngine.GetXsltTransform(xslReader, false);
-                itemData = Umbraco.Web.Macros.XsltMacroEngine.XsltTransform(new XmlDocument(), xsl, parameters);
-                xslReader.Close();
+                namespaceList.Append(extension.Key).Append(' ');
+                namespaceDeclaractions.AppendFormat("xmlns:{0}=\"urn:{0}\" ", extension.Key);
             }
-            return itemData;
+
+            // add the XSLT expression into the full XSLT document, together with the needed parameters
+            var xslt = string.Format(Umbraco.Web.umbraco.presentation.umbraco.templateControls.Resources.InlineXslt,
+                xpathExpression, disableEscaping ? "yes" : "no", namespaceList, namespaceDeclaractions);
+
+            // apply the XSLT transformation
+            using (var xslReader = new XmlTextReader(new StringReader(xslt)))
+            {
+                var transform = Umbraco.Web.Macros.XsltMacroEngine.GetXsltTransform(xslReader, false);
+                return Umbraco.Web.Macros.XsltMacroEngine.ExecuteItemRenderer(transform, itemData);
+            }
         }
 
         protected string AddBeforeAfterText(string text, string before, string after)

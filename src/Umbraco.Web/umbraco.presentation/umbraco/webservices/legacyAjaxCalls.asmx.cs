@@ -12,6 +12,7 @@ using System.Net;
 using System.Web.UI;
 using Umbraco.Core;
 using Umbraco.Core.IO;
+using Umbraco.Web.Macros;
 using Umbraco.Web.UI;
 using Umbraco.Web;
 using Umbraco.Web.Cache;
@@ -277,61 +278,15 @@ namespace umbraco.presentation.webservices
 
         private string SaveXslt(string fileName, string fileContents, bool ignoreDebugging)
         {	        
-			var tempFileName = IOHelper.MapPath(SystemDirectories.Xslt + "/" + System.DateTime.Now.Ticks + "_temp.xslt");
-            using (var sw = File.CreateText(tempFileName))
-            {
-				sw.Write(fileContents);
-				sw.Close();    
-            }
-            
             // Test the xslt
             var errorMessage = "";
-            if (!ignoreDebugging)
+
+            if (ignoreDebugging == false)
             {
                 try
                 {
-
-                    // Check if there's any documents yet
-                    if (content.Instance.XmlContent.SelectNodes("/root/node").Count > 0)
-                    {
-                        var macroXml = new XmlDocument();
-                        macroXml.LoadXml("<macro/>");
-
-                        var macroXslt = new XslCompiledTransform();
-                        var umbPage = new page(content.Instance.XmlContent.SelectSingleNode("//node [@parentID = -1]"));
-
-                        var xslArgs = global::Umbraco.Web.Macros.XsltMacroEngine.GetXsltArgumentListWithExtensions();
-                        var lib = new library(umbPage);
-                        xslArgs.AddExtensionObject("urn:umbraco.library", lib);
-                        HttpContext.Current.Trace.Write("umbracoMacro", "After adding extensions");
-
-                        // Add the current node
-                        xslArgs.AddParam("currentPage", "", library.GetXmlNodeById(umbPage.PageID.ToString()));
-                        HttpContext.Current.Trace.Write("umbracoMacro", "Before performing transformation");
-
-                        // Create reader and load XSL file
-                        // We need to allow custom DTD's, useful for defining an ENTITY
-                        var readerSettings = new XmlReaderSettings();
-                        readerSettings.ProhibitDtd = false;
-                        using (var xmlReader = XmlReader.Create(tempFileName, readerSettings))
-                        {
-                            var xslResolver = new XmlUrlResolver
-                                {
-                                    Credentials = CredentialCache.DefaultCredentials
-                                };
-                            macroXslt.Load(xmlReader, XsltSettings.TrustedXslt, xslResolver);
-                            xmlReader.Close();
-                            // Try to execute the transformation
-                            var macroResult = new HtmlTextWriter(new StringWriter());
-                            macroXslt.Transform(macroXml, xslArgs, macroResult);
-                            macroResult.Close();
-                        }
-                    }
-                    else
-                    {
-                        errorMessage = "stub";
-                    }
-
+                    if (UmbracoContext.ContentCache.HasContent())
+                        XsltMacroEngine.TestXsltTransform(fileContents);
                 }
                 catch (Exception errorXslt)
                 {
@@ -395,8 +350,6 @@ namespace umbraco.presentation.webservices
                     errorMessage = "Illegal path";
                 }
             }
-
-            File.Delete(tempFileName);
 
             return errorMessage;
         }
