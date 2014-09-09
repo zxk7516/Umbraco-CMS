@@ -377,7 +377,6 @@
     <Compile Include="Mvc\UmbracoVirtualNodeByIdRouteHandler.cs" />
     <Compile Include="PropertyEditors\ValueConverters\MacroContainerValueConverter.cs" />
     <Compile Include="PropertyEditors\TagsDataController.cs" />
-    <Compile Include="PublishedCache\DrippingPublishedCache\PublishedCachesFactory.cs" />
     <Compile Include="PublishedCache\IPublishedCachesService.cs" />
     <Compile Include="PublishedCache\MemberPublishedContent.cs" />
     <Compile Include="PublishedCache\PublishedCacheBase.cs" />
