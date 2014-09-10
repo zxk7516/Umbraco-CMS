@@ -342,7 +342,7 @@ namespace Umbraco.Web
                     new PublishedCache.XmlPublishedCache.XmlStore(),
                     _isForTesting ? null : new PublishedCache.XmlPublishedCache.RoutesCache());
                 // use the NoCache
-                //new PublishedCache.PublishedNoCache.PublishedCachesFactory(
+                //new PublishedCache.PublishedNoCache.PublishedCachesService(
                 //    () => ApplicationContext.Current.Services);
             PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(publishedCachesService);
 
