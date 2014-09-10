@@ -269,7 +269,7 @@ namespace Umbraco.Web.Macros
             {
                 transform = GetXsltTransform(reader, true);
             }
-            var transformed = XsltTransform(macroNavigable, contentNavigable, transform);
+            var transformed = XsltTransform(macroNavigable, contentNavigable, transform, xslParameters);
 
             return transformed;
         }
