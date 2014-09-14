@@ -1,4 +1,4 @@
-﻿angular.module("umbraco").controller("Umbraco.Dialogs.LoginController", function ($scope, userService, legacyJsLoader, $routeParams) {
+﻿angular.module("umbraco").controller("Umbraco.Dialogs.LoginController", function ($scope, userService, eventsService) {
     
     /**
      * @ngdoc function
@@ -26,13 +26,13 @@
             $scope.loginForm.password.$setValidity('auth', true);
         }
         
-        
         if ($scope.loginForm.$invalid) {
             return;
         }
 
         userService.authenticate(login, password)
-            .then(function (data) {               
+            .then(function (data) {
+                eventsService.emit("app.authenticated", data);
                 $scope.submit(true);                
             }, function (reason) {
                 $scope.errorMsg = reason.errorMsg;

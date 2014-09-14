@@ -8,7 +8,7 @@
  * The main application controller
  * 
  */
-function MainController($scope, $rootScope, $location, $routeParams, $timeout, $http, $log, appState, treeService, notificationsService, dialogService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
+function MainController($scope, $rootScope, $location, $stateParams, $state, $timeout, $http, $log, appState, treeService, notificationsService, dialogService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
 
     //the null is important because we do an explicit bool check on this in the view
     //the avatar is by default the umbraco logo    
@@ -16,6 +16,9 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
     $scope.avatar = "assets/img/application/logo_white.png";
     $scope.touchDevice = appState.getGlobalState("touchDevice");
     
+    $rootScope.$state = $state;
+    $rootScope.$stateParams = $stateParams;
+
     //subscribes to notifications in the notification service
     $scope.notifications = notificationsService.current;
     $scope.$watch('notificationsService.current', function (newVal, oldVal, scope) {
@@ -24,20 +27,10 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
         }
     });
 
-
     //subscribes to dialogs in the dialog service
     $scope.dialogs = dialogService.current;
-    $scope.$watch('dialogService.current', function (newVal, oldVal, scope) {
-        if (newVal) {
-            $scope.dialogs = newVal;
-        }
-    });
 
-
-    $scope.removeNotification = function (index) {
-        notificationsService.remove(index);
-    };
-
+    
     $scope.closeDialogs = function (event) {
         //only close dialogs if non-link and non-buttons are clicked
         var el = event.target.nodeName;
@@ -59,58 +52,8 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
         eventsService.emit("app.closeDialogs", event);
     };
 
-    //when a user logs out or timesout
-    eventsService.on("app.notAuthenticated", function() {
-        $scope.authenticated = null;
-        $scope.user = null;
-    });
     
 
-    //when the app is ready/user is logged in, setup the data
-    eventsService.on("app.ready", function (evt, data) {
-        
-        $scope.authenticated = data.authenticated;
-        $scope.user = data.user;
-
-        updateChecker.check().then(function(update){
-            if(update && update !== "null"){
-                if(update.type !== "None"){
-                    var notification = {
-                           headline: "Update available",
-                           message: "Click to download",
-                           sticky: true,
-                           type: "info",
-                           url: update.url
-                    };
-                    notificationsService.add(notification);
-                }
-            }
-        });
-
-        //if the user has changed we need to redirect to the root so they don't try to continue editing the
-        //last item in the URL (NOTE: the user id can equal zero, so we cannot just do !data.lastUserId since that will resolve to true)
-        if (data.lastUserId !== undefined && data.lastUserId !== null && data.lastUserId !== data.user.id) {
-            $location.path("/").search("");
-            historyService.removeAll();
-            treeService.clearCache();
-        }
-
-        if($scope.user.emailHash){
-            $timeout(function () {                
-                //yes this is wrong.. 
-                $("#avatar-img").fadeTo(1000, 0, function () {
-                    $timeout(function () {
-                        //this can be null if they time out
-                        if ($scope.user && $scope.user.emailHash) {
-                            $scope.avatar = "http://www.gravatar.com/avatar/" + $scope.user.emailHash + ".jpg?s=64&d=mm";
-                        }
-                    });
-                    $("#avatar-img").fadeTo(1000, 1);
-                });
-                
-              }, 3000);  
-        }
-    });
 
 }
 

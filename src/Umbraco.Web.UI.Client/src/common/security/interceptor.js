@@ -1,6 +1,6 @@
 angular.module('umbraco.security.interceptor', ['umbraco.security.retryQueue'])
     // This http interceptor listens for authentication successes and failures
-    .factory('securityInterceptor', ['$injector', 'securityRetryQueue', 'notificationsService', function ($injector, queue, notifications) {
+    .factory('securityInterceptor', ['$injector', 'securityRetryQueue', 'eventsService', function ($injector, queue, eventsService) {
         return function(promise) {
 
             return promise.then(
@@ -15,7 +15,6 @@ angular.module('umbraco.security.interceptor', ['umbraco.security.retryQueue'])
                         var userService = $injector.get('userService');
                         userService.setUserTimeout(headers["x-umb-user-seconds"]);
                     }
-                    
                     return promise;
                 }, function(originalResponse) {
                     // Intercept failed requests
@@ -42,9 +41,8 @@ angular.module('umbraco.security.interceptor', ['umbraco.security.retryQueue'])
                             errMsg += "<br/> with data: <br/><i>" + angular.toJson(originalResponse.config.data) + "</i><br/>Contact your administrator for information.";
                         }
 
-                        notifications.error(
-                            "Request error",
-                            errMsg);
+
+                        eventsService.emit("app.error", { headline: "Request error", message: errMsg });
                         
                     }
                     else if (originalResponse.status === 403) {
@@ -62,9 +60,7 @@ angular.module('umbraco.security.interceptor', ['umbraco.security.retryQueue'])
                             msg += "<br/> with data: <br/><i>" + angular.toJson(originalResponse.config.data) + "</i><br/>Contact your administrator for information.";
                         }
 
-                        notifications.error(
-                            "Authorization error",
-                            msg);
+                        eventsService.emit("app.error", { headline: "Authorization error", message: msg });
                     }
 
                     return promise;

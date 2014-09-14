@@ -8,33 +8,6 @@ angular.module('umbraco.services')
         // this is used so that we know when to go and get the user's remaining seconds directly.
         var lastServerTimeoutSet = null;
 
-        function openLoginDialog(isTimedOut) {
-            if (!loginDialog) {
-                loginDialog = dialogService.open({
-                    template: 'views/common/dialogs/login.html',
-                    modalClass: "login-overlay",
-                    animation: "slide",
-                    show: true,
-                    callback: onLoginDialogClose,
-                    dialogData: {
-                        isTimedOut: isTimedOut
-                    }
-                });
-            }
-        }
-
-        function onLoginDialogClose(success) {
-            loginDialog = null;
-
-            if (success) {
-                securityRetryQueue.retryAll();
-            }
-            else {
-                securityRetryQueue.cancelAll();
-                $location.path('/');
-            }
-        }
-
         /** 
         This methods will set the current user when it is resolved and 
         will then start the counter to count in-memory how many seconds they have 
@@ -130,8 +103,6 @@ angular.module('umbraco.services')
 
         /** Called to update the current user's timeout */
         function setUserTimeoutInternal(newTimeout) {
-
-
             var asNumber = parseFloat(newTimeout);
             if (!isNaN(asNumber) && currentUser && angular.isNumber(asNumber)) {
                 currentUser.remainingAuthSeconds = newTimeout;
@@ -154,24 +125,10 @@ angular.module('umbraco.services')
             currentUser = null;
 
             //broadcast a global event that the user is no longer logged in
-            eventsService.emit("app.notAuthenticated");
-
-            openLoginDialog(isLogout === undefined ? true : !isLogout);
+            eventsService.emit("app.notAuthenticated", {isLogOut: isLogout});
         }
 
-        // Register a handler for when an item is added to the retry queue
-        securityRetryQueue.onItemAddedCallbacks.push(function (retryItem) {
-            if (securityRetryQueue.hasMore()) {
-                userAuthExpired();
-            }
-        });
-
         return {
-
-            /** Internal method to display the login dialog */
-            _showLoginDialog: function () {
-                openLoginDialog();
-            },
 
             /** Returns a promise, sends a request to the server to check if the current cookie is authorized  */
             isAuthenticated: function () {
@@ -207,7 +164,7 @@ angular.module('umbraco.services')
 
                 return authResource.performLogout()
                     .then(function(data) {
-                        userAuthExpired();
+                        userAuthExpired(true);
                         //done!
                         return null;
                     });
@@ -220,19 +177,10 @@ angular.module('umbraco.services')
                 if (!currentUser) {
                     authResource.getCurrentUser()
                         .then(function (data) {
-
                             var result = { user: data, authenticated: true, lastUserId: lastUserId };
-
-                            if (args && args.broadcastEvent) {
-                                //broadcast a global event, will inform listening controllers to load in the user specific data
-                                eventsService.emit("app.authenticated", result);
-                            }
-
-                            setCurrentUser(data);
-                            currentUser.avatar = 'http://www.gravatar.com/avatar/' + data.emailHash + '?s=40&d=404';
+                            setCurrentUser(result);
                             deferred.resolve(currentUser);
-                        });
-
+                    });
                 }
                 else {
                     deferred.resolve(currentUser);

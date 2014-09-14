@@ -183,6 +183,15 @@ Umbraco.Sys.registerNamespace("Umbraco.Application");
                     navService.changeSection(section);
                 };
 
+
+                 _actions.actionDisable = function() {
+                    if (confirm(uiKeys['defaultdialogs_confirmdisable'] + ' "' + UmbClientMgr.mainTree().getActionNode().nodeName + '"?\n\n')) {
+                        umbraco.presentation.webservices.legacyAjaxCalls.DisableUser(UmbClientMgr.mainTree().getActionNode().nodeId, function() {
+                            UmbClientMgr.mainTree().reloadActionNode();
+                        });
+                    }
+                };
+                
                 return _actions;
                 //throw "Not implemented!";
 

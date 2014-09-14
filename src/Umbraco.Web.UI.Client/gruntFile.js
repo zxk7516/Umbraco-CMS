@@ -127,6 +127,10 @@ module.exports = function (grunt) {
                   src: 'bower_components/rgrove-lazyload/lazyload.js'
                 },
                 {
+                  dest: '<%= distdir %>/lib/lodash/lodash.min.js', 
+                  src: 'bower_components/lodash/dist/lodash.min.js'
+                },
+                {
                   dest: '<%= distdir %>/lib/angular/1.2/angular.min.js', 
                   src: 'bower_components/angular/angular.js'
                 },
@@ -153,6 +157,10 @@ module.exports = function (grunt) {
                 {
                   dest: '<%= distdir %>/lib/angular/1.2/angular-animate.min.js',
                   src: 'bower_components/angular-animate/angular-animate.js'
+                },
+                {
+                  dest: '<%= distdir %>/lib/angular-ui/angular-ui-router.min.js',
+                  src: 'bower_components/angular-ui-router/release/angular-ui-router.js'
                 }
               ]
       },
