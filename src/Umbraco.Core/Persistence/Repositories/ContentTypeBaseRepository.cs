@@ -140,7 +140,7 @@ AND umbracoNode.nodeObjectType = @objectType",
             }
 
             var propertyFactory = new PropertyGroupFactory(nodeDto.NodeId);
-
+            
             //Insert Tabs
             foreach (var propertyGroup in entity.PropertyGroups)
             {
@@ -271,6 +271,7 @@ AND umbracoNode.id <> @id",
                                         SortOrder = allowedContentType.SortOrder
                                     });
             }
+
 
             if (((ICanBeDirty) entity).IsPropertyDirty("PropertyTypes") || entity.PropertyTypes.Any(x => x.IsDirty()))
             {
@@ -472,7 +473,7 @@ AND umbracoNode.id <> @id",
                                         throw exception;
                                     });
         }
-
+        
         /// <summary>
         /// Try to set the data type id based on its ControlId
         /// </summary>

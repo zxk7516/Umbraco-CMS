@@ -84,6 +84,7 @@
     <key alias="macroInsert">Insert macro</key>
     <key alias="pictureInsert">Insert picture</key>
     <key alias="relations">Edit relations</key>
+    <key alias="returnToList">Return to list</key>
     <key alias="save">Save</key>
     <key alias="saveAndPublish">Save and publish</key>
     <key alias="saveToPublish">Save and send for approval</key>
@@ -114,6 +115,7 @@
     <key alias="validDocTypesNote">Only alternate types valid for the current location are displayed.</key>
   </area>
   <area alias="content">
+    <key alias="isPublished" version="7.2">Is Published</key>
     <key alias="about">About this page</key>
     <key alias="alias">Alias</key>
     <key alias="alternativeTextHelp">(how would you describe the picture over the phone)</key>

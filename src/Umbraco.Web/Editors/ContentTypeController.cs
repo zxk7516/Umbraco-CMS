@@ -12,6 +12,7 @@ using Umbraco.Web.WebApi;
 using System.Linq;
 using Umbraco.Web.WebApi.Filters;
 using Constants = Umbraco.Core.Constants;
+using Newtonsoft.Json;
 
 namespace Umbraco.Web.Editors
 {
@@ -23,8 +24,8 @@ namespace Umbraco.Web.Editors
     /// <summary>
     /// An API controller used for dealing with content types
     /// </summary>
-    [PluginController("UmbracoApi")]    
-    public class ContentTypeController : UmbracoAuthorizedJsonController
+    [PluginController("UmbracoApi")]
+    public class ContentTypeController : ContentTypeControllerBase
     {
         private ICultureDictionary _cultureDictionary;
 
@@ -43,6 +44,16 @@ namespace Umbraco.Web.Editors
         public ContentTypeController(UmbracoContext umbracoContext)
             : base(umbracoContext)
         {
+        }
+
+
+        /// <summary>
+        /// Gets all user defined properties.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerable<string> GetAllPropertyTypeAliases()
+        {
+            return ApplicationContext.Services.ContentTypeService.GetAllPropertyTypeAliases();
         }
 
         /// <summary>

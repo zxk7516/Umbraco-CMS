@@ -4,8 +4,10 @@ using System.Linq;
 using AutoMapper;
 using Umbraco.Core;
 using Umbraco.Core.Dictionary;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.PropertyEditors;
+using Umbraco.Core.Services;
 using Umbraco.Web.Models.ContentEditing;
 using umbraco;
 
@@ -40,7 +42,7 @@ namespace Umbraco.Web.Models.Mapping
         /// </param>
         /// <remarks>
         /// The generic properties tab is mapped during AfterMap and is responsible for 
-        /// setting up the properties such as Created date, udpated date, template selected, etc...
+        /// setting up the properties such as Created date, updated date, template selected, etc...
         /// </remarks>
         public static void MapGenericProperties<TPersisted>(
             TPersisted content,
@@ -116,14 +118,43 @@ namespace Umbraco.Web.Models.Mapping
         /// <typeparam name="TPersisted"></typeparam>
         /// <param name="display"></param>
         /// <param name="entityType">This must be either 'content' or 'media'</param>
-        internal static void AddContainerView<TPersisted>(TabbedContentItem<ContentPropertyDisplay, TPersisted> display, string entityType)
+        internal static void AddListView<TPersisted>(TabbedContentItem<ContentPropertyDisplay, TPersisted> display, string entityType, IDataTypeService dataTypeService)
              where TPersisted : IContentBase
         {
+            int dtdId;
+            switch (entityType)
+            {
+                case "content":
+                    dtdId = Constants.System.DefaultContentListViewDataTypeId;
+                    break;
+                case "media":
+                    dtdId = Constants.System.DefaultMediaListViewDataTypeId;
+                    break;
+                case "member":
+                    dtdId = Constants.System.DefaultMembersListViewDataTypeId;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("entityType does not match a required value");
+            }
+
+            var dt = dataTypeService.GetDataTypeDefinitionById(dtdId);
+            var preVals = dataTypeService.GetPreValuesCollectionByDataTypeId(dtdId);
+
+            var editor = PropertyEditorResolver.Current.GetByAlias(dt.PropertyEditorAlias);
+            if (editor == null)
+            {
+                throw new NullReferenceException("The property editor with alias " + dt.PropertyEditorAlias + " does not exist");
+            }
+
             var listViewTab = new Tab<ContentPropertyDisplay>();
-            listViewTab.Alias = "umbContainerView";
+            listViewTab.Alias = Constants.Conventions.PropertyGroups.ListViewGroupName;
             listViewTab.Label = ui.Text("content", "childItems");
             listViewTab.Id = 25;
             listViewTab.IsActive = true;
+
+            var listViewConfig = editor.PreValueEditor.ConvertDbToEditor(editor.DefaultPreValues, preVals);
+            //add the entity type to the config
+            listViewConfig["entityType"] = entityType;
 
             var listViewProperties = new List<ContentPropertyDisplay>();
             listViewProperties.Add(new ContentPropertyDisplay
@@ -131,12 +162,9 @@ namespace Umbraco.Web.Models.Mapping
                 Alias = string.Format("{0}containerView", Constants.PropertyEditors.InternalGenericPropertiesPrefix),
                 Label = "",
                 Value = null,
-                View = "listview",
+                View = editor.ValueEditor.View,
                 HideLabel = true,
-                Config = new Dictionary<string, object>
-                    {
-                        {"entityType", entityType}
-                    }
+                Config = listViewConfig
             });
             listViewTab.Properties = listViewProperties;
 
@@ -145,6 +173,7 @@ namespace Umbraco.Web.Models.Mapping
             tabs.Add(listViewTab);
             tabs.AddRange(display.Tabs);
             display.Tabs = tabs;
+
         }
 
         protected override IEnumerable<Tab<ContentPropertyDisplay>> ResolveCore(IContentBase content)

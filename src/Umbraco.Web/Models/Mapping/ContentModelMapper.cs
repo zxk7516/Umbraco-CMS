@@ -36,7 +36,7 @@ namespace Umbraco.Web.Models.Mapping
                       dto => dto.Owner,
                       expression => expression.ResolveUsing<OwnerResolver<IContent>>())
                   .ForMember(
-                      dto => dto.Updator,
+                      dto => dto.Updater,
                       expression => expression.ResolveUsing<CreatorResolver>())
                   .ForMember(
                       dto => dto.Icon,
@@ -47,6 +47,9 @@ namespace Umbraco.Web.Models.Mapping
                   .ForMember(
                       dto => dto.ContentTypeName,
                       expression => expression.MapFrom(content => content.ContentType.Name))
+                  .ForMember(
+                      dto => dto.IsContainer,
+                      expression => expression.MapFrom(content => content.ContentType.IsContainer))
                   .ForMember(
                       dto => dto.IsChildOfListView,
                       expression => expression.MapFrom(content => content.Parent().ContentType.IsContainer))
@@ -69,7 +72,7 @@ namespace Umbraco.Web.Models.Mapping
                   .ForMember(display => display.Tabs, expression => expression.ResolveUsing<TabsAndPropertiesResolver>())
                   .ForMember(display => display.AllowedActions, expression => expression.ResolveUsing(
                       new ActionButtonsResolver(new Lazy<IUserService>(() => applicationContext.Services.UserService))))
-                  .AfterMap(AfterMap);
+                  .AfterMap((media, display) => AfterMap(media, display, applicationContext.Services.DataTypeService));
 
             //FROM IContent TO ContentItemBasic<ContentPropertyBasic, IContent>
             config.CreateMap<IContent, ContentItemBasic<ContentPropertyBasic, IContent>>()
@@ -77,7 +80,7 @@ namespace Umbraco.Web.Models.Mapping
                     dto => dto.Owner,
                     expression => expression.ResolveUsing<OwnerResolver<IContent>>())
                 .ForMember(
-                    dto => dto.Updator,
+                    dto => dto.Updater,
                     expression => expression.ResolveUsing<CreatorResolver>())
                 .ForMember(
                     dto => dto.Icon,
@@ -92,7 +95,7 @@ namespace Umbraco.Web.Models.Mapping
                 .ForMember(
                     dto => dto.Owner,
                     expression => expression.ResolveUsing<OwnerResolver<IContent>>())
-                .ForMember(display => display.Updator, expression => expression.Ignore())
+                .ForMember(display => display.Updater, expression => expression.Ignore())
                 .ForMember(display => display.Icon, expression => expression.Ignore())
                 .ForMember(display => display.Alias, expression => expression.Ignore());
 
@@ -105,7 +108,7 @@ namespace Umbraco.Web.Models.Mapping
         /// </summary>
         /// <param name="content"></param>
         /// <param name="display"></param>
-        private static void AfterMap(IContent content, ContentItemDisplay display)
+        private static void AfterMap(IContent content, ContentItemDisplay display, IDataTypeService dataTypeService)
         {
             //map the tree node url
             if (HttpContext.Current != null)
@@ -124,7 +127,7 @@ namespace Umbraco.Web.Models.Mapping
 
             if (content.ContentType.IsContainer)
             {
-                TabsAndPropertiesResolver.AddContainerView(display, "content");
+                TabsAndPropertiesResolver.AddListView(display, "content", dataTypeService);
             }
 
             TabsAndPropertiesResolver.MapGenericProperties(
