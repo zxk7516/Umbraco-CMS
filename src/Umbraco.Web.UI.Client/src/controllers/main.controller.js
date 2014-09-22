@@ -3,21 +3,16 @@
  * @ngdoc controller
  * @name Umbraco.MainController
  * @function
- * 
+ *
  * @description
  * The main application controller
- * 
+ *
  */
-function MainController($scope, $rootScope, $location, $stateParams, $state, $timeout, $http, $log, appState, treeService, notificationsService, dialogService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
+function MainController($scope, $rootScope, $location, $timeout, $http, $log, appState, treeService, notificationsService, dialogService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper) {
 
     //the null is important because we do an explicit bool check on this in the view
-    //the avatar is by default the umbraco logo    
-    $scope.authenticated = null;
-    $scope.avatar = "assets/img/application/logo_white.png";
+    //the avatar is by default the umbraco logo
     $scope.touchDevice = appState.getGlobalState("touchDevice");
-    
-    $rootScope.$state = $state;
-    $rootScope.$stateParams = $stateParams;
 
     //subscribes to notifications in the notification service
     $scope.notifications = notificationsService.current;
@@ -30,7 +25,7 @@ function MainController($scope, $rootScope, $location, $stateParams, $state, $ti
     //subscribes to dialogs in the dialog service
     $scope.dialogs = dialogService.current;
 
-    
+
     $scope.closeDialogs = function (event) {
         //only close dialogs if non-link and non-buttons are clicked
         var el = event.target.nodeName;
@@ -51,10 +46,6 @@ function MainController($scope, $rootScope, $location, $stateParams, $state, $ti
 
         eventsService.emit("app.closeDialogs", event);
     };
-
-    
-
-
 }
 
 

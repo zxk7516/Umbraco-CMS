@@ -1,10 +1,9 @@
 /** Executed when the application starts, binds to events and set global state */
 
 angular.module("umbraco")
-    .run(function (userService, $log, $rootScope, $templateCache, appState, editorState, fileManager, assetsService, eventsService, securityRetryQueue, updateChecker, historyService, treeService) {
+    .run(function (userService, $timeout, $location, $log, $rootScope, $templateCache, appState, editorState, fileManager, assetsService, eventsService, securityRetryQueue, updateChecker, historyService, treeService) {
 
 
-        var loginDialog;
 
         //This sets the default jquery ajax headers to include our csrf token, we
         // need to user the beforeSend method because our token changes per user/login so
@@ -13,8 +12,8 @@ angular.module("umbraco")
             beforeSend: function (xhr) {
                 xhr.setRequestHeader("X-XSRF-TOKEN", $cookies["XSRF-TOKEN"]);
             }
-        }); 
-        
+        });
+
 
         //listens for global app erros and displays notifications
         eventsService.on("app.error", function(err) {
@@ -25,12 +24,22 @@ angular.module("umbraco")
         eventsService.on("app.authenticated", function(evt, data) {
             //before we can set the application as ready, we need to load user assets
             assetsService._loadInitAssets().then(function() {
+                $rootScope.authenticated = true;
+                $rootScope.user = data;
+
                 appState.setGlobalState("isReady", true);
+
+                $timeout(function(){
+                    $location.path("/content").replace();
+                });
 
                 //send the ready event
                 eventsService.emit("app.ready", data);
             });
         });
+
+        var loginDialog;
+
 
         //this launches the user login in case the user is not authenticated on app init
         eventsService.on("app.notAuthenticated", function(evt, data) {
@@ -56,7 +65,7 @@ angular.module("umbraco")
 
         //when the app is ready/user is logged in, setup the data
         eventsService.on("app.ready", function (evt, data) {
-            
+
             updateChecker.check().then(function(update){
                 if(update && update !== "null"){
                     if(update.type !== "None"){
@@ -67,6 +76,7 @@ angular.module("umbraco")
                                type: "info",
                                url: update.url
                         };
+
                         notificationsService.add(notification);
                     }
                 }
@@ -74,31 +84,33 @@ angular.module("umbraco")
 
             //if the user has changed we need to redirect to the root so they don't try to continue editing the
             //last item in the URL (NOTE: the user id can equal zero, so we cannot just do !data.lastUserId since that will resolve to true)
-            if (data.lastUserId !== undefined && data.lastUserId !== null && data.lastUserId !== data.user.id) {
+            if (data.lastUserId !== undefined && data.lastUserId !== null && data.lastUserId !== data.id) {
                 $location.path("/").search("");
                 historyService.removeAll();
                 treeService.clearCache();
             }
 
-            if($scope.user.emailHash){
-                $timeout(function () { 
-                               
-                    //yes this is wrong.. 
+            if($rootScope.user.emailHash){
+                $timeout(function () {
+
+                    //yes this is wrong..
                     $("#avatar-img").fadeTo(1000, 0, function () {
                         $timeout(function () {
                             //this can be null if they time out
-                            if ($scope.user && $scope.user.emailHash) {
-                                $scope.avatar = "http://www.gravatar.com/avatar/" + $scope.user.emailHash + ".jpg?s=64&d=mm";
+                            if ($rootScope.user && $rootScope.user.emailHash) {
+                                $rootScope.user.avatar = "http://www.gravatar.com/avatar/" + $rootScope.user.emailHash + ".jpg?s=64&d=mm";
                             }
                         });
+
                         $("#avatar-img").fadeTo(1000, 1);
                     });
-                    
-                  }, 3000);  
-            }
-        });
-    
 
+                  }, 3000);
+            }
+
+
+
+        });
 
 
         // Register a handler for when an item is added to the retry queue
@@ -108,6 +120,7 @@ angular.module("umbraco")
             }
         });
 
+    /*
         $rootScope.$on("$stateChangeStart", function(event, toState, toParams, fromState, fromParams){
               var s = toState;
 
@@ -117,7 +130,7 @@ angular.module("umbraco")
               else {
                   $rootScope.locationTitle = "Umbraco - " + $location.$$host;
               }
-              
+
               //reset the editorState on each successful route chage
               editorState.reset();
 
@@ -125,7 +138,7 @@ angular.module("umbraco")
               // when working in an editor and submitting data to the server.
               //This ensures that memory remains clear of any files and that the editors don't have to manually clear the files.
               fileManager.clearFiles();
-        });
+        });*/
 
 
         $rootScope.$on('$routeChangeError', function(event, current, previous, rejection) {
@@ -139,23 +152,23 @@ angular.module("umbraco")
         });
 
 
-        // For debug mode, always clear template cache to cut down on 
-        // dev frustration and chrome cache on templates 
+        // For debug mode, always clear template cache to cut down on
+        // dev frustration and chrome cache on templates
         if(Umbraco.Sys.ServerVariables.isDebuggingEnabled){
             $rootScope.$on('$viewContentLoaded', function() {
               $templateCache.removeAll();
             });
         }
-        
+
 
         //initialize the application state with a user or with a not-authenticated state
-        userService.getCurrentUser().then(function(data){
-            eventsService.emit("app.authenticated", data.user);
+        userService.getCurrentUser().then(function(user){
+            eventsService.emit("app.authenticated", user);
         }, function(){
             eventsService.emit("app.notAuthenticated");
         });
 
-        
+
         //check for touch device, add to global appState
         //var touchDevice = ("ontouchstart" in window || window.touch || window.navigator.msMaxTouchPoints === 5 || window.DocumentTouch && document instanceof DocumentTouch);
         var touchDevice =  /android|webos|iphone|ipad|ipod|blackberry|iemobile|touch/i.test(navigator.userAgent.toLowerCase());

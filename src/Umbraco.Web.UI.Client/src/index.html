@@ -9,30 +9,30 @@
         <link rel="stylesheet" href="assets/css/umbraco.css" />
     </head>
 
-    <body 
-        ng-class="{touch:touchDevice}" 
+    <body
+        ng-class="{touch:touchDevice}"
         ng-controller="Umbraco.MainController" id="umbracoMainPageBody">
-    
-        <div 
-            ng-hide="!authenticated" 
-            ng-cloak 
-            class="app-wrapper umb-abs-fullsize" 
+
+        <div
+            ng-hide="!authenticated"
+            ng-cloak
+            class="app-wrapper umb-abs-fullsize"
             ng-click="closeDialogs($event)">
 
-            <header class="app-header"> 
+            <header class="app-header">
                 <div class="app-header-avatar">
-                    <a href 
-                        ng-click="avatarClick()" 
+                    <a href
+                        ng-click="avatarClick()"
                         hotkey="ctrl+shift+u"
                         title="{{user.name}}" prevent-default>
-                            <img id="avatar-img" ng-src="{{avatar}}" />
-                    </a> 
+                            <img id="avatar-img" ng-src="{{user.avatar}}" />
+                    </a>
                 </div>
 
                 <div class="app-header-search">
                     <input type="text" placeholder="Type to search..." value="" /> {{showNavigation}}
                 </div>
-                
+
                 <div class="app-header-toolbar">
                     <ul class="inline pull-right">
                         <li>
@@ -51,50 +51,50 @@
                     </ul>
 
                 </div>
-                
-                     
+
+
             </header>
 
             <main class="app-layout">
-                
+
                 <nav class="app-navigation slide-right"
-                    ng-show="authenticated" 
-                    ng-controller="Umbraco.NavigationController" 
-                    ng-mouseleave="leaveTree($event)" 
-                    ng-mouseenter="enterTree($event)">        
-                    
+                    ng-show="authenticated"
+                    ng-controller="Umbraco.NavigationController"
+                    ng-mouseleave="leaveTree($event)"
+                    ng-mouseenter="enterTree($event)">
+
                     <div class="app-navigation-sections umb-abs-fullsize ">
                         <umb-sections sections="sections"></umb-sections>
                     </div>
-                    
 
-                    <div 
-                        class="app-navigation-tree umb-abs-fullsize shadow-depth-1" 
+
+                    <div
+                        class="app-navigation-tree umb-abs-fullsize shadow-depth-1"
                         ng-show="showNavigation">
 
-                        <umb-tree 
+                        <umb-tree
                             cachekey="_"
-                            eventhandler="treeEventHandler" 
+                            eventhandler="treeEventHandler"
                             section="{{currentSection}}">
                         </umb-tree>
                     </div>
 
 
-                    <div 
-                        class="app-navigation-menu umb-dialog umb-abs-fullsize shadow-depth-3 slide-in-left" 
-                        ng-swipe-left="nav.hideMenu()" 
+                    <div
+                        class="app-navigation-menu umb-dialog umb-abs-fullsize shadow-depth-3 slide-in-left"
+                        ng-swipe-left="nav.hideMenu()"
                         ng-show="showContextMenu">
 
-                        <umb-context-menu                     
+                        <umb-context-menu
                             menu-dialog-title="{{menuDialogTitle}}"
                             current-section="{{currentSection}}"
                             current-node="menuNode"
                             menu-actions="menuActions">
-                        </umb-context-menu> 
+                        </umb-context-menu>
                     </div>
-                    
 
-                    <div 
+
+                    <div
                         class="app-navigation-dialog umb-dialog umb-abs-fullsize shadow-depth-3 slide-in-left"
                         ng-swipe-left="nav.hideDialog()"
                         ng-show="showContextMenuDialog">
@@ -104,13 +104,13 @@
                         </div>
 
                         <div class='umb-modalcolumn-body'>
-                            
+
                         </div>
                     </div>
 
 
                 </nav>
-            
+
                 <section class="app-content shadow-depth-1" ng-view>
 
                 </section>
@@ -123,13 +123,13 @@
 
 
         <div class="app-dialogs" ng-cloak>
-                <div 
+                <div
                     ng-repeat="dialog in dialogs"
                     ng-swipe-right="swipeHide($event)"
                     ng-class="{{dialog.cssClass}}" >
 
                     <div
-                        ng-cloak 
+                        ng-cloak
                         class="umb-dialog-body"
                         ng-controller="Umbraco.DialogController">
 
@@ -139,11 +139,11 @@
 
                     </div>
 
-                    <iframe 
+                    <iframe
                         ng-if="dialog.iframe == true"
-                        style='border: none; width: 100%; height: 100%;' 
+                        style='border: none; width: 100%; height: 100%;'
                         class="umb-dialog-body umb-dialog-iframe"
-                        src="{{dialog.template}}"></iframe>    
+                        src="{{dialog.template}}"></iframe>
 
                 </div>
         </div>
