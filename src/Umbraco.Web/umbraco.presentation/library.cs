@@ -159,79 +159,77 @@ namespace umbraco
 
         #region Publish Helper Methods
 
+        // these methods are not used in core
         
         /// <summary>
-        /// Unpublish a node, by removing it from the runtime xml index. Note, prior to this the Document should be 
-        /// marked unpublished by setting the publish property on the document object to false
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="DocumentId">The Id of the Document to be unpublished</param>
-        [Obsolete("This method is no longer used, a document's cache will be removed automatically when the document is deleted or unpublished")]
+        /// <param name="DocumentId"></param>
+        [Obsolete("Do not use: use the IContentService to un-publish contents.")]
         public static void UnPublishSingleNode(int DocumentId)
         {
-            DistributedCache.Instance.RemovePageCache(DocumentId);
+            // do nothing
         }
 
         /// <summary>
-        /// Publishes a Document by adding it to the runtime xml index. Note, prior to this the Document should be 
-        /// marked published by calling Publish(User u) on the document object.
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="documentId">The Id of the Document to be published</param>
-        [Obsolete("This method is no longer used, a document's cache will be updated automatically when the document is published")]
+        /// <param name="documentId"></param>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static void UpdateDocumentCache(int documentId)
         {
-            DistributedCache.Instance.RefreshPageCache(documentId);
+            // do nothing
         }
 
         /// <summary>
-        /// Publishes the single node, this method is obsolete
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="DocumentId">The document id.</param>
-        [Obsolete("Please use: umbraco.library.UpdateDocumentCache")]
+        /// <param name="DocumentId"></param>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static void PublishSingleNode(int DocumentId)
         {
-            UpdateDocumentCache(DocumentId);
+            // do nothing
         }
         
         /// <summary>
-        /// Refreshes the xml cache for all nodes
+        /// Obsolete, does nothing.
         /// </summary>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static void RefreshContent()
         {
-            DistributedCache.Instance.RefreshAllPageCache();
+            // do nothing
         }
 
         /// <summary>
-        /// Re-publishes all nodes under a given node
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="nodeID">The ID of the node and childnodes that should be republished</param>
-        [Obsolete("Please use: umbraco.library.RefreshContent")]
+        /// <param name="nodeID"></param>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static string RePublishNodes(int nodeID)
         {
-            DistributedCache.Instance.RefreshAllPageCache();
-
+            // do nothing
             return string.Empty;
         }
 
         /// <summary>
-        /// Re-publishes all nodes under a given node
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="nodeID">The ID of the node and childnodes that should be republished</param>
-        [Obsolete("Please use: umbraco.library.RefreshContent")]
+        /// <param name="nodeID"></param>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static void RePublishNodesDotNet(int nodeID)
         {
-            DistributedCache.Instance.RefreshAllPageCache();
+            // do nothing
         }
 
         /// <summary>
-        /// Refreshes the runtime xml index. 
-        /// Note: This *doesn't* mark any non-published document objects as published
+        /// Obsolete, does nothing.
         /// </summary>
-        /// <param name="nodeID">Always use -1</param>
-        /// <param name="SaveToDisk">Not used</param>
-        [Obsolete("Please use: content.Instance.RefreshContentFromDatabaseAsync")]
+        /// <param name="nodeID"></param>
+        /// <param name="SaveToDisk"></param>
+        [Obsolete("Do not use: use the IContentService to publish contents.")]
         public static void RePublishNodesDotNet(int nodeID, bool SaveToDisk)
         {
-            DistributedCache.Instance.RefreshAllPageCache();
+            // do nothing
         }
 
         #endregion

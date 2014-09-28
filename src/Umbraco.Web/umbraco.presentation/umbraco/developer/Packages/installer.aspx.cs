@@ -229,7 +229,8 @@ namespace umbraco.presentation.developer.packages
 
 
                     //making sure that publishing actions performed from the cms layer gets pushed to the presentation
-                    library.RefreshContent();
+                    // note: that should be automatic from the content service
+                    //library.RefreshContent();
 
                     if (string.IsNullOrEmpty(_installer.Control) == false)
                     {

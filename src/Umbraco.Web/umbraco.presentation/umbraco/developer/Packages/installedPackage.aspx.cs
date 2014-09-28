@@ -553,10 +553,13 @@ namespace umbraco.presentation.developer.packages
             }
 
             // refresh cache
-            if (refreshCache)
-            {
-                library.RefreshContent();
-            }
+            // note: would be true if some content types were removed BUT it should be
+            // up to the services & content caches to react and there is NO need to do
+            // anything here
+            //if (refreshCache)
+            //{
+            //    library.RefreshContent();
+            //}
 
             //ensure that all tree's are refreshed after uninstall
             ClientTools.ClearClientTreeCache()

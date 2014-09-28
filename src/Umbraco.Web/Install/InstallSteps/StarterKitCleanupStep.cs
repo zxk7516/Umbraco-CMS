@@ -39,7 +39,8 @@ namespace Umbraco.Web.Install.InstallSteps
             installer.LoadConfig(packageFile);
             installer.InstallCleanUp(manifestId, packageFile);
 
-            library.RefreshContent();
+            // note: should be managed automatically by services and caches
+            //library.RefreshContent();
         }
 
         public override bool RequiresExecution(object model)

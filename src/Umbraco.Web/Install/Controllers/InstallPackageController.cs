@@ -175,7 +175,8 @@ namespace Umbraco.Web.Install.Controllers
             installer.LoadConfig(model.PackageFile);
             installer.InstallCleanUp(model.ManifestId, model.PackageFile);
 
-			library.RefreshContent();
+            // note: should be managed automatically by services and caches
+			//library.RefreshContent();
 
 			return Json(new
 			{
