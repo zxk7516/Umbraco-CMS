@@ -1092,9 +1092,6 @@
     <Compile Include="umbraco.presentation\NotFoundHandlers.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="umbraco.presentation\requestModule.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="umbraco.presentation\showField.cs">
       <SubType>Code</SubType>
     </Compile>

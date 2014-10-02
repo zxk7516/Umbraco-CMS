@@ -49,7 +49,7 @@ namespace umbraco.presentation.urlRewriter
                     }
                     else
                     {
-                        formAction = Context.Items[requestModule.ORIGINAL_URL_CXT_KEY].ToString();
+                        formAction = Context.Items["umbOriginalUrl"].ToString();
                         if (!String.IsNullOrEmpty(Context.Request.Url.Query))
                         {
                             formAction += Context.Request.Url.Query;
