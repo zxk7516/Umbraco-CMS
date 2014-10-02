@@ -24,12 +24,9 @@ namespace Umbraco.Web.WebServices
 
             try
             {
-                // DO not run publishing if content is re-loading
-                if (content.Instance.isInitializing == false)
-                {
-                    var publisher = new ScheduledPublisher(Services.ContentService);
-                    publisher.CheckPendingAndProcess();
-                }
+                // assume the content cache is ready (if we reach that point)
+                var publisher = new ScheduledPublisher(Services.ContentService);
+                publisher.CheckPendingAndProcess();
 
                 return Json(new
                 {
