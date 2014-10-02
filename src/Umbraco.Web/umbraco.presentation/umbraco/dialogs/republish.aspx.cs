@@ -9,6 +9,9 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Web.UI.HtmlControls;
 using Umbraco.Web;
+using Umbraco.Web.Cache;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace umbraco.cms.presentation
 {
@@ -20,37 +23,52 @@ namespace umbraco.cms.presentation
 	    public republish()
 	    {
             CurrentApp = BusinessLogic.DefaultApps.content.ToString();
-
 	    }
+
+        // triggered by OnClick="go" in aspx page
         protected void go(object sender, EventArgs e) {
-            // re-create xml
+
+            // note: not really "re-publishing" here but making sure the content cache
+            // is in sync with the content service (ie the data in database) - will not
+            // trigger any of the publishing events
+
             if (Request.GetItemAsString("xml") != "")
             {
-                Server.ScriptTimeout = 100000;
-                Services.ContentService.RePublishAll();                
+                // this is XML-cache specific
+                // re-generate cmsContentXml content
+                // default action when the form is used
+                var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+                if (svc == null)
+                    throw new NotSupportedException("Unsupported IPublishedCachesService, only the Xml one is supported.");
+
+                Server.ScriptTimeout = 100000; // may take time
+                svc.RebuildContentXml();
             }
             else if (Request.GetItemAsString("previews") != "")
             {
-                Server.ScriptTimeout = 100000;
-                umbraco.cms.businesslogic.web.Document.RegeneratePreviews();
+                // this is XML-cache specific
+                // re-generate cmsPreviewXml content 
+                // there's no interface for that one - has to be called manually
+                var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+                if (svc == null)
+                    throw new NotSupportedException("Unsupported IPublishedCachesService, only the Xml one is supported.");
+                
+                Server.ScriptTimeout = 100000; // may take time
+                svc.RebuildPreviewXml();
             }
             else if (Request.GetItemAsString("refreshNodes") != "")
             {
-                Server.ScriptTimeout = 100000;
-                System.Xml.XmlDocument xd = new System.Xml.XmlDocument();
-
-                var doc = new cms.businesslogic.web.Document(int.Parse(Request.GetItemAsString("refreshNodes")));
-
-                foreach (cms.businesslogic.web.Document d in doc.Children)
-                {
-                    d.XmlGenerate(xd);
-                    Response.Write("<li>Creating xml for " + d.Text + "</li>");
-                    Response.Flush();
-                }
+                // this is XML-cache specific
+                // re-generate cmsContentXml for all children immediately below a document
+                // there's no interface for that one - has to be called manually
+                // we don't support it anymore
+                throw new NotSupportedException("Obsolete.");
             }
-            
-            //PPH changed this to a general library call for load balancing support
-            library.RefreshContent();
+
+            // tell each of the distributed caches to reset themselves, ie to
+            // reload from whatever "central" intermediate cache they use, if any,
+            // eg the cmsContentXml table for the XML-cache.
+            DistributedCache.Instance.RefreshAllPageCache();
 
             p_republish.Visible = false;
             p_done.Visible = true;

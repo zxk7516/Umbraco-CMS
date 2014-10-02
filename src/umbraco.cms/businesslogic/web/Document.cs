@@ -429,6 +429,7 @@ namespace umbraco.cms.businesslogic.web
             ApplicationContext.Current.Services.ContentService.RePublishAll();
         }
 
+        [Obsolete("Obsolete, see XmlPublishedCache.PublishedCachesService.RebuildPreviewXml().", true)]
         public static void RegeneratePreviews()
         {
             XmlDocument xd = new XmlDocument();

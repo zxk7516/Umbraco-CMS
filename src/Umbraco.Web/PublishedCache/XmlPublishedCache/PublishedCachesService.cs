@@ -65,5 +65,23 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             XmlStore.Flush();
             base.Flush();
         }
+
+        public void RebuildPreviewXml()
+        {
+            // fixme - should be implemented in XmlStore NOT in ContentService!
+            var svc= ApplicationContext.Current.Services.ContentService as Core.Services.ContentService;
+            if (svc == null)
+                throw new NotSupportedException("Unsupported IContentService.");
+            svc.RebuildPreviewXml();
+        }
+
+        public void RebuildContentXml()
+        {
+            // fixme - should be implemented in XmlStore NOT in ContentService!
+            var svc = ApplicationContext.Current.Services.ContentService as Core.Services.ContentService;
+            if (svc == null)
+                throw new NotSupportedException("Unsupported IContentService.");
+            svc.RebuildContentXml();
+        }
     }
 }

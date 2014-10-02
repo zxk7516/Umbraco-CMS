@@ -1013,7 +1013,7 @@ order by umbracoNode.level, umbracoNode.sortOrder";
         private static XmlNode ImportContent(XmlDocument xml, IContent content)
         {
             var svcs = ApplicationContext.Current.Services;
-            var xelt = EntitySerializer.Serialize(svcs.ContentService, svcs.DataTypeService, content, false);
+            var xelt = EntitySerializer.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, content, false);
             var node = xelt.GetXmlNode();
             return xml.ImportNode(node, true);
         }
