@@ -30,5 +30,9 @@
         {
             get { return _mediaCache; }
         }
+
+        // fixme - implement
+        public void Resync()
+        { }
     }
 }

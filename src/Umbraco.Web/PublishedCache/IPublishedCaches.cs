@@ -13,5 +13,7 @@ namespace Umbraco.Web.PublishedCache
     {
         IPublishedContentCache ContentCache { get; }
         IPublishedMediaCache MediaCache { get; }
+
+        void Resync();
     }
 }

@@ -24,6 +24,9 @@ namespace Umbraco.Tests.PublishedContent
         {
             get { return null; }
         }
+
+        public void Resync()
+        { }
     }
 
     class SolidPublishedContentCache : PublishedCacheBase, IPublishedContentCache
