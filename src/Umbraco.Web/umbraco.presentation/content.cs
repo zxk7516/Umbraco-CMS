@@ -643,7 +643,7 @@ namespace umbraco
         /// Updates the document cache for multiple documents
         /// </summary>
         /// <param name="Documents">The documents.</param>
-        [Obsolete("This is not used and will be removed from the codebase in future versions")]
+        [Obsolete("This is not used and will be removed from the codebase in future versions")] // not used in core
         public virtual void UpdateDocumentCache(List<Document> Documents)
         {
             // We need to lock content cache here, because we cannot allow other threads
@@ -664,13 +664,13 @@ namespace umbraco
             }
         }
         
-        [Obsolete("Method obsolete in version 4.1 and later, please use UpdateDocumentCache", true)]
+        [Obsolete("Method obsolete in version 4.1 and later, please use UpdateDocumentCache", true)] // not used in core
         public virtual void UpdateDocumentCacheAsync(int documentId)
         {
             UpdateDocumentCache(documentId);
         }
         
-        [Obsolete("Method obsolete in version 4.1 and later, please use ClearDocumentCache", true)]
+        [Obsolete("Method obsolete in version 4.1 and later, please use ClearDocumentCache", true)] // not used in core
         public virtual void ClearDocumentCacheAsync(int documentId)
         {
             ClearDocumentCache(documentId);
@@ -741,7 +741,7 @@ namespace umbraco
         /// Unpublishes the  node.
         /// </summary>
         /// <param name="documentId">The document id.</param>
-        [Obsolete("Please use: umbraco.content.ClearDocumentCache", true)]
+        [Obsolete("Please use: umbraco.content.ClearDocumentCache", true)] // not used in core
         public virtual void UnPublishNode(int documentId)
         {
             ClearDocumentCache(documentId);
