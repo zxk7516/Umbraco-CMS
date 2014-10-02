@@ -45,22 +45,12 @@ namespace Umbraco.Web.Cache
         }
 
         /// <summary>
-        /// Refreshes all nodes in umbraco.
-        /// </summary>
-        public override void RefreshAll()
-        {
-            content.Instance.RefreshContentFromDatabaseAsync();
-            base.RefreshAll();
-        }
-
-        /// <summary>
         /// Refreshes the cache for the node with specified id
         /// </summary>
         /// <param name="id">The id.</param>
         public override void Refresh(int id)
         {
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-            content.Instance.UpdateDocumentCache(id);
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
             base.Refresh(id);
@@ -73,7 +63,6 @@ namespace Umbraco.Web.Cache
         public override void Remove(int id)
         {
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-            content.Instance.ClearDocumentCache(id);
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
             base.Remove(id);
@@ -82,7 +71,6 @@ namespace Umbraco.Web.Cache
         public override void Refresh(IContent instance)
         {
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-            content.Instance.UpdateDocumentCache(new Document(instance));
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
             base.Refresh(instance);
@@ -91,7 +79,6 @@ namespace Umbraco.Web.Cache
         public override void Remove(IContent instance)
         {
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-            content.Instance.ClearDocumentCache(new Document(instance));
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
             base.Remove(instance);

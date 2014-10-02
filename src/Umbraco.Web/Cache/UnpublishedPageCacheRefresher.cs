@@ -82,7 +82,6 @@ namespace Umbraco.Web.Cache
         public override void Refresh(int id)
         {
             RuntimeCacheProvider.Current.Delete(typeof(IContent), id);
-            content.Instance.UpdateSortOrder(id);
             base.Refresh(id);
         }
 
@@ -96,7 +95,6 @@ namespace Umbraco.Web.Cache
         public override void Refresh(IContent instance)
         {
             RuntimeCacheProvider.Current.Delete(typeof(IContent), instance.Id);
-            content.Instance.UpdateSortOrder(instance);
             base.Refresh(instance);
         }
 
@@ -115,7 +113,6 @@ namespace Umbraco.Web.Cache
             foreach (var payload in DeserializeFromJsonPayload(jsonPayload))
             {
                 RuntimeCacheProvider.Current.Delete(typeof(IContent), payload.Id);
-                content.Instance.UpdateSortOrder(payload.Id);
             }
 
             OnCacheUpdated(Instance, new CacheRefresherEventArgs(jsonPayload, MessageType.RefreshByJson));
