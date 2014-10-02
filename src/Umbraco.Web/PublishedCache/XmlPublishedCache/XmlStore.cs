@@ -406,7 +406,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         }
 
         // internal - used by PublishedCachesService
-        internal void FlushChanges()
+        internal void Flush()
         {
             if (_lastXmlChange <= XmlFileLastWriteTime) return;
 

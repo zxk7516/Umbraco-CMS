@@ -590,7 +590,7 @@ namespace Umbraco.Web
 				};
 
 			// used to check if the xml cache file needs to be updated/persisted
-			app.PostRequestHandlerExecute += (sender, e) => PublishedCachesServiceResolver.Current.Service.FlushChanges();
+			app.PostRequestHandlerExecute += (sender, e) => PublishedCachesServiceResolver.Current.Service.Flush();
 
 			app.EndRequest += (sender, args) =>
 				{

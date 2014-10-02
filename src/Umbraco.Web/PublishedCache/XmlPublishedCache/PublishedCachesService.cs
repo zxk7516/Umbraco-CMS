@@ -60,10 +60,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             previewContent.ClearPreviewSet();
         }
 
-        public override void FlushChanges()
+        public override void Flush()
         {
-            XmlStore.FlushChanges();
-            base.FlushChanges();
+            XmlStore.Flush();
+            base.Flush();
         }
     }
 }
