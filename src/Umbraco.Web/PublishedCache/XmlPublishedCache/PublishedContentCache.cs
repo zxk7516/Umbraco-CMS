@@ -308,7 +308,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     return previewXml;
             }
 
-            return _xmlStore.GetXml();
+            return _xmlStore.Xml;
         }
 
         #endregion

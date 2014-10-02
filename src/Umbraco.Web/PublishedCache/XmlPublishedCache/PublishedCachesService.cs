@@ -59,5 +59,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var previewContent = new PreviewContent(previewToken);
             previewContent.ClearPreviewSet();
         }
+
+        public override void FlushChanges()
+        {
+            XmlStore.FlushChanges();
+            base.FlushChanges();
+        }
     }
 }

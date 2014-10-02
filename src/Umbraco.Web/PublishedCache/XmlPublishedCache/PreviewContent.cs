@@ -134,7 +134,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 var previewXml = (new Document(c)).ToPreviewXml(XmlContent); // ToPreviewXml on Document only
                 if (c.Published == false && contentService.HasPublishedVersion(c.Id) && previewXml.Attributes != null)
                     previewXml.Attributes.Append(_previewXml.CreateAttribute("isDraft"));
-                global::umbraco.content.AppendDocumentXml(c.Id, c.Level, parentId, previewXml, _previewXml);
+                XmlStore.AppendDocumentXml(_previewXml, c.Id, c.Level, parentId, previewXml);
             }
 
             // inject subs if required
@@ -147,7 +147,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     if (previewXml == null) continue;
                     if (prevNode.IsDraft && previewXml.Attributes != null)
                         previewXml.Attributes.Append(XmlContent.CreateAttribute("isDraft"));
-                    _previewXml = global::umbraco.content.AppendDocumentXml(prevNode.NodeId, prevNode.Level, prevNode.ParentId, previewXml, _previewXml);
+                    XmlStore.AppendDocumentXml(_previewXml, prevNode.NodeId, prevNode.Level, prevNode.ParentId, previewXml);
                 }
             }
 
