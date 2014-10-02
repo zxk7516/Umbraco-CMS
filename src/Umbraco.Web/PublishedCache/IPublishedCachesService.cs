@@ -77,7 +77,7 @@ namespace Umbraco.Web.PublishedCache
         void RefreshPreview(string previewToken, int contentId);
 
         /// <summary>
-        /// Exit preview for a specified preview token.
+        /// Exits preview for a specified preview token.
         /// </summary>
         /// <param name="previewToken">The preview token.</param>
         /// <remarks>
@@ -87,5 +87,26 @@ namespace Umbraco.Web.PublishedCache
         /// <para>Does not handle the preview token storage (cookie, etc) that must be handled separately.</para>
         /// </remarks>
         void ExitPreview(string previewToken);
+
+        /* Maintain the cache...
+         * 
+         * The service should subscribe to the proper events in order to maintain the cache content
+         * consistent with what is in the database, accross all LB servers. So there is no need to
+         * tell the service that a content has changed, etc. However,
+         * 
+         * - the service may defer some actions, eg the Xml cache does not write to disk each time
+         *   the Xml content changes but only at the end of the current http request. So, service
+         *   implement the FlushChanges method that can be used to tell them it is a good time to
+         *   do whatever they have defered.
+         *   
+         * - the service may need to be resetted - (not working on that one yet)
+         *
+         */
+
+        /// <summary>
+        /// Signals the service that it is a good time to execute defered actions.
+        /// </summary>
+        /// <remarks>What this means exactly depends on the cache.</remarks>
+        void FlushChanges();
     }
 }
