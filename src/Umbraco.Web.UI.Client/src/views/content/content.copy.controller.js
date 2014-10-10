@@ -9,30 +9,22 @@ angular.module("umbraco")
 
 	    var node = dialogOptions.currentNode;
 
-	    $scope.dialogTreeEventHandler.bind("treeNodeSelect", function (ev, args) {
+	    function nodeSelectHandler(ev, args) {
 	        args.event.preventDefault();
 	        args.event.stopPropagation();
 
 	        eventsService.emit("editors.content.copyController.select", args);
 
-	        var c = $(args.event.target.parentElement);
-	        if ($scope.selectedEl) {
-	            $scope.selectedEl.find(".temporary").remove();
-	            $scope.selectedEl.find("i.umb-tree-icon").show();
-	        }
-
-	        var temp = "<i class='icon umb-tree-icon sprTree icon-check blue temporary'></i>";
-	        var icon = c.find("i.umb-tree-icon");
-	        if (icon.length > 0) {
-	            icon.hide().after(temp);
-	        } else {
-	            c.prepend(temp);
+	        if ($scope.target) {
+	            //un-select if there's a current one selected
+	            $scope.target.selected = false;
 	        }
 
 	        $scope.target = args.node;
-	        $scope.selectedEl = c;
+	        $scope.target.selected = true;
+	    }
 
-	    });
+	    $scope.dialogTreeEventHandler.bind("treeNodeSelect", nodeSelectHandler);
 
 	    $scope.copy = function () {
 	        contentResource.copy({ parentId: $scope.target.id, id: node.id, relateToOriginal: $scope.relateToOriginal })
@@ -59,4 +51,8 @@ angular.module("umbraco")
                     $scope.error = err;
                 });
 	    };
+
+	    $scope.$on('$destroy', function () {
+	        $scope.dialogTreeEventHandler.unbind("treeNodeSelect", nodeSelectHandler);
+	    });
 	});

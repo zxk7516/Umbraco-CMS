@@ -2,15 +2,15 @@ angular.module("umbraco")
     .controller("Umbraco.PropertyEditors.GridController",
     function ($scope, $http, assetsService, $rootScope, dialogService, gridService, mediaResource, imageHelper, $timeout) {
 
-        // Grid status variables   
+        // Grid status variables
         $scope.currentRow = null;
-        $scope.currentCell = null; 
+        $scope.currentCell = null;
         $scope.currentToolsControl = null;
         $scope.currentControl = null;
-        $scope.openRTEToolbarId = null;   
+        $scope.openRTEToolbarId = null;
 
-        
-        // *********************************************   
+
+        // *********************************************
         // Sortable options
         // *********************************************
 
@@ -39,7 +39,7 @@ angular.module("umbraco")
                     tinyMCE.execCommand('mceRemoveEditor', false, $(this).attr('id'));
                     tinyMCE.execCommand('mceAddEditor', false, $(this).attr('id'));
                 });
-            }   
+            }
 
         };
 
@@ -164,7 +164,7 @@ angular.module("umbraco")
 
         $scope.addTemplate = function (template) {
             $scope.model.value = angular.copy(template);
-            
+
             //default row data
             _.forEach($scope.model.value.sections, function(section){
                 $scope.initSection(section);
@@ -193,7 +193,7 @@ angular.module("umbraco")
         $scope.disableCurrentMovedRow = function (Row) {
             $scope.currentMovedRow = null;
         };
-        
+
         $scope.getAllowedLayouts = function(column){
             var layouts = $scope.model.config.items.layouts;
 
@@ -203,17 +203,22 @@ angular.module("umbraco")
                 });
             }else{
                 return layouts;
-            } 
+            }
         };
 
         $scope.addRow = function (section, layout) {
+
             //copy the selected layout into the rows collection
             var row = angular.copy(layout);
+
+            // Init row value
             row = $scope.initRow(row);
-            
+
+            // Push the new row
             if(row){
                section.rows.push(row);
             }
+
         };
 
         $scope.removeRow = function (section, $index) {
@@ -225,7 +230,7 @@ angular.module("umbraco")
             }
         };
 
-         
+
         // *********************************************
         // Cell management functions
         // *********************************************
@@ -341,7 +346,7 @@ angular.module("umbraco")
 
 
 
-        
+
 
 
 
@@ -349,10 +354,10 @@ angular.module("umbraco")
         // INITIALISATION
         // these methods are called from ng-init on the template
         // so we can controll their first load data
-        // 
+        //
         // intialisation sets non-saved data like percentage sizing, allowed editors and
         // other data that should all be pre-fixed with $ to strip it out on save
-        // *********************************************                
+        // *********************************************
 
         // *********************************************
         // Init template + sections
@@ -362,7 +367,7 @@ angular.module("umbraco")
 
             if ($scope.model.value && $scope.model.value.sections && $scope.model.value.sections.length > 0) {
                 _.forEach($scope.model.value.sections, function(section){
-                    
+
                     $scope.initSection(section);
 
                     //we do this to ensure that the grid can be reset by deleting the last row
@@ -403,19 +408,19 @@ angular.module("umbraco")
                             section.rows[index] = initd;
                         }
                     }
-                });    
+                });
             }
         };
 
 
         // *********************************************
         // Init layout / row
-        // *********************************************                
+        // *********************************************
         $scope.initRow = function(row){
-            
+
             //merge the layout data with the original config data
             //if there are no config info on this, splice it out
-            var original = _.find($scope.model.config.items.layouts, function(o){ return o.name === row.name; });           
+            var original = _.find($scope.model.config.items.layouts, function(o){ return o.name === row.name; });
             if(!original){
                 return null;
             }else{
@@ -454,22 +459,26 @@ angular.module("umbraco")
                         }
                     }
                 });
-    
+
                 //replace the old row
                 original.$initialized = true;
 
                 //set a disposable unique ID
                 original.$uniqueId = $scope.setUniqueId();
+
+                //set a no disposable unique ID (util for row styling)
+                original.id = !row.id ? $scope.setUniqueId() : row.id;
+
                 return original;
             }
-            
+
         };
 
 
 
         // *********************************************
         // Init control
-        // *********************************************                
+        // *********************************************
 
         $scope.initControl = function(control, index){
             control.$index = index;
@@ -485,7 +494,7 @@ angular.module("umbraco")
                 }
             }
         };
-        
+
 
         gridService.getGridEditors().then(function(response){
             $scope.availableEditors = response.data;

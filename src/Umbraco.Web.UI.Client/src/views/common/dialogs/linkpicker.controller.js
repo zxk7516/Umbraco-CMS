@@ -1,85 +1,78 @@
 //used for the media picker dialog
 angular.module("umbraco").controller("Umbraco.Dialogs.LinkPickerController",
-	function ($scope, eventsService, dialogService, entityResource, contentResource, mediaHelper, $log) {
-	var dialogOptions = $scope.dialogOptions;
-	
-	$scope.dialogTreeEventHandler = $({});
-	$scope.target = {};
+	function ($scope, eventsService, dialogService, entityResource, contentResource, mediaHelper, userService) {
+	    var dialogOptions = $scope.dialogOptions;
 
-	if(dialogOptions.currentTarget){
-		$scope.target = dialogOptions.currentTarget;
+	    $scope.dialogTreeEventHandler = $({});
+	    $scope.target = {};
 
-		//if we have a node ID, we fetch the current node to build the form data
-		if($scope.target.id){
+	    if (dialogOptions.currentTarget) {
+	        $scope.target = dialogOptions.currentTarget;
 
-			if(!$scope.target.path) {
-			    entityResource.getPath($scope.target.id, "Document").then(function (path) {
-			        $scope.target.path = path;
-			        //now sync the tree to this path
-			        $scope.dialogTreeEventHandler.syncTree({ path: $scope.target.path, tree: "content" });
-			    });
-			}
+	        //if we have a node ID, we fetch the current node to build the form data
+	        if ($scope.target.id) {
 
-			contentResource.getNiceUrl($scope.target.id).then(function(url){
-				$scope.target.url = url;
-			});
-		}
-	}
+	            if (!$scope.target.path) {
+	                entityResource.getPath($scope.target.id, "Document").then(function (path) {
+	                    $scope.target.path = path;
+	                    //now sync the tree to this path
+	                    $scope.dialogTreeEventHandler.syncTree({ path: $scope.target.path, tree: "content" });
+	                });
+	            }
 
-	$scope.switchToMediaPicker = function () {
-	    dialogService.mediaPicker(
-            {
-                callback: function (media) {
-                    $scope.target.id = media.id;
-                    $scope.target.isMedia = true;
-                    $scope.target.name = media.name;
-                    $scope.target.url = mediaHelper.resolveFile(media);
-                }
-            });
-	};
+	            contentResource.getNiceUrl($scope.target.id).then(function (url) {
+	                $scope.target.url = url;
+	            });
+	        }
+	    }
 
+	    $scope.switchToMediaPicker = function () {
+	        userService.getCurrentUser().then(function (userData) {
+	            dialogService.mediaPicker({
+	                startNodeId: userData.startMediaId,
+	                callback: function (media) {
+	                    $scope.target.id = media.id;
+	                    $scope.target.isMedia = true;
+	                    $scope.target.name = media.name;
+	                    $scope.target.url = mediaHelper.resolveFile(media);
+	                }
+	            });
+	        });
+	    };
 
-	$scope.dialogTreeEventHandler.bind("treeNodeSelect", function(ev, args){
-		args.event.preventDefault();
-		args.event.stopPropagation();
+	    function nodeSelectHandler (ev, args) {
+	        args.event.preventDefault();
+	        args.event.stopPropagation();
 
-		eventsService.emit("dialogs.linkPicker.select", args);
-	    
-		var c = $(args.event.target.parentElement);
+	        eventsService.emit("dialogs.linkPicker.select", args);
+            
+	        if ($scope.currentNode) {
+                //un-select if there's a current one selected
+	            $scope.currentNode.selected = false;
+	        }
 
-	    //renewing
-		if (args.node !== $scope.target) {
-		    if ($scope.selectedEl) {
-		        $scope.selectedEl.find(".temporary").remove();
-		        $scope.selectedEl.find("i.umb-tree-icon").show();
-		    }
+	        $scope.currentNode = args.node;
+	        $scope.currentNode.selected = true;
+	        $scope.target.id = args.node.id;
+	        $scope.target.name = args.node.name;
 
-		    $scope.selectedEl = c;
-		    $scope.target.id = args.node.id;
-		    $scope.target.name = args.node.name;
+	        if (args.node.id < 0) {
+	            $scope.target.url = "/";
+	        }
+	        else {
+	            contentResource.getNiceUrl(args.node.id).then(function (url) {
+	                $scope.target.url = url;
+	            });
+	        }
 
-		    $scope.selectedEl.find("i.umb-tree-icon")
-             .hide()
-             .after("<i class='icon umb-tree-icon sprTree icon-check blue temporary'></i>");
+	        if (!angular.isUndefined($scope.target.isMedia)) {
+	            delete $scope.target.isMedia;
+	        }
+	    }
 
-		    if (args.node.id < 0) {
-		        $scope.target.url = "/";
-		    } else {
-		        contentResource.getNiceUrl(args.node.id).then(function (url) {
-		            $scope.target.url = url;
-		        });
-		    }
-		} else {
-		    $scope.target = undefined;
-		    //resetting
-		    if ($scope.selectedEl) {
-		        $scope.selectedEl.find(".temporary").remove();
-		        $scope.selectedEl.find("i.umb-tree-icon").show();
-		    }
-		}
+	    $scope.dialogTreeEventHandler.bind("treeNodeSelect", nodeSelectHandler);
 
-		if (!angular.isUndefined($scope.target.isMedia)) {
-		    delete $scope.target.isMedia;
-		}
+	    $scope.$on('$destroy', function () {
+	        $scope.dialogTreeEventHandler.unbind("treeNodeSelect", nodeSelectHandler);
+	    });
 	});
-});

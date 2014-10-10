@@ -4,7 +4,7 @@ IF NOT EXIST UmbracoVersion.txt (
 	GOTO :showerror
 ) 
 SET /p release=<UmbracoVersion.txt
-SET comment=alpha
+SET comment=beta
 SET version=%release%
 
 IF [%comment%] EQU [] (SET version=%release%) ELSE (SET version=%release%-%comment%)
@@ -23,6 +23,7 @@ RD ..\src\Umbraco.Web.UI.Client\build /Q /S
 ECHO Removing existing built files to make sure everything is clean as a whistle
 RMDIR /Q /S _BuildOutput
 DEL /F /Q UmbracoCms.*.zip
+DEL /F /Q UmbracoExamine.*.zip
 DEL /F /Q UmbracoCms.*.nupkg
 DEL /F /Q webpihash.txt
 
@@ -49,6 +50,7 @@ ren .\_BuildOutput\WebApp\Xslt\Web.config Web.config.transform
 ECHO Packing the NuGet release files
 ..\src\.nuget\NuGet.exe Pack NuSpecs\UmbracoCms.Core.nuspec -Version %version%
 ..\src\.nuget\NuGet.exe Pack NuSpecs\UmbracoCms.nuspec -Version %version%
+..\src\.nuget\NuGet.exe Pack NuSpecs\UmbracoExamine.PDF.nuspec
                         
 IF ERRORLEVEL 1 GOTO :showerror
 
