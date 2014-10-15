@@ -31,46 +31,73 @@ angular.module("umbraco.directives")
             tree: '='
         },
 
-        template: '<li ng-class="{\'current\': (node == currentNode)}" on-right-click="altSelect(node, $event)"><div ng-style="setTreePadding(node)" ng-class="node.stateCssClass" ng-class="{\'loading\': node.loading}" ng-swipe-right="options(node, $event)" >' +
+        //TODO: Remove more of the binding from this template and move the DOM manipulation to be manually done in the link function,
+        // this will greatly improve performance since there's potentially a lot of nodes being rendered = a LOT of watches!
+
+        template: '<li ng-class="{\'current\': (node == currentNode)}" on-right-click="altSelect(node, $event)">' +
+            '<div ng-class="getNodeCssClass(node)" ng-swipe-right="options(node, $event)" >' +
             //NOTE: This ins element is used to display the search icon if the node is a container/listview and the tree is currently in dialog
-            '<ins ng-if="tree.enablelistviewsearch && node.metaData.isContainer" class="umb-tree-node-search icon-search" ng-click="searchNode(node, $event)" alt="searchAltText"></ins>' +
-            '<ins ng-if="node.hasChildren" style="width:18px;"></ins>' +
-            '<ins ng-show="node.hasChildren" ng-class="{\'icon-navigation-right\': !node.expanded, \'icon-navigation-down\': node.expanded}" ng-click="load(node)"></ins>' +
-            //NOTE: If the tree supports check boxes, render different markup
-            '<i ng-if="tree.enablecheckboxes == \'true\'" title="#{{node.routePath}}" ng-class="selectEnabledNodeClass(node)"></i>' +
-            '<i ng-if="!tree.enablecheckboxes || tree.enablecheckboxes == \'false\'" title="#{{node.routePath}}" class="{{node.cssClass}}"></i>' +
-            '<a href ng-click="select(node, $event)" on-right-click="altSelect(node, $event)" ng-bind-html="node.name"></a>' +
-            '<a href class="umb-options" ng-hide="!node.menuUrl" ng-click="options(node, $event)"><i></i><i></i><i></i></a>' +
+            //'<ins ng-if="tree.enablelistviewsearch && node.metaData.isContainer" class="umb-tree-node-search icon-search" ng-click="searchNode(node, $event)" alt="searchAltText"></ins>' +            
+            '<ins style="width:18px;"></ins>' +
+            '<ins ng-class="{\'icon-navigation-right\': !node.expanded, \'icon-navigation-down\': node.expanded}" ng-click="load(node)"></ins>' +
+            '<i class="icon umb-tree-icon sprTree"></i>' +
+            '<a href ng-click="select(node, $event)" on-right-click="altSelect(node, $event)"></a>' +
+            //NOTE: These are the 'option' elipses
+            '<a href class="umb-options" ng-click="options(node, $event)"><i></i><i></i><i></i></a>' +
             '<div ng-show="node.loading" class="l"><div></div></div>' +
             '</div>' +
             '</li>',
-
+        
         link: function (scope, element, attrs) {
 
             localizationService.localize("general_search").then(function (value) {
                 scope.searchAltText = value;
             });
 
-            //flag to enable/disable delete animations, default for an item is tru
+            //flag to enable/disable delete animations, default for an item is true
             var deleteAnimations = true;
 
-            /** Helper function to emit tree events */
+            // Helper function to emit tree events
             function emitEvent(eventName, args) {
                 if (scope.eventhandler) {
                     $(scope.eventhandler).trigger(eventName, args);
                 }
             }
 
-            /** updates the node's styles */
-            function styleNode(node) {
-                node.stateCssClass = (node.cssClasses || []).join(" ");
+            // updates the node's DOM/styles
+            function setupNodeDom(node, tree) {
+                
+                //get the first div element
+                element.children(":first")
+                    //set the padding
+                    .css("padding-left", (node.level * 20) + "px");
+
+                //remove first 'ins' if there is no children
+                //show/hide last 'ins' depending on children
+                if (!node.hasChildren) {
+                    element.find("ins:first").remove();
+                    element.find("ins").last().hide();
+                }
+                else {
+                    element.find("ins").last().show();
+                }
+
+                var icon = element.find("i:first");
+                icon.addClass(node.cssClass);
+                icon.attr("title", node.routePath);
+
+                element.find("a:first").html(node.name);
+
+                if (!node.menuUrl) {
+                    element.find("a:last").remove();
+                }
 
                 if (node.style) {
-                    $(element).find("i:first").attr("style", node.style);
+                    element.find("i:first").attr("style", node.style);
                 }
             }
 
-            /** This will deleteAnimations to true after the current digest */
+            //This will deleteAnimations to true after the current digest
             function enableDeleteAnimations() {
                 //do timeout so that it re-enables them after this digest
                 $timeout(function () {
@@ -79,12 +106,21 @@ angular.module("umbraco.directives")
                 }, 0, false);
             }
 
-            scope.selectEnabledNodeClass = function (node) {
-                return node ?
-                    node.selected ?
-                    'icon umb-tree-icon sprTree icon-check blue temporary' :
-                    node.cssClass :
-                    '';
+            /** Returns the css classses assigned to the node (div element) */
+            scope.getNodeCssClass = function (node) {
+                if (!node) {
+                    return '';
+                }
+                var css = [];                
+                if (node.cssClasses) {
+                    _.each(node.cssClasses, function(c) {
+                        css.push(c);
+                    });
+                }
+                if (node.selected) {
+                    css.push("umb-tree-node-checked");
+                }
+                return css.join(" ");
             };
 
             //add a method to the node which we can use to call to update the node data if we need to ,
@@ -93,7 +129,7 @@ angular.module("umbraco.directives")
             scope.node.updateNodeData = function (newNode) {
                 _.extend(scope.node, newNode);
                 //now update the styles
-                styleNode(scope.node);
+                setupNodeDom(scope.node, scope.tree);
             };
 
             /**
@@ -126,15 +162,14 @@ angular.module("umbraco.directives")
                 emitEvent("treeNodeAltSelect", { element: element, tree: scope.tree, node: n, event: ev });
             };
 
-            scope.searchNode = function (n, ev) {
-                emitEvent("treeNodeSearch", { element: element, tree: scope.tree, node: n, event: ev });
-            };
-
             /** method to set the current animation for the node. 
             *  This changes dynamically based on if we are changing sections or just loading normal tree data. 
             *  When changing sections we don't want all of the tree-ndoes to do their 'leave' animations.
             */
             scope.animation = function () {
+                if (scope.node.showHideAnimation) {
+                    return scope.node.showHideAnimation;
+                }
                 if (deleteAnimations && scope.node.expanded) {
                     return { leave: 'tree-node-delete-leave' };
                 }
@@ -178,20 +213,11 @@ angular.module("umbraco.directives")
                     node.expanded = true;
                     enableDeleteAnimations();
                 }
-            };
-
-            /**
-              Helper method for setting correct element padding on tree DOM elements
-              Since elements are not children of eachother, we need this indenting done
-              manually
-            */
-            scope.setTreePadding = function (node) {
-                return { 'padding-left': (node.level * 20) + "px" };
-            };
+            };            
 
             //if the current path contains the node id, we will auto-expand the tree item children
 
-            styleNode(scope.node);
+            setupNodeDom(scope.node, scope.tree);
 
             var template = '<ul ng-class="{collapsed: !node.expanded}"><umb-tree-item  ng-repeat="child in node.children" eventhandler="eventhandler" tree="tree" current-node="currentNode" node="child" section="{{section}}" ng-animate="animation()"></umb-tree-item></ul>';
             var newElement = angular.element(template);
