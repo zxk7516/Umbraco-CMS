@@ -126,11 +126,13 @@ namespace Umbraco.Tests.PublishedCache
 		[Test]
 		public void Convert_From_Search_Result()
 		{
+
 			var result = new SearchResult()
 				{
-					Id = 1234,
+                    LongId = 1234,
 					Score = 1
 				};
+
 			result.Fields.Add("__IndexType", "media");
 			result.Fields.Add("__NodeId", "1234");
 			result.Fields.Add("__NodeTypeAlias", Constants.Conventions.MediaTypes.Image);

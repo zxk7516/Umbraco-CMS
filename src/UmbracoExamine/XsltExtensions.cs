@@ -5,6 +5,7 @@ using System.Security;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Examine;
+using Examine.LuceneEngine;
 using Examine.LuceneEngine.Providers;
 using Examine.LuceneEngine.SearchCriteria;
 using Examine.SearchCriteria;
@@ -207,7 +208,7 @@ namespace UmbracoExamine
         /// </summary>
         /// <param name="results">The results.</param>
         /// <returns></returns>
-        private static XPathNodeIterator GetResultsAsXml(ISearchResults results)
+        private static XPathNodeIterator GetResultsAsXml(ISearchResults<LuceneSearchResult> results)
         {
             // create the XDocument
             XDocument doc = new XDocument();

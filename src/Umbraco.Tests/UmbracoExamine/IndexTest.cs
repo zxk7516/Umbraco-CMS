@@ -41,11 +41,11 @@ namespace Umbraco.Tests.UmbracoExamine
 					new TermQuery(new Term(LuceneIndexer.IndexNodeIdFieldName, TestContentService.ProtectedNode.ToString())),
 					BooleanClause.Occur.MUST));
 
-			var collector = new AllHitsCollector(false, true);
 			var s = _searcher.GetSearcher();
+            var collector = TopScoreDocCollector.create(s.MaxDoc(), true);
 			s.Search(protectedQuery, collector);
 
-			Assert.AreEqual(0, collector.Count, "Protected node should not be indexed");
+			Assert.AreEqual(0, collector.TopDocs().TotalHits, "Protected node should not be indexed");
 
 		}
 
@@ -150,24 +150,24 @@ namespace Umbraco.Tests.UmbracoExamine
 			r.Close();
 
 			//make sure the content is gone. This is done with lucene APIs, not examine!
-			var collector = new AllHitsCollector(false, true);
 			var query = new TermQuery(contentTerm);
 			s = (IndexSearcher)_searcher.GetSearcher(); //make sure the searcher is up do date.
+            var collector = TopScoreDocCollector.create(s.MaxDoc(), true);
 			s.Search(query, collector);
-			Assert.AreEqual(0, collector.Count);
+			Assert.AreEqual(0, collector.TopDocs().TotalHits);
 
 			//call our indexing methods
 			_indexer.IndexAll(IndexTypes.Content);
 
-			collector = new AllHitsCollector(false, true);
 			s = (IndexSearcher)_searcher.GetSearcher(); //make sure the searcher is up do date.
+            collector = TopScoreDocCollector.create(s.MaxDoc(), true);
 			s.Search(query, collector);
             //var ids = new List<string>();
             //for (var i = 0; i < collector.Count;i++)
             //{
             //    ids.Add(s.Doc(collector.GetDocId(i)).GetValues("__NodeId")[0]);
             //}
-			Assert.AreEqual(20, collector.Count);
+            Assert.AreEqual(20, collector.TopDocs().TotalHits);
 		}
 
 		/// <summary>

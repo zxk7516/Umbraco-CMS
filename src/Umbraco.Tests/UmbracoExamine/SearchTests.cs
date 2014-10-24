@@ -8,6 +8,7 @@ using Examine.LuceneEngine.Providers;
 using Lucene.Net.Store;
 using NUnit.Framework;
 using Examine.LuceneEngine.SearchCriteria;
+using UmbracoExamine;
 
 namespace Umbraco.Tests.UmbracoExamine
 {

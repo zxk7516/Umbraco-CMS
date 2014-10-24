@@ -1,13 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Security;
-using Examine;
-using Examine.Providers;
 using Examine.SearchCriteria;
 using Umbraco.Core;
-using UmbracoExamine.Config;
-using Examine.LuceneEngine;
 using Examine.LuceneEngine.Providers;
 using Examine.LuceneEngine.SearchCriteria;
 using Lucene.Net.Analysis;
@@ -121,7 +116,9 @@ namespace UmbracoExamine
         public override ISearchCriteria CreateSearchCriteria(string type, BooleanOperation defaultOperation)
         {
             var criteria = base.CreateSearchCriteria(type, defaultOperation) as LuceneSearchCriteria;
-            criteria.NodeTypeAliasField = UmbracoContentIndexer.NodeTypeAliasFieldName;
+            
+            //criteria.NodeTypeAliasField = UmbracoContentIndexer.NodeTypeAliasFieldName;
+            
             return criteria;
         }
 

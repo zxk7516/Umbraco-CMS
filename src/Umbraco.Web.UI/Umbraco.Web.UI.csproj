@@ -123,10 +123,12 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\ClientDependency-Mvc.1.7.0.4\lib\ClientDependency.Core.Mvc.dll</HintPath>
     </Reference>
-    <Reference Include="Examine, Version=0.1.57.2941, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Contrib.Regex">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Contrib.Regex.dll</HintPath>
+    </Reference>
+    <Reference Include="Examine, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Examine.0.1.57.2941\lib\Examine.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\Examine.2.0.0.0-Alpha6\lib\net45\Examine.dll</HintPath>
     </Reference>
     <Reference Include="ImageProcessor, Version=1.8.8.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -140,6 +142,33 @@
     <Reference Include="log4net, Version=1.2.11.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\log4net-mediumtrust.2.0.0\lib\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Analyzers">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Analyzers.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Core">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Highlighter">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Highlighter.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Queries">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Queries.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Snowball">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Snowball.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.Spatial">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.Spatial.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Contrib.SpellChecker">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Contrib.SpellChecker.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.FastVectorHighlighter">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.FastVectorHighlighter.dll</HintPath>
+    </Reference>
+    <Reference Include="Lucene.Net.Search.SimpleFacetedSearch">
+      <HintPath>..\packages\Lucene.Net.Contrib.2.9.4.1\lib\net40\Lucene.Net.Search.SimpleFacetedSearch.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Threading.Tasks">
