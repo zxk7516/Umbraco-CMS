@@ -9,6 +9,8 @@ namespace Umbraco.Core.Persistence.Repositories
 {
     public interface IMediaRepository : IRepositoryVersionable<int, IMedia>, IRecycleBinRepository<IMedia>
     {
+        void RebuildMediaXml(Func<IMedia, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null);
+        
         /// <summary>
         /// Used to add/update published xml for the media item
         /// </summary>

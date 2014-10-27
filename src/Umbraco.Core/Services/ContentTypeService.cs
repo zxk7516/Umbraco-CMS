@@ -266,7 +266,7 @@ namespace Umbraco.Core.Services
                     var typedContentService = _mediaService as MediaService;
                     if (typedContentService != null)
                     {
-                        typedContentService.RebuildXmlStructures(toUpdate.Select(x => x.Id).ToArray());
+                        typedContentService.RebuildMediaXml(toUpdate.Select(x => x.Id).ToArray());
                     }                     
                 }
             }

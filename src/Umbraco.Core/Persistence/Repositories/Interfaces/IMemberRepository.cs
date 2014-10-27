@@ -11,6 +11,8 @@ namespace Umbraco.Core.Persistence.Repositories
 {
     public interface IMemberRepository : IRepositoryVersionable<int, IMember>
     {
+        void RebuildMemberXml(Func<IMember, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null);
+
         /// <summary>
         /// Finds members in a given role
         /// </summary>

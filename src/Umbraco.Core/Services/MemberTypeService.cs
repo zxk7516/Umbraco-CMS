@@ -186,7 +186,7 @@ namespace Umbraco.Core.Services
                 var typedMemberService = _memberService as MemberService;
                 if (typedMemberService != null)
                 {
-                    typedMemberService.RebuildXmlStructures(toUpdate.Select(x => x.Id).ToArray());
+                    typedMemberService.RebuildMemberXml(toUpdate.Select(x => x.Id).ToArray());
                 }
             }
 

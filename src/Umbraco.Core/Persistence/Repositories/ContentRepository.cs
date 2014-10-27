@@ -4,6 +4,7 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Xml.Linq;
 using Umbraco.Core.Configuration;
@@ -167,7 +168,178 @@ namespace Umbraco.Core.Persistence.Repositories
         #endregion
 
         #region Overrides of VersionableRepositoryBase<IContent>
-        
+
+        public void RebuildContentXml(Func<IContent, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+
+            // fixme - transaction level issue?
+            // the transaction is, by default, ReadCommited meaning that we do not lock the whole tables
+            // so nothing prevents another transaction from messing with the content while we run?!
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = Database.GetTransaction())
+            {
+                // remove all - if anything fails after this it's no problem the transaction will be rolled back
+                if (contentTypeIds == null)
+                {
+                    var subQuery = new Sql()
+                            .Select("DISTINCT cmsContentXml.nodeId")
+                            .From<ContentXmlDto>()
+                            .InnerJoin<DocumentDto>() // only for content
+                            .On<ContentXmlDto, DocumentDto>(left => left.NodeId, right => right.NodeId);
+
+                    var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsContentXml", "nodeId", subQuery);
+                    Database.Execute(deleteSql);
+                }
+                else
+                {
+                    foreach (var id in contentTypeIdsA)
+                    {
+                        var id1 = id;
+                        // fixme - I don't understand why this query is diff from the previous one?
+                        var subQuery = new Sql()
+                            .Select("cmsDocument.nodeId")
+                            .From<DocumentDto>()
+                            .InnerJoin<ContentDto>()
+                            .On<DocumentDto, ContentDto>(left => left.NodeId, right => right.NodeId)
+                            .Where<DocumentDto>(dto => dto.Published) // fixme - why?
+                            .Where<ContentDto>(dto => dto.ContentTypeId == id1);
+
+                        var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsContentXml", "nodeId", subQuery);
+                        Database.Execute(deleteSql);
+                    }
+                }
+
+                // insert back - again if something fails here, the whole transaction is rolled back
+                // for content that are published
+                if (contentTypeIds == null)
+                {
+                    var query = Query<IContent>.Builder.Where(x => x.Published);
+                    RebuildContentOrPreviewXmlProcessQuery(
+                        c => new ContentXmlDto { NodeId = c.Id, Xml = serializer(c).ToString(SaveOptions.None) },
+                        query, tr, groupSize);
+                }
+                else
+                {
+                    foreach (var contentTypeId in contentTypeIdsA)
+                    {
+                        var id = contentTypeId; // capture
+                        // fixme - why x.Trashed here and not above?!
+                        var query = Query<IContent>.Builder.Where(x => x.Published && x.ContentTypeId == id && x.Trashed == false);
+                        RebuildContentOrPreviewXmlProcessQuery(
+                            c => new ContentXmlDto { NodeId = c.Id, Xml = serializer(c).ToString(SaveOptions.None) },
+                            query, tr, groupSize);
+                    }
+                }
+
+                tr.Complete();
+            }
+        }
+
+        public void RebuildPreviewXml(Func<IContent, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = Database.GetTransaction())
+            {
+                // remove all - if anything fails after this it's no problem the transaction will be rolled back
+                if (contentTypeIds == null)
+                {
+                    var subQuery = new Sql()
+                            .Select("DISTINCT cmsPreviewXml.nodeId")
+                            .From<PreviewXmlDto>()
+                            .InnerJoin<DocumentDto>() // only for content
+                            .On<PreviewXmlDto, DocumentDto>(left => left.NodeId, right => right.NodeId);
+
+                    var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsPreviewXml", "nodeId", subQuery);
+                    Database.Execute(deleteSql);
+                }
+                else
+                {
+                    foreach (var id in contentTypeIdsA)
+                    {
+                        // fixme - I don't understand this query?!
+                        var id1 = id;
+                        var subQuery = new Sql()
+                            .Select("cmsDocument.nodeId")
+                            .From<DocumentDto>()
+                            .InnerJoin<ContentDto>()
+                            .On<DocumentDto, ContentDto>(left => left.NodeId, right => right.NodeId)
+                            //.Where<DocumentDto>(dto => dto.Published)
+                            .Where<ContentDto>(dto => dto.ContentTypeId == id1);
+
+                        var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsPreviewXml", "nodeId", subQuery);
+                        Database.Execute(deleteSql);
+                    }
+                }
+
+                // insert back - again if something fails here, the whole transaction is rolled back
+                if (contentTypeIds == null)
+                {
+                    var query = Query<IContent>.Builder; //.Where(x => x.Published);
+                    RebuildContentOrPreviewXmlProcessQuery(
+                        c => new PreviewXmlDto { NodeId = c.Id, Xml = serializer(c).ToString(SaveOptions.None) },
+                        query, tr, groupSize);
+                }
+                else
+                {
+                    foreach (var contentTypeId in contentTypeIdsA)
+                    {
+                        var id = contentTypeId; // capture
+                        var query = Query<IContent>.Builder.Where(x => x.Published && x.ContentTypeId == id && x.Trashed == false);
+                        RebuildContentOrPreviewXmlProcessQuery(
+                            c => new PreviewXmlDto {NodeId = c.Id, Xml = serializer(c).ToString(SaveOptions.None)}, 
+                            query, tr, groupSize);
+                    }
+                }
+
+                tr.Complete();
+            }
+        }
+
+        private void RebuildContentOrPreviewXmlProcessQuery<T>(Func<IContent, T> dtoBuilder, IQuery<IContent> query, Transaction tr, int pageSize)
+        {
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                var descendants = GetPagedResultsByQuery(query, pageIndex, pageSize, out total, "Path", Direction.Ascending);
+                var items = descendants.Select(dtoBuilder).ToArray();
+
+                // bulk insert it into the database
+                Database.BulkInsertRecords(items, tr);
+
+                processed += items.Length;
+
+                pageIndex++;
+            } while (processed < total);
+        }
+
+        private void RebuildContentXmlProcessQuery(Func<IContent, XElement> serializer, IQuery<IContent> query, Transaction tr, int pageSize)
+        {
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                var descendants = GetPagedResultsByQuery(query, pageIndex, pageSize, out total, "Path", Direction.Ascending);
+
+                var xmlItems = (from descendant in descendants
+                                let xml = serializer(descendant)
+                                select new ContentXmlDto { NodeId = descendant.Id, Xml = xml.ToString(SaveOptions.None) }).ToArray();
+
+                // bulk insert it into the database
+                Database.BulkInsertRecords(xmlItems, tr);
+
+                processed += xmlItems.Length;
+
+                pageIndex++;
+            } while (processed < total);
+        }
+
         public override IContent GetByVersion(Guid versionId)
         {
             var sql = GetBaseQuery(false);
@@ -337,13 +509,20 @@ namespace Umbraco.Core.Persistence.Repositories
                 UpdatePropertyTags(entity, _tagRepository);
             }
 
-            ((ICanBeDirty)entity).ResetDirtyProperties();
+            entity.ResetDirtyProperties();
         }
 
         protected override void PersistUpdatedItem(IContent entity)
         {
             var publishedState = ((Content) entity).PublishedState;
             
+            //check if we need to make any database changes at all
+            if (entity.RequiresSaving(publishedState) == false)
+            {
+                entity.ResetDirtyProperties();
+                return;
+            }
+
             //check if we need to create a new version
             bool shouldCreateNewVersion = entity.ShouldCreateNewVersion(publishedState);
             if (shouldCreateNewVersion)
@@ -363,7 +542,7 @@ namespace Umbraco.Core.Persistence.Repositories
             entity.SanitizeEntityPropertiesForXmlStorage();
 
             //Look up parent to get and set the correct Path and update SortOrder if ParentId has changed
-            if (((ICanBeDirty)entity).IsPropertyDirty("ParentId"))
+            if (entity.IsPropertyDirty("ParentId"))
             {
                 var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { ParentId = entity.ParentId });
                 entity.Path = string.Concat(parent.Path, ",", entity.Id);
@@ -487,7 +666,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 ClearEntityTags(entity, _tagRepository);
             }
 
-            ((ICanBeDirty)entity).ResetDirtyProperties();
+            entity.ResetDirtyProperties();
         }
 
 
@@ -528,6 +707,14 @@ namespace Umbraco.Core.Persistence.Repositories
                     yield return CreateContentFromDto(dto, dto.VersionId, sql);
                 }
             }
+        }
+
+        public int CountPublished()
+        {
+            var sql = GetBaseQuery(true).Where<NodeDto>(x => x.Trashed == false)
+                .Where<DocumentDto>(x => x.Published == true)
+                .Where<DocumentDto>(x => x.Newest == true);
+            return Database.ExecuteScalar<int>(sql);
         }
 
         public void ReplaceContentPermissions(EntityPermissionSet permissionSet)

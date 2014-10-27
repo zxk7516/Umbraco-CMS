@@ -77,6 +77,15 @@ namespace Umbraco.Core.Services
             _userService = userService;
         }
 
+        public int CountPublished(string contentTypeAlias = null)
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            {
+                return repository.CountPublished();
+            }
+        }
+
         public int Count(string contentTypeAlias = null)
         {
             var uow = _uowProvider.GetUnitOfWork();
@@ -1558,12 +1567,6 @@ namespace Umbraco.Core.Services
             }
         }
 
-        //TODO: WE should make a base class for ContentService and MediaService to share! 
-        // currently we have this logic duplicated (nearly the same) for media types and soon to be member types
-
-        //TODO: This needs to be put into the ContentRepository, all CUD logic!
-
-        /// <summary>
         /// Publishes a <see cref="IContent"/> object and all its children
         /// </summary>
         /// <param name="content">The <see cref="IContent"/> to publish along with its children</param>
@@ -2062,99 +2065,37 @@ namespace Umbraco.Core.Services
         // this is temp
         // should xml-cache-specific stuff belong here?
 
+        /// <summary>
+        /// Rebuilds the cmsContentXml table content for all content.
+        /// </summary>
         internal void RebuildPreviewXml()
         {
-            using (new WriteLock(Locker))
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
             {
-                var uow = _uowProvider.GetUnitOfWork();
-
-                ICollection<PreviewXmlDto> previewXmlDtos;
-                using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
-                {
-                    previewXmlDtos = repository.GetAll().Select(x =>
-                    {
-                        var xmlText = _entitySerializer.Serialize(this, _dataTypeService, _userService, x);
-                        return new PreviewXmlDto { NodeId = x.Id, Xml = xmlText.ToString(SaveOptions.None) };
-                    })
-                    .ToArray();
-                }
-
-                // note: the WriteLock above prevents a race condition from happening here,
-                // where a content would be created yet not part of xmlItems
-
-                using (var tr = uow.Database.GetTransaction())
-                {
-                    var subQuery = new Sql()
-                        .Select("DISTINCT cmsPreviewXml.nodeId")
-                        .From<PreviewXmlDto>()
-                        .InnerJoin<DocumentDto>()
-                        .On<PreviewXmlDto, DocumentDto>(left => left.NodeId, right => right.NodeId);
-
-                    var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsPreviewXml", "nodeId", subQuery);
-                    uow.Database.Execute(deleteSql);
-                    uow.Database.BulkInsertRecords(previewXmlDtos, tr);
-                    tr.Complete();
-                }
-
-                Audit.Add(AuditTypes.Publish, "RebuildPreviewXml completed, the xml has been regenerated in the database", 0, -1);
+                repository.RebuildPreviewXml(
+                    content => _entitySerializer.Serialize(this, _dataTypeService, _userService, content));
             }
+
+            Audit.Add(AuditTypes.Publish, "ContentService.RebuildPreviewXml completed, the xml has been regenerated in the database", 0, -1);
         }
 
+        /// <summary>
+        /// Rebuilds the cmsContentXml table content for all content.
+        /// </summary>
+        /// <param name="contentTypeIds">The content type identifiers of content to rebuild</param>
+        /// <remarks>If no content type identifiers are specified then all content are rebuilt.</remarks>
         internal void RebuildContentXml(params int[] contentTypeIds)
         {
-            using (new WriteLock(Locker))
+            var uow = _uowProvider.GetUnitOfWork();
+            using (var repository = _repositoryFactory.CreateContentRepository(uow))
             {
-                var uow = _uowProvider.GetUnitOfWork();
-
-                var contents = contentTypeIds.Any()
-                    ? contentTypeIds.SelectMany(GetPublishedContentOfContentType)
-                    : GetAllPublished();
-
-                var contentXmlDtos = contents.Select(x =>
-                {
-                    var xmlText = _entitySerializer.Serialize(this, _dataTypeService, _userService, x);
-                    return new ContentXmlDto { NodeId = x.Id, Xml = xmlText.ToString(SaveOptions.None) };
-                })
-                .ToArray();
-
-                using (var tr = uow.Database.GetTransaction())
-                {
-                    if (contentTypeIds.Any() == false)
-                    {
-                        var subQuery = new Sql()
-                            .Select("DISTINCT cmsContentXml.nodeId")
-                            .From<ContentXmlDto>()
-                            .InnerJoin<DocumentDto>()
-                            .On<ContentXmlDto, DocumentDto>(left => left.NodeId, right => right.NodeId);
-
-                        var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsContentXml", "nodeId", subQuery);
-                        uow.Database.Execute(deleteSql);
-                    }
-                    else
-                    {
-                        foreach (var id in contentTypeIds)
-                        {
-                            //first we'll clear out the data from the cmsContentXml table for this type
-                            var id1 = id;
-                            var subQuery = new Sql()
-                                .Select("cmsDocument.nodeId")
-                                .From<DocumentDto>()
-                                .InnerJoin<ContentDto>()
-                                .On<DocumentDto, ContentDto>(left => left.NodeId, right => right.NodeId)
-                                .Where<DocumentDto>(dto => dto.Published)
-                                .Where<ContentDto>(dto => dto.ContentTypeId == id1);
-
-                            var deleteSql = SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsContentXml", "nodeId", subQuery);
-                            uow.Database.Execute(deleteSql);
-                        }
-                    }
-
-                    uow.Database.BulkInsertRecords(contentXmlDtos, tr);
-                    tr.Complete();
-                }
-
-                Audit.Add(AuditTypes.Publish, "RebuildContentXml completed, the xml has been regenerated in the database", 0, -1);
+                repository.RebuildContentXml(
+                    content => _entitySerializer.Serialize(this, _dataTypeService, _userService, content),
+                    contentTypeIds: contentTypeIds.Length == 0 ? null : contentTypeIds);
             }
+
+            Audit.Add(AuditTypes.Publish, "ContentService.RebuildContentXml completed, the xml has been regenerated in the database", 0, -1);
         }
 
         #endregion

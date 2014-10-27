@@ -30,7 +30,7 @@ namespace Umbraco.Web.Strategies.Migrations
             if (e.ConfiguredVersion <= target70)
             {
                 var mediasvc = (MediaService)ApplicationContext.Current.Services.MediaService;
-                mediasvc.RebuildXmlStructures();
+                mediasvc.RebuildMediaXml();
             }
 
         }
