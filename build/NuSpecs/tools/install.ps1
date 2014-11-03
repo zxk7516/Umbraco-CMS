@@ -14,6 +14,15 @@ if ($project) {
 	$webConfigSource = Join-Path $projectDestinationPath "Web.config"
 	Copy-Item $webConfigSource $backupPath -Force
 	
+	# Backup config files folder
+	$configFolder = Join-Path $projectDestinationPath "Config"
+	if(Test-Path $configFolder) {
+		$umbracoBackupPath = Join-Path $backupPath "Config"
+		New-Item -ItemType Directory -Force -Path $umbracoBackupPath
+		
+		robocopy $configFolder $umbracoBackupPath /e /LOG:$copyLogsPath\ConfigBackup.log
+	}
+	
 	# Copy umbraco and umbraco_files from package to project folder
 	# This is only done when these folders already exist because we 
 	# only want to do this for upgrades
@@ -54,8 +63,7 @@ if ($project) {
 			
 		$consoleWindow = $(Get-VSComponentModel).GetService([NuGetConsole.IPowerConsoleWindow])		
 			
-		$props = $consoleWindow.GetType().GetProperties([System.Reflection.BindingFlags]::Instance -bor `		
-		  [System.Reflection.BindingFlags]::NonPublic)		
+		$props = $consoleWindow.GetType().GetProperties([System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)		
 			
 		$prop = $props | ? { $_.Name -eq "ActiveHostInfo" } | select -first 1		
 		if ($prop -eq $null) { return }		
@@ -82,10 +90,8 @@ if ($project) {
 		# get reference to the window, then smart output console provider		
 		# copy web.config if messages in buffered console contains "installing...UmbracoCms" in last operation		
 		
-		$instanceField = [NuGet.Dialog.PackageManagerWindow].GetField("CurrentInstance", [System.Reflection.BindingFlags]::Static -bor `		
-		  [System.Reflection.BindingFlags]::NonPublic)		
-		$consoleField = [NuGet.Dialog.PackageManagerWindow].GetField("_smartOutputConsoleProvider", [System.Reflection.BindingFlags]::Instance -bor `		
-		  [System.Reflection.BindingFlags]::NonPublic)		
+		$instanceField = [NuGet.Dialog.PackageManagerWindow].GetField("CurrentInstance", [System.Reflection.BindingFlags]::Static -bor [System.Reflection.BindingFlags]::NonPublic)		
+		$consoleField = [NuGet.Dialog.PackageManagerWindow].GetField("_smartOutputConsoleProvider", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)		
 		if ($instanceField -eq $null -or $consoleField -eq $null) { return }		
 			
 		$instance = $instanceField.GetValue($null)		
@@ -96,8 +102,7 @@ if ($project) {
 			
 		$console = $consoleProvider.CreateOutputConsole($false)		
 			
-		$messagesField = $console.GetType().GetField("_messages", [System.Reflection.BindingFlags]::Instance -bor `		
-		  [System.Reflection.BindingFlags]::NonPublic)		
+		$messagesField = $console.GetType().GetField("_messages", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)		
 		if ($messagesField -eq $null) { return }		
 			
 		$messages = $messagesField.GetValue($console)		
@@ -140,7 +145,10 @@ if ($project) {
 	}
 
 	$installFolder = Join-Path $projectDestinationPath "Install"
-	if(Test-Path $umbracoFolder) {
+	if(Test-Path $installFolder) {
 		Remove-Item $installFolder -Force -Recurse -Confirm:$false
 	}
+	
+	# Open readme.txt file
+	$DTE.ItemOperations.OpenFile($toolsPath + '\Readme.txt')
 }

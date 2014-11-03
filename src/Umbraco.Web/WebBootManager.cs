@@ -358,8 +358,9 @@ namespace Umbraco.Web
 					});
 
             UrlProviderResolver.Current = new UrlProviderResolver(
-                //typeof(AliasUrlProvider), // not enabled by default
-                    typeof(DefaultUrlProvider)
+                    //typeof(AliasUrlProvider), // not enabled by default
+                    typeof(DefaultUrlProvider),
+                    typeof(CustomRouteUrlProvider)
                 );
 
             ContentLastChanceFinderResolver.Current = new ContentLastChanceFinderResolver(
