@@ -1,24 +1,24 @@
 ﻿using System.Collections.Generic;
-using Umbraco.Core.Packaging.Models;
+using Umbraco.Core.Models.Packaging;
 
 namespace Umbraco.Core.Events
 {
     internal class ImportPackageEventArgs<TEntity> : CancellableObjectEventArgs<IEnumerable<TEntity>>
     {
-        private readonly MetaData _packageMetaData;
+        private readonly PackageMetaData _packageMetaData;
 
         public ImportPackageEventArgs(TEntity eventObject, bool canCancel)
             : base(new[] { eventObject }, canCancel)
         {
         }
 
-        public ImportPackageEventArgs(TEntity eventObject, MetaData packageMetaData)
+        public ImportPackageEventArgs(TEntity eventObject, PackageMetaData packageMetaData)
             : base(new[] { eventObject })
         {
             _packageMetaData = packageMetaData;
         }
 
-        public MetaData PackageMetaData
+        public PackageMetaData PackageMetaData
         {
             get { return _packageMetaData; }
         }

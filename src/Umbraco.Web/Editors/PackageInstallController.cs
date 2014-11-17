@@ -12,7 +12,6 @@ using System.Xml;
 using System.Xml.Linq;
 using umbraco.cms.businesslogic.packager.repositories;
 using Umbraco.Core.IO;
-using Umbraco.Core.Packaging.Models;
 using Umbraco.Core.Services;
 using Umbraco.Web.Models;
 using Umbraco.Web.Mvc;

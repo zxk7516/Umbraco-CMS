@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Newtonsoft.Json;
@@ -11,9 +13,9 @@ using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.Packaging;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Packaging;
-using Umbraco.Core.Packaging.Models;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.UnitOfWork;
@@ -34,11 +36,12 @@ namespace Umbraco.Core.Services
         private readonly IFileService _fileService;
         private readonly ILocalizationService _localizationService;
         private readonly RepositoryFactory _repositoryFactory;
-        private readonly IDatabaseUnitOfWorkProvider _uowProvider;
+        private readonly IDatabaseUnitOfWorkProvider _dbUowProvider;
+        private readonly IUnitOfWorkProvider _uowProvider;
         private Dictionary<string, IContentType> _importedContentTypes;
         private IPackageInstallation _packageInstallation;
         private readonly IUserService _userService;
-
+        private static readonly object Locker = new object();
 
         public PackagingService(IContentService contentService,
             IContentTypeService contentTypeService,
@@ -49,7 +52,8 @@ namespace Umbraco.Core.Services
             ILocalizationService localizationService,
             IUserService userService,
             RepositoryFactory repositoryFactory,
-            IDatabaseUnitOfWorkProvider uowProvider)
+            IDatabaseUnitOfWorkProvider dbUowProvider,
+            IUnitOfWorkProvider uowProvider)
         {
             _contentService = contentService;
             _contentTypeService = contentTypeService;
@@ -59,6 +63,7 @@ namespace Umbraco.Core.Services
             _fileService = fileService;
             _localizationService = localizationService;
             _repositoryFactory = repositoryFactory;
+            _dbUowProvider = dbUowProvider;
             _uowProvider = uowProvider;
             _userService = userService;
             _importedContentTypes = new Dictionary<string, IContentType>();
@@ -629,7 +634,7 @@ namespace Umbraco.Core.Services
         /// <returns></returns>
         private IContentType FindContentTypeByAlias(string contentTypeAlias)
         {
-            using (var repository = _repositoryFactory.CreateContentTypeRepository(_uowProvider.GetUnitOfWork()))
+            using (var repository = _repositoryFactory.CreateContentTypeRepository(_dbUowProvider.GetUnitOfWork()))
             {
                 var query = Query<IContentType>.Builder.Where(x => x.Alias == contentTypeAlias);
                 var types = repository.GetByQuery(query);
@@ -1429,27 +1434,69 @@ namespace Umbraco.Core.Services
 
         internal IPackageInstallation PackageInstallation
         {
-            private get { return _packageInstallation ?? new PackageInstallation(this, _macroService, _fileService, new PackageExtraction()); }
+            private get
+            {
+                return _packageInstallation
+                    ?? new PackageInstallation(this, _macroService, _fileService, new PackageExtraction());
+            }
             set { _packageInstallation = value; }
         }
 
-        internal InstallationSummary InstallPackage(string packageFilePath, int userId = 0, bool raiseEvents = false)
+        internal InstalledPackage InstallPackageFiles(string packageFilePath, Guid packageId, Guid packageRepositorySourceId, int userId = 0, bool raiseEvents = false)
         {
             if (raiseEvents)
             {
                 var metaData = GetPackageMetaData(packageFilePath);
-                if (ImportingPackage.IsRaisedEventCancelled(new ImportPackageEventArgs<string>(packageFilePath, metaData), this))
+                if (ImportingPackageFiles.IsRaisedEventCancelled(new ImportPackageEventArgs<string>(packageFilePath, metaData), this))
                 {
-                    var initEmpty = new InstallationSummary().InitEmpty();
-                    initEmpty.MetaData = metaData;
-                    return initEmpty;
+                    var package = new InstalledPackage {MetaData = metaData};
+                    return package;
                 }
             }
-            var installationSummary = PackageInstallation.InstallPackage(packageFilePath, userId);
+
+            var installResult = PackageInstallation.InstallPackageFiles(packageFilePath);
+
+            installResult.PackageRepositoryId = packageRepositorySourceId;
+            installResult.PackageIdentifier = packageId;
+
+            //Update the installed package repo
+            lock (Locker)
+            {
+                var uow = _uowProvider.GetUnitOfWork();
+                using (var repository = _repositoryFactory.CreateInstalledPackageRepository(uow))
+                {
+                    //get the biggest id
+                    var max = repository.GetAll().Max(x => x.Id);
+                    installResult.Id = max + 1;
+                    repository.AddOrUpdate(installResult);
+                    uow.Commit();
+                }
+            }
 
             if (raiseEvents)
             {
-                ImportedPackage.RaiseEvent(new ImportPackageEventArgs<InstallationSummary>(installationSummary, false), this);
+                ImportedPackageFiles.RaiseEvent(new ImportPackageEventArgs<InstalledPackage>(installResult, false), this);
+            }
+
+            return installResult;
+        }
+
+        internal InstallationSummary InstallPackageData(string packageFilePath, int userId = 0, bool raiseEvents = false)
+        {
+            if (raiseEvents)
+            {
+                var metaData = GetPackageMetaData(packageFilePath);
+                if (ImportingPackageData.IsRaisedEventCancelled(new ImportPackageEventArgs<string>(packageFilePath, metaData), this))
+                {
+                    var initEmpty = new InstallationSummary(metaData);
+                    return initEmpty;
+                }
+            }
+            var installationSummary = PackageInstallation.InstallPackageData(packageFilePath, userId);
+
+            if (raiseEvents)
+            {
+                ImportedPackageData.RaiseEvent(new ImportPackageEventArgs<InstallationSummary>(installationSummary, false), this);
             }
 
             return installationSummary;
@@ -1460,10 +1507,56 @@ namespace Umbraco.Core.Services
             return PackageInstallation.GetPreInstallWarnings(packageFilePath);
         }
 
-        internal MetaData GetPackageMetaData(string packageFilePath)
+        internal PackageMetaData GetPackageMetaData(string packageFilePath)
         {
             return PackageInstallation.GetMetaData(packageFilePath);
         }
+
+        //public int CreateManifest(XmlDocument installedPackagesConfig, string tempDir, string guid, string repoGuid)
+        //{
+        //    if (installedPackagesConfig == null) throw new ArgumentNullException("installedPackagesConfig");
+        //    if (installedPackagesConfig.DocumentElement == null) throw new NullReferenceException("installedPackagesConfig does not have a DocumentElement");
+
+        //    //This is the new improved install rutine, which chops up the process into 3 steps, creating the manifest, moving files, and finally handling umb objects
+        //    var packName = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/package/name"));
+        //    var packAuthor = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/author/name"));
+        //    var packAuthorUrl = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/author/website"));
+        //    var packVersion = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/package/version"));
+        //    var packReadme = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/readme"));
+        //    var packLicense = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/package/license "));
+        //    var packUrl = XmlHelper.GetNodeValue(installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/info/package/url "));
+
+        //    var enableSkins = false;
+        //    var skinRepoGuid = "";
+
+        //    if (installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/enableSkins") != null)
+        //    {
+        //        var skinNode = installedPackagesConfig.DocumentElement.SelectSingleNode("/umbPackage/enableSkins");
+        //        enableSkins = bool.Parse(XmlHelper.GetNodeValue(skinNode));
+        //        if (skinNode.Attributes["repository"] != null && string.IsNullOrEmpty(skinNode.Attributes["repository"].Value) == false)
+        //            skinRepoGuid = skinNode.Attributes["repository"].Value;
+        //    }
+
+        //    //Create a new package instance to record all the installed package adds - this is the same format as the created packages has.
+        //    //save the package meta data
+        //    var insPack = InstalledPackage.MakeNew(packName);
+        //    insPack.Data.Author = packAuthor;
+        //    insPack.Data.AuthorUrl = packAuthorUrl;
+        //    insPack.Data.Version = packVersion;
+        //    insPack.Data.Readme = packReadme;
+        //    insPack.Data.License = packLicense;
+        //    insPack.Data.Url = packUrl;
+
+        //    //skinning
+        //    insPack.Data.EnableSkins = enableSkins;
+        //    insPack.Data.SkinRepoGuid = string.IsNullOrEmpty(skinRepoGuid) ? Guid.Empty : new Guid(skinRepoGuid);
+
+        //    insPack.Data.PackageGuid = guid; //the package unique key.
+        //    insPack.Data.RepositoryGuid = repoGuid; //the repository unique key, if the package is a file install, the repository will not get logged.
+        //    insPack.Save();
+
+        //    return insPack.Data.Id;
+        //}
 
         #endregion
 
@@ -1627,12 +1720,22 @@ namespace Umbraco.Core.Services
         /// <summary>
         /// Occurs before Importing umbraco package
         /// </summary>
-        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<string>> ImportingPackage;
+        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<string>> ImportingPackageData;
 
         /// <summary>
-        /// Occurs after a apckage is imported
+        /// Occurs after a package is installed
         /// </summary>
-        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<InstallationSummary>> ImportedPackage;
+        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<InstallationSummary>> ImportedPackageData;
+
+        /// <summary>
+        /// Occurs before Importing umbraco package
+        /// </summary>
+        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<string>> ImportingPackageFiles;
+
+        /// <summary>
+        /// Occurs after a package is installed
+        /// </summary>
+        internal static event TypedEventHandler<IPackagingService, ImportPackageEventArgs<InstalledPackage>> ImportedPackageFiles;
 
         #endregion
     }

@@ -8,7 +8,10 @@ using System.Xml.XPath;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
-using Umbraco.Core.Packaging.Models;
+using Umbraco.Core.Models.Packaging;
+using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.Repositories;
+using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 using umbraco.interfaces;
 using File = System.IO.File;
@@ -24,29 +27,37 @@ namespace Umbraco.Core.Packaging
         private readonly IPackageExtraction _packageExtraction;
         private string _fullPathToRoot;
 
-        public PackageInstallation(IPackagingService packagingService, IMacroService macroService,
-            IFileService fileService, IPackageExtraction packageExtraction)
+        
+
+        public PackageInstallation(
+            IPackagingService packagingService, 
+            IMacroService macroService,
+            IFileService fileService, 
+            IPackageExtraction packageExtraction)
             : this(packagingService, macroService, fileService, packageExtraction, GlobalSettings.FullpathToRoot)
-        {}
-
-        public PackageInstallation(IPackagingService packagingService, IMacroService macroService,
-            IFileService fileService, IPackageExtraction packageExtraction, string fullPathToRoot)
         {
-            if (packageExtraction != null) _packageExtraction = packageExtraction; 
-            else throw new ArgumentNullException("packageExtraction");
-            
-            if (macroService != null) _macroService = macroService;
-            else throw new ArgumentNullException("macroService");
-            
-            if (fileService != null) _fileService = fileService;
-            else throw new ArgumentNullException("fileService");
+        }
 
-            if (packagingService != null) _packagingService = packagingService;
-            else throw new ArgumentNullException("packagingService");
+        public PackageInstallation(
+            IPackagingService packagingService,
+            IMacroService macroService,
+            IFileService fileService, 
+            IPackageExtraction packageExtraction,
+            string fullPathToRoot)
+        {
+            if (packagingService == null) throw new ArgumentNullException("packagingService");
+            if (macroService == null) throw new ArgumentNullException("macroService");
+            if (fileService == null) throw new ArgumentNullException("fileService");
+            if (packageExtraction == null) throw new ArgumentNullException("packageExtraction");
+            if (fullPathToRoot == null) throw new ArgumentNullException("fullPathToRoot");
 
+            _packagingService = packagingService;
+            _macroService = macroService;
+            _fileService = fileService;
+            _packageExtraction = packageExtraction;
             _fullPathToRoot = fullPathToRoot;
         }
-        
+
         public IConflictingPackageData ConflictingPackageData
         {
             private get
@@ -72,123 +83,154 @@ namespace Umbraco.Core.Packaging
 
                 if (_fullPathToRoot != null)
                 {
-                    throw new PropertyConstraintException("This property already have a value");
+                    throw new InvalidOperationException("This property already has a value");
                 }
 
                 _fullPathToRoot = value;
             }
         }
         
-        public MetaData GetMetaData(string packageFilePath)
+        public PackageMetaData GetMetaData(string packageFilePath)
         {
-            try
-            {
-                XElement rootElement = GetConfigXmlElement(packageFilePath);
-                return GetMetaData(rootElement);
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Error reading " + packageFilePath, e);
-            }
+            XElement rootElement = GetConfigXmlElement(packageFilePath);
+            return GetMetaData(rootElement);
         }
 
         public PreInstallWarnings GetPreInstallWarnings(string packageFilePath)
         {
-            try
-            {
-                XElement rootElement = GetConfigXmlElement(packageFilePath);
-                return GetPreInstallWarnings(packageFilePath, rootElement);
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Error reading " + packageFilePath, e);
-            }
+            XElement rootElement = GetConfigXmlElement(packageFilePath);
+            return GetPreInstallWarnings(packageFilePath, rootElement);
         }
 
-        public InstallationSummary InstallPackage(string packageFile, int userId)
+
+        /// <summary>
+        /// This will install all of the files for the package - this needs to be done before the package data is installed
+        /// </summary>
+        /// <param name="packageFile"></param>
+        /// <returns></returns>
+        public InstalledPackage InstallPackageFiles(string packageFile)
         {
-            XElement dataTypes;
-            XElement languages;
-            XElement dictionaryItems;
-            XElement macroes;
-            XElement files;
-            XElement templates;
-            XElement documentTypes;
-            XElement styleSheets;
-            XElement documentSet;
-            XElement documents;
-            XElement actions;
-            MetaData metaData;
-            InstallationSummary installationSummary;
-            
-            try
+            var rootElement = GetConfigXmlElement(packageFile);
+            PackageSupportedCheck(rootElement);
+            PackageStructureSanityCheck(packageFile, rootElement);
+
+            var files = rootElement.Element(Constants.Packaging.FilesNodeName);
+
+            var metaData = GetMetaData(rootElement);
+            var package = new InstalledPackage
             {
-                XElement rootElement = GetConfigXmlElement(packageFile);
-                PackageSupportedCheck(rootElement);
-                PackageStructureSanetyCheck(packageFile, rootElement);
-                dataTypes = rootElement.Element(Constants.Packaging.DataTypesNodeName);
-                languages = rootElement.Element(Constants.Packaging.LanguagesNodeName);
-                dictionaryItems = rootElement.Element(Constants.Packaging.DictionaryItemsNodeName);
-                macroes = rootElement.Element(Constants.Packaging.MacrosNodeName);
-                files = rootElement.Element(Constants.Packaging.FilesNodeName);
-                templates = rootElement.Element(Constants.Packaging.TemplatesNodeName);
-                documentTypes = rootElement.Element(Constants.Packaging.DocumentTypesNodeName);
-                styleSheets = rootElement.Element(Constants.Packaging.StylesheetsNodeName);
-                documentSet = rootElement.Element(Constants.Packaging.DocumentSetNodeName);
-                documents = rootElement.Element(Constants.Packaging.DocumentsNodeName);
-                actions = rootElement.Element(Constants.Packaging.ActionsNodeName);
+                MetaData = metaData
+            };
 
-                metaData = GetMetaData(rootElement);
-                installationSummary = new InstallationSummary {MetaData = metaData};
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Error reading " + packageFile, e);
-            }
+            var keyValuePairs = EmptyEnumerableIfNull<string>(packageFile) ?? InstallFiles(packageFile, files);
+            package.Files = keyValuePairs;
 
-            try
-            {
-                var dataTypeDefinitions = EmptyEnumerableIfNull<IDataTypeDefinition>(dataTypes) ?? InstallDataTypes(dataTypes, userId);
-                installationSummary.DataTypesInstalled = dataTypeDefinitions;
-
-                var languagesInstalled = EmptyEnumerableIfNull<ILanguage>(languages) ?? InstallLanguages(languages, userId);
-                installationSummary.LanguagesInstalled = languagesInstalled;
-
-                var dictionaryInstalled = EmptyEnumerableIfNull<IDictionaryItem>(dictionaryItems) ?? InstallDictionaryItems(dictionaryItems);
-                installationSummary.DictionaryItemsInstalled = dictionaryInstalled;
-
-                var macros = EmptyEnumerableIfNull<IMacro>(macroes) ?? InstallMacros(macroes, userId);
-                installationSummary.MacrosInstalled = macros;
-
-                var keyValuePairs = EmptyEnumerableIfNull<string>(packageFile) ?? InstallFiles(packageFile, files);
-                installationSummary.FilesInstalled = keyValuePairs;
-
-                var templatesInstalled = EmptyEnumerableIfNull<ITemplate>(templates) ?? InstallTemplats(templates, userId);
-                installationSummary.TemplatesInstalled = templatesInstalled;
-
-                var documentTypesInstalled = EmptyEnumerableIfNull<IContentType>(documentTypes) ?? InstallDocumentTypes(documentTypes, userId);
-                installationSummary.ContentTypesInstalled =documentTypesInstalled;
-
-                var stylesheetsInstalled = EmptyEnumerableIfNull<IFile>(styleSheets) ?? InstallStylesheets(styleSheets, userId);
-                installationSummary.StylesheetsInstalled = stylesheetsInstalled;
-
-                var documentsInstalled = documents != null ? InstallDocuments(documents, userId) 
-                    : EmptyEnumerableIfNull<IContent>(documentSet) 
-                    ?? InstallDocuments(documentSet, userId);
-                installationSummary.ContentInstalled = documentsInstalled;
-
-                var packageActions = EmptyEnumerableIfNull<PackageAction>(actions) ?? GetPackageActions(actions, metaData.Name);
-                installationSummary.Actions = packageActions;
-
-                installationSummary.PackageInstalled = true;
-
-                return installationSummary;
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Error installing package " + packageFile, e);
-            }
+            return package;
         }
+
+        /// <summary>
+        /// This will install the business logic data for the package - this can only be called after the package files are installed
+        /// </summary>
+        /// <param name="packageFile"></param>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        public InstallationSummary InstallPackageData(string packageFile, int userId)
+        {
+            var rootElement = GetConfigXmlElement(packageFile);
+            PackageSupportedCheck(rootElement);
+            PackageStructureSanityCheck(packageFile, rootElement);
+            var dataTypes = rootElement.Element(Constants.Packaging.DataTypesNodeName);
+            var languages = rootElement.Element(Constants.Packaging.LanguagesNodeName);
+            var dictionaryItems = rootElement.Element(Constants.Packaging.DictionaryItemsNodeName);
+            var macroes = rootElement.Element(Constants.Packaging.MacrosNodeName);
+            var files = rootElement.Element(Constants.Packaging.FilesNodeName);
+            var templates = rootElement.Element(Constants.Packaging.TemplatesNodeName);
+            var documentTypes = rootElement.Element(Constants.Packaging.DocumentTypesNodeName);
+            var styleSheets = rootElement.Element(Constants.Packaging.StylesheetsNodeName);
+            var documentSet = rootElement.Element(Constants.Packaging.DocumentSetNodeName);
+            var documents = rootElement.Element(Constants.Packaging.DocumentsNodeName);
+            var actions = rootElement.Element(Constants.Packaging.ActionsNodeName);
+
+            var metaData = GetMetaData(rootElement);
+            var installationSummary = new InstallationSummary(metaData);
+
+            //Get the list of files installed
+            //TODO: We should validate that these have actually been installed! If they haven't, we need to abort!
+            var installedFiles = EmptyEnumerableIfNull<string>(packageFile) ?? GetInstalledFiles(files);
+            installationSummary.InstalledPackage.Files = installedFiles;
+
+            var dataTypeDefinitions = EmptyEnumerableIfNull<IDataTypeDefinition>(dataTypes) ?? InstallDataTypes(dataTypes, userId);
+            installationSummary.DataTypesInstalled = dataTypeDefinitions;
+
+            var languagesInstalled = EmptyEnumerableIfNull<ILanguage>(languages) ?? InstallLanguages(languages, userId);
+            installationSummary.LanguagesInstalled = languagesInstalled;
+
+            var dictionaryInstalled = EmptyEnumerableIfNull<IDictionaryItem>(dictionaryItems) ?? InstallDictionaryItems(dictionaryItems);
+            installationSummary.DictionaryItemsInstalled = dictionaryInstalled;
+
+            var macros = EmptyEnumerableIfNull<IMacro>(macroes) ?? InstallMacros(macroes, userId);
+            installationSummary.MacrosInstalled = macros;
+
+            var templatesInstalled = EmptyEnumerableIfNull<ITemplate>(templates) ?? InstallTemplats(templates, userId);
+            installationSummary.TemplatesInstalled = templatesInstalled;
+
+            var documentTypesInstalled = EmptyEnumerableIfNull<IContentType>(documentTypes) ?? InstallDocumentTypes(documentTypes, userId);
+            installationSummary.ContentTypesInstalled = documentTypesInstalled;
+
+            var stylesheetsInstalled = EmptyEnumerableIfNull<IFile>(styleSheets) ?? InstallStylesheets(styleSheets, userId);
+            installationSummary.StylesheetsInstalled = stylesheetsInstalled;
+
+            var documentsInstalled = documents != null ? InstallDocuments(documents, userId)
+                : EmptyEnumerableIfNull<IContent>(documentSet)
+                ?? InstallDocuments(documentSet, userId);
+            installationSummary.ContentInstalled = documentsInstalled;
+
+            var packageActions = EmptyEnumerableIfNull<PackageAction>(actions) ?? GetPackageActions(actions, metaData.Name);
+            installationSummary.Actions = packageActions;
+
+            //installationSummary.PackageInstalled = true;
+
+            return installationSummary;
+        }
+
+        //private InstalledPackage CreateInstalledPackageModel(string packageFile)
+        //{
+        //    var rootElement = GetConfigXmlElement(packageFile);
+
+        //    PackageSupportedCheck(rootElement);
+        //    PackageStructureSanityCheck(packageFile, rootElement);
+
+        //    var dataTypes = rootElement.Element(Constants.Packaging.DataTypesNodeName);
+        //    var languages = rootElement.Element(Constants.Packaging.LanguagesNodeName);
+        //    var dictionaryItems = rootElement.Element(Constants.Packaging.DictionaryItemsNodeName);
+        //    var macros = rootElement.Element(Constants.Packaging.MacrosNodeName);
+        //    var files = rootElement.Element(Constants.Packaging.FilesNodeName);
+        //    var templates = rootElement.Element(Constants.Packaging.TemplatesNodeName);
+        //    var documentTypes = rootElement.Element(Constants.Packaging.DocumentTypesNodeName);
+        //    var styleSheets = rootElement.Element(Constants.Packaging.StylesheetsNodeName);
+        //    //TODO: What is this?
+        //    //var documentSet = rootElement.Element(Constants.Packaging.DocumentSetNodeName);
+        //    //var documents = rootElement.Element(Constants.Packaging.DocumentsNodeName);
+        //    var actions = rootElement.Element(Constants.Packaging.ActionsNodeName);
+
+        //    var metaData = GetMetaData(rootElement);
+
+        //    var installedFiles = EmptyEnumerableIfNull<string>(packageFile) ?? GetInstalledFiles(files);
+
+        //    return new InstalledPackage
+        //    {
+        //        Actions = (string) actions,
+        //        Files = installedFiles,
+        //        DataTypes = EmptyEnumerableIfNull<int>(dataTypes) ?? dataTypes.Value.Split(new []{','}, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        DictionaryItems = EmptyEnumerableIfNull<int>(dictionaryItems) ?? dictionaryItems.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        Macros = EmptyEnumerableIfNull<int>(macros) ?? macros.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        Templates = EmptyEnumerableIfNull<int>(templates) ?? templates.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        Languages = EmptyEnumerableIfNull<int>(languages) ?? languages.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        DocumentTypes = EmptyEnumerableIfNull<int>(documentTypes) ?? documentTypes.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        Stylesheets = EmptyEnumerableIfNull<int>(styleSheets) ?? styleSheets.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //        DataTypes = EmptyEnumerableIfNull<int>(dataTypes) ?? dataTypes.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse),
+        //    };
+        //}
 
         /// <summary>
         /// Temperary check to test that we support stylesheets
@@ -231,13 +273,13 @@ namespace Umbraco.Core.Packaging
             return document.Root;
         }
 
-        internal void PackageStructureSanetyCheck(string packageFilePath)
+        internal void PackageStructureSanityCheck(string packageFilePath)
         {
             XElement rootElement = GetConfigXmlElement(packageFilePath);
-            PackageStructureSanetyCheck(packageFilePath, rootElement);
+            PackageStructureSanityCheck(packageFilePath, rootElement);
         }
 
-        private void PackageStructureSanetyCheck(string packageFilePath, XElement rootElement)
+        private void PackageStructureSanityCheck(string packageFilePath, XElement rootElement)
         {
             XElement filesElement = rootElement.Element(Constants.Packaging.FilesNodeName);
             if (filesElement != null)
@@ -376,6 +418,18 @@ namespace Umbraco.Core.Packaging
             return sourceDestination.Select(sd => sd.Value).ToArray();
         }
 
+        /// <summary>
+        /// Returns the list of files that are installed for this package
+        /// </summary>
+        /// <param name="filesElement"></param>
+        /// <returns></returns>
+        private IEnumerable<string> GetInstalledFiles(XElement filesElement)
+        {
+            var sourceDestination = ExtractSourceDestinationFileInformation(filesElement);
+            sourceDestination = AppendRootToDestination(FullPathToRoot, sourceDestination);
+            return sourceDestination.Select(sd => sd.Value).ToArray();
+        }
+
         private KeyValuePair<string, string>[] AppendRootToDestination(string fullpathToRoot, IEnumerable<KeyValuePair<string, string>> sourceDestination)
         {
             return
@@ -445,10 +499,11 @@ namespace Umbraco.Core.Packaging
             var stylesheetNames = EmptyEnumerableIfNull<IFile>(styleSheets) ?? ConflictingPackageData.FindConflictingStylesheets(styleSheets);
             installWarnings.ConflictingStylesheetNames = stylesheetNames;
             
-            installWarnings.UnsecureFiles = FindUnsecureFiles(sourceDestination);
+            installWarnings.ServerSideScripts = FindServerSideScripts(sourceDestination);
             installWarnings.FilesReplaced = FindFilesToBeReplaced(sourceDestination);
-            installWarnings.AssembliesWithLegacyPropertyEditors = FindLegacyPropertyEditors(packagePath, sourceDestination);
-            
+            string[] assemblyErrors;
+            installWarnings.AssembliesWithLegacyPropertyEditors = FindLegacyPropertyEditors(packagePath, sourceDestination, out assemblyErrors);
+            installWarnings.AssemblyErrors = assemblyErrors;
             return installWarnings;
         }
 
@@ -457,25 +512,28 @@ namespace Umbraco.Core.Packaging
             return sourceDestination.Where(sd => File.Exists(Path.Combine(FullPathToRoot, sd.Value))).ToArray();
         }
 
-        private IEnumerable<string> FindLegacyPropertyEditors(string packagePath, IEnumerable<KeyValuePair<string, string>> sourceDestinationPair)
+        private IEnumerable<string> FindLegacyPropertyEditors(string packagePath, IEnumerable<KeyValuePair<string, string>> sourceDestinationPair, out string[] assemblyErrors)
         {
             var dlls = sourceDestinationPair.Where(
                 sd => (Path.GetExtension(sd.Value) ?? string.Empty).Equals(".dll", StringComparison.InvariantCultureIgnoreCase)).Select(sd => sd.Key).ToArray();
 
-            if (dlls.Any() == false) { return new List<string>(); }
+            if (dlls.Any() == false)
+            {
+                assemblyErrors = null;
+                return new List<string>();
+            }
             
             // Now we want to see if the DLLs contain any legacy data types since we want to warn people about that
-            string[] assemblyErrors;
             IEnumerable<byte[]> assemblyesToScan =_packageExtraction.ReadFilesFromArchive(packagePath, dlls);
             return PackageBinaryInspector.ScanAssembliesForTypeReference<IDataType>(assemblyesToScan, out assemblyErrors).ToArray();
         }
 
-        private KeyValuePair<string, string>[] FindUnsecureFiles(IEnumerable<KeyValuePair<string, string>> sourceDestinationPair)
+        private KeyValuePair<string, string>[] FindServerSideScripts(IEnumerable<KeyValuePair<string, string>> sourceDestinationPair)
         {
-            return sourceDestinationPair.Where(sd => IsFileDestinationUnsecure(sd.Value)).ToArray();
+            return sourceDestinationPair.Where(sd => IsFileAServerSideScript(sd.Value)).ToArray();
         }
 
-        private bool IsFileDestinationUnsecure(string destination)
+        private bool IsFileAServerSideScript(string destination)
         {
             var unsecureDirNames = new[] {"bin", "app_code"};
             if(unsecureDirNames.Any(ud => destination.StartsWith(ud, StringComparison.InvariantCultureIgnoreCase)))
@@ -531,7 +589,7 @@ namespace Umbraco.Core.Packaging
             return pathElement.TrimStart(new[] {'\\', '/', '~'}).Replace("/", "\\");
         }
 
-        private MetaData GetMetaData(XElement xRootElement)
+        private PackageMetaData GetMetaData(XElement xRootElement)
         {
             XElement infoElement = xRootElement.Element(Constants.Packaging.InfoNodeName);
 
@@ -554,7 +612,7 @@ namespace Umbraco.Core.Packaging
 
             XElement controlElement = xRootElement.Element(Constants.Packaging.ControlNodeName);
 
-            return new MetaData
+            return new PackageMetaData
                    {
                        Name = StringValue(nameElement),
                        Version = StringValue(versionElement),

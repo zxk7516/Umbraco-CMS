@@ -219,5 +219,10 @@ namespace Umbraco.Core.Persistence
             return new EntityRepository(uow);
         }
 
+        internal virtual IInstalledPackageRepository CreateInstalledPackageRepository(IUnitOfWork uow)
+        {
+            return new InstalledPackageRepository(uow);
+        }
+
     }
 }

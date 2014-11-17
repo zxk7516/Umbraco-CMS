@@ -13,7 +13,7 @@
         }
 
         function openDemo(link, id) {
-            UmbClientMgr.openModalWindow("http://packages.umbraco.org/viewPackageData.aspx?id=" + id, link.innerHTML, true, 750, 550)
+            UmbClientMgr.openModalWindow("http://packages.umbraco.org/viewPackageData.aspx?id=" + id, link.innerHTML, true, 750, 550);
         }
 
     </script>

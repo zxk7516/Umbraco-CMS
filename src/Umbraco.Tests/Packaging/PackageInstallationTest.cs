@@ -1,8 +1,12 @@
 ﻿using Moq;
 using NUnit.Framework;
 using Umbraco.Core;
+using Umbraco.Core.Configuration.UmbracoSettings;
+using Umbraco.Core.Events;
+using Umbraco.Core.Models.Packaging;
 using Umbraco.Core.Packaging;
-using Umbraco.Core.Packaging.Models;
+using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Tests.Packaging
@@ -63,11 +67,45 @@ namespace Umbraco.Tests.Packaging
             var sut = new PackageInstallation(packagingService.Object, macroService.Object, fileService.Object, packageExtraction.Object);
 
             // Act
-            InstallationSummary installationSummary = sut.InstallPackage(pagePath, -1);
+            InstallationSummary installationSummary = sut.InstallPackageData(pagePath, -1);
 
             // Assert
             Assert.IsNotNull(installationSummary);
             //Assert.Inconclusive("Lots of more tests can be written");
+        }
+
+        [Test]
+        public void Event_ImportedPackage()
+        {
+            TypedEventHandler<IPackagingService, ImportPackageEventArgs<InstallationSummary>> handler = (sender, args) =>
+            {
+                return;
+            };
+
+            try
+            {
+                PackagingService.ImportedPackageData += handler;
+
+                const string pagePath = "Test.umb";
+
+                var packageExtraction = new Mock<IPackageExtraction>();
+
+                string test;
+                packageExtraction.Setup(a => a.ReadTextFileFromArchive(pagePath, Constants.Packaging.PackageXmlFileName, out test)).Returns(Xml);
+
+                var fileService = new Mock<IFileService>();
+                var macroService = new Mock<IMacroService>();
+                var packagingService = new Mock<IPackagingService>();
+
+                var sut = new PackageInstallation(packagingService.Object, macroService.Object, fileService.Object, packageExtraction.Object);
+
+                InstallationSummary installationSummary = sut.InstallPackageData(pagePath, -1);
+            }
+            finally
+            {
+                PackagingService.ImportedPackageData -= handler;
+            }
+
         }
 
     }

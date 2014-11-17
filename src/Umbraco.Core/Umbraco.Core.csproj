@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -106,7 +106,7 @@
     <Reference Include="System.Web.Razor, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>..\packages\Microsoft.AspNet.Razor.2.0.30506.0\lib\net40\System.Web.Razor.dll</HintPath>
-    </Reference>    
+    </Reference>
     <Reference Include="System.Web.Services, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
@@ -358,6 +358,8 @@
     <Compile Include="Models\MemberGroup.cs" />
     <Compile Include="Models\MemberTypePropertyProfileAccess.cs" />
     <Compile Include="Models\Notification.cs" />
+    <Compile Include="Models\Packaging\ActionRunAt.cs" />
+    <Compile Include="Models\Packaging\InstalledPackage.cs" />
     <Compile Include="Models\PropertyTagBehavior.cs" />
     <Compile Include="Models\PublishedContent\IPublishedContentExtended.cs" />
     <Compile Include="Models\PublishedContent\PublishedPropertyBase.cs" />
@@ -375,11 +377,10 @@
     <Compile Include="Models\UmbracoEntityExtensions.cs" />
     <Compile Include="Packaging\IPackageExtraction.cs" />
     <Compile Include="Packaging\IPackageInstallation.cs" />
-    <Compile Include="Packaging\Models\PreInstallWarnings.cs" />
-    <Compile Include="Packaging\Models\InstallationSummary.cs" />
-    <Compile Include="Packaging\Models\MetaData.cs" />
-    <Compile Include="Packaging\Models\PackageAction.cs" />
-    <Compile Include="Packaging\PackageBuilding.cs" />
+    <Compile Include="Models\Packaging\PreInstallWarnings.cs" />
+    <Compile Include="Models\Packaging\InstallationSummary.cs" />
+    <Compile Include="Models\Packaging\PackageMetaData.cs" />
+    <Compile Include="Models\Packaging\PackageAction.cs" />
     <Compile Include="Packaging\PackageExtraction.cs" />
     <Compile Include="Packaging\PackageInstallation.cs" />
     <Compile Include="Packaging\PackageBinaryInspector.cs" />
@@ -399,6 +400,8 @@
     <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSixTwoZero\ChangePasswordColumn.cs" />
     <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSixTwoZero\UpdateToNewMemberPropertyAliases.cs" />
     <Compile Include="Persistence\DbConnectionExtensions.cs" />
+    <Compile Include="Persistence\Repositories\InstalledPackageRepository.cs" />
+    <Compile Include="Persistence\Repositories\Interfaces\IInstalledPackageRepository.cs" />
     <Compile Include="Persistence\Repositories\Interfaces\IPartialViewMacroRepository.cs" />
     <Compile Include="Persistence\Repositories\Interfaces\IPartialViewRepository.cs" />
     <Compile Include="Persistence\Repositories\Interfaces\IRecycleBinRepository.cs" />
@@ -1201,7 +1204,9 @@
   <ItemGroup>
     <Content Include="Strings\Notes.txt" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Packaging\Models\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
   <Import Project="..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />

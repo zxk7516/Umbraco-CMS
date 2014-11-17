@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Umbraco.Core.Packaging.Models
+namespace Umbraco.Core.Models.Packaging
 {
     [Serializable]
     [DataContract(IsReference = true)]
-    internal class MetaData
+    internal class PackageMetaData
     {
         public string Name { get; set; }
         public string Version { get; set; }

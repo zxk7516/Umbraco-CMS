@@ -5,7 +5,7 @@ using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
 using Umbraco.Core.Models;
-using Umbraco.Core.Packaging.Models;
+using Umbraco.Core.Models.Packaging;
 using Umbraco.Core.Services;
 using Umbraco.Tests.Services.Importing;
 using Umbraco.Tests.TestHelpers;
@@ -99,7 +99,7 @@ namespace Umbraco.Tests.Services
 
             string testPackagePath = GetTestPackagePath(documentTypePickerUmb);
 
-            InstallationSummary installationSummary = packagingService.InstallPackage(testPackagePath);
+            InstallationSummary installationSummary = packagingService.InstallPackageData(testPackagePath);
 
             Assert.IsNotNull(installationSummary);
         }
@@ -114,7 +114,7 @@ namespace Umbraco.Tests.Services
 
             string testPackagePath = GetTestPackagePath(documentTypePickerUmb);
 
-            MetaData packageMetaData = packagingService.GetPackageMetaData(testPackagePath);
+            PackageMetaData packageMetaData = packagingService.GetPackageMetaData(testPackagePath);
             Assert.IsNotNull(packageMetaData);
         }
 
