@@ -442,7 +442,7 @@ namespace Umbraco.Tests.PublishedContent
 			</node>");
             var node = xml.DescendantsAndSelf("node").Single(x => (int) x.Attribute("id") == nodeId);
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext);
+            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
 
             var nav = node.CreateNavigator();
 
@@ -483,7 +483,7 @@ namespace Umbraco.Tests.PublishedContent
 			</Image>");
             var node = xml.DescendantsAndSelf("Image").Single(x => (int)x.Attribute("id") == nodeId);
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext);
+            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
 
             var nav = node.CreateNavigator();
 
@@ -502,7 +502,7 @@ namespace Umbraco.Tests.PublishedContent
             var errorXml = new XElement("error", string.Format("No media is maching '{0}'", 1234));
             var nav = errorXml.CreateNavigator();
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext);
+            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
             var converted = publishedMedia.ConvertFromXPathNodeIterator(nav.Select("/"), 1234);
 
             Assert.IsNull(converted);
