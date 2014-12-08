@@ -7,17 +7,16 @@ angular.module("umbraco")
         $scope.setMacro = function(){
             dialogService.macroPicker({
                 dialogData: {
+                    richTextEditor: true,  
                     macroData: $scope.control.value
                 },
                 callback: function (data) {
-
                     $scope.control.value = {
-                            syntax: data.syntax,
                             macroAlias: data.macroAlias,
                             macroParamsDictionary: data.macroParamsDictionary
                     };
 
-                    $scope.setPreview(data);
+                    $scope.setPreview($scope.control.value );
                 }
             });
     	};
@@ -36,11 +35,10 @@ angular.module("umbraco")
         };
 
     	$timeout(function(){
-    		if($scope.control.value === null){
+    		if($scope.control.$initializing){
     			$scope.setMacro();
-    		}else{
-                var parsed = macroService.parseMacroSyntax($scope.control.value.syntax);
-                $scope.setPreview(parsed);
+    		}else if($scope.control.value){
+                $scope.setPreview($scope.control.value);
             }
     	}, 200);
 });
