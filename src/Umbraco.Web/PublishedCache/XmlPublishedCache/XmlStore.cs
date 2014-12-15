@@ -665,13 +665,17 @@ order by umbracoNode.level, umbracoNode.sortOrder";
 
         #region Manage change
 
-        // FIXME - it is BAD to do it automagically
-        // because in a LB envt it means all changes
-        // will be seed immediately => should be manual!!!!!
-        private void ResyncCurrentPublishedCaches()
+        private static void ResyncCurrentPublishedCaches()
         {
-            if (UmbracoContext.Current == null) return;
-            UmbracoContext.Current.PublishedCaches.Resync();
+            // note: here we do not respect the isolation level of PublishedCaches.Content
+            // because we do a full resync, but that maintains backward compatibility with
+            // legacy cache...
+
+            var caches = PublishedCachesServiceResolver.HasCurrent
+                ? PublishedCachesServiceResolver.Current.Service.GetPublishedCaches()
+                : null;
+            if (caches != null)
+                caches.Resync();
         }
 
         private void SafeExecute(Action<XmlDocument> change)
@@ -694,7 +698,6 @@ order by umbracoNode.level, umbracoNode.sortOrder";
 
         public void Refresh(Document d) // fixme - does it need to be a document vs a IContent
         {
-            // fixme - there should be an option to trigger legacy cache events
             // mapping to document and back to content
             // but not enabled by default?
 

@@ -17,12 +17,19 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     internal class PublishedContentCache : PublishedCacheBase, IPublishedContentCache
     {
+        // initialize a PublishedContentCache instance with
+        // an XmlStore containing the master xml
+        // an ICacheProvider that should be at request-level
+        // a RoutesCache - need to cleanup that one
+        // a preview token string (or null if not previewing)
         public PublishedContentCache(XmlStore xmlStore, ICacheProvider cacheProvider, RoutesCache routesCache, string previewToken)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
-            _xmlStore = xmlStore;
             _cacheProvider = cacheProvider;
             _routesCache = routesCache; // may be null for unit-testing
+
+            _xmlStore = xmlStore;
+            _xml = _xmlStore.Xml; // capture
 
             if (previewToken.IsNullOrWhiteSpace() == false)
                 _previewContent = new PreviewContent(previewToken);
@@ -288,6 +295,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         #region Legacy Xml
 
         private readonly XmlStore _xmlStore;
+        private XmlDocument _xml;
         private readonly PreviewContent _previewContent;
 
         internal XmlDocument GetXml(bool preview)
@@ -297,7 +305,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (preview)
             {
                 // Xml cache does not support retrieving preview content when not previewing
-                // fixme - should it be an exception or a transparent fallback to XmlStore?
                 if (_previewContent == null)
                     throw new InvalidOperationException("Cannot retrieve preview content when not previewing.");
 
@@ -308,7 +315,21 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     return previewXml;
             }
 
-            return _xmlStore.Xml;
+            return _xml;
+        }
+
+        internal void Resync()
+        {
+            _xml = _xmlStore.Xml; // re-capture
+
+            // note: we're not resyncing "preview" because that would mean re-building the whole
+            // preview set which is costly, so basically when previewing, there will be no resync.
+
+            // clear recursive properties cached by XmlPublishedContent.GetProperty
+            // assume that nothing else is going to cache IPublishedProperty items (else would need to do ByKeySearch)
+            // NOTE also clears all the media cache properties, which is OK (see media cache)
+            _cacheProvider.ClearCacheObjectTypes<IPublishedProperty>();
+            //_cacheProvider.ClearCacheByKeySearch("XmlPublishedCache.PublishedContentCache:RecursiveProperty-");
         }
 
         #endregion

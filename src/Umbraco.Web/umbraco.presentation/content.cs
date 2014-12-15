@@ -43,6 +43,11 @@ namespace umbraco
 
         private static readonly Lazy<content> LazyInstance = new Lazy<content>(() => new content());
 
+        static content()
+        {
+            FireEvents = true;
+        }
+
         public static content Instance
         {
             get
@@ -254,9 +259,8 @@ namespace umbraco
         }
 
         /// <summary>
-        /// Occurs (never)
+        /// Occurs before the whole cache is reloaded (from database, not initial nor disk file change).
         /// </summary>
-        // fixme - was triggered by RefreshContentFromDatabase
         public static event RefreshContentEventHandler BeforeRefreshContent;
 
         internal static void FireBeforeRefreshContent(RefreshContentEventArgs e)
@@ -266,9 +270,8 @@ namespace umbraco
         }
 
         /// <summary>
-        /// Occurs after the whole cache has been reloaded (initial, or disk file change).
+        /// Occurs after the whole cache has been reloaded (initial, or disk file change, but not database).
         /// </summary>
-        // fixme - was triggered by CheckXmlContentPopuplation ie when getting Xml
         // fixme - used by RoutesCache
         public static event RefreshContentEventHandler AfterRefreshContent;
 

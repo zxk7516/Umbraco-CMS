@@ -391,6 +391,7 @@
     <Compile Include="PublishedCache\PublishedCacheBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceResolver.cs" />
+    <Compile Include="PublishedCache\PublishedNoCache\PublishedCaches.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedCachesService.cs" />
     <Compile Include="PublishedCache\RawValueProperty.cs" />
     <Compile Include="Models\RenderModelOfTContent.cs" />
@@ -723,7 +724,7 @@
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMedia.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMediaCache.cs" />
     <Compile Include="PublishedCache\IPublishedCaches.cs" />
-    <Compile Include="PublishedCache\PublishedCaches.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedCaches.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PublishedMediaCache.cs" />
     <Compile Include="Dictionary\UmbracoCultureDictionary.cs" />
     <Compile Include="Dictionary\UmbracoCultureDictionaryFactory.cs" />

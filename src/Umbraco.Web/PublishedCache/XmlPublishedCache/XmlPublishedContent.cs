@@ -117,6 +117,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var key = string.Format("XmlPublishedCache.PublishedContentCache:RecursiveProperty-{0}-{1}", Id, alias.ToLowerInvariant());
             var cacheProvider = _cacheProvider;
             return cacheProvider.GetCacheItem<IPublishedProperty>(key, () => base.GetProperty(alias, true));
+
+            // note: cleared by PublishedContentCache.Resync - any change here must be applied there
         }
 
 		public override PublishedItemType ItemType

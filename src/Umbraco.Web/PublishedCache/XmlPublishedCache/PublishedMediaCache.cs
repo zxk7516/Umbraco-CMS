@@ -761,5 +761,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				_keysAdded.Add(key);
 			}
         }
-	}
+
+	    internal void Resync()
+	    {
+            // clear recursive properties cached by XmlPublishedContent.GetProperty
+            // assume that nothing else is going to cache IPublishedProperty items (else would need to do ByKeySearch)
+            // NOTE all properties cleared when clearing the content cache (see content cache)
+            //_cacheProvider.ClearCacheObjectTypes<IPublishedProperty>();
+            //_cacheProvider.ClearCacheByKeySearch("XmlPublishedCache.PublishedMediaCache:RecursiveProperty-");
+        }
+    }
 }
