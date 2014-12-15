@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Xml.Linq;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models;
@@ -178,7 +179,6 @@ namespace Umbraco.Core.Persistence.Repositories
                                "DELETE FROM cmsMember2MemberGroup WHERE Member = @Id",
                                "DELETE FROM cmsMember WHERE nodeId = @Id",
                                "DELETE FROM cmsContentVersion WHERE ContentId = @Id",
-                               "DELETE FROM cmsContentXml WHERE nodeId = @Id",
                                "DELETE FROM cmsContent WHERE nodeId = @Id",
                                "DELETE FROM umbracoNode WHERE id = @Id"
                            };
@@ -267,6 +267,8 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             UpdatePropertyTags(entity, _tagRepository);
+
+            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
 
             ((Member)entity).ResetDirtyProperties();
         }
@@ -381,6 +383,8 @@ namespace Umbraco.Core.Persistence.Repositories
 
             UpdatePropertyTags(entity, _tagRepository);
 
+            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
+
             dirtyEntity.ResetDirtyProperties();
         }
 
@@ -410,6 +414,8 @@ namespace Umbraco.Core.Persistence.Repositories
                     }
                 }
             }
+
+            Removed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
 
             base.PersistDeletedItem(entity);
         }
@@ -673,22 +679,6 @@ namespace Umbraco.Core.Persistence.Repositories
                 filterCallback);
         }
         
-        public void AddOrUpdateContentXml(IMember content, Func<IMember, XElement> xml)
-        {
-            var contentExists = Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId = @Id", new { Id = content.Id }) != 0;
-
-            _contentXmlRepository.AddOrUpdate(new ContentXmlEntity<IMember>(contentExists, content, xml));
-        }
-
-        public void AddOrUpdatePreviewXml(IMember content, Func<IMember, XElement> xml)
-        {
-            var previewExists =
-                    Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsPreviewXml WHERE nodeId = @Id AND versionId = @Version",
-                                                    new { Id = content.Id, Version = content.Version }) != 0;
-
-            _contentPreviewRepository.AddOrUpdate(new ContentPreviewEntity<IMember>(previewExists, content, xml));
-        }
-
         protected override string GetDatabaseFieldNameForOrderBy(string orderBy)
         {
             //Some custom ones
@@ -793,5 +783,24 @@ namespace Umbraco.Core.Persistence.Repositories
             ((Entity)member).ResetDirtyProperties(false);
             return member;
         }
+
+        #region Change Events
+
+        public class ChangeEventArgs : EventArgs
+        {
+            public ChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IMember member)
+            {
+                UnitOfWork = unitOfWork;
+                Member = member;
+            }
+
+            public IMember Member{ get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        public static event TypedEventHandler<IMemberRepository, ChangeEventArgs> Refreshed;
+        public static event TypedEventHandler<IMemberRepository, ChangeEventArgs> Removed;
+
+        #endregion
     }
 }

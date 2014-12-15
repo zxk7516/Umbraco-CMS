@@ -511,7 +511,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 UpdatePropertyTags(entity, _tagRepository);
             }
 
-            Refreshed.RaiseEvent(new UowContentEventArgs(UnitOfWork, entity), this);
+            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
 
             entity.ResetDirtyProperties();
         }
@@ -670,7 +670,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 ClearEntityTags(entity, _tagRepository);
             }
 
-            Refreshed.RaiseEvent(new UowContentEventArgs(UnitOfWork, entity), this);
+            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
 
             entity.ResetDirtyProperties();
         }
@@ -682,7 +682,7 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 Database.Execute(delete, new { Id = entity.Id });
             }
-            Removed.RaiseEvent(new UowContentEventArgs(this.UnitOfWork, entity), this);
+            Removed.RaiseEvent(new ChangeEventArgs(this.UnitOfWork, entity), this);
         }
 
         #endregion
@@ -971,11 +971,11 @@ namespace Umbraco.Core.Persistence.Repositories
             return currentName;
         }
 
-        #region Refactoring Event Handlers
+        #region Change Events
 
-        public class UowContentEventArgs : EventArgs
+        public class ChangeEventArgs : EventArgs
         {
-            public UowContentEventArgs(IDatabaseUnitOfWork unitOfWork, IContent content)
+            public ChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IContent content)
             {
                 UnitOfWork = unitOfWork;
                 Content = content;
@@ -985,8 +985,8 @@ namespace Umbraco.Core.Persistence.Repositories
             public IDatabaseUnitOfWork UnitOfWork { get; private set; }
         }
 
-        public static event TypedEventHandler<IContentRepository, UowContentEventArgs> Refreshed;
-        public static event TypedEventHandler<IContentRepository, UowContentEventArgs> Removed;
+        public static event TypedEventHandler<IContentRepository, ChangeEventArgs> Refreshed;
+        public static event TypedEventHandler<IContentRepository, ChangeEventArgs> Removed;
 
         #endregion
     }

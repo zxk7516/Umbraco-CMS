@@ -814,14 +814,6 @@ namespace Umbraco.Core.Services
             using (var repository = _repositoryFactory.CreateMemberRepository(uow))
             {
                 repository.AddOrUpdate(member);
-                //insert the xml
-                repository.AddOrUpdateContentXml(member, m => _entitySerializer.Serialize(_dataTypeService, m));
-                // generate preview for blame history?
-                if (UmbracoConfig.For.UmbracoSettings().Content.GlobalPreviewStorageEnabled)
-                {
-                    repository.AddOrUpdatePreviewXml(member, m => _entitySerializer.Serialize(_dataTypeService, m));
-                }
-
                 uow.Commit();
             }
 
@@ -929,13 +921,6 @@ namespace Umbraco.Core.Services
             using (var repository = _repositoryFactory.CreateMemberRepository(uow))
             {
                 repository.AddOrUpdate(entity);
-                repository.AddOrUpdateContentXml(entity, m => _entitySerializer.Serialize(_dataTypeService, m));
-                // generate preview for blame history?
-                if (UmbracoConfig.For.UmbracoSettings().Content.GlobalPreviewStorageEnabled)
-                {
-                    repository.AddOrUpdatePreviewXml(entity, m => _entitySerializer.Serialize(_dataTypeService, m));
-                }
-
                 uow.Commit();
             }
 
@@ -966,12 +951,6 @@ namespace Umbraco.Core.Services
                     foreach (var member in asArray)
                     {
                         repository.AddOrUpdate(member);
-                        repository.AddOrUpdateContentXml(member, m => _entitySerializer.Serialize(_dataTypeService, m));
-                        // generate preview for blame history?
-                        if (UmbracoConfig.For.UmbracoSettings().Content.GlobalPreviewStorageEnabled)
-                        {
-                            repository.AddOrUpdatePreviewXml(member, m => _entitySerializer.Serialize(_dataTypeService, m));
-                        }
                     }
 
                     //commit the whole lot in one go
