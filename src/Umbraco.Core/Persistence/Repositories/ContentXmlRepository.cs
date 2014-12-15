@@ -36,15 +36,15 @@ namespace Umbraco.Core.Persistence.Repositories
             throw new NotImplementedException();
         }
 
-        protected override Sql GetBaseQuery(bool isCount)
-        {
-            throw new NotImplementedException();
-        }
+        //protected override Sql GetBaseQuery(bool isCount)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        protected override string GetBaseWhereClause()
-        {
-            throw new NotImplementedException();
-        }
+        //protected override string GetBaseWhereClause()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
         protected override IEnumerable<string> GetDeleteClauses()
         {
@@ -56,6 +56,25 @@ namespace Umbraco.Core.Persistence.Repositories
             get { throw new NotImplementedException(); }
         }
         
+        #endregion
+
+        #region Overrides of PetaPocoRepositoryBase<IContent>
+
+        // just what we need so we can run .Exists
+
+        protected override Sql GetBaseQuery(bool isCount)
+        {
+            var sql = new Sql();
+            sql.Select(isCount ? "COUNT(*)" : "*")
+                .From<ContentXmlDto>();
+            return sql;
+        }
+
+        protected override string GetBaseWhereClause()
+        {
+            return "cmsContentXml.nodeId = @Id";
+        }
+
         #endregion
 
         protected override void PersistDeletedItem(ContentXmlEntity<TContent> entity)

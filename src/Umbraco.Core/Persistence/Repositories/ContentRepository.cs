@@ -9,6 +9,7 @@ using System.Text;
 using System.Xml.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Dynamics;
+using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
@@ -20,6 +21,7 @@ using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Persistence.Repositories
 {
@@ -151,9 +153,7 @@ namespace Umbraco.Core.Persistence.Repositories
                                "DELETE FROM umbracoDomains WHERE domainRootStructureID = @Id",
                                "DELETE FROM cmsDocument WHERE nodeId = @Id",
                                "DELETE FROM cmsPropertyData WHERE contentNodeId = @Id",
-                               "DELETE FROM cmsPreviewXml WHERE nodeId = @Id",
                                "DELETE FROM cmsContentVersion WHERE ContentId = @Id",
-                               "DELETE FROM cmsContentXml WHERE nodeId = @Id",
                                "DELETE FROM cmsContent WHERE nodeId = @Id",
                                "DELETE FROM umbracoNode WHERE id = @Id"
                            };
@@ -168,6 +168,8 @@ namespace Umbraco.Core.Persistence.Repositories
         #endregion
 
         #region Overrides of VersionableRepositoryBase<IContent>
+
+        // fixme - move all this to some other place (XmlStore-specific)
 
         public void RebuildContentXml(Func<IContent, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
@@ -509,6 +511,8 @@ namespace Umbraco.Core.Persistence.Repositories
                 UpdatePropertyTags(entity, _tagRepository);
             }
 
+            Refreshed.RaiseEvent(new UowContentEventArgs(UnitOfWork, entity), this);
+
             entity.ResetDirtyProperties();
         }
 
@@ -666,9 +670,20 @@ namespace Umbraco.Core.Persistence.Repositories
                 ClearEntityTags(entity, _tagRepository);
             }
 
+            Refreshed.RaiseEvent(new UowContentEventArgs(UnitOfWork, entity), this);
+
             entity.ResetDirtyProperties();
         }
 
+        protected override void PersistDeletedItem(IContent entity)
+        {
+            var deletes = GetDeleteClauses();
+            foreach (var delete in deletes)
+            {
+                Database.Execute(delete, new { Id = entity.Id });
+            }
+            Removed.RaiseEvent(new UowContentEventArgs(this.UnitOfWork, entity), this);
+        }
 
         #endregion
 
@@ -754,41 +769,6 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper);
             return repo.GetPermissionsForEntity(entityId);
-        }
-
-        /// <summary>
-        /// Adds/updates content/published xml
-        /// </summary>
-        /// <param name="content"></param>
-        /// <param name="xml"></param>
-        public void AddOrUpdateContentXml(IContent content, Func<IContent, XElement> xml)
-        {
-            var contentExists = Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId = @Id", new { Id = content.Id }) != 0;
-
-            _contentXmlRepository.AddOrUpdate(new ContentXmlEntity<IContent>(contentExists, content, xml));
-        }
-
-        /// <summary>
-        /// Used to remove the content xml for a content item
-        /// </summary>
-        /// <param name="content"></param>
-        public void DeleteContentXml(IContent content)
-        {
-            _contentXmlRepository.Delete(new ContentXmlEntity<IContent>(content));
-        }
-
-        /// <summary>
-        /// Adds/updates preview xml
-        /// </summary>
-        /// <param name="content"></param>
-        /// <param name="xml"></param>
-        public void AddOrUpdatePreviewXml(IContent content, Func<IContent, XElement> xml)
-        {
-            var previewExists =
-                    Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsPreviewXml WHERE nodeId = @Id AND versionId = @Version",
-                                                    new { Id = content.Id, Version = content.Version }) != 0;
-
-            _contentPreviewRepository.AddOrUpdate(new ContentPreviewEntity<IContent>(previewExists, content, xml));
         }
 
         /// <summary>
@@ -991,5 +971,23 @@ namespace Umbraco.Core.Persistence.Repositories
             return currentName;
         }
 
+        #region Refactoring Event Handlers
+
+        public class UowContentEventArgs : EventArgs
+        {
+            public UowContentEventArgs(IDatabaseUnitOfWork unitOfWork, IContent content)
+            {
+                UnitOfWork = unitOfWork;
+                Content = content;
+            }
+
+            public IContent Content { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        public static event TypedEventHandler<IContentRepository, UowContentEventArgs> Refreshed;
+        public static event TypedEventHandler<IContentRepository, UowContentEventArgs> Removed;
+
+        #endregion
     }
 }

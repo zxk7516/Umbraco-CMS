@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Linq;
 using umbraco;
-using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core;
@@ -16,7 +14,9 @@ using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.ObjectResolution;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
@@ -35,6 +35,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     /// </remarks>
     class XmlStore
     {
+        private readonly Func<IContent, XElement> _xmlSerializer; 
+
         #region Constructors
 
         /// <summary>
@@ -46,12 +48,23 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             EnsureConfigurationIsValid();
 
+            // initialize
+            // fixme - svcs should come from constructor
+            var svcs = ApplicationContext.Current.Services;
+            var exs = new EntityXmlSerializer();            
+            _xmlSerializer = c => exs.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, c);
+
             // need to wait for resolution to be frozen
             Resolution.Frozen += (sender, args) =>
             {
                 // plug event handlers
                 PageCacheRefresher.CacheUpdated += PageCacheUpdated;
                 UnpublishedPageCacheRefresher.CacheUpdated += UnpublishedPageCacheUpdated;
+
+                // plug repository event handlers
+                // these trigger within the transaction to ensure consistency
+                ContentRepository.Removed += OnRepositoryRemoved;
+                ContentRepository.Refreshed += OnRepositoryRefreshed;
 
                 // and populate the cache
                 lock (XmlLock)
@@ -83,6 +96,90 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new ArgumentNullException("getXmlDocument");
             GetXmlDocument = getXmlDocument;
             _xmlFileEnabled = false;
+        }
+
+        #endregion
+
+        #region Repository events
+
+        // we need them to be "unit-of-work" events because they need to be consistent with the content
+        // that is being refreshed/removed - and that should be guaranteed by a DB transaction - it is
+        // not the case at the moment, instead a global lock is used whenever content is modified - well,
+        // almost: rollback or unpublish do not implement it - nevertheless, the contract is that we
+        // need "unit-of-work" events here.
+
+        // when the content is deleted
+        private void OnRepositoryRemoved(IContentRepository contentRepository, ContentRepository.UowContentEventArgs args)
+        {
+            var db = args.UnitOfWork.Database;
+            var deletes = new[] {"DELETE FROM cmsContentXml WHERE nodeId=@id", "DELETE FROM cmsPreviewXml WHERE nodeId=@id"};
+            foreach (var delete in deletes)
+            {
+                db.Execute(delete, new { id = args.Content.Id });
+            }
+            
+            //var repo = new ContentPreviewRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
+            //repo.Delete(new ContentPreviewEntity<IContent>(true, args.Content, null));
+        }
+
+        // when the content is saved in the IContentRepository
+        private void OnRepositoryRefreshed(IContentRepository contentRepository, ContentRepository.UowContentEventArgs args)
+        {
+            var db = args.UnitOfWork.Database;
+            var xml = _xmlSerializer(args.Content).ToString(SaveOptions.None);
+
+            // note: using that code we can get rid of ContentXmlRepository, ContentPreviewRepository, corresponding entities, etc
+            // and all we need is the DTOs that we should move over to local classes here
+
+            // note: why are we creating one row per version?!
+            //var repo1 = new ContentPreviewRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
+            //var exists1 = repo1.Exists(args.Content.Id);
+            var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = args.Content.Id, version = args.Content.Version.ToString() }) > 0;
+            //repo1.AddOrUpdate(new ContentPreviewEntity<IContent>(exists1, args.Content, _xmlSerializer));
+            var dto1 = new PreviewXmlDto { NodeId = args.Content.Id, Timestamp = DateTime.Now, VersionId = args.Content.Version, Xml = xml };
+            if (exists1)
+            {
+                // cannot simply update because of PetaPoco handling of the composite key ;-(
+                //db.Update(dto1);
+
+                db.Update<PreviewXmlDto>(
+                    "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
+                    new
+                    {
+                        xml = dto1.Xml,
+                        timestamp = dto1.Timestamp,
+                        id = dto1.NodeId,
+                        versionId = dto1.VersionId
+                    });
+
+            }
+            else
+            {
+                // ok to insert, though
+                db.Insert(dto1);
+            }
+
+            // if the content that is saved is not published, then no need to update cmsContentXml
+            // if it *was* published, ie it's been unpublished, remove it from the table
+            // note: cannot just leave it in the DB else it will be picked when loading everything ;-(
+            if (args.Content.Published == false)
+            {
+                var c = (Core.Models.Content) args.Content;
+                // detect if we're refreshing a content that's being unpublished
+                if (c.IsPropertyDirty("Published") && c.PublishedState == PublishedState.Unpublished)
+                    db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new {id = args.Content.Id});
+                return;
+            }
+
+            //var repo2 = new ContentXmlRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
+            //var exists2 = repo2.Exists(args.Content.Id);
+            var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = args.Content.Id }) > 0;
+            var dto2 = new ContentXmlDto { NodeId = args.Content.Id, Xml = xml };
+            if (exists2)
+                db.Update(dto2);
+            else
+                db.Insert(dto2);
+            //repo2.AddOrUpdate(new ContentXmlEntity<IContent>(exists2, args.Content, _xmlSerializer));
         }
 
         #endregion
@@ -1011,12 +1108,9 @@ order by umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        private static readonly EntityXmlSerializer EntitySerializer = new EntityXmlSerializer();
-
-        private static XmlNode ImportContent(XmlDocument xml, IContent content)
+        private XmlNode ImportContent(XmlDocument xml, IContent content)
         {
-            var svcs = ApplicationContext.Current.Services;
-            var xelt = EntitySerializer.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, content, false);
+            var xelt = _xmlSerializer(content);
             var node = xelt.GetXmlNode();
             return xml.ImportNode(node, true);
         }

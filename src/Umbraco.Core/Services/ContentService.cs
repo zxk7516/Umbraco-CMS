@@ -264,8 +264,6 @@ namespace Umbraco.Core.Services
                 content.CreatorId = userId;
                 content.WriterId = userId;
                 repository.AddOrUpdate(content);
-                //Generate a new preview
-                repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                 uow.Commit();
             }
 
@@ -316,8 +314,6 @@ namespace Umbraco.Core.Services
                 content.CreatorId = userId;
                 content.WriterId = userId;
                 repository.AddOrUpdate(content);
-                //Generate a new preview
-                repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                 uow.Commit();
             }
 
@@ -939,8 +935,6 @@ namespace Umbraco.Core.Services
                                 content.ChangePublishedState(PublishedState.Saved);
 
                             repository.AddOrUpdate(content);
-                            //add or update preview
-                            repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                         }
                     }
                     else
@@ -949,8 +943,6 @@ namespace Umbraco.Core.Services
                         {
                             content.WriterId = userId;
                             repository.AddOrUpdate(content);
-                            //add or update preview
-                            repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                         }
                     }
 
@@ -1285,10 +1277,7 @@ namespace Umbraco.Core.Services
                     // Update the create author and last edit author
                     copy.CreatorId = userId;
                     copy.WriterId = userId;
-
                     repository.AddOrUpdate(copy);
-                    //add or update a preview
-                    repository.AddOrUpdatePreviewXml(copy, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                     uow.Commit();
 
 
@@ -1376,10 +1365,7 @@ namespace Umbraco.Core.Services
                 content.WriterId = userId;
                 content.CreatorId = userId;
                 content.ChangePublishedState(PublishedState.Unpublished);
-
                 repository.AddOrUpdate(content);
-                //add or update a preview
-                repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                 uow.Commit();
             }
 
@@ -1437,6 +1423,7 @@ namespace Umbraco.Core.Services
 
                         if (content.Published)
                         {
+                            // fixme - wtf? - was used to decide to update published xml?!
                             var published = _publishingStrategy.Publish(content, userId);
                             shouldBePublished.Add(content);
                         }
@@ -1444,14 +1431,6 @@ namespace Umbraco.Core.Services
                             shouldBeSaved.Add(content);
 
                         repository.AddOrUpdate(content);
-                        //add or update a preview
-                        repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
-                    }
-
-                    foreach (var content in shouldBePublished)
-                    {
-                        //Create and Save ContentXml DTO
-                        repository.AddOrUpdateContentXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                     }
 
                     uow.Commit();
@@ -1533,21 +1512,6 @@ namespace Umbraco.Core.Services
                 {
                     //TODO: This is raising events, probably not desirable as this costs performance for event listeners like Examine
                     Save(content, false, userId);
-
-                    //TODO: This shouldn't be here! This needs to be part of the repository logic but in order to fix this we need to 
-                    // change how this method calls "Save" as it needs to save using an internal method
-                    using (var uow = _uowProvider.GetUnitOfWork())
-                    {
-                        var xml = _entitySerializer.Serialize(this, _dataTypeService, _userService, content);
-
-                        var poco = new ContentXmlDto { NodeId = content.Id, Xml = xml.ToString(SaveOptions.None) };
-                        var exists =
-                            uow.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id", new { Id = content.Id }) !=
-                            null;
-                        int result = exists
-                                         ? uow.Database.Update(poco)
-                                         : Convert.ToInt32(uow.Database.Insert(poco));
-                    }
                 }
             }
             else
@@ -1635,10 +1599,6 @@ namespace Umbraco.Core.Services
                     {
                         item.Result.ContentItem.WriterId = userId;
                         repository.AddOrUpdate(item.Result.ContentItem);
-                        //add or update a preview
-                        repository.AddOrUpdatePreviewXml(item.Result.ContentItem, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
-                        //add or update the published xml
-                        repository.AddOrUpdateContentXml(item.Result.ContentItem, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
                         updated.Add(item.Result.ContentItem);
                     }
 
@@ -1672,8 +1632,6 @@ namespace Umbraco.Core.Services
                 {
                     content.WriterId = userId;
                     repository.AddOrUpdate(content);
-                    repository.DeleteContentXml(content);
-
                     uow.Commit();
                 }
                 //Delete xml from db? and call following method to fire event through PublishingStrategy to update cache
@@ -1744,15 +1702,6 @@ namespace Umbraco.Core.Services
 
                     repository.AddOrUpdate(content);
 
-                    //Generate a new preview
-                    repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
-
-                    if (published)
-                    {
-                        //Content Xml
-                        repository.AddOrUpdateContentXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
-                    }
-
                     uow.Commit();
                 }
 
@@ -1810,9 +1759,6 @@ namespace Umbraco.Core.Services
                         content.ChangePublishedState(PublishedState.Saved);
 
                     repository.AddOrUpdate(content);
-
-                    //Generate a new preview
-                    repository.AddOrUpdatePreviewXml(content, c => _entitySerializer.Serialize(this, _dataTypeService, _userService, c));
 
                     uow.Commit();
                 }
