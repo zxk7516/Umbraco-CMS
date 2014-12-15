@@ -30,8 +30,6 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly IMemberTypeRepository _memberTypeRepository;
         private readonly ITagRepository _tagRepository;
         private readonly IMemberGroupRepository _memberGroupRepository;
-        private readonly ContentXmlRepository<IMember> _contentXmlRepository;
-        private readonly ContentPreviewRepository<IMember> _contentPreviewRepository;
 
         public MemberRepository(IDatabaseUnitOfWork work, IMemberTypeRepository memberTypeRepository, IMemberGroupRepository memberGroupRepository, ITagRepository tagRepository)
             : base(work)
@@ -41,8 +39,6 @@ namespace Umbraco.Core.Persistence.Repositories
             _memberTypeRepository = memberTypeRepository;
             _tagRepository = tagRepository;
             _memberGroupRepository = memberGroupRepository;
-            _contentXmlRepository = new ContentXmlRepository<IMember>(work, NullCacheProvider.Current);
-            _contentPreviewRepository = new ContentPreviewRepository<IMember>(work, NullCacheProvider.Current);
         }
 
         public MemberRepository(IDatabaseUnitOfWork work, IRepositoryCacheProvider cache, IMemberTypeRepository memberTypeRepository, IMemberGroupRepository memberGroupRepository, ITagRepository tagRepository)
@@ -53,8 +49,6 @@ namespace Umbraco.Core.Persistence.Repositories
             _memberTypeRepository = memberTypeRepository;
             _tagRepository = tagRepository;
             _memberGroupRepository = memberGroupRepository;
-            _contentXmlRepository = new ContentXmlRepository<IMember>(work, NullCacheProvider.Current);
-            _contentPreviewRepository = new ContentPreviewRepository<IMember>(work, NullCacheProvider.Current);
         }
 
         #region Overrides of RepositoryBase<int, IMembershipUser>

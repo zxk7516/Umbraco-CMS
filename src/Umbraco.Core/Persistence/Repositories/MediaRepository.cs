@@ -28,8 +28,6 @@ namespace Umbraco.Core.Persistence.Repositories
     {
         private readonly IMediaTypeRepository _mediaTypeRepository;
         private readonly ITagRepository _tagRepository;
-        private readonly ContentXmlRepository<IMedia> _contentXmlRepository;
-        private readonly ContentPreviewRepository<IMedia> _contentPreviewRepository;
 
         public MediaRepository(IDatabaseUnitOfWork work, IMediaTypeRepository mediaTypeRepository, ITagRepository tagRepository)
             : base(work)
@@ -38,8 +36,6 @@ namespace Umbraco.Core.Persistence.Repositories
             if (tagRepository == null) throw new ArgumentNullException("tagRepository");
             _mediaTypeRepository = mediaTypeRepository;
             _tagRepository = tagRepository;
-            _contentXmlRepository = new ContentXmlRepository<IMedia>(work, NullCacheProvider.Current);
-            _contentPreviewRepository = new ContentPreviewRepository<IMedia>(work, NullCacheProvider.Current);
             EnsureUniqueNaming = true;
         }
 
@@ -50,8 +46,6 @@ namespace Umbraco.Core.Persistence.Repositories
             if (tagRepository == null) throw new ArgumentNullException("tagRepository");
             _mediaTypeRepository = mediaTypeRepository;
             _tagRepository = tagRepository;
-            _contentXmlRepository = new ContentXmlRepository<IMedia>(work, NullCacheProvider.Current);
-            _contentPreviewRepository = new ContentPreviewRepository<IMedia>(work, NullCacheProvider.Current);
             EnsureUniqueNaming = true;
         }
 
