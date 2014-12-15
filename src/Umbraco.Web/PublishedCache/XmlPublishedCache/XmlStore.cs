@@ -16,6 +16,7 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.ObjectResolution;
+using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
@@ -67,10 +68,16 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 // plug repository event handlers
                 // these trigger within the transaction to ensure consistency
-                ContentRepository.Removed += OnRepositoryContentRemoved;
-                ContentRepository.Refreshed += OnRepositoryContentRefreshed;
-                MemberRepository.Removed += OnRepositoryMemberRemoved;
-                MemberRepository.Refreshed += OnRepositoryMemberRefreshed;
+                // and are used to maintain the central, database-level XML cache
+                ContentRepository.RemovedEntity += OnContentRemovedEntity;
+                ContentRepository.RemovedVersion += OnContentRemovedVersion;
+                ContentRepository.RefreshedEntity += OnContentRefreshedEntity;
+                MediaRepository.RemovedEntity += OnMediaRemovedEntity;
+                MediaRepository.RemovedVersion += OnMediaRemovedVersion;
+                MediaRepository.RefreshedEntity += OnMediaRefreshedEntity;
+                MemberRepository.RemovedEntity += OnMemberRemovedEntity;
+                MemberRepository.RemovedVersion += OnMemberRemovedVersion;
+                MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
 
                 // and populate the cache
                 lock (XmlLock)
@@ -102,139 +109,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new ArgumentNullException("getXmlDocument");
             GetXmlDocument = getXmlDocument;
             _xmlFileEnabled = false;
-        }
-
-        #endregion
-
-        #region Repository events
-
-        // we need them to be "unit-of-work" events because they need to be consistent with the content
-        // that is being refreshed/removed - and that should be guaranteed by a DB transaction - it is
-        // not the case at the moment, instead a global lock is used whenever content is modified - well,
-        // almost: rollback or unpublish do not implement it - nevertheless, the contract is that we
-        // need "unit-of-work" events here.
-
-        private void OnRepositoryContentRemoved(IContentRepository contentRepository, ContentRepository.ChangeEventArgs args)
-        {
-            var db = args.UnitOfWork.Database;
-            var deletes = new[] {"DELETE FROM cmsContentXml WHERE nodeId=@id", "DELETE FROM cmsPreviewXml WHERE nodeId=@id"};
-            foreach (var delete in deletes)
-            {
-                db.Execute(delete, new { id = args.Content.Id });
-            }
-            
-            //var repo = new ContentPreviewRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
-            //repo.Delete(new ContentPreviewEntity<IContent>(true, args.Content, null));
-        }
-
-        private void OnRepositoryContentRefreshed(IContentRepository contentRepository, ContentRepository.ChangeEventArgs args)
-        {
-            var db = args.UnitOfWork.Database;
-            var xml = _xmlContentSerializer(args.Content).ToString(SaveOptions.None);
-
-            // note: using that code we can get rid of ContentXmlRepository, ContentPreviewRepository, corresponding entities, etc
-            // and all we need is the DTOs that we should move over to local classes here
-
-            // note: why are we creating one row per version?!
-            //var repo1 = new ContentPreviewRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
-            //var exists1 = repo1.Exists(args.Content.Id);
-            var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = args.Content.Id, version = args.Content.Version.ToString() }) > 0;
-            //repo1.AddOrUpdate(new ContentPreviewEntity<IContent>(exists1, args.Content, _xmlSerializer));
-            var dto1 = new PreviewXmlDto { NodeId = args.Content.Id, Timestamp = DateTime.Now, VersionId = args.Content.Version, Xml = xml };
-            if (exists1)
-            {
-                // cannot simply update because of PetaPoco handling of the composite key ;-(
-                //db.Update(dto1);
-
-                db.Update<PreviewXmlDto>(
-                    "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
-                    new
-                    {
-                        xml = dto1.Xml,
-                        timestamp = dto1.Timestamp,
-                        id = dto1.NodeId,
-                        versionId = dto1.VersionId
-                    });
-
-            }
-            else
-            {
-                // ok to insert, though
-                db.Insert(dto1);
-            }
-
-            // if the content that is saved is not published, then no need to update cmsContentXml
-            // if it *was* published, ie it's been unpublished, remove it from the table
-            // note: cannot just leave it in the DB else it will be picked when loading everything ;-(
-            if (args.Content.Published == false)
-            {
-                var c = (Core.Models.Content) args.Content;
-                // detect if we're refreshing a content that's being unpublished
-                if (c.IsPropertyDirty("Published") && c.PublishedState == PublishedState.Unpublished)
-                    db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new {id = args.Content.Id});
-                return;
-            }
-
-            //var repo2 = new ContentXmlRepository<IContent>(args.UnitOfWork, Core.Persistence.Caching.NullCacheProvider.Current);
-            //var exists2 = repo2.Exists(args.Content.Id);
-            var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = args.Content.Id }) > 0;
-            var dto2 = new ContentXmlDto { NodeId = args.Content.Id, Xml = xml };
-            if (exists2)
-                db.Update(dto2);
-            else
-                db.Insert(dto2);
-            //repo2.AddOrUpdate(new ContentXmlEntity<IContent>(exists2, args.Content, _xmlSerializer));
-        }
-
-        private void OnRepositoryMemberRemoved(IMemberRepository memberRepository, MemberRepository.ChangeEventArgs args)
-        {
-            var db = args.UnitOfWork.Database;
-            var deletes = new[] { "DELETE FROM cmsContentXml WHERE nodeId=@id", "DELETE FROM cmsPreviewXml WHERE nodeId=@id" };
-            foreach (var delete in deletes)
-            {
-                db.Execute(delete, new { id = args.Member.Id });
-            }
-        }
-
-        private void OnRepositoryMemberRefreshed(IMemberRepository memberRepository, MemberRepository.ChangeEventArgs args)
-        {
-            var db = args.UnitOfWork.Database;
-            var xml = _xmlMemberSerializer(args.Member).ToString(SaveOptions.None);
-
-            var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = args.Member.Id }) > 0;
-            var dto1 = new ContentXmlDto { NodeId = args.Member.Id, Xml = xml };
-            if (exists1)
-                db.Update(dto1);
-            else
-                db.Insert(dto1);
-
-            // generate preview for blame history? - FIXME - wtf?
-            if (GlobalPreviewStorageEnabled)
-            {
-                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = args.Member.Id, version = args.Member.Version.ToString() }) > 0;
-                //repo1.AddOrUpdate(new ContentPreviewEntity<IContent>(exists1, args.Content, _xmlSerializer));
-                var dto2 = new PreviewXmlDto { NodeId = args.Member.Id, Timestamp = DateTime.Now, VersionId = args.Member.Version, Xml = xml };
-                if (exists2)
-                {
-                    // cannot simply update because of PetaPoco handling of the composite key ;-(
-                    //db.Update(dto2);
-                    db.Update<PreviewXmlDto>(
-                        "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
-                        new
-                        {
-                            xml = dto2.Xml,
-                            timestamp = dto2.Timestamp,
-                            id = dto2.NodeId,
-                            versionId = dto2.VersionId
-                        });
-                }
-                else
-                {
-                    // ok to insert, though
-                    db.Insert(dto2);
-                }
-            }
-
         }
 
         #endregion
@@ -275,7 +149,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             get { return UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema; }
         }
 
-        // whether... FIXME wtf is that one?
+        // whether to... no idea what that one does
+        // it is false by default and not in UmbracoSettings.config anymore...
         private static bool GlobalPreviewStorageEnabled
         {
             get { return UmbracoConfig.For.UmbracoSettings().Content.GlobalPreviewStorageEnabled; }
@@ -1174,6 +1049,177 @@ order by umbracoNode.level, umbracoNode.sortOrder";
             var xelt = _xmlContentSerializer(content);
             var node = xelt.GetXmlNode();
             return xml.ImportNode(node, true);
+        }
+
+        #endregion
+
+        #region Handle Repository Events For Database Xml
+
+        // we need them to be "repository" events ie to trigger from within the repository transaction,
+        // because they need to be consistent with the content that is being refreshed/removed - and that
+        // should be guaranteed by a DB transaction
+        // it is not the case at the moment, instead a global lock is used whenever content is modified - well,
+        // almost: rollback or unpublish do not implement it - nevertheless
+
+        private void OnContentRemovedEntity(object sender, ContentRepository.EntityChangeEventArgs args)
+        {
+            OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
+        }
+
+        private void OnMediaRemovedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        {
+            OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
+        }
+
+        private void OnMemberRemovedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        {
+            OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
+        }
+
+        private void OnRemovedEntity(UmbracoDatabase db, IEnumerable<IContentBase> items)
+        {
+            foreach (var item in items)
+            {
+                var parms = new { id = item.Id };
+                db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", parms);
+                db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@id", parms);
+            }
+
+            // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
+        }
+
+        private void OnContentRemovedVersion(object sender, ContentRepository.VersionChangeEventArgs args)
+        {
+            OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
+        }
+
+        private void OnMediaRemovedVersion(object sender, MediaRepository.VersionChangeEventArgs args)
+        {
+            OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
+        }
+
+        private void OnMemberRemovedVersion(object sender, MemberRepository.VersionChangeEventArgs args)
+        {
+            OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
+        }
+
+        private void OnRemovedVersion(UmbracoDatabase db, IEnumerable<System.Tuple<int, Guid>> items)
+        {
+            foreach (var item in items)
+            {
+                var parms = new { id = item.Item1, versionId = item.Item2 };
+                db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@id and versionId=@versionId", parms);
+            }
+
+            // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
+        }
+
+        private void OnContentRefreshedEntity(object sender, ContentRepository.EntityChangeEventArgs args)
+        {
+            var db = args.UnitOfWork.Database;
+            var now = DateTime.Now;
+
+            foreach (var c in args.Entities)
+            {
+                var xml = _xmlContentSerializer(c).ToString(SaveOptions.None);
+
+                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = c.Id, version = c.Version.ToString() }) > 0;
+                var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
+                OnRepositoryRefreshed(db, dto1, exists1);
+
+                // if the content that is saved is not published, then no need to update cmsContentXml
+                // but if it's just been unpublished, remove it from the table
+                if (c.Published == false)
+                {
+                    if (c.IsPropertyDirty("Published") && ((Core.Models.Content)c).PublishedState == PublishedState.Unpublished)
+                        db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
+                    continue;
+                }
+
+                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id }) > 0;
+                var dto2 = new ContentXmlDto { NodeId = c.Id, Xml = xml };
+                OnRepositoryRefreshed(db, dto2, exists2);
+            }
+        }
+
+        private void OnMediaRefreshedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        {
+            var db = args.UnitOfWork.Database;
+            var now = DateTime.Now;
+
+            foreach (var m in args.Entities)
+            {
+                // for whatever reason we delete some xml when the media is trashed
+                // at least that's what the MediaService implementation did
+                if (m.Trashed)
+                    db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = m.Id });
+
+                var xml = _xmlMediaSerializer(m).ToString(SaveOptions.None);
+
+                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = m.Id }) > 0;
+                var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
+                OnRepositoryRefreshed(db, dto1, exists1);
+
+                // "generate preview for blame history?" no idea what that is
+                if (GlobalPreviewStorageEnabled == false) continue;
+
+                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
+                //repo1.AddOrUpdate(new ContentPreviewEntity<IContent>(exists1, args.Content, _xmlSerializer));
+                var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
+                OnRepositoryRefreshed(db, dto2, exists2);
+            }
+        }
+
+        private void OnMemberRefreshedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        {
+            var db = args.UnitOfWork.Database;
+            var now = DateTime.Now;
+
+            foreach (var m in args.Entities)
+            {
+                var xml = _xmlMemberSerializer(m).ToString(SaveOptions.None);
+
+                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = m.Id }) > 0;
+                var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
+                OnRepositoryRefreshed(db, dto1, exists1);
+
+                // "generate preview for blame history?" - no idea what that is
+                if (GlobalPreviewStorageEnabled == false) continue;
+
+                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
+                var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
+                OnRepositoryRefreshed(db, dto2, exists2);
+            }
+        }
+
+        private void OnRepositoryRefreshed(UmbracoDatabase db, ContentXmlDto dto, bool exists)
+        {
+            if (exists)
+                db.Update(dto);
+            else
+                db.Insert(dto);
+        }
+
+        private void OnRepositoryRefreshed(UmbracoDatabase db, PreviewXmlDto dto, bool exists)
+        {
+            if (exists)
+            {
+                // cannot simply update because of PetaPoco handling of the composite key ;-(
+                //db.Update(dto);
+                db.Update<PreviewXmlDto>(
+                    "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
+                    new
+                    {
+                        xml = dto.Xml,
+                        timestamp = dto.Timestamp,
+                        id = dto.NodeId,
+                        versionId = dto.VersionId
+                    });
+            }
+            else
+            {
+                db.Insert(dto);
+            }
         }
 
         #endregion

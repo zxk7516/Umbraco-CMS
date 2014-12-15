@@ -268,7 +268,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             UpdatePropertyTags(entity, _tagRepository);
 
-            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             ((Member)entity).ResetDirtyProperties();
         }
@@ -383,7 +383,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             UpdatePropertyTags(entity, _tagRepository);
 
-            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             dirtyEntity.ResetDirtyProperties();
         }
@@ -415,8 +415,8 @@ namespace Umbraco.Core.Persistence.Repositories
                 }
             }
 
-            Removed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
-
+            // raise event first else potential FK issues
+            OnRemovedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
             base.PersistDeletedItem(entity);
         }
 
@@ -537,7 +537,9 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override void PerformDeleteVersion(int id, Guid versionId)
         {
-            Database.Delete<PreviewXmlDto>("WHERE nodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
+            // raise event first else potential FK issues
+            OnRemovedVersion(new VersionChangeEventArgs(UnitOfWork, id, versionId));
+
             Database.Delete<PropertyDataDto>("WHERE contentNodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
             Database.Delete<ContentVersionDto>("WHERE ContentId = @Id AND VersionId = @VersionId", new { Id = id, VersionId = versionId });
         }
@@ -783,24 +785,5 @@ namespace Umbraco.Core.Persistence.Repositories
             ((Entity)member).ResetDirtyProperties(false);
             return member;
         }
-
-        #region Change Events
-
-        public class ChangeEventArgs : EventArgs
-        {
-            public ChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IMember member)
-            {
-                UnitOfWork = unitOfWork;
-                Member = member;
-            }
-
-            public IMember Member{ get; private set; }
-            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
-        }
-
-        public static event TypedEventHandler<IMemberRepository, ChangeEventArgs> Refreshed;
-        public static event TypedEventHandler<IMemberRepository, ChangeEventArgs> Removed;
-
-        #endregion
     }
 }

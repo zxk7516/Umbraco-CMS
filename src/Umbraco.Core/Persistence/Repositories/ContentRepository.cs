@@ -34,8 +34,6 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly ITemplateRepository _templateRepository;
         private readonly ITagRepository _tagRepository;
         private readonly CacheHelper _cacheHelper;
-        private readonly ContentPreviewRepository<IContent> _contentPreviewRepository;
-        private readonly ContentXmlRepository<IContent> _contentXmlRepository;
         
         public ContentRepository(IDatabaseUnitOfWork work, IContentTypeRepository contentTypeRepository, ITemplateRepository templateRepository, ITagRepository tagRepository, CacheHelper cacheHelper)
             : base(work)
@@ -47,8 +45,6 @@ namespace Umbraco.Core.Persistence.Repositories
             _templateRepository = templateRepository;
 		    _tagRepository = tagRepository;
             _cacheHelper = cacheHelper;
-            _contentPreviewRepository = new ContentPreviewRepository<IContent>(work, NullCacheProvider.Current);
-            _contentXmlRepository = new ContentXmlRepository<IContent>(work, NullCacheProvider.Current);
 
 		    EnsureUniqueNaming = true;
         }
@@ -63,8 +59,6 @@ namespace Umbraco.Core.Persistence.Repositories
             _templateRepository = templateRepository;
             _tagRepository = tagRepository;
             _cacheHelper = cacheHelper;
-            _contentPreviewRepository = new ContentPreviewRepository<IContent>(work, NullCacheProvider.Current);
-            _contentXmlRepository = new ContentXmlRepository<IContent>(work, NullCacheProvider.Current);
 
             EnsureUniqueNaming = true;
         }
@@ -403,7 +397,9 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override void PerformDeleteVersion(int id, Guid versionId)
         {
-            Database.Delete<PreviewXmlDto>("WHERE nodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
+            // raise event first else potential FK issues
+            OnRemovedVersion(new VersionChangeEventArgs(UnitOfWork, id, versionId));
+
             Database.Delete<PropertyDataDto>("WHERE contentNodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
             Database.Delete<ContentVersionDto>("WHERE ContentId = @Id AND VersionId = @VersionId", new { Id = id, VersionId = versionId });
             Database.Delete<DocumentDto>("WHERE nodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
@@ -511,7 +507,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 UpdatePropertyTags(entity, _tagRepository);
             }
 
-            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
         }
@@ -670,19 +666,16 @@ namespace Umbraco.Core.Persistence.Repositories
                 ClearEntityTags(entity, _tagRepository);
             }
 
-            Refreshed.RaiseEvent(new ChangeEventArgs(UnitOfWork, entity), this);
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
         }
 
         protected override void PersistDeletedItem(IContent entity)
         {
-            var deletes = GetDeleteClauses();
-            foreach (var delete in deletes)
-            {
-                Database.Execute(delete, new { Id = entity.Id });
-            }
-            Removed.RaiseEvent(new ChangeEventArgs(this.UnitOfWork, entity), this);
+            // raise event first else potential FK issues
+            OnRemovedEntity(new EntityChangeEventArgs(this.UnitOfWork, entity));
+            base.PersistDeletedItem(entity);
         }
 
         #endregion
@@ -970,24 +963,5 @@ namespace Umbraco.Core.Persistence.Repositories
 
             return currentName;
         }
-
-        #region Change Events
-
-        public class ChangeEventArgs : EventArgs
-        {
-            public ChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IContent content)
-            {
-                UnitOfWork = unitOfWork;
-                Content = content;
-            }
-
-            public IContent Content { get; private set; }
-            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
-        }
-
-        public static event TypedEventHandler<IContentRepository, ChangeEventArgs> Refreshed;
-        public static event TypedEventHandler<IContentRepository, ChangeEventArgs> Removed;
-
-        #endregion
     }
 }

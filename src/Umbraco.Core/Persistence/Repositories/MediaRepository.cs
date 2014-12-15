@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Dynamics;
+using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
@@ -129,9 +130,7 @@ namespace Umbraco.Core.Persistence.Repositories
                                "DELETE FROM cmsTagRelationship WHERE nodeId = @Id",
                                "DELETE FROM cmsDocument WHERE nodeId = @Id",
                                "DELETE FROM cmsPropertyData WHERE contentNodeId = @Id",
-                               "DELETE FROM cmsPreviewXml WHERE nodeId = @Id",
                                "DELETE FROM cmsContentVersion WHERE ContentId = @Id",
-                               "DELETE FROM cmsContentXml WHERE nodeId = @Id",
                                "DELETE FROM cmsContent WHERE nodeId = @Id",
                                "DELETE FROM umbracoNode WHERE id = @Id"
                            };
@@ -257,25 +256,11 @@ namespace Umbraco.Core.Persistence.Repositories
             } while (processed < total);
         }
 
-        public void AddOrUpdateContentXml(IMedia content, Func<IMedia, XElement> xml)
-        {
-            var contentExists = Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId = @Id", new { Id = content.Id }) != 0;
-
-            _contentXmlRepository.AddOrUpdate(new ContentXmlEntity<IMedia>(contentExists, content, xml));
-        }
-
-        public void AddOrUpdatePreviewXml(IMedia content, Func<IMedia, XElement> xml)
-        {
-            var previewExists =
-                    Database.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsPreviewXml WHERE nodeId = @Id AND versionId = @Version",
-                                                    new { Id = content.Id, Version = content.Version }) != 0;
-
-            _contentPreviewRepository.AddOrUpdate(new ContentPreviewEntity<IMedia>(previewExists, content, xml));
-        }
-
         protected override void PerformDeleteVersion(int id, Guid versionId)
         {
-            Database.Delete<PreviewXmlDto>("WHERE nodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
+            // raise event first else potential FK issues
+            OnRemovedVersion(new VersionChangeEventArgs(UnitOfWork, id, versionId));
+
             Database.Delete<PropertyDataDto>("WHERE contentNodeId = @Id AND versionId = @VersionId", new { Id = id, VersionId = versionId });
             Database.Delete<ContentVersionDto>("WHERE ContentId = @Id AND VersionId = @VersionId", new { Id = id, VersionId = versionId });
         }
@@ -351,6 +336,8 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             UpdatePropertyTags(entity, _tagRepository);
+
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
         }
@@ -434,7 +421,16 @@ namespace Umbraco.Core.Persistence.Repositories
 
             UpdatePropertyTags(entity, _tagRepository);
 
+            OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
+
             entity.ResetDirtyProperties();
+        }
+
+        protected override void PersistDeletedItem(IMedia entity)
+        {
+            // raise event first else potential FK issues
+            OnRemovedEntity(new EntityChangeEventArgs(this.UnitOfWork, entity));
+            base.PersistDeletedItem(entity);
         }
 
         #endregion
@@ -591,7 +587,5 @@ namespace Umbraco.Core.Persistence.Repositories
 
             return currentName;
         }
-
-        
     }
 }

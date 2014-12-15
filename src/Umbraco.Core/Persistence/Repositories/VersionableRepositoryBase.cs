@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Editors;
@@ -536,5 +537,63 @@ WHERE EXISTS(
                     return orderBy;
             }
         }
+
+        #region Change Events
+
+        public class EntityChangeEventArgs : EventArgs
+        {
+            public EntityChangeEventArgs(IDatabaseUnitOfWork unitOfWork, TEntity entity)
+                : this(unitOfWork, new[] { entity })
+            { }
+
+            public EntityChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IEnumerable<TEntity> entities)
+            {
+                UnitOfWork = unitOfWork;
+                Entities = entities;
+            }
+
+            public IEnumerable<TEntity> Entities { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        public class VersionChangeEventArgs : EventArgs
+        {
+            public VersionChangeEventArgs(IDatabaseUnitOfWork unitOfWork, int id, Guid versionId)
+                : this(unitOfWork, new[] { Tuple.Create(id, versionId) })
+            { }
+
+            public VersionChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IEnumerable<Tuple<int, Guid>> versions)
+            {
+                UnitOfWork = unitOfWork;
+                Versions = versions;
+            }
+
+            public IEnumerable<Tuple<int, Guid>> Versions { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        public static event TypedEventHandler<VersionableRepositoryBase<TId, TEntity>, EntityChangeEventArgs> RefreshedEntity;
+        public static event TypedEventHandler<VersionableRepositoryBase<TId, TEntity>, EntityChangeEventArgs> RemovedEntity;
+        public static event TypedEventHandler<VersionableRepositoryBase<TId, TEntity>, VersionChangeEventArgs> RemovedVersion;
+
+        protected void OnRefreshedEntity(EntityChangeEventArgs args)
+        {
+            var handler = RefreshedEntity;
+            if (handler != null) handler(this, args);
+        }
+
+        protected void OnRemovedEntity(EntityChangeEventArgs args)
+        {
+            var handler = RemovedEntity;
+            if (handler != null) handler(this, args);
+        }
+
+        protected void OnRemovedVersion(VersionChangeEventArgs args)
+        {
+            var handler = RemovedVersion;
+            if (handler != null) handler(this, args);
+        }
+
+        #endregion
     }
 }
