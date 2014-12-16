@@ -7,8 +7,9 @@
     </div>
 
     <p>
-        This checks the data integrity for the xml structures for content, media and members that are stored in the cmsContentXml table.
-        This does not check the data integrity of the xml cache file, only the xml structures stored in the database used to create the xml cache file.
+        This checks that content, media and members have appropriate corresponding structures in the
+        cmsContentXml and cmsPreviewXml tables. It does not check the data integrity of those structures,
+        not of the Xml cache file.
     </p>
     <div ng-repeat="(key, value) in items" class="umb-pane">
         <span class="">{{value.label}}&nbsp;...</span>

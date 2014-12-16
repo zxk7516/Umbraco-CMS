@@ -2016,6 +2016,8 @@ namespace Umbraco.Core.Services
         /// </summary>
         internal void RebuildPreviewXml()
         {
+            // fixme - this CANNOT call into the XmlStore because it CANNOT be referenced from here => WTF?
+
             var uow = _uowProvider.GetUnitOfWork();
             using (var repository = _repositoryFactory.CreateContentRepository(uow))
             {
@@ -2042,6 +2044,13 @@ namespace Umbraco.Core.Services
             }
 
             Audit.Add(AuditTypes.Publish, "ContentService.RebuildContentXml completed, the xml has been regenerated in the database", 0, -1);
+        }
+
+        internal IContentRepository GetContentRepository()
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            var repo = _repositoryFactory.CreateContentRepository(uow);
+            return repo;
         }
 
         #endregion

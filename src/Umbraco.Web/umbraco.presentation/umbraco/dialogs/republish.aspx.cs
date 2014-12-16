@@ -35,26 +35,22 @@ namespace umbraco.cms.presentation
             if (Request.GetItemAsString("xml") != "")
             {
                 // this is XML-cache specific
-                // re-generate cmsContentXml content
+                // re-generate cmsContentXml and cmsPreviewXml content - for content only
                 // default action when the form is used
                 var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
                 if (svc == null)
                     throw new NotSupportedException("Unsupported IPublishedCachesService, only the Xml one is supported.");
 
                 Server.ScriptTimeout = 100000; // may take time
-                svc.RebuildContentXml();
+                svc.RebuildContentAndPreviewXml();
             }
             else if (Request.GetItemAsString("previews") != "")
             {
                 // this is XML-cache specific
                 // re-generate cmsPreviewXml content 
                 // there's no interface for that one - has to be called manually
-                var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-                if (svc == null)
-                    throw new NotSupportedException("Unsupported IPublishedCachesService, only the Xml one is supported.");
-                
-                Server.ScriptTimeout = 100000; // may take time
-                svc.RebuildPreviewXml();
+                // we don't support it anymore
+                throw new NotSupportedException("Obsolete.");
             }
             else if (Request.GetItemAsString("refreshNodes") != "")
             {

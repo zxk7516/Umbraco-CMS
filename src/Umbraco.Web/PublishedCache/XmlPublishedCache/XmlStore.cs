@@ -17,6 +17,8 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.DatabaseModelDefinitions;
+using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
@@ -149,12 +151,16 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             get { return UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema; }
         }
 
+        // whether to keep version of everything (incl. medias & members) in cmsPreviewXml
+        // for audit purposes - false by default, not in umbracoSettings.config
         // whether to... no idea what that one does
-        // it is false by default and not in UmbracoSettings.config anymore...
+        // it is false by default and not in UmbracoSettings.config anymore - ignoring
+        /*
         private static bool GlobalPreviewStorageEnabled
         {
             get { return UmbracoConfig.For.UmbracoSettings().Content.GlobalPreviewStorageEnabled; }
         }
+        */
 
         // ensures config is valid
         private void EnsureConfigurationIsValid()
@@ -620,7 +626,7 @@ order by umbracoNode.level, umbracoNode.sortOrder";
 
         #endregion
 
-        #region Event handlers
+        #region Handle Distributed Events for Memory Xml
 
         // nothing should cause changes to the cache
         // it's the cache that subscribes to events and manages itself
@@ -1123,6 +1129,8 @@ order by umbracoNode.level, umbracoNode.sortOrder";
             {
                 var xml = _xmlContentSerializer(c).ToString(SaveOptions.None);
 
+                // fixme - shouldn't we just have one row per content in cmsPreviewXml?
+                // change below to write only one row - must also change wherever we're reading, though
                 var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = c.Id, version = c.Version.ToString() }) > 0;
                 var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
                 OnRepositoryRefreshed(db, dto1, exists1);
@@ -1145,7 +1153,6 @@ order by umbracoNode.level, umbracoNode.sortOrder";
         private void OnMediaRefreshedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
-            var now = DateTime.Now;
 
             foreach (var m in args.Entities)
             {
@@ -1160,20 +1167,20 @@ order by umbracoNode.level, umbracoNode.sortOrder";
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
                 OnRepositoryRefreshed(db, dto1, exists1);
 
-                // "generate preview for blame history?" no idea what that is
-                if (GlobalPreviewStorageEnabled == false) continue;
+                // kill
+                //// generate preview for blame history?
+                //if (GlobalPreviewStorageEnabled == false) continue;
 
-                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
-                //repo1.AddOrUpdate(new ContentPreviewEntity<IContent>(exists1, args.Content, _xmlSerializer));
-                var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
-                OnRepositoryRefreshed(db, dto2, exists2);
+                //var now = DateTime.Now;
+                //var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
+                //var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
+                //OnRepositoryRefreshed(db, dto2, exists2);
             }
         }
 
         private void OnMemberRefreshedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
-            var now = DateTime.Now;
 
             foreach (var m in args.Entities)
             {
@@ -1183,12 +1190,14 @@ order by umbracoNode.level, umbracoNode.sortOrder";
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
                 OnRepositoryRefreshed(db, dto1, exists1);
 
-                // "generate preview for blame history?" - no idea what that is
-                if (GlobalPreviewStorageEnabled == false) continue;
+                // kill
+                //// generate preview for blame history?
+                //if (GlobalPreviewStorageEnabled == false) continue;
 
-                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
-                var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
-                OnRepositoryRefreshed(db, dto2, exists2);
+                //var now = DateTime.Now;
+                //var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
+                //var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
+                //OnRepositoryRefreshed(db, dto2, exists2);
             }
         }
 
@@ -1220,6 +1229,327 @@ order by umbracoNode.level, umbracoNode.sortOrder";
             {
                 db.Insert(dto);
             }
+        }
+
+        #endregion
+
+        #region Rebuild Database Xml
+
+        public void RebuildContentAndPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            RebuildContentXml(groupSize, contentTypeIds);
+            RebuildPreviewXml(groupSize, contentTypeIds);
+        }
+
+        public void RebuildContentXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var repo = svc.GetContentRepository() as ContentRepository;
+            var db = repo.UnitOfWork.Database;
+
+            // fixme - transaction level issue?
+            // the transaction is, by default, ReadCommited meaning that we do not lock the whole tables
+            // so nothing prevents another transaction from messing with the content while we run?!
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = db.GetTransaction())
+            {
+                // remove all - if anything fails the transaction will rollback
+                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+WHERE umbracoNode.nodeObjectType=@objType",
+                        new { objType = contentObjectType });
+                }
+                else
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                        new { objType = contentObjectType, ctypes = contentTypeIdsA }); 
+                }
+
+                // insert back - if anything fails the transaction will rollback
+                var query = Query<IContent>.Builder.Where(x => x.Published);
+                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+                var pageIndex = 0;
+                var processed = 0;
+                int total;
+                do
+                {
+                    // must use .GetPagedResultsByQuery2 which does NOT implicitely add (cmsDocument.newest = 1)
+                    // because we already have the condition on the content being published
+                    var descendants = repo.GetPagedResultsByQuery2(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                    var items = descendants.Select(c => new ContentXmlDto { NodeId = c.Id, Xml = _xmlContentSerializer(c).ToString(SaveOptions.None) }).ToArray();
+                    db.BulkInsertRecords(items, tr);
+                    processed += items.Length;
+                } while (processed < total);
+                
+                tr.Complete();
+            }
+        }
+
+        public void RebuildPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var repo = svc.GetContentRepository() as ContentRepository;
+            var db = repo.UnitOfWork.Database;
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = db.GetTransaction())
+            {
+                // remove all - if anything fails the transaction will rollback
+                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
+                {
+                    db.Execute(@"DELETE cmsPreviewXml 
+FROM cmsPreviewXml 
+JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+WHERE umbracoNode.nodeObjectType=@objType",
+                        new { objType = contentObjectType });
+                }
+                else
+                {
+                    db.Execute(@"DELETE cmsPreviewXml 
+FROM cmsPreviewXml 
+JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+JOIN cmsContent ON (cmsPreviewXml.nodeId=cmsContent.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                        new { objType = contentObjectType, ctypes = contentTypeIdsA });
+                }
+
+                // insert back - if anything fails the transaction will rollback
+                var query = Query<IContent>.Builder;
+                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+                var pageIndex = 0;
+                var processed = 0;
+                int total;
+                var now = DateTime.Now;
+                do
+                {
+                    // fixme - massive fail here, as we should generate PreviewXmlDto for EACH version?!
+
+                    // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
+                    // is what we want for preview (ie latest version of a content, published or not)
+                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                    var items = descendants.Select(c => new PreviewXmlDto
+                    {
+                        NodeId = c.Id,
+                        Xml = _xmlContentSerializer(c).ToString(SaveOptions.None),
+                        Timestamp = now, // fixme - what's the use?
+                        VersionId = c.Version // fixme - though what's the point of a version?
+                    }).ToArray();
+                    db.BulkInsertRecords(items, tr);
+                    processed += items.Length;
+                } while (processed < total);
+
+                tr.Complete();
+            }
+        }
+
+        public void RebuildMediaXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.MediaService as MediaService;
+            var repo = svc.GetMediaRepository() as MediaRepository;
+            var db = repo.UnitOfWork.Database;
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = db.GetTransaction())
+            {
+                // remove all - if anything fails the transaction will rollback
+                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+WHERE umbracoNode.nodeObjectType=@objType",
+                        new { objType = mediaObjectType });
+                }
+                else
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                        new { objType = mediaObjectType, ctypes = contentTypeIdsA });
+                }
+
+                // insert back - if anything fails the transaction will rollback
+                var query = Query<IMedia>.Builder;
+                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+                var pageIndex = 0;
+                var processed = 0;
+                int total;
+                do
+                {
+                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                    var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMediaSerializer(m).ToString(SaveOptions.None) }).ToArray();
+                    db.BulkInsertRecords(items, tr);
+                    processed += items.Length;
+                } while (processed < total);
+
+                tr.Complete();
+            }
+        }
+
+        public void RebuildMemberXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.MemberService as MemberService;
+            var repo = svc.GetMemberRepository() as MemberRepository;
+            var db = repo.UnitOfWork.Database;
+
+            // need to remove the data and re-insert it, in one transaction
+            using (var tr = db.GetTransaction())
+            {
+                // remove all - if anything fails the transaction will rollback
+                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+WHERE umbracoNode.nodeObjectType=@objType",
+                        new { objType = memberObjectType });
+                }
+                else
+                {
+                    db.Execute(@"DELETE cmsContentXml 
+FROM cmsContentXml 
+JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                        new { objType = memberObjectType, ctypes = contentTypeIdsA });
+                }
+
+                // insert back - if anything fails the transaction will rollback
+                var query = Query<IMember>.Builder;
+                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+                var pageIndex = 0;
+                var processed = 0;
+                int total;
+                do
+                {
+                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                    var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMemberSerializer(m).ToString(SaveOptions.None) }).ToArray();
+                    db.BulkInsertRecords(items, tr);
+                    processed += items.Length;
+                } while (processed < total);
+
+                tr.Complete();
+            }
+        }
+
+        public bool VerifyContentAndPreviewXml()
+        {
+            // every published content item should have a corresponding row in cmsContentXml
+            // every content item should have a corresponding row in cmsPreviewXml
+
+            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var repo = svc.GetContentRepository() as ContentRepository;
+            var db = repo.UnitOfWork.Database;
+
+            var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
+FROM umbracoNode
+JOIN cmsDocument ON (umbracoNode.id=cmsDocument.nodeId and cmsDocument.published=1)
+LEFT JOIN cmsContentXml ON (umbracoNode.id=cmsContentXml.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContentXml.nodeId IS NULL
+", new { objType = contentObjectType });
+
+            if (count > 0) return false;
+
+            count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
+FROM umbracoNode
+LEFT JOIN cmsPreviewXml ON (umbracoNode.id=cmsPreviewXml.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsPreviewXml.nodeId IS NULL
+", new { objType = contentObjectType });
+
+            return count == 0;
+        }
+
+        public bool VerifyMediaXml()
+        {
+            // every non-trashed media item should have a corresponding row in cmsContentXml
+
+            var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.MediaService as MediaService;
+            var repo = svc.GetMediaRepository() as MediaRepository;
+            var db = repo.UnitOfWork.Database;
+
+            var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
+FROM umbracoNode
+JOIN cmsDocument ON (umbracoNode.id=cmsDocument.nodeId and cmsDocument.published=1)
+LEFT JOIN cmsContentXml ON (umbracoNode.id=cmsContentXml.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContentXml.nodeId IS NULL
+", new { objType = mediaObjectType });
+
+            return count == 0;
+        }
+
+        public bool VerifyMemberXml()
+        {
+            // every member item should have a corresponding row in cmsContentXml
+
+            var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
+
+            // fixme - where should it come from?
+            //var db = ApplicationContext.Current.DatabaseContext.Database;
+            var svc = ApplicationContext.Current.Services.MemberService as MemberService;
+            var repo = svc.GetMemberRepository() as MemberRepository;
+            var db = repo.UnitOfWork.Database;
+
+            var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
+FROM umbracoNode
+LEFT JOIN cmsContentXml ON (umbracoNode.id=cmsContentXml.nodeId)
+WHERE umbracoNode.nodeObjectType=@objType
+AND cmsContentXml.nodeId IS NULL
+", new { objType = memberObjectType });
+
+            return count == 0;
         }
 
         #endregion

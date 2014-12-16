@@ -12,6 +12,7 @@ using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
 using System.Linq;
@@ -1253,6 +1254,13 @@ namespace Umbraco.Core.Services
             }
 
             Audit.Add(AuditTypes.Publish, "MemberService.RebuildMemberXml completed, the xml has been regenerated in the database", 0, -1);
+        }
+
+        internal IMemberRepository GetMemberRepository()
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            var repo = _repositoryFactory.CreateMemberRepository(uow);
+            return repo;
         }
 
         #endregion

@@ -32,7 +32,7 @@ function xmlDataIntegrityReportController($scope, umbRequestHelper, $log, $http,
 
     $scope.items = {
         "contentXml": {
-            label: "Content in the cmsContentXml table",
+            label: "Content in the cmsContentXml and cmsPreviewXml tables",
             checking: true,
             fixing: false,
             fix: "FixContentXmlTable",

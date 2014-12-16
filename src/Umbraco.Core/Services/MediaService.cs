@@ -1158,6 +1158,13 @@ namespace Umbraco.Core.Services
             Audit.Add(AuditTypes.Publish, "MediaService.RebuildMediaXml completed, the xml has been regenerated in the database", 0, -1);
         }
 
+        internal IMediaRepository GetMediaRepository()
+        {
+            var uow = _uowProvider.GetUnitOfWork();
+            var repo = _repositoryFactory.CreateMediaRepository(uow);
+            return repo;
+        }
+
         #endregion
     }
 }
