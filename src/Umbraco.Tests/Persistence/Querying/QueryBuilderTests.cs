@@ -123,5 +123,46 @@ namespace Umbraco.Tests.Persistence.Querying
             // Assert
             Console.WriteLine(strResult);
         }
+
+        [Test]
+        public void WhereIn_Clause()
+        {
+            // Arrange
+            var sql = new Sql();
+            sql.Select("*");
+            sql.From("umbracoNode");
+
+            var query = Query<IContent>.Builder.WhereIn(x => x.Level, new[] { 1, 2 });
+
+            // Act
+            var translator = new SqlTranslator<IContent>(sql, query);
+            var result = translator.Translate();
+            //Console.WriteLine(result.SQL);
+            Assert.AreEqual("SELECT * FROM umbracoNode WHERE ([umbracoNode].[level] IN (@0,@1))", result.SQL.Replace("\n", " "));
+            Assert.AreEqual(2, result.Arguments.Length);
+            Assert.AreEqual(1, result.Arguments[0]);
+            Assert.AreEqual(2, result.Arguments[1]);
+        }
+
+        [Test]
+        public void WhereIn_Clause_Joined()
+        {
+            // Arrange
+            var sql = new Sql();
+            sql.Select("*");
+            sql.From("umbracoNode");
+            sql.Append("JOIN_MISSING"); // in the repo, GetBaseQuery would add the join
+
+            var query = Query<IContent>.Builder.WhereIn(x => x.ContentTypeId, new[] { 1, 2 });
+
+            // Act
+            var translator = new SqlTranslator<IContent>(sql, query);
+            var result = translator.Translate();
+            //Console.WriteLine(result.SQL);
+            Assert.AreEqual("SELECT * FROM umbracoNode JOIN_MISSING WHERE ([cmsContent].[contentType] IN (@0,@1))", result.SQL.Replace("\n", " "));
+            Assert.AreEqual(2, result.Arguments.Length);
+            Assert.AreEqual(1, result.Arguments[0]);
+            Assert.AreEqual(2, result.Arguments[1]);
+        }
     }
 }

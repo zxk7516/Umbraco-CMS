@@ -237,5 +237,34 @@ namespace Umbraco.Tests.Persistence.Querying
 
             Console.WriteLine(sql.SQL);
         }
+
+        [Test]
+        public void WhereIn_Clause()
+        {
+            var sql = new Sql("SELECT *").From<NodeDto>()
+                .WhereIn<NodeDto>(x => x.Level, new[] {1, 2});
+            //Console.WriteLine(sql.SQL);
+
+            Assert.AreEqual("SELECT * FROM [umbracoNode] WHERE ([umbracoNode].[level] IN (@0,@1))", sql.SQL.Replace("\n", " "));
+            Assert.AreEqual(2, sql.Arguments.Length);
+            Assert.AreEqual(1, sql.Arguments[0]);
+            Assert.AreEqual(2, sql.Arguments[1]);
+        }
+
+        [Test]
+        public void WhereIn_Clause_Double()
+        {
+            var sql = new Sql("SELECT *").From<NodeDto>()
+                .WhereIn<NodeDto>(x => x.Level, new[] { 1, 2 })
+                .WhereIn<NodeDto>(x => x.SortOrder, new[] { 3, 4 });
+            //Console.WriteLine(sql.SQL);
+
+            Assert.AreEqual("SELECT * FROM [umbracoNode] WHERE ([umbracoNode].[level] IN (@0,@1)) AND ([umbracoNode].[sortOrder] IN (@2,@3))", sql.SQL.Replace("\n", " "));
+            Assert.AreEqual(4, sql.Arguments.Length);
+            Assert.AreEqual(1, sql.Arguments[0]);
+            Assert.AreEqual(2, sql.Arguments[1]);
+            Assert.AreEqual(3, sql.Arguments[2]);
+            Assert.AreEqual(4, sql.Arguments[3]);
+        }
     }
 }

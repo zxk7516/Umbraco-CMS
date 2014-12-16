@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
@@ -39,6 +40,12 @@ namespace Umbraco.Core.Persistence.Querying
         /// <returns>This instance so calls to this method are chainable</returns>
         IQuery<T> Where(Expression<Func<T, bool>> predicate);
 
-        
+        /// <summary>
+        /// Adds a where-in clause to the query
+        /// </summary>
+        /// <param name="fieldSelector"></param>
+        /// <param name="values"></param>
+        /// <returns>This instance so calls to this method are chainable</returns>
+        IQuery<T> WhereIn(Expression<Func<T, object>> fieldSelector, IEnumerable values);
     }
 }
