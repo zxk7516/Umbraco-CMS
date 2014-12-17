@@ -316,8 +316,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return xml;
         }
 
-        public XmlDocument GetPreviewXml(string path, bool includeSubs)
+        public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
+            var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
+            var content = contentService.GetById(contentId);
+
+            var doc = (XmlDocument)Xml.Clone();
+            if (content == null) return doc;
+
             var sql = ReadCmsPreviewXmlSql1;
             if (includeSubs) sql += " OR umbracoNode.path LIKE concat(@path, ',%')";
             sql += ReadCmsPreviewXmlSql2;
@@ -325,9 +331,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
-                    @path = path,
+                    @path = content.Path,
                 });
-            var doc = (XmlDocument)Xml.Clone();
             foreach (var xmlDto in xmlDtos)
             {
                 var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));

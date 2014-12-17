@@ -102,11 +102,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // have to use the Document class at the moment because IContent does not do ToXml...
         public void CreatePreviewSet(int contentId, bool includeSubs)
         {
-            var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
-            var content = contentService.GetById(contentId);
-
             // note: always include subs
-            _previewXml = _xmlStore.GetPreviewXml(content.Path, includeSubs);
+            _previewXml = _xmlStore.GetPreviewXml(contentId, includeSubs);
 
             // make sure the preview folder exists
             var dir = new DirectoryInfo(IOHelper.MapPath(SystemDirectories.Preview));
