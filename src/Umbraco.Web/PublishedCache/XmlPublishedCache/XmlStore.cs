@@ -316,6 +316,29 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return xml;
         }
 
+        public XmlDocument GetPreviewXml(string path, bool includeSubs)
+        {
+            var sql = ReadCmsPreviewXmlSql1;
+            if (includeSubs) sql += " OR umbracoNode.path LIKE concat(@path, ',%')";
+            sql += ReadCmsPreviewXmlSql2;
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql,
+                new
+                {
+                    @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
+                    @path = path,
+                });
+            var doc = (XmlDocument)Xml.Clone();
+            foreach (var xmlDto in xmlDtos)
+            {
+                var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+                if (xml == null || xml.Attributes == null) continue;
+                if (xmlDto.Published == false)
+                    xml.Attributes.Append(doc.CreateAttribute("isDraft"));
+                AppendDocumentXml(doc, xmlDto.Id, xmlDto.Level, xmlDto.ParentId, xml);
+            }
+            return doc;
+        }
+
         #endregion
 
         #region File
@@ -486,6 +509,24 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private static readonly object DbLock = new object(); // ensure no concurrency on db
 
+        const string ReadCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsContentXml.xml, cmsDocument.published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1
+ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+
+        const string ReadCmsPreviewXmlSql1 = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsPreviewXml.xml, cmsDocument.published
+FROM umbracoNode 
+JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
+AND (umbracoNode.path=@path OR @path LIKE concat(umbracoNode.path, ',%')";
+        const string ReadCmsPreviewXmlSql2 = @")
+ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+
         // ReSharper disable once ClassNeverInstantiated.Local
         private class XmlDto
         {
@@ -493,7 +534,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             public int Id { get; set; }
             public int ParentId { get; set; }
             public int SortOrder { get; set; }
+            public int Level { get; set; }
             public string Xml { get; set; }
+            public bool Published { get; set; }
             // ReSharper restore UnusedAutoPropertyAccessor.Local
         }
 
@@ -515,7 +558,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             try
             {
                 // Lets cache the DTD to save on the DB hit on the subsequent use
-                var dtd = ApplicationContext.Current.Services.ContentTypeService.GetDtd();
+                var dtd = ApplicationContext.Current.Services.ContentTypeService.GetDtd(); // fixme inject
 
                 // Prepare an XmlDocument with an appropriate inline DTD to match
                 // the expected content
@@ -523,15 +566,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 InitializeXml(xmlDoc, dtd);
 
                 // get xml
-                const string sql = @"select
-umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, cmsContentXml.xml 
-from umbracoNode 
-inner join cmsContentXml on (cmsContentXml.nodeId = umbracoNode.id and umbracoNode.nodeObjectType = @NodeObjectType)
-join cmsDocument on (cmsDocument.nodeId = umbracoNode.id and cmsDocument.published = 1)
-order by umbracoNode.level, umbracoNode.sortOrder";
-
-                var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql,
-                    new { @NodeObjectType = new Guid(Constants.ObjectTypes.Document) });
+                var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlSql,
+                    new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document) });
 
                 foreach (var xmlDto in xmlDtos)
                 {

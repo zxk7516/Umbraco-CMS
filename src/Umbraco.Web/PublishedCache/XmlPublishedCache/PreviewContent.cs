@@ -1,24 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using umbraco.cms.businesslogic.web;
 using Umbraco.Core;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
-using Umbraco.Core.Models;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     class PreviewContent
     {
         private readonly int _userId;
-        private Guid _previewSet;
+        private readonly Guid _previewSet;
         private string _previewSetPath;
         private XmlDocument _previewXml;
-        private XmlStore _xmlStore;
+        private readonly XmlStore _xmlStore;
 
         /// <summary>
         /// Gets the XML document.
@@ -47,7 +43,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                         
                         _previewXml = null;
                         _previewSetPath = null; // do not try again
-                        _previewSet = Guid.Empty;
                     }
                 }
 
@@ -107,45 +102,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // have to use the Document class at the moment because IContent does not do ToXml...
         public void CreatePreviewSet(int contentId, bool includeSubs)
         {
-            _previewXml = (XmlDocument)_xmlStore.Xml.Clone();
-
-            var contentService = ApplicationContext.Current.Services.ContentService;
-            var previewNodes = new List<IContent>();
+            var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
             var content = contentService.GetById(contentId);
-            var parentId = content.ParentId;
 
-            // get nodes in the path
-            while (parentId > 0 && XmlContent.GetElementById(parentId.ToString(CultureInfo.InvariantCulture)) == null)
-            {
-                var c = contentService.GetById(parentId);
-                previewNodes.Insert(0, c);
-                parentId = c.ParentId;
-            }
-            previewNodes.Add(content);
-
-            // replace node & every node in its path
-            foreach (var c in previewNodes)
-            {
-                parentId = c.ParentId;
-                var previewXml = (new Document(c)).ToPreviewXml(XmlContent); // ToPreviewXml on Document only
-                if (c.Published == false && contentService.HasPublishedVersion(c.Id) && previewXml.Attributes != null)
-                    previewXml.Attributes.Append(_previewXml.CreateAttribute("isDraft"));
-                XmlStore.AppendDocumentXml(_previewXml, c.Id, c.Level, parentId, previewXml);
-            }
-
-            // inject subs if required
-            if (includeSubs)
-            {
-                var documentObject = new Document(content); // too many things on Document only
-                foreach (var prevNode in documentObject.GetNodesForPreview(true))
-                {
-                    var previewXml = _previewXml.ReadNode(XmlReader.Create(new StringReader(prevNode.Xml)));
-                    if (previewXml == null) continue;
-                    if (prevNode.IsDraft && previewXml.Attributes != null)
-                        previewXml.Attributes.Append(XmlContent.CreateAttribute("isDraft"));
-                    XmlStore.AppendDocumentXml(_previewXml, prevNode.NodeId, prevNode.Level, prevNode.ParentId, previewXml);
-                }
-            }
+            // note: always include subs
+            _previewXml = _xmlStore.GetPreviewXml(content.Path, includeSubs);
 
             // make sure the preview folder exists
             var dir = new DirectoryInfo(IOHelper.MapPath(SystemDirectories.Preview));
@@ -164,22 +125,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             return IOHelper.MapPath(Path.Combine(SystemDirectories.Preview, userId + "_" + previewSet + ".config"));
         }
-
-        // no need to validate, content will be null if invalid
-        //
-        // ensures that the preview set path matches an existing file
-        // else set it to null to indicate that the preview content is invalid
-        //private void ValidatePreviewSetPath()
-        //{
-        //    if (System.IO.File.Exists(_previewSetPath)) return;
-
-        //    LogHelper.Debug<PreviewContent>(string.Format("Invalid preview set {0} for user {1}.", _previewSet, _userId));
-
-        //    ClearPreviewSet(_userId, _previewSet);
-
-        //    _previewSet = Guid.Empty;
-        //    _previewSetPath = null;
-        //}
 
         // deletes files for the user, and files accessed more than one hour ago
         private static void ClearPreviewDirectory(int userId, DirectoryInfo dir)
@@ -215,28 +160,5 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var previewSetFile = new FileInfo(_previewSetPath);
             DeletePreviewSetFile(_userId, previewSetFile);
         }
-
-        // we do not handle preview token here
-        //public void ActivatePreviewCookie()
-        //{
-        //    StateHelper.Cookies.Preview.SetValue(_previewSet.ToString());
-        //}
-
-        // we do not handle preview token here
-        //public static void ClearPreviewCookie()
-        //{
-        //    if (global::umbraco.presentation.UmbracoContext.Current.UmbracoUser != null)
-        //    {
-        //        if (StateHelper.Cookies.Preview.HasValue)
-        //        {
-        //            var userId = global::umbraco.presentation.UmbracoContext.Current.UmbracoUser.Id;
-        //            var previewSet = new Guid(StateHelper.Cookies.Preview.GetValue());
-        //            var previewSetPath = GetPreviewSetPath(userId, previewSet);
-        //            var previewSetFile = new FileInfo(previewSetPath);
-        //            DeletePreviewSetFile(userId, previewSetFile);
-        //        }
-        //    }
-        //    StateHelper.Cookies.Preview.Clear();
-        //}
     }   
 }
