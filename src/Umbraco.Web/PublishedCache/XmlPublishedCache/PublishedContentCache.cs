@@ -32,7 +32,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xml = _xmlStore.Xml; // capture
 
             if (previewToken.IsNullOrWhiteSpace() == false)
-                _previewContent = new PreviewContent(previewToken);
+                _previewContent = new PreviewContent(_xmlStore, previewToken);
         }
 
         private readonly ICacheProvider _cacheProvider;

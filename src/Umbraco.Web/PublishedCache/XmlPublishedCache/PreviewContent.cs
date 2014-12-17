@@ -18,6 +18,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private Guid _previewSet;
         private string _previewSetPath;
         private XmlDocument _previewXml;
+        private XmlStore _xmlStore;
 
         /// <summary>
         /// Gets the XML document.
@@ -63,9 +64,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <summary>
         /// Initializes a new instance of the <see cref="PreviewContent"/> class for a user.
         /// </summary>
+        /// <param name="xmlStore">The underlying Xml store.</param>
         /// <param name="userId">The user identifier.</param>
-        public PreviewContent(int userId)
+        public PreviewContent(XmlStore xmlStore, int userId)
         {
+            if (xmlStore == null)
+                throw new ArgumentNullException("xmlStore");
+            _xmlStore = xmlStore;
+
             _userId = userId;
             _previewSet = Guid.NewGuid();
             _previewSetPath = GetPreviewSetPath(_userId, _previewSet);
@@ -74,9 +80,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <summary>
         /// Initializes a new instance of the <see cref="PreviewContent"/> with a preview token.
         /// </summary>
+        /// <param name="xmlStore">The underlying Xml store.</param>
         /// <param name="token">The preview token.</param>
-        public PreviewContent(string token)
+        public PreviewContent(XmlStore xmlStore, string token)
         {
+            if (xmlStore == null)
+                throw new ArgumentNullException("xmlStore");
+            _xmlStore = xmlStore;
+
             if (token.IsNullOrWhiteSpace())
                 throw new ArgumentException("Null or empty token.", "token");
             var parts = token.Split(new[] {':'});
@@ -91,27 +102,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _previewSetPath = GetPreviewSetPath(_userId, _previewSet);
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PreviewContent"/> class with a user, a preview set
-        /// identifier, and a value indicating whether to validate the content.
-        /// </summary>
-        /// <param name="userId">The unique identifier of the user.</param>
-        /// <param name="previewSet">The unique identifier of the preview set.</param>
-        // fixme - remove
-        public PreviewContent(int userId, Guid previewSet)
-        {
-            _userId = userId;
-            _previewSet = previewSet;
-            _previewSetPath = GetPreviewSetPath(_userId, _previewSet);
-            //if (validate) ValidatePreviewSetPath();
-        }
-
         // creates and saves a new preview set
         // used in 2 places and each time includeSubs is true
         // have to use the Document class at the moment because IContent does not do ToXml...
         public void CreatePreviewSet(int contentId, bool includeSubs)
         {
-            _previewXml = (XmlDocument)global::umbraco.content.Instance.XmlContent.Clone();
+            _previewXml = (XmlDocument)_xmlStore.Xml.Clone();
 
             var contentService = ApplicationContext.Current.Services.ContentService;
             var previewNodes = new List<IContent>();
