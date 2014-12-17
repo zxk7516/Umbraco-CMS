@@ -383,14 +383,6 @@ namespace umbraco.cms.businesslogic
         }
 
         /// <summary>
-        /// Removes the Xml cached in the database - unpublish and cleaning
-        /// </summary>
-        public virtual void XmlRemoveFromDB()
-        {
-            SqlHelper.ExecuteNonQuery("delete from cmsContentXml where nodeId = @nodeId", SqlHelper.CreateParameter("@nodeId", this.Id));
-        }
-
-        /// <summary>
         /// Generates the Content XmlNode
         /// </summary>
         /// <param name="xd"></param>

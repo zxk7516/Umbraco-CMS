@@ -414,40 +414,6 @@ namespace umbraco.cms.businesslogic.web
             var children = ApplicationContext.Current.Services.ContentService.GetChildrenByName(NodeId, searchString);
             return children.Select(x => new Document(x)).ToList();
         }
-                
-        /// <summary>
-        /// This will clear out the cmsContentXml table for all Documents (not media or members) and then
-        /// rebuild the xml for each Docuemtn item and store it in this table.
-        /// </summary>
-        /// <remarks>
-        /// This method is thread safe
-        /// </remarks>
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        [Obsolete("Obsolete, Use Umbraco.Core.Services.ContentService.RePublishAll()", false)]
-        public static void RePublishAll()
-        {
-            ApplicationContext.Current.Services.ContentService.RePublishAll();
-        }
-
-        [Obsolete("Obsolete, see XmlPublishedCache.PublishedCachesService.RebuildPreviewXml().", true)]
-        public static void RegeneratePreviews()
-        {
-            XmlDocument xd = new XmlDocument();
-            IRecordsReader dr = SqlHelper.ExecuteReader("select nodeId from cmsDocument");
-
-            while (dr.Read())
-            {
-                try
-                {
-                    new Document(dr.GetInt("nodeId")).SaveXmlPreview(xd);
-                }
-                catch (Exception ee)
-                {
-					LogHelper.Error<Document>("Error generating preview xml", ee);
-                }
-            }
-            dr.Close();
-        }
 
         /// <summary>
         /// Retrieve a list of documents with an expirationdate greater than today
@@ -1209,21 +1175,6 @@ namespace umbraco.cms.businesslogic.web
         }
 
         /// <summary>
-        /// Refreshes the xml, used when publishing data on a document which already is published
-        /// </summary>
-        /// <param name="xd">The source xmldocument</param>
-        /// <param name="x">The previous xmlrepresentation of the document</param>
-        [Obsolete("Obsolete, Doesn't appear to be used anywhere", false)]
-        public void XmlNodeRefresh(XmlDocument xd, ref XmlNode x)
-        {
-            x.Attributes.RemoveAll();
-            foreach (XmlNode xDel in x.SelectNodes("./data"))
-                x.RemoveChild(xDel);
-
-            XmlPopulate(xd, ref x, false);
-        }
-
-        /// <summary>
         /// Creates an xmlrepresentation of the document and saves it to the database
         /// </summary>
         /// <param name="xd"></param>
@@ -1336,49 +1287,6 @@ namespace umbraco.cms.businesslogic.web
                 }
 
             }
-        }
-
-        /// <summary>
-        /// This is a specialized method which literally just makes sure that the sortOrder attribute of the xml
-        /// that is stored in the database is up to date.
-        /// </summary>
-        public void refreshXmlSortOrder()
-        {
-            if (Published)
-            {
-                if (_xml == null)
-                    // Load xml from db if _xml hasn't been loaded yet
-                    _xml = importXml();
-
-                // Generate xml if xml still null (then it hasn't been initialized before)
-                if (_xml == null)
-                {
-                    XmlGenerate(new XmlDocument());
-                    _xml = importXml();
-                }
-                else
-                {
-                    // Update the sort order attr
-                    _xml.Attributes.GetNamedItem("sortOrder").Value = sortOrder.ToString();
-                    saveXml(_xml);
-                }
-
-            }
-
-        }
-
-        public override List<CMSPreviewNode> GetNodesForPreview(bool childrenOnly)
-        {
-            var nodes = new List<CMSPreviewNode>();
-
-            string pathExp = childrenOnly ? Path + ",%" : Path;
-
-            IRecordsReader dr = SqlHelper.ExecuteReader(String.Format(SqlOptimizedForPreview, pathExp));
-            while (dr.Read())
-                nodes.Add(new CMSPreviewNode(dr.GetInt("id"), dr.GetGuid("versionId"), dr.GetInt("parentId"), dr.GetShort("level"), dr.GetInt("sortOrder"), dr.GetString("xml"), !dr.GetBoolean("published")));
-            dr.Close();
-
-            return nodes;
         }
 
         public override XmlNode ToPreviewXml(XmlDocument xd)

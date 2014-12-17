@@ -490,26 +490,6 @@ namespace umbraco.cms.businesslogic
             return GetPreviewXml(xd, UniqueId);
         }
 
-        public virtual List<CMSPreviewNode> GetNodesForPreview(bool childrenOnly)
-        {
-            List<CMSPreviewNode> nodes = new List<CMSPreviewNode>();
-            string sql = @"
-select umbracoNode.id, umbracoNode.parentId, umbracoNode.level, umbracoNode.sortOrder, cmsPreviewXml.xml
-from umbracoNode 
-inner join cmsPreviewXml on cmsPreviewXml.nodeId = umbracoNode.id 
-where trashed = 0 and path like '{0}' 
-order by level,sortOrder";
-
-            string pathExp = childrenOnly ? Path + ",%" : Path;
-
-            IRecordsReader dr = SqlHelper.ExecuteReader(String.Format(sql, pathExp));
-            while (dr.Read())
-                nodes.Add(new CMSPreviewNode(dr.GetInt("id"), dr.GetGuid("uniqueID"), dr.GetInt("parentId"), dr.GetShort("level"), dr.GetInt("sortOrder"), dr.GetString("xml"), false));
-            dr.Close();
-
-            return nodes;
-        }
-
         /// <summary>
         /// Used to persist object changes to the database. In Version3.0 it's just a stub for future compatibility
         /// </summary>
