@@ -741,23 +741,5 @@ namespace umbraco.cms.businesslogic
         }
 
         #endregion
-
-        #region XmlPreivew
-
-        public override XmlNode ToPreviewXml(XmlDocument xd)
-        {
-            if (!PreviewExists(Version))
-            {
-                saveXmlPreview(xd);
-            }
-            return GetPreviewXml(xd, Version);
-        }
-
-        private void saveXmlPreview(XmlDocument xd)
-        {
-            SavePreviewXml(generateXmlWithoutSaving(xd), Version);
-        }
-
-        #endregion
     }
 }

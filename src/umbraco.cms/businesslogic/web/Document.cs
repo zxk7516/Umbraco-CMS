@@ -1289,7 +1289,7 @@ namespace umbraco.cms.businesslogic.web
             }
         }
 
-        public override XmlNode ToPreviewXml(XmlDocument xd)
+        public virtual XmlNode ToPreviewXml(XmlDocument xd)
         {
             if (!PreviewExists(Version))
             {
@@ -1416,6 +1416,45 @@ namespace umbraco.cms.businesslogic.web
         protected void SaveXmlPreview(XmlDocument xd)
         {
             SavePreviewXml(generateXmlWithoutSaving(xd), Version);
+        }
+
+        protected virtual XmlNode GetPreviewXml(XmlDocument xd, Guid version)
+        {
+
+            XmlDocument xmlDoc = new XmlDocument();
+            using (XmlReader xmlRdr = SqlHelper.ExecuteXmlReader(
+                                                       "select xml from cmsPreviewXml where nodeID = @nodeId and versionId = @versionId",
+                                      SqlHelper.CreateParameter("@nodeId", Id),
+                                      SqlHelper.CreateParameter("@versionId", version)))
+            {
+                xmlDoc.Load(xmlRdr);
+            }
+
+            return xd.ImportNode(xmlDoc.FirstChild, true);
+        }
+
+        protected internal virtual bool PreviewExists(Guid versionId)
+        {
+            return (SqlHelper.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsPreviewXml WHERE nodeId=@nodeId and versionId = @versionId",
+                        SqlHelper.CreateParameter("@nodeId", Id), SqlHelper.CreateParameter("@versionId", versionId)) != 0);
+
+        }
+
+        /// <summary>
+        /// This needs to be synchronized since we are doing multiple sql operations in one method
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="versionId"></param>
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        protected void SavePreviewXml(XmlNode x, Guid versionId)
+        {
+            string sql = PreviewExists(versionId) ? "UPDATE cmsPreviewXml SET xml = @xml, timestamp = @timestamp WHERE nodeId=@nodeId AND versionId = @versionId"
+                                : "INSERT INTO cmsPreviewXml(nodeId, versionId, timestamp, xml) VALUES (@nodeId, @versionId, @timestamp, @xml)";
+            SqlHelper.ExecuteNonQuery(sql,
+                                      SqlHelper.CreateParameter("@nodeId", Id),
+                                      SqlHelper.CreateParameter("@versionId", versionId),
+                                      SqlHelper.CreateParameter("@timestamp", DateTime.Now),
+                                      SqlHelper.CreateParameter("@xml", x.OuterXml));
         }
 
         #endregion
