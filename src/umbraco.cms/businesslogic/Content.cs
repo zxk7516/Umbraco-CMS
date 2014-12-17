@@ -399,7 +399,7 @@ namespace umbraco.cms.businesslogic
             SaveXmlDocument(generateXmlWithoutSaving(xd));
         }
 
-        public virtual void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
+        protected virtual void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
         {
             var props = this.GenericProperties;
             foreach (property.Property p in props)

@@ -1283,7 +1283,7 @@ namespace umbraco.cms.businesslogic.web
         /// <param name="xd">Xmldocument context</param>
         /// <param name="x">The node to fill with data</param>
         /// <param name="Deep">If true the documents childrens xmlrepresentation will be appended to the Xmlnode recursive</param>
-        public override void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
+        protected override void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
         {
             string urlName = this.Content.GetUrlSegment().ToLower();
             foreach (Property p in GenericProperties.Where(p => p != null && p.Value != null && string.IsNullOrEmpty(p.Value.ToString()) == false))
