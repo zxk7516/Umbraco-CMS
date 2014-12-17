@@ -63,7 +63,9 @@ namespace umbraco.cms.businesslogic.media
             if (postedFile.ContentLength > 0)
                 DoHandleMedia(media, postedFile, user);
 
-            media.XmlGenerate(new XmlDocument());
+            // DoHandleMedia eventually saves the media, thus triggering the
+            // repository PersistXxx methods, which raise the proper events so
+            // the cached xml is generated - nothing to do here
 
             return media;
         }
