@@ -13,11 +13,12 @@ using Umbraco.Core;
 using Umbraco.Core.Xml;
 using Umbraco.Core.Xml.XPath;
 using NUnit.Framework;
+using Umbraco.Tests.TestHelpers;
 
 namespace Umbraco.Tests.CoreXml
 {
     [TestFixture]
-    public class NavigableNavigatorTests
+    public class NavigableNavigatorTests : BaseUmbracoConfigurationTest
     {
         [Test]
         public void NewNavigatorIsAtRoot()
@@ -556,15 +557,25 @@ namespace Umbraco.Tests.CoreXml
             Assert.AreEqual(NavigableNavigator.StatePosition.Root, nav.InternalState.Position);
             Assert.IsFalse(nav.MoveToParent());
 
+            // move to /root
+            Assert.IsTrue(nav.MoveToId("-1"));
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(-1, (nav.UnderlyingObject as TestContent).Id);
+
+            // move down
+            Assert.IsTrue(nav.MoveToFirstChild());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(1, (nav.UnderlyingObject as TestContent).Id);
+
             // get lost
             Assert.IsFalse(nav.MoveToId("666"));
         }
 
         [Test]
-        public void RootedNavigator()
+        public void RootedNavigator1()
         {
             var source = new TestSource5();
-            var nav = new NavigableNavigator(source, source.Get(1));
+            var nav = new NavigableNavigator(source, rootId: 1);
 
             // go to (/root) /1
             Assert.IsTrue(nav.MoveToFirstChild());
@@ -592,6 +603,82 @@ namespace Umbraco.Tests.CoreXml
 
             // can't go there
             Assert.IsFalse(nav.MoveToId("2"));
+        }
+
+        [Test]
+        public void RootedNavigator2()
+        {
+            var source = new TestSource5();
+            var nav = new NavigableNavigator(source, rootId: 3);
+
+            // go to (/root/1) /3
+            Assert.IsTrue(nav.MoveToFirstChild());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(3, (nav.UnderlyingObject as TestContent).Id);
+
+            // go to (/root/1)
+            Assert.IsTrue(nav.MoveToParent());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Root, nav.InternalState.Position);
+            Assert.IsFalse(nav.MoveToParent());
+
+            // can't go there
+            Assert.IsFalse(nav.MoveToId("1"));
+        }
+
+        [Test]
+        public void RootedMaxDepthNavigator()
+        {
+            var source = new TestSource5();
+            var nav = new NavigableNavigator(source, rootId: 1, maxDepth: 0);
+
+            // go to (/root) /1
+            Assert.IsTrue(nav.MoveToFirstChild());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(1, (nav.UnderlyingObject as TestContent).Id);
+
+            // go to (/root)
+            Assert.IsTrue(nav.MoveToParent());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Root, nav.InternalState.Position);
+            Assert.IsFalse(nav.MoveToParent());
+
+            // go to (/root) /1
+            Assert.IsTrue(nav.MoveToId("1"));
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(1, (nav.UnderlyingObject as TestContent).Id);
+
+            // can't go there
+            Assert.IsFalse(nav.MoveToId("-1"));
+            Assert.IsFalse(nav.MoveToId("3"));
+        }
+
+        [Test]
+        public void MaxDepthNavigator()
+        {
+            var source = new TestSource5();
+            var nav = new NavigableNavigator(source, maxDepth: 1);
+
+            // go to /root
+            Assert.IsTrue(nav.MoveToFirstChild());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(-1, (nav.UnderlyingObject as TestContent).Id);
+
+            // go to /root/1
+            Assert.IsTrue(nav.MoveToFirstChild());
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(1, (nav.UnderlyingObject as TestContent).Id);
+            Assert.IsTrue(nav.MoveToId("1"));
+            Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            Assert.AreEqual(1, (nav.UnderlyingObject as TestContent).Id);
+
+            // go to /root/1/prop1
+            Assert.IsTrue(nav.MoveToFirstChild());
+            // go to /root/1/prop2
+            Assert.IsTrue(nav.MoveToNext());
+            // can't go to /root/1/3
+            Assert.IsFalse(nav.MoveToNext());
+            Assert.IsFalse(nav.MoveToId("3"));
+            //Assert.AreEqual(NavigableNavigator.StatePosition.Element, nav.InternalState.Position);
+            //Assert.AreEqual(3, (nav.UnderlyingObject as TestContent).Id);
         }
 
         [TestCase(true, true)]

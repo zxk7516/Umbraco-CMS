@@ -46,31 +46,43 @@ namespace Umbraco.Core.Xml.XPath
         private readonly INavigableSource _source;
         private readonly int _lastAttributeIndex; // last index of attributes in the fields collection
         private State _state;
+        private readonly int _maxDepth;
 
         #region Constructor
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="NavigableNavigator"/> class with a content source.
-        /// </summary>
-        private NavigableNavigator(INavigableSource source)
-        {
-            _source = source;
-            _lastAttributeIndex = source.LastAttributeIndex;
-        }
+        ///// <summary>
+        ///// Initializes a new instance of the <see cref="NavigableNavigator"/> class with a content source.
+        ///// </summary>
+        ///// <param name="source">The content source.</param>
+        ///// <param name="maxDepth">The maximum depth.</param>
+        //private NavigableNavigator(INavigableSource source, int maxDepth)
+        //{
+        //    _source = source;
+        //    _lastAttributeIndex = source.LastAttributeIndex;
+        //    _maxDepth = maxDepth;
+        //}
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NavigableNavigator"/> class with a content source,
         /// and an optional root content.
         /// </summary>
         /// <param name="source">The content source.</param>
-        /// <param name="content">The root content.</param>
+        /// <param name="rootId">The root content identifier.</param>
+        /// <param name="maxDepth">The maximum depth.</param>
         /// <remarks>When no root content is supplied then the root of the source is used.</remarks>
-        public NavigableNavigator(INavigableSource source, INavigableContent content = null)
-            : this(source)
+        public NavigableNavigator(INavigableSource source, int rootId = 0, int maxDepth = int.MaxValue)
+            //: this(source, maxDepth)
         {
+            _source = source;
+            _lastAttributeIndex = source.LastAttributeIndex;
+            _maxDepth = maxDepth;
+
             _nameTable = new NameTable();
             _lastAttributeIndex = source.LastAttributeIndex;
-            _state = new State(content ?? source.Root, null, null, 0, StatePosition.Root);
+            var content = rootId <= 0 ? source.Root : source.Get(rootId);
+            if (content == null)
+                throw new ArgumentException("Not the identifier of a content within the source.", "rootId");
+            _state = new State(content, null, null, 0, StatePosition.Root);
         }
 
         /// <summary>
@@ -79,9 +91,10 @@ namespace Umbraco.Core.Xml.XPath
         /// <param name="source">The content source.</param>
         /// <param name="nameTable">The name table.</param>
         /// <param name="state">The state.</param>
+        /// <param name="maxDepth">The maximum depth.</param>
         /// <remarks>Privately used for cloning a navigator.</remarks>
-        private NavigableNavigator(INavigableSource source, XmlNameTable nameTable, State state)
-            : this(source)
+        private NavigableNavigator(INavigableSource source, XmlNameTable nameTable, State state, int maxDepth)
+            : this(source, rootId: 0, maxDepth: maxDepth)
         {
             _nameTable = nameTable;
             _state = state;
@@ -169,8 +182,8 @@ namespace Umbraco.Core.Xml.XPath
                         _state.FieldIndex < 0 ? "id" : _state.CurrentFieldType.Name);
                     break;
                 case StatePosition.Element:
-                    position = string.Format("At element '{0}'.",
-                        _state.Content.Type.Name);
+                    position = string.Format("At element '{0}' (depth={1}).",
+                        _state.Content.Type.Name, _state.Depth);
                     break;
                 case StatePosition.PropertyElement:
                     position = string.Format("At property '{0}/{1}'.",
@@ -185,7 +198,8 @@ namespace Umbraco.Core.Xml.XPath
                         _state.Content.Type.Name, _state.CurrentFieldType.Name);
                     break;
                 case StatePosition.Root:
-                    position = "At root.";
+                    position = string.Format("At root (depth={0}).",
+                        _state.Depth);
                     break;
                 default:
                     throw new InvalidOperationException("Invalid position.");
@@ -226,7 +240,7 @@ namespace Umbraco.Core.Xml.XPath
         public override XPathNavigator Clone()
         {
             DebugEnter("Clone");
-            var nav = new NavigableNavigator(_source, _nameTable, _state.Clone());
+            var nav = new NavigableNavigator(_source, _nameTable, _state.Clone(), _maxDepth);
             DebugCreate(nav);
             DebugReturn("[XPathNavigator]");
             return nav;
@@ -237,20 +251,32 @@ namespace Umbraco.Core.Xml.XPath
         /// </summary>
         /// <returns>A new XPathNavigator using the same source and positioned at a new root.</returns>
         /// <remarks>The new root can be above this navigator's root.</remarks>
-        public XPathNavigator CloneWithNewRoot(string id)
+        public XPathNavigator CloneWithNewRoot(string id, int maxDepth = int.MaxValue)
+        {
+            int i;
+            if (int.TryParse(id, out i) == false)
+                throw new ArgumentException("Not a valid identifier.", "id");
+            return CloneWithNewRoot(id);
+        }
+
+        /// <summary>
+        /// Creates a new XPathNavigator using the same source but positioned at a new root.
+        /// </summary>
+        /// <returns>A new XPathNavigator using the same source and positioned at a new root.</returns>
+        /// <remarks>The new root can be above this navigator's root.</remarks>
+        public XPathNavigator CloneWithNewRoot(int id, int maxDepth = int.MaxValue)
         {
             DebugEnter("CloneWithNewRoot");
 
-            int contentId;
             State state = null;
 
-            if (id != null && id.Trim() == "-1")
+            if (id <= 0)
             {
                 state = new State(_source.Root, null, null, 0, StatePosition.Root);
             }
-            else if (int.TryParse(id, out contentId))
+            else
             {
-                var content = _source.Get(contentId);
+                var content = _source.Get(id);
                 if (content != null)
                 {
                     state = new State(content, null, null, 0, StatePosition.Root);
@@ -261,7 +287,7 @@ namespace Umbraco.Core.Xml.XPath
 
             if (state != null)
             {
-                clone = new NavigableNavigator(_source, _nameTable, state);
+                clone = new NavigableNavigator(_source, _nameTable, state, maxDepth);
                 DebugCreate(clone);
                 DebugReturn("[XPathNavigator]");
             }
@@ -286,7 +312,7 @@ namespace Umbraco.Core.Xml.XPath
                 switch (_state.Position)
                 {
                     case StatePosition.Element:
-                        isEmpty = (_state.Content.ChildIds == null || _state.Content.ChildIds.Count == 0) // no content child
+                        isEmpty = (_state.GetContentChildIds(_maxDepth).Count == 0) // no content child
                             && _state.FieldsCount - 1 == _lastAttributeIndex; // no property element child
                         break;
                     case StatePosition.PropertyElement:
@@ -501,9 +527,9 @@ namespace Umbraco.Core.Xml.XPath
 
         private bool MoveToFirstChildElement()
         {
-            var children = _state.Content.ChildIds;
+            var children = _state.GetContentChildIds(_maxDepth);
 
-            if (children != null && children.Count > 0)
+            if (children.Count > 0)
             {
                 // children may contain IDs that does not correspond to some content in source
                 // because children contains all child IDs including unpublished children - and
@@ -596,38 +622,45 @@ namespace Umbraco.Core.Xml.XPath
             // not sure we actually need to implement it... think of it as
             // as exercise of style, always better than throwing NotImplemented.
 
-            int contentId;
-            if (/*id != null &&*/ id.Trim() == "-1") // id cannot be null
-            {
-                _state = new State(_source.Root, null, _source.Root.ChildIds, 0, StatePosition.Element);
-                succ = true;
-            }
-            else if (int.TryParse(id, out contentId))
-            {
-                var content = _source.Get(contentId);
-                if (content != null)
-                {
-                    var state = _state;
-                    while (state.Parent != null)
-                        state = state.Parent;
-                    var navRootId = state.Content.Id; // navigator may be rooted below source root
+            // navigator may be rooted below source root
+            // find the navigator root id
+            var state = _state;
+            while (state.Parent != null) // root state has no parent
+                state = state.Parent;
+            var navRootId = state.Content.Id;
 
-                    var s = new Stack<INavigableContent>();
-                    while (content != null && content.ParentId != navRootId)
-                    {
-                        s.Push(content);
-                        content = _source.Get(content.ParentId);
-                    }
+            int contentId;
+            if (int.TryParse(id, out contentId))
+            {
+                if (contentId == navRootId)
+                {
+                    _state = new State(state.Content, null, null, 0, StatePosition.Element);
+                    succ = true;
+                }
+                else
+                {
+                    var content = _source.Get(contentId);
                     if (content != null)
                     {
-                        _state = new State(_source.Root, null, _source.Root.ChildIds, _source.Root.ChildIds.IndexOf(content.Id), StatePosition.Element);
-                        while (content != null)
+                        // walk up to the navigator's root - or the source's root
+                        var s = new Stack<INavigableContent>();
+                        while (content != null && content.ParentId != navRootId)
                         {
-                            _state = new State(content, _state, content.ChildIds, _state.Content.ChildIds.IndexOf(content.Id), StatePosition.Element);
-                            content = s.Count == 0 ? null : s.Pop();
+                            s.Push(content);
+                            content = _source.Get(content.ParentId);
                         }
-                        DebugState();
-                        succ = true;
+
+                        if (content != null && s.Count < _maxDepth)
+                        {
+                            _state = new State(state.Content, null, null, 0, StatePosition.Element);
+                            while (content != null)
+                            {
+                                _state = new State(content, _state, _state.Content.ChildIds, _state.Content.ChildIds.IndexOf(content.Id), StatePosition.Element);
+                                content = s.Count == 0 ? null : s.Pop();
+                            }
+                            DebugState();
+                            succ = true;
+                        }
                     }
                 }
             }
@@ -1053,6 +1086,7 @@ namespace Umbraco.Core.Xml.XPath
             {
                 Content = content;
                 Parent = parent;
+                Depth = parent == null ? 0 : parent.Depth + 1;
                 Siblings = siblings;
                 SiblingIndex = siblingIndex;
             }
@@ -1067,6 +1101,7 @@ namespace Umbraco.Core.Xml.XPath
                 Siblings = other.Siblings;
                 FieldsCount = other.FieldsCount;
                 FieldIndex = other.FieldIndex;
+                Depth = other.Depth;
 
                 if (Position == StatePosition.PropertyXml)
                     XmlFragmentNavigator = other.XmlFragmentNavigator.Clone();
@@ -1096,6 +1131,9 @@ namespace Umbraco.Core.Xml.XPath
             // the parent state
             public State Parent { get; private set; }
 
+            // the depth
+            public int Depth { get; private set; }
+
             // the current content
             private INavigableContent _content;
 
@@ -1113,11 +1151,19 @@ namespace Umbraco.Core.Xml.XPath
                 }
             }
 
+            private static readonly int[] NoChildIds = new int[0];
+
+            // the current content child ids
+            public IList<int> GetContentChildIds(int maxDepth)
+            {
+                return Depth < maxDepth && _content.ChildIds != null ? _content.ChildIds : NoChildIds;
+            }
+
             // the index of the current content within Siblings
             public int SiblingIndex { get; set; }
 
             // the list of content identifiers for all children of the current content's parent
-            public IList<int> Siblings { get; set; }
+            public IList<int> Siblings { get; private set; }
 
             // the number of fields of the current content
             // properties include attributes and properties

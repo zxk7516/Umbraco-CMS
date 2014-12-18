@@ -514,7 +514,7 @@ namespace Umbraco.Web.Macros
                             var node = descendantIterator.Current.UnderlyingObject as INavigableContent;
                             if (node != null)
                             {
-                                nav = contentNavigator.CloneWithNewRoot(node.Id.ToString(CultureInfo.InvariantCulture));
+                                nav = contentNavigator.CloneWithNewRoot(node.Id);
                                 parameters.Add(new MacroNavigator.MacroParameter(macroPropertyAlias, nav, 0));
                             }
                             else
