@@ -98,9 +98,14 @@ namespace umbraco.presentation.translation
             //var d = new Document(t.Node.Id);
             //var x = d.ToPreviewXml(xd);
 
-            // better
-            var n = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(t.Node.Id, true);
-            var x = xd.ReadNode(n.ReadSubtree());
+            // cannot read the XML from the content cache navigator here, because we do not want
+            // the property value converter to run - we want the raw values, so we have to serialize
+            // the content to XML by ourselves.
+            var svcs = ApplicationContext.Current.Services;
+            var c = svcs.ContentService.GetById(t.Node.Id); // newest ie preview
+            var exs = new EntityXmlSerializer();
+            var xelt = exs.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, c);
+            var x = xelt.GetXmlNode(xd);
 
             var xTask = xd.CreateElement("task");
             xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "Id", t.Id.ToString()));
