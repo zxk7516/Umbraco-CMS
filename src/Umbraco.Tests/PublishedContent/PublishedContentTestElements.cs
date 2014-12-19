@@ -112,6 +112,11 @@ namespace Umbraco.Tests.PublishedContent
             throw new NotImplementedException();
         }
 
+        public override System.Xml.XPath.XPathNavigator CreateNodeNavigator(int id, bool preview)
+        {
+            throw new NotImplementedException();
+        }
+
         public override bool HasContent(bool preview)
         {
             return _content.Count > 0;

@@ -4,6 +4,7 @@ using System.Xml;
 using System.Xml.Linq;
 using umbraco.cms.businesslogic.web;
 using umbraco.cms.presentation.Trees;
+using Umbraco.Web;
 
 namespace umbraco.editorControls.MultiNodeTreePicker
 {
@@ -206,20 +207,13 @@ namespace umbraco.editorControls.MultiNodeTreePicker
             // resolves any Umbraco params in the XPath
             xpath = uQuery.ResolveXPath(xpath);
 
-            var xDoc = new XmlDocument();
-            XmlNode xmlDoc;
-            if (!doc.Published)
-            {
-                xmlDoc = doc.ToPreviewXml(xDoc);
-            }
-            else
-            {
-                xmlDoc = doc.ToXml(xDoc, false);
-            }
+            // get a "single node" navigator - backward compatibility
+            var nav = UmbracoContext.Current.ContentCache.CreateNodeNavigator(doc.Id, doc.Published == false);
 
-            var xmlString = "<root>" + xmlDoc.OuterXml + "</root>";
+            //var xmlString = "<root>" + xmlDoc.OuterXml + "</root>";
+            var xmlString = "<root>" + nav.OuterXml + "</root>";
+
             var xml = XElement.Parse(xmlString);
-
             xNode.DetermineClickable(xpath, xPathType, xml);
 
             //ensure that the NodeKey is passed through

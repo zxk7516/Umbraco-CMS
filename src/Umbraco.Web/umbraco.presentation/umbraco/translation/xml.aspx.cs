@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Configuration;
 using System.Collections;
+using System.IO;
 using System.Web;
 using System.Web.Security;
 using System.Web.UI;
@@ -10,13 +11,17 @@ using System.Web.UI.WebControls.WebParts;
 using System.Web.UI.HtmlControls;
 
 using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Schema;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
 using umbraco.BusinessLogic;
-using umbraco.cms.businesslogic.task;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core.IO;
+using Umbraco.Core.Models;
+using Umbraco.Core.Services;
+using Umbraco.Core.Xml.XPath;
+using Task = umbraco.cms.businesslogic.task.Task;
 
 namespace umbraco.presentation.translation
 {
@@ -90,14 +95,18 @@ namespace umbraco.presentation.translation
 
         private XmlElement CreateTaskNode(Task t, XmlDocument xd)
         {
-            var d = new Document(t.Node.Id);
-            var x = d.ToPreviewXml(xd);//  xd.CreateNode(XmlNodeType.Element, "node", "");
+            //var d = new Document(t.Node.Id);
+            //var x = d.ToPreviewXml(xd);
+
+            // better
+            var n = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(t.Node.Id, true);
+            var x = xd.ReadNode(n.ReadSubtree());
 
             var xTask = xd.CreateElement("task");
             xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "Id", t.Id.ToString()));
             xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "Date", t.Date.ToString("s")));
             xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "NodeId", t.Node.Id.ToString()));
-            xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "TotalWords", cms.businesslogic.translation.Translation.CountWords(d.Id).ToString()));
+            xTask.SetAttributeNode(XmlHelper.AddAttribute(xd, "TotalWords", cms.businesslogic.translation.Translation.CountWords(t.Node.Id).ToString()));
             xTask.AppendChild(XmlHelper.AddCDataNode(xd, "Comment", t.Comment));
             string protocol = GlobalSettings.UseSSL ? "https" : "http";
             xTask.AppendChild(XmlHelper.AddTextNode(xd, "PreviewUrl", protocol + "://" + Request.ServerVariables["SERVER_NAME"] + SystemDirectories.Umbraco + "/translation/preview.aspx?id=" + t.Id.ToString()));

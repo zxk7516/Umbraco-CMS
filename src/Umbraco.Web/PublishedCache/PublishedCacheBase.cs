@@ -71,6 +71,8 @@ namespace Umbraco.Web.PublishedCache
             return CreateNavigator(CurrentPreview);
         }
 
+        public abstract XPathNavigator CreateNodeNavigator(int id, bool preview);
+
         public abstract bool HasContent(bool preview);
 
         public bool HasContent()

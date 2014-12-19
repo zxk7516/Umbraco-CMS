@@ -260,6 +260,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             return navigator;
         }
 
+        public override XPathNavigator CreateNodeNavigator(int id, bool preview)
+        {
+            var source = new Navigable.Source(this, preview);
+            var navigator = new NavigableNavigator(source);
+            return navigator.CloneWithNewRoot(id, 0);
+        }
+
         public override bool HasContent(bool preview)
         {
             return GetAtRoot(preview).Any();

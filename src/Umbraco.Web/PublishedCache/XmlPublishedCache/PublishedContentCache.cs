@@ -6,6 +6,7 @@ using System.Xml;
 using System.Xml.XPath;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
@@ -288,6 +289,39 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             var xml = GetXml(preview);
             return xml.CreateNavigator();
+        }
+
+        public override XPathNavigator CreateNodeNavigator(int id, bool preview)
+        {
+            // hackish - backward compatibility ;-(
+
+            XPathNavigator navigator = null;
+
+            if (preview)
+            {
+                var node = _xmlStore.GetPreviewXmlNode(id);
+                if (node != null)
+                {
+                    navigator = node.CreateNavigator();
+                }
+            }
+            else
+            {
+                var node = GetXml(false).GetElementById(id.ToInvariantString());
+                if (node != null)
+                {
+                    var doc = new XmlDocument();
+                    var clone = doc.ImportNode(node, false);
+                    var xpath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "./data" : "./* [not(@id)]";
+                    var props = node.SelectNodes(xpath);
+                    if (props == null) throw new Exception("oops"); 
+                    foreach (var n in props.Cast<XmlNode>())
+                        clone.AppendChild(doc.ImportNode(n, true));
+                    navigator = node.CreateNavigator();
+                }
+            }
+
+            return navigator;
         }
 
         #endregion

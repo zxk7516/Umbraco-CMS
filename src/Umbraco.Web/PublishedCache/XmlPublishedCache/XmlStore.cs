@@ -316,6 +316,34 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return xml;
         }
 
+        public XmlNode GetPreviewXmlNode(int contentId)
+        {
+            const string sql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsPreviewXml.xml, cmsDocument.published
+FROM umbracoNode 
+JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
+AND (umbracoNode.id=@id)";
+
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+                new
+                {
+                    @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
+                    @id = contentId
+                });
+            var xmlDto = xmlDtos.FirstOrDefault();
+            if (xmlDto == null) return null;
+
+            var doc = new XmlDocument();
+            var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+            if (xml == null || xml.Attributes == null) return null;
+
+            if (xmlDto.Published == false)
+                xml.Attributes.Append(doc.CreateAttribute("isDraft"));
+            return xml;
+        }
+
         public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
             var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
@@ -327,7 +355,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var sql = ReadCmsPreviewXmlSql1;
             if (includeSubs) sql += " OR umbracoNode.path LIKE concat(@path, ',%')";
             sql += ReadCmsPreviewXmlSql2;
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql,
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
@@ -961,9 +989,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         // appends a node (docNode) into a cache (xmlContentCopy)
         // and returns a cache (not necessarily the original one)
-        //
-        // fixme - temp. internal
-        internal static void AppendDocumentXml(XmlDocument xml, int id, int level, int parentId, XmlNode docNode)
+        private static void AppendDocumentXml(XmlDocument xml, int id, int level, int parentId, XmlNode docNode)
         {
             // sanity checks
             if (id != docNode.AttributeValue<int>("id"))

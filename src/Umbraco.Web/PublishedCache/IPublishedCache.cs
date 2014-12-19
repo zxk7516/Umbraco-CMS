@@ -150,6 +150,21 @@ namespace Umbraco.Web.PublishedCache
         XPathNavigator CreateNavigator(bool preview);
 
         /// <summary>
+        /// Creates an XPath navigator that can be used to navigate one node.
+        /// </summary>
+        /// <param name="id">The node identifier.</param>
+        /// <param name="preview">A value indicating whether to consider unpublished content.</param>
+        /// <returns>The XPath navigator.</returns>
+        /// <remarks>
+        /// <para>The value of <paramref name="preview"/> overrides the context.</para>
+        /// <para>The navigator is already a safe clone (no need to clone it again).</para>
+        /// <para>Navigates over the node - and only the node, ie no children. Exists only for backward
+        /// compatibility + transition reasons, we should obsolete that one as soon as possible.</para>
+        /// </remarks>
+        // fixme - what-if the node does not exist?
+        XPathNavigator CreateNodeNavigator(int id, bool preview);
+
+        /// <summary>
         /// Creates an XPath navigator that can be used to navigate contents.
         /// </summary>
         /// <returns>The XPath navigator.</returns>
