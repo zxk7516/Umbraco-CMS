@@ -111,6 +111,13 @@ namespace Umbraco.Core.Services
         IEnumerable<IContent> GetChildren(int id);
 
         /// <summary>
+        /// Gets a collection of published <see cref="IContent"/> objects by Parent Id
+        /// </summary>
+        /// <param name="id">Id of the Parent to retrieve Children from</param>
+        /// <returns>An Enumerable list of published <see cref="IContent"/> objects</returns>
+        IEnumerable<IContent> GetPublishedChildren(int id);
+
+        /// <summary>
         /// Gets a collection of <see cref="IContent"/> objects by Parent Id
         /// </summary>
         /// <param name="id">Id of the Parent to retrieve Children from</param>

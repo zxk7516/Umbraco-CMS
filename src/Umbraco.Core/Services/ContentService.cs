@@ -483,6 +483,22 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
+        /// Gets a collection of published <see cref="IContent"/> objects by Parent Id
+        /// </summary>
+        /// <param name="id">Id of the Parent to retrieve Children from</param>
+        /// <returns>An Enumerable list of published <see cref="IContent"/> objects</returns>
+        public IEnumerable<IContent> GetPublishedChildren(int id)
+        {
+            using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
+            {
+                var query = Query<IContent>.Builder.Where(x => x.ParentId == id && x.Published);
+                var contents = repository.GetByQuery(query).OrderBy(x => x.SortOrder);
+
+                return contents;
+            }
+        }
+
+        /// <summary>
         /// Gets a collection of <see cref="IContent"/> objects by Parent Id
         /// </summary>
         /// <param name="id">Id of the Parent to retrieve Children from</param>
