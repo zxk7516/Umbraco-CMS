@@ -19,7 +19,7 @@ namespace Umbraco.Web.PublishedCache
     /// <summary>
     /// Exposes a member object as IPublishedContent
     /// </summary>
-    public sealed class MemberPublishedContent : PublishedContentBase
+    internal sealed class PublishedMember : PublishedContentBase
     {
 
         private readonly IMember _member;
@@ -27,7 +27,7 @@ namespace Umbraco.Web.PublishedCache
         private readonly IPublishedProperty[] _properties;
         private readonly PublishedContentType _publishedMemberType;
 
-        public MemberPublishedContent(IMember member)
+        public PublishedMember(IMember member)
         {
             if (member == null) throw new ArgumentNullException("member");            
 

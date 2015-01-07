@@ -1,5 +1,6 @@
 using System;
 using System.Xml;
+using Umbraco.Core;
 
 namespace umbraco.cms.businesslogic.packager.standardPackageActions
 {
@@ -57,8 +58,14 @@ namespace umbraco.cms.businesslogic.packager.standardPackageActions
 				{
 					if (rootDoc.Text == documentName)
 					{
-						rootDoc.Move(parentDocid);
-						rootDoc.PublishWithSubs(new umbraco.BusinessLogic.User(0));
+                        // move that document under parentDocid...
+					    var svc = ApplicationContext.Current.Services.ContentService;
+					    var content = svc.GetById(rootDoc.Id);
+                        if (content != null)
+                            svc.Move(content, parentDocid);
+
+                        //rootDoc.Move(parentDocid);
+                        //rootDoc.PublishWithSubs(new umbraco.BusinessLogic.User(0));
 					}
 				}
 			}

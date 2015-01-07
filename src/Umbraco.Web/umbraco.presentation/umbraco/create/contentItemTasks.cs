@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.Web.Security;
+using Umbraco.Core;
 using Umbraco.Web.UI;
 using umbraco.BusinessLogic;
 using umbraco.DataLayer;
@@ -15,7 +16,7 @@ namespace umbraco
     // and I've never even heard of this functionality and think it was an idea that never got completed.
     // I'm nearly positive this is not used and should be un-referenced.
     [Obsolete("This class is no longer used and will be removed from the codebase in future versions")]
-    public class contentItemTasks : LegacyDialogTask
+    public class contentItemTasks : LegacyDialogTask //
     {
         
         public override bool PerformSave()
@@ -26,12 +27,19 @@ namespace umbraco
 
         public override bool PerformDelete()
         {
+            // a "content item" is... not even something we support
+            // and we want to kill Content.Move(...)
+            // so - not supporting anymore (but really we should remove the entire class)
+            throw new NotSupportedException();
+
+            /*
             var d = new cms.businesslogic.contentitem.ContentItem(ParentID);
 
             // Version3.0 - moving to recycle bin instead of deletion
             //d.delete();
             d.Move(-20);
             return true;
+            */
         }
 
         public override string ReturnUrl

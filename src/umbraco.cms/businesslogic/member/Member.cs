@@ -630,30 +630,6 @@ namespace umbraco.cms.businesslogic.member
         }
 
         /// <summary>
-        /// Xmlrepresentation of a member
-        /// </summary>
-        /// <param name="xd">The xmldocument context</param>
-        /// <param name="Deep">Recursive - should always be set to false</param>
-        /// <returns>A the xmlrepresentation of the current member</returns>
-        public override XmlNode ToXml(XmlDocument xd, bool Deep)
-        {
-            var x = base.ToXml(xd, Deep);
-            if (x.Attributes != null && x.Attributes["loginName"] == null)
-            {
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "loginName", LoginName));                
-            }
-            if (x.Attributes != null && x.Attributes["email"] == null)
-            {
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "email", Email));    
-            }
-            if (x.Attributes != null && x.Attributes["key"] == null)
-            {
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "key", UniqueId.ToString()));   
-            }                       
-            return x;
-        }
-
-        /// <summary>
         /// Deltes the current member
         /// </summary>
         [Obsolete("Obsolete, Use Umbraco.Core.Services.MemberService.Delete()", false)]
@@ -745,18 +721,6 @@ namespace umbraco.cms.businesslogic.member
                 FireAfterRemoveGroup(e);
             }
         }
-        #endregion
-
-        #region Protected methods
-        protected override XmlNode generateXmlWithoutSaving(XmlDocument xd)
-        {
-            XmlNode node = xd.CreateNode(XmlNodeType.Element, "node", "");
-            XmlPopulate(xd, ref node, false);
-            node.Attributes.Append(xmlHelper.addAttribute(xd, "loginName", LoginName));
-            node.Attributes.Append(xmlHelper.addAttribute(xd, "email", Email));
-            return node;
-        }
-
         #endregion
 
         #region Private methods

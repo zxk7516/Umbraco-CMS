@@ -131,15 +131,6 @@ namespace umbraco.cms.businesslogic.web
 
         #region Constants and Static members
         
-        private const string SqlOptimizedForPreview = @"
-                select umbracoNode.id, umbracoNode.parentId, umbracoNode.level, umbracoNode.sortOrder, cmsDocument.versionId, cmsPreviewXml.xml, cmsDocument.published
-                from cmsDocument
-                inner join umbracoNode on umbracoNode.id = cmsDocument.nodeId
-                inner join cmsPreviewXml on cmsPreviewXml.nodeId = cmsDocument.nodeId and cmsPreviewXml.versionId = cmsDocument.versionId
-                where newest = 1 and trashed = 0 and path like '{0}'
-                order by level,sortOrder
- ";
-
         public static Guid _objectType = new Guid(Constants.ObjectTypes.Document);
 
         #endregion
@@ -151,7 +142,6 @@ namespace umbraco.cms.businesslogic.web
         private DateTime _expire;
         private int _template;
         private bool _published;
-        private XmlNode _xml;
         private User _creator;
         private User _writer;
         private int? _writerId;
@@ -1070,28 +1060,6 @@ namespace umbraco.cms.businesslogic.web
         }
 
         /// <summary>
-        /// Overrides the moving of a <see cref="Document"/> object to a new location by changing its parent id.
-        /// </summary>
-        public override void Move(int newParentId)
-        {
-            MoveEventArgs e = new MoveEventArgs();
-            base.FireBeforeMove(e);
-
-            if (!e.Cancel)
-            {
-                var current = User.GetCurrent();
-                int userId = current == null ? 0 : current.Id;
-                ApplicationContext.Current.Services.ContentService.Move(Content, newParentId, userId);
-
-                //We need to manually update this property as the above change is not directly reflected in 
-                //the current object unless its reloaded.
-                base.ParentId = newParentId;
-            }
-
-            base.FireAfterMove(e);
-        }
-
-        /// <summary>
         /// Creates a new document of the same type and copies all data from the current onto it. Due to backwards compatibility we can't return
         /// the new Document, but it's included in the CopyEventArgs.Document if you subscribe to the AfterCopy event
         /// </summary>
@@ -1172,121 +1140,6 @@ namespace umbraco.cms.businesslogic.web
                                   : ApplicationContext.Current.Services.ContentService.GetDescendants(Content);
 
             return descendants.Select(x => new Document(x.Id, true));
-        }
-
-        /// <summary>
-        /// Creates an xmlrepresentation of the document and saves it to the database
-        /// </summary>
-        /// <param name="xd"></param>
-        public override void XmlGenerate(XmlDocument xd)
-        {
-            XmlNode x = generateXmlWithoutSaving(xd);
-            // Save to db
-            saveXml(x);
-        }
-
-        /// <summary>
-        /// A xmlrepresentaion of the document, used when publishing/exporting the document, 
-        /// 
-        /// Optional: Recursive get childdocuments xmlrepresentation
-        /// </summary>
-        /// <param name="xd">The xmldocument</param>
-        /// <param name="Deep">Recursive add of childdocuments</param>
-        /// <returns></returns>
-        public override XmlNode ToXml(XmlDocument xd, bool Deep)
-        {
-            if (Published)
-            {
-                if (_xml == null)
-                {
-                    // Load xml from db if _xml hasn't been loaded yet
-                    _xml = importXml();
-
-                    // Generate xml if xml still null (then it hasn't been initialized before)
-                    if (_xml == null)
-                    {
-                        XmlGenerate(new XmlDocument());
-                        _xml = importXml();
-                    }
-                }
-
-                XmlNode x = xd.ImportNode(_xml, true);
-
-                if (Deep)
-                {
-                    var c = Children;
-                    foreach (Document d in c)
-                    {
-                        if (d.Published)
-                            x.AppendChild(d.ToXml(xd, true));
-                    }
-                }
-
-                return x;
-            }
-            else
-                return null;
-        }
-
-        /// <summary>
-        /// Populate a documents xmlnode
-        /// </summary>
-        /// <param name="xd">Xmldocument context</param>
-        /// <param name="x">The node to fill with data</param>
-        /// <param name="Deep">If true the documents childrens xmlrepresentation will be appended to the Xmlnode recursive</param>
-        protected override void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
-        {
-            string urlName = this.Content.GetUrlSegment().ToLower();
-            foreach (Property p in GenericProperties.Where(p => p != null && p.Value != null && string.IsNullOrEmpty(p.Value.ToString()) == false))
-                x.AppendChild(p.ToXml(xd));
-
-            // attributes
-            x.Attributes.Append(addAttribute(xd, "id", Id.ToString()));
-            //            x.Attributes.Append(addAttribute(xd, "version", Version.ToString()));
-            if (Level > 1)
-                x.Attributes.Append(addAttribute(xd, "parentID", Parent.Id.ToString()));
-            else
-                x.Attributes.Append(addAttribute(xd, "parentID", "-1"));
-            x.Attributes.Append(addAttribute(xd, "level", Level.ToString()));
-            x.Attributes.Append(addAttribute(xd, "writerID", Writer.Id.ToString()));
-            x.Attributes.Append(addAttribute(xd, "creatorID", Creator.Id.ToString()));
-            if (ContentType != null)
-                x.Attributes.Append(addAttribute(xd, "nodeType", ContentType.Id.ToString()));
-            x.Attributes.Append(addAttribute(xd, "template", _template.ToString()));
-            x.Attributes.Append(addAttribute(xd, "sortOrder", sortOrder.ToString()));
-            x.Attributes.Append(addAttribute(xd, "createDate", CreateDateTime.ToString("s")));
-            x.Attributes.Append(addAttribute(xd, "updateDate", VersionDate.ToString("s")));
-            x.Attributes.Append(addAttribute(xd, "nodeName", Text));
-            x.Attributes.Append(addAttribute(xd, "urlName", urlName));
-            x.Attributes.Append(addAttribute(xd, "writerName", Writer.Name));
-            x.Attributes.Append(addAttribute(xd, "creatorName", Creator.Name.ToString()));
-            if (ContentType != null && UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-                x.Attributes.Append(addAttribute(xd, "nodeTypeAlias", ContentType.Alias));
-            x.Attributes.Append(addAttribute(xd, "path", Path));
-
-            if (!UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-            {
-                x.Attributes.Append(addAttribute(xd, "isDoc", ""));
-            }
-
-            if (Deep)
-            {
-                //store children array here because iterating over an Array object is very inneficient.
-                var c = Children;
-                foreach (Document d in c)
-                {
-                    XmlNode xml = d.ToXml(xd, true);
-                    if (xml != null)
-                    {
-                        x.AppendChild(xml);
-                    }
-                    else
-                    {
-                        LogHelper.Debug<Document>(string.Format("Document {0} not published so XML cannot be generated", d.Id));
-                    }
-                }
-
-            }
         }
 
         /// <summary>
@@ -1422,39 +1275,6 @@ namespace umbraco.cms.businesslogic.web
             ContentType = new ContentType(contentTypeId, contentTypeAlias, icon, contentTypeThumb, null, isContainer);
             ContentTypeIcon = icon;
             VersionDate = versionDate;
-        }
-
-        private XmlAttribute addAttribute(XmlDocument Xd, string Name, string Value)
-        {
-            XmlAttribute temp = Xd.CreateAttribute(Name);
-            temp.Value = Value;
-            return temp;
-        }
-
-        /// <summary>
-        /// This needs to be synchronized since we're doing multiple sql operations in the single method
-        /// </summary>
-        /// <param name="x"></param>
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        private void saveXml(XmlNode x)
-        {
-            bool exists = (SqlHelper.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId=@nodeId",
-                                            SqlHelper.CreateParameter("@nodeId", Id)) != 0);
-            string sql = exists ? "UPDATE cmsContentXml SET xml = @xml WHERE nodeId=@nodeId"
-                                : "INSERT INTO cmsContentXml(nodeId, xml) VALUES (@nodeId, @xml)";
-            SqlHelper.ExecuteNonQuery(sql,
-                                      SqlHelper.CreateParameter("@nodeId", Id),
-                                      SqlHelper.CreateParameter("@xml", x.OuterXml));
-        }
-
-        private XmlNode importXml()
-        {
-            XmlDocument xmlDoc = new XmlDocument();
-            XmlReader xmlRdr = SqlHelper.ExecuteXmlReader(string.Format(
-                                                       "select xml from cmsContentXml where nodeID = {0}", Id));
-            xmlDoc.Load(xmlRdr);
-
-            return xmlDoc.FirstChild;
         }
 
         /// <summary>

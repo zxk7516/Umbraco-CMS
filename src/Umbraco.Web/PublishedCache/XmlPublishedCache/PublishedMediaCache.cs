@@ -30,12 +30,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	/// </remarks>
     internal class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
 	{
-	    public PublishedMediaCache(ApplicationContext applicationContext, ICacheProvider cacheProvider)
+	    public PublishedMediaCache(XmlStore xmlStore, ApplicationContext applicationContext, ICacheProvider cacheProvider)
 	        : base(false)
 		{			
             if (applicationContext == null) throw new ArgumentNullException("applicationContext");
             _applicationContext = applicationContext;
 	        _cacheProvider = cacheProvider;
+	        _xmlStore = xmlStore;
 		}
 
 	    /// <summary>
@@ -66,6 +67,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         //
 	    private readonly BaseSearchProvider _searchProvider;
         private readonly BaseIndexProvider _indexProvider;
+        private readonly XmlStore _xmlStore;
 
         // must be specified by the ctor
 	    private readonly ICacheProvider _cacheProvider;
@@ -115,7 +117,19 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public override XPathNavigator CreateNodeNavigator(int id, bool preview)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            // preview is ignored for media cache
+
+            // this code is mostly used when replacing old media.ToXml() code, and that code
+            // stored the XML attached to the media itself - so for some time in memory - so
+            // unless we implement some sort of cache here, we're probably degrading perfs.
+
+            XPathNavigator navigator = null;
+            var node = _xmlStore.GetMediaXmlNode(id);
+            if (node != null)
+            {
+                navigator = node.CreateNavigator();
+            }
+            return navigator;
         }
 
         public override bool HasContent(bool preview) { throw new NotImplementedException(); }

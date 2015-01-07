@@ -233,33 +233,6 @@ namespace umbraco.cms.businesslogic.media
 
         #region Public methods
 
-        public override XmlNode ToXml(XmlDocument xd, bool Deep)
-        {
-            if (IsTrashed == false)
-            {
-                return base.ToXml(xd, Deep);   
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Overrides the moving of a <see cref="Media"/> object to a new location by changing its parent id.
-        /// </summary>
-        public override void Move(int newParentId)
-        {
-            MoveEventArgs e = new MoveEventArgs();
-            base.FireBeforeMove(e);
-
-            if (!e.Cancel)
-            {
-                var current = User.GetCurrent();
-                int userId = current == null ? 0 : current.Id;
-                ApplicationContext.Current.Services.MediaService.Move(MediaItem, newParentId, userId);
-            }
-
-            base.FireAfterMove(e);
-        }
-
         /// <summary>
         /// Used to persist object changes to the database. In Version3.0 it's just a stub for future compatibility
         /// </summary>

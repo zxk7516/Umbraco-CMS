@@ -25,6 +25,11 @@ namespace Umbraco.Tests.PublishedContent
             get { return null; }
         }
 
+        public IPublishedMemberCache MemberCache
+        {
+            get { return null; }
+        }
+
         public void Resync()
         { }
     }

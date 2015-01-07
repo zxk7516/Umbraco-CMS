@@ -599,10 +599,9 @@ namespace umbraco
             Member m = Member.GetCurrentMember();
             if (m != null)
             {
-                XmlDocument mXml = new XmlDocument();
-                mXml.LoadXml(m.ToXml(mXml, false).OuterXml);
-                XPathNavigator xp = mXml.CreateNavigator();
-                return xp.Select("/node");
+                var n = global::Umbraco.Web.UmbracoContext.Current.PublishedCaches.MemberCache.CreateNodeNavigator(m.Id, false);
+                if (n != null)
+                    return n.Select(".");
             }
 
             XmlDocument xd = new XmlDocument();
@@ -1837,9 +1836,9 @@ namespace umbraco
 
                 // Append the node that isn't the one we're getting the related nodes from
                 if (NodeId == r.Child.Id)
-                    n.AppendChild(r.Parent.ToXml(xd, false));
+                    n.AppendChild(r.Parent.ToXml(xd, false)); // CMSNode.ToXml
                 else
-                    n.AppendChild(r.Child.ToXml(xd, false));
+                    n.AppendChild(r.Child.ToXml(xd, false)); // CMSNode.ToXml
                 xd.DocumentElement.AppendChild(n);
             }
             XPathNavigator xp = xd.CreateNavigator();

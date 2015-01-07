@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Web;
+using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Examine;
@@ -61,7 +62,7 @@ namespace Umbraco.Tests.PublishedContent
         /// <returns></returns>
         internal static IPublishedContent GetNode(int id, UmbracoContext umbracoContext)
         {
-            var cache = new PublishedMediaCache(umbracoContext.Application, new StaticCacheProvider());
+            var cache = new PublishedMediaCache(new XmlStore((XmlDocument)null), umbracoContext.Application, new StaticCacheProvider());
             var doc = cache.GetById(id);
             Assert.IsNotNull(doc);
             return doc;
@@ -442,7 +443,7 @@ namespace Umbraco.Tests.PublishedContent
 			</node>");
             var node = xml.DescendantsAndSelf("node").Single(x => (int) x.Attribute("id") == nodeId);
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
+            var publishedMedia = new PublishedMediaCache(new XmlStore((XmlDocument)null), ApplicationContext, new StaticCacheProvider());
 
             var nav = node.CreateNavigator();
 
@@ -483,7 +484,7 @@ namespace Umbraco.Tests.PublishedContent
 			</Image>");
             var node = xml.DescendantsAndSelf("Image").Single(x => (int)x.Attribute("id") == nodeId);
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
+            var publishedMedia = new PublishedMediaCache(new XmlStore((XmlDocument)null), ApplicationContext, new StaticCacheProvider());
 
             var nav = node.CreateNavigator();
 
@@ -502,7 +503,7 @@ namespace Umbraco.Tests.PublishedContent
             var errorXml = new XElement("error", string.Format("No media is maching '{0}'", 1234));
             var nav = errorXml.CreateNavigator();
 
-            var publishedMedia = new PublishedMediaCache(ApplicationContext, new StaticCacheProvider());
+            var publishedMedia = new PublishedMediaCache(new XmlStore((XmlDocument)null), ApplicationContext, new StaticCacheProvider());
             var converted = publishedMedia.ConvertFromXPathNodeIterator(nav.Select("/"), 1234);
 
             Assert.IsNull(converted);

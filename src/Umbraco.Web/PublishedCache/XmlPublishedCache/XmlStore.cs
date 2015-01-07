@@ -316,6 +316,56 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return xml;
         }
 
+        public XmlNode GetMediaXmlNode(int mediaId)
+        {
+            // there's only one version for medias
+
+            const string sql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsContentXml.xml, 1 AS published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType
+AND (umbracoNode.id=@id)";
+
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+                new
+                {
+                    @nodeObjectType = new Guid(Constants.ObjectTypes.Media),
+                    @id = mediaId
+                });
+            var xmlDto = xmlDtos.FirstOrDefault();
+            if (xmlDto == null) return null;
+
+            var doc = new XmlDocument();
+            var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+            return xml;
+        }
+
+        public XmlNode GetMemberXmlNode(int memberId)
+        {
+            // there's only one version for members
+
+            const string sql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsContentXml.xml, 1 AS published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType
+AND (umbracoNode.id=@id)";
+
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+                new
+                {
+                    @nodeObjectType = new Guid(Constants.ObjectTypes.Member),
+                    @id = memberId
+                });
+            var xmlDto = xmlDtos.FirstOrDefault();
+            if (xmlDto == null) return null;
+
+            var doc = new XmlDocument();
+            var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+            return xml;
+        }
+
         public XmlNode GetPreviewXmlNode(int contentId)
         {
             const string sql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,

@@ -38,7 +38,7 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BasePages.BasePage.ValidateUserContextID(ContextID))
             {
-                return new cms.businesslogic.CMSNode(NodeId).ToXml(xd, false);
+                return new cms.businesslogic.CMSNode(NodeId).ToXml(xd, false); // CMSNode.ToXml
             }
             else
                 return null;
@@ -50,7 +50,7 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BusinessLogic.User.validateCredentials(Login, Password))
             {
-                return new cms.businesslogic.CMSNode(NodeId).ToXml(xd, false);
+                return new cms.businesslogic.CMSNode(NodeId).ToXml(xd, false); // CMSNode.ToXml
             }
             else
                 return null;
@@ -62,7 +62,10 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BasePages.BasePage.ValidateUserContextID(ContextID))
             {
-                return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+                //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
+                var node = xd.ReadNode(nav.ReadSubtree());
+                return node;
             }
             else
                 return null;
@@ -74,7 +77,10 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BasePages.BasePage.ValidateUserContextID(ContextID))
             {
-                return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+                //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+                var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
+                var node = xd.ReadNode(nav.ReadSubtree());
+                return node;
             }
             else
                 return null;
@@ -86,7 +92,10 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BusinessLogic.User.validateCredentials(Login, Password))
             {
-                return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+                //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+                var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
+                var node = xd.ReadNode(nav.ReadSubtree());
+                return node;
             }
             else
                 return null;
@@ -99,7 +108,10 @@ namespace umbraco
             XmlDocument xd = new XmlDocument();
             if (BusinessLogic.User.validateCredentials(Login, Password))
             {
-                return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+                //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
+                var node = xd.ReadNode(nav.ReadSubtree());
+                return node;
             }
             else
                 return null;

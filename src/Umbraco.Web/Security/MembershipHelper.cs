@@ -223,66 +223,22 @@ namespace Umbraco.Web.Security
 
         public IPublishedContent GetByProviderKey(object key)
         {
-            return _applicationContext.ApplicationCache.RequestCache.GetCacheItem<IPublishedContent>(
-                GetCacheKey("GetByProviderKey", key), () =>
-                {
-                    var provider = MPE.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
-                    var result = _applicationContext.Services.MemberService.GetByProviderKey(key);
-                    return result == null ? null : new MemberPublishedContent(result).CreateModel();
-                });
+            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByProviderKey(key);
         }
 
         public IPublishedContent GetById(int memberId)
         {
-            return _applicationContext.ApplicationCache.RequestCache.GetCacheItem<IPublishedContent>(
-                GetCacheKey("GetById", memberId), () =>
-                {
-                    var provider = MPE.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
-                    var result = _applicationContext.Services.MemberService.GetById(memberId);
-                    return result == null ? null : new MemberPublishedContent(result).CreateModel();
-                });
+            return UmbracoContext.Current.PublishedCaches.MemberCache.GetById(memberId);
         }
 
         public IPublishedContent GetByUsername(string username)
         {
-            return _applicationContext.ApplicationCache.RequestCache.GetCacheItem<IPublishedContent>(
-                GetCacheKey("GetByUsername", username), () =>
-                {
-                    var provider = MPE.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
-                    var result = _applicationContext.Services.MemberService.GetByUsername(username);
-                    return result == null ? null : new MemberPublishedContent(result).CreateModel();
-                });
+            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByUsername(username);
         }
 
         public IPublishedContent GetByEmail(string email)
         {
-            return _applicationContext.ApplicationCache.RequestCache.GetCacheItem<IPublishedContent>(
-                GetCacheKey("GetByEmail", email), () =>
-                {
-                    var provider = MPE.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
-                    var result = _applicationContext.Services.MemberService.GetByEmail(email);
-                    return result == null ? null : new MemberPublishedContent(result).CreateModel();
-                });
+            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByEmail(email);
         }
 
         /// <summary>
@@ -296,7 +252,7 @@ namespace Umbraco.Web.Security
                 return null;
             }
             var result = GetCurrentPersistedMember();
-            return result == null ? null : new MemberPublishedContent(result).CreateModel();
+            return result == null ? null : UmbracoContext.Current.PublishedCaches.MemberCache.GetByMember(result);
         }
 
         /// <summary>

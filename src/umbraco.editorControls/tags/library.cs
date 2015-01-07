@@ -31,13 +31,13 @@ namespace umbraco.editorControls.tags
         ///</returns>
         public static XPathNodeIterator getEverythingWithTags(string tags)
         {
-            var nodes = umbraco.cms.businesslogic.Tags.Tag.GetNodesWithTags(tags);
+            var nodes = umbraco.cms.businesslogic.Tags.Tag.GetNodesWithTags(tags); // return CMSNodes
 
             XmlDocument xmlDoc = new XmlDocument();
             XmlNode root = xmlDoc.CreateElement("root");
             foreach (var n in nodes)
             {
-                root.AppendChild(n.ToXml(xmlDoc, true));
+                root.AppendChild(n.ToXml(xmlDoc, true)); // CMSNode.ToXml
             }
 
             xmlDoc.AppendChild(root);
@@ -94,8 +94,9 @@ namespace umbraco.editorControls.tags
             // getMediaWithTags
             // getMembersWithTags
             //they just return CMSNodes!
+            //edit (zpqrtbnk): and anyways we don't have .ToXml for Media/Member anymore - just CMSNodes
 
-            var nodes = umbraco.cms.businesslogic.Tags.Tag.GetNodesWithTags(tags);
+            var nodes = umbraco.cms.businesslogic.Tags.Tag.GetNodesWithTags(tags); // returns CMSNodes
 
             XmlDocument xmlDoc = new XmlDocument();
             XmlNode root = xmlDoc.CreateElement("root");
@@ -128,6 +129,7 @@ namespace umbraco.editorControls.tags
             // getMediaWithTags
             // getMembersWithTags
             //they just return CMSNodes!
+            //edit (zpqrtbnk): and anyways we don't have .ToXml for Media/Member anymore - just CMSNodes
 
             var nodes = umbraco.cms.businesslogic.Tags.Tag.GetNodesWithTags(tags);
 

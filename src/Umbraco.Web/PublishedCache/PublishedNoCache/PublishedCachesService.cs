@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using Umbraco.Core;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.ObjectResolution;
@@ -26,7 +25,8 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             var preview = previewToken.IsNullOrWhiteSpace() == false;
             var contentCache = new PublishedContentCache(previewToken, _services.ContentService);
             var mediaCache = new PublishedMediaCache(preview, _services.MediaService);
-            return new PublishedCaches(contentCache, mediaCache);
+            var memberCache = new PublishedMemberCache(_services.DataTypeService, _services.MemberService);
+            return new PublishedCaches(contentCache, mediaCache, memberCache);
         }
 
         public override string EnterPreview(IUser user, int contentId)

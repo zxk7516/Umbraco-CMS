@@ -64,7 +64,7 @@ namespace Umbraco.Tests.Membership
             member.LastPasswordChangeDate = date.AddMinutes(4);
             member.PasswordQuestion = "test question";
 
-            var mpc = new MemberPublishedContent(member);                
+            var mpc = new PublishedMember(member);                
 
             var d = mpc.AsDynamic();
 
@@ -101,7 +101,7 @@ namespace Umbraco.Tests.Membership
             member.LastPasswordChangeDate = date.AddMinutes(4);
             member.PasswordQuestion = "test question";
 
-            var mpc = new MemberPublishedContent(member);
+            var mpc = new PublishedMember(member);
 
             var d = mpc.AsDynamic();
 
@@ -141,7 +141,7 @@ namespace Umbraco.Tests.Membership
             member.Properties["title"].Value = "Test Value 1";
             member.Properties["bodyText"].Value = "Test Value 2";
             member.Properties["author"].Value = "Test Value 3";
-            var mpc = new MemberPublishedContent(member);
+            var mpc = new PublishedMember(member);
 
             var d = mpc.AsDynamic();
 

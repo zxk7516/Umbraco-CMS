@@ -268,6 +268,9 @@
     </Compile>
     <Compile Include="ApplicationContextExtensions.cs" />
     <Compile Include="AreaRegistrationContextExtensions.cs" />
+    <Compile Include="PublishedCache\IPublishedMemberCache.cs" />
+    <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedMemberCache.cs" />
     <Compile Include="Scheduling\BackgroundTaskRunner.cs" />
     <Compile Include="BatchedServerMessenger.cs" />
     <Compile Include="CacheHelperExtensions.cs" />
@@ -387,7 +390,7 @@
     <Compile Include="PropertyEditors\ValueConverters\MacroContainerValueConverter.cs" />
     <Compile Include="PropertyEditors\TagsDataController.cs" />
     <Compile Include="PublishedCache\IPublishedCachesService.cs" />
-    <Compile Include="PublishedCache\MemberPublishedContent.cs" />
+    <Compile Include="PublishedCache\PublishedMember.cs" />
     <Compile Include="PublishedCache\PublishedCacheBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceBase.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceResolver.cs" />

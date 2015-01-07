@@ -25,7 +25,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             return new PublishedCaches(
                 new PublishedContentCache(_xmlStore, cache, _routesCache, previewToken),
-                new PublishedMediaCache(ApplicationContext.Current, cache));
+                new PublishedMediaCache(_xmlStore, ApplicationContext.Current, cache),
+                new PublishedMemberCache(_xmlStore, cache, ApplicationContext.Current.Services.MemberService));
         }
 
         /// <summary>

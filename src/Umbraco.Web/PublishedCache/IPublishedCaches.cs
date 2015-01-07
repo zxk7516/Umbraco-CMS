@@ -22,6 +22,11 @@ namespace Umbraco.Web.PublishedCache
         IPublishedMediaCache MediaCache { get; }
 
         /// <summary>
+        /// Gets the <see cref="IPublishedMemberCache"/>.
+        /// </summary>
+        IPublishedMemberCache MemberCache { get; }
+
+        /// <summary>
         /// Resynchronizes caches with their corresponding repositories.
         /// </summary>
         /// <remarks>

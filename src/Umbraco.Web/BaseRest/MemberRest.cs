@@ -65,17 +65,12 @@ namespace Umbraco.Web.BaseRest
 		public static XPathNodeIterator GetCurrentMemberAsXml()
 		{
 			var m = GetCurrentMember();
-			if (m != null)
-			{
-				XmlDocument doc = new XmlDocument();
-				doc.LoadXml(m.ToXml(doc, false).OuterXml);
-				XPathNavigator nav = doc.CreateNavigator();
-				return nav.Select("/node");
-			}
-			else
-			{
-				return null;
-			}
+		    if (m == null) return null;
+
+            var n = UmbracoContext.Current.PublishedCaches.MemberCache.CreateNodeNavigator(m.Id, false);
+		    if (n == null) return null;
+
+			return n.Select(".");
 		}
 
 		public static string SetProperty(string alias, object value)

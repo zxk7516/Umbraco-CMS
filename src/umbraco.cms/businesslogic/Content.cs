@@ -36,7 +36,6 @@ namespace umbraco.cms.businesslogic
 
         private Guid _version;
         private DateTime _versionDate;
-        private XmlNode _xml;
         private bool _versionDateInitialized;
         private string _contentTypeIcon;
         private ContentType _contentType;
@@ -324,113 +323,6 @@ namespace umbraco.cms.businesslogic
         }
 
         /// <summary>
-        /// An Xmlrepresentation of a Content object.
-        /// </summary>
-        /// <param name="xd">Xmldocument context</param>
-        /// <param name="Deep">If true, the Contents children are appended to the Xmlnode recursive</param>
-        /// <returns>The Xmlrepresentation of the data on the Content object</returns>
-        public override XmlNode ToXml(XmlDocument xd, bool Deep)
-        {
-            if (_xml == null)
-            {
-                XmlDocument xmlDoc = new XmlDocument();
-                // we add a try/catch clause here, as the xmlreader will throw an exception if there's no xml in the table
-                // after the empty catch we'll generate the xml which is why we don't do anything in the catch part
-                try
-                {
-                    XmlReader xr = SqlHelper.ExecuteXmlReader("select xml from cmsContentXml where nodeID = " + this.Id.ToString());
-                    if (xr.MoveToContent() != System.Xml.XmlNodeType.None)
-                    {
-                        xmlDoc.Load(xr);
-                        _xml = xmlDoc.FirstChild;
-                    }
-                    xr.Close();
-                }
-                catch
-                {
-                }
-
-
-                // Generate xml if xml still null (then it hasn't been initialized before)
-                if (_xml == null)
-                {
-                    this.XmlGenerate(new XmlDocument());
-                    _xml = importXml();
-                }
-
-            }
-
-            XmlNode x = xd.ImportNode(_xml, true);
-
-            if (Deep)
-            {
-                var childs = this.Children;
-                foreach (BusinessLogic.console.IconI c in childs)
-                {
-                    try
-                    {
-                        x.AppendChild(new Content(c.Id).ToXml(xd, true));
-                    }
-                    catch (Exception mExp)
-                    {
-                        System.Web.HttpContext.Current.Trace.Warn("Content", "Error adding node to xml: " + mExp.ToString());
-                    }
-                }
-            }
-
-            return x;
-
-        }
-
-        /// <summary>
-        /// Generates the Content XmlNode
-        /// </summary>
-        /// <param name="xd"></param>
-        public virtual void XmlGenerate(XmlDocument xd)
-        {
-            SaveXmlDocument(generateXmlWithoutSaving(xd));
-        }
-
-        protected virtual void XmlPopulate(XmlDocument xd, ref XmlNode x, bool Deep)
-        {
-            var props = this.GenericProperties;
-            foreach (property.Property p in props)
-                if (p != null && p.Value != null && string.IsNullOrEmpty(p.Value.ToString()) == false)
-                    x.AppendChild(p.ToXml(xd));
-
-            // attributes
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "id", this.Id.ToString()));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "version", this.Version.ToString()));
-            if (this.Level > 1)
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "parentID", this.Parent.Id.ToString()));
-            else
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "parentID", "-1"));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "level", this.Level.ToString()));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "writerID", this.User.Id.ToString()));
-            if (this.ContentType != null)
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "nodeType", this.ContentType.Id.ToString()));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "template", "0"));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "sortOrder", this.sortOrder.ToString()));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "createDate", this.CreateDateTime.ToString("s")));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "updateDate", this.VersionDate.ToString("s")));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "nodeName", this.Text));
-            if (this.Text != null)
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "urlName", this.Text.Replace(" ", "").ToLower()));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "writerName", this.User.Name));
-            if (this.ContentType != null)
-                x.Attributes.Append(XmlHelper.AddAttribute(xd, "nodeTypeAlias", this.ContentType.Alias));
-            x.Attributes.Append(XmlHelper.AddAttribute(xd, "path", this.Path));
-
-            if (Deep)
-            {
-                //store children array here because iterating over an Array property object is very inneficient.
-                var children = this.Children;
-                foreach (Content c in children)
-                    x.AppendChild(c.ToXml(xd, true));
-            }
-        }
-
-        /// <summary>
         /// Deletes the current Content object, must be overridden in the child class.
         /// </summary>
         public override void delete()
@@ -542,34 +434,6 @@ namespace umbraco.cms.businesslogic
             }
             this.Version = newVersion;
             return newVersion;
-        }
-
-        protected virtual XmlNode generateXmlWithoutSaving(XmlDocument xd)
-        {
-            string nodeName = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "node" : Casing.SafeAliasWithForcingCheck(ContentType.Alias);
-            XmlNode x = xd.CreateNode(XmlNodeType.Element, nodeName, "");
-            XmlPopulate(xd, ref x, false);
-            return x;
-        }
-
-        /// <summary>
-        /// Saves the XML document to the data source.
-        /// </summary>
-        /// <param name="node">The XML Document.</param>
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        protected virtual void SaveXmlDocument(XmlNode node)
-        {
-            // Method is synchronized so exists remains consistent (avoiding race condition)
-            bool exists = SqlHelper.ExecuteScalar<int>("SELECT COUNT(nodeId) FROM cmsContentXml WHERE nodeId = @nodeId",
-                                           SqlHelper.CreateParameter("@nodeId", Id)) > 0;
-            string query;
-            if (exists)
-                query = "UPDATE cmsContentXml SET xml = @xml WHERE nodeId = @nodeId";
-            else
-                query = "INSERT INTO cmsContentXml(nodeId, xml) VALUES (@nodeId, @xml)";
-            SqlHelper.ExecuteNonQuery(query,
-                                      SqlHelper.CreateParameter("@nodeId", Id),
-                                      SqlHelper.CreateParameter("@xml", node.OuterXml));
         }
 
         /// <summary>
@@ -720,14 +584,6 @@ namespace umbraco.cms.businesslogic
         protected void deleteAllProperties()
         {
             SqlHelper.ExecuteNonQuery("Delete from cmsPropertyData where contentNodeId = @nodeId", SqlHelper.CreateParameter("@nodeId", this.Id));
-        }
-
-        private XmlNode importXml()
-        {
-            XmlDocument xmlDoc = new XmlDocument();
-            xmlDoc.Load(SqlHelper.ExecuteXmlReader("select xml from cmsContentXml where nodeID = " + this.Id.ToString()));
-
-            return xmlDoc.FirstChild;
         }
 
         /// <summary>

@@ -13,6 +13,7 @@ using umbraco.cms.businesslogic.web;
 using umbraco.cms.businesslogic.macro;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
+using Umbraco.Core.Services;
 using File = System.IO.File;
 using Template = umbraco.cms.businesslogic.template.Template;
 
@@ -141,9 +142,9 @@ namespace umbraco.cms.businesslogic.packager
                         documents.AppendChild(documentSet);
 
                         //load content from umbraco.
-                        var umbDocument = new Document(contentNodeId);
-                        
-                        documentSet.AppendChild(umbDocument.ToXml(_packageManifest, pack.ContentLoadChildNodes));
+                        //var umbDocument = new Document(contentNodeId);                        
+                        //documentSet.AppendChild(umbDocument.ToXml(_packageManifest, pack.ContentLoadChildNodes));
+                        documentSet.AppendChild(SerializeContent(_packageManifest, contentNodeId, pack.ContentLoadChildNodes));
 
                         AppendElement(documents);
 
@@ -370,6 +371,41 @@ namespace umbraco.cms.businesslogic.packager
                 package.FireAfterPublish(e);
             }
 
+        }
+
+        // cannot read the XML from the content cache navigator here, because we do not want
+        // the property value converter to run - we want the raw values, so we have to serialize
+        // the content to XML by ourselves.
+
+        // SerializeContent already has a 'deep' option but then it does not know how to
+        // restrict itself to published content - and then, for published content, it's all
+        // in the cache - only we cannot use the Navigator 'cos the properties are converted
+        // so we'd need to know how to navigate raw properties?! shuk!
+        
+        private static XmlNode SerializeContent(XmlDocument doc, int contentId, bool deep)
+        {
+            var svcs = ApplicationContext.Current.Services;
+            var content = svcs.ContentService.GetPublishedVersion(contentId); // want the published one
+            var serializer = new EntityXmlSerializer();
+            var xelt = serializer.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, content);
+            var node = xelt.GetXmlNode(doc);
+
+            if (deep == false) return node;
+
+            foreach (var c in svcs.ContentService.GetPublishedChildren(content.Id)) // only those that are published
+                node.AppendChild(SerializeContent(doc, c, serializer));
+
+            return node;
+        }
+
+        private static XmlNode SerializeContent(XmlDocument doc, IContent content, EntityXmlSerializer serializer)
+        {
+            var svcs = ApplicationContext.Current.Services;
+            var xelt = serializer.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, content);
+            var node = xelt.GetXmlNode(doc);
+            foreach (var c in svcs.ContentService.GetPublishedChildren(content.Id)) // only those that are published
+                node.AppendChild(SerializeContent(doc, c, serializer));
+            return node;
         }
 
         private void AddDocumentType(DocumentType dt, ref List<DocumentType> dtl)
