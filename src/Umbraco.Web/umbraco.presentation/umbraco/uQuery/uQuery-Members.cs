@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using umbraco.cms.businesslogic.member;
+using Umbraco.Core.Xml.XPath;
+using Umbraco.Web;
 
 namespace umbraco
 {
@@ -10,23 +13,30 @@ namespace umbraco
 		/// </summary>
 		/// <param name="xPath">XPath expression</param>
 		/// <returns>collection or empty collection</returns>
+        [Obsolete("Obsolete. Use MemberCache.GetByXPath.", false)]
 		public static IEnumerable<Member> GetMembersByXPath(string xPath)
 		{
+		    //throw new NotSupportedException();
 			var members = new List<Member>();
-			var xmlDocument = uQuery.GetPublishedXml(UmbracoObjectType.Member);
-			var xPathNavigator = xmlDocument.CreateNavigator();
-			var xPathNodeIterator = xPathNavigator.Select(xPath);
 
-			while (xPathNodeIterator.MoveNext())
-			{
-				var member = uQuery.GetMember(xPathNodeIterator.Current.Evaluate("string(@id)").ToString());
-				if (member != null)
-				{
-					members.Add(member);
-				}
-			}
+            // have to use the RenamedRootNavigator because uQuery.GetPublishedXml used <Members> as root
+            // so if we want to maintain backward compatibility for xPath queries...
+            // but really, should be MediaCache.GetByXPath(...)
 
-			return members;
+            var nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MemberCache.CreateNavigator(), "Members");
+            var iter = nav.Select(xPath);
+            while (iter.MoveNext())
+            {
+                var idAttr = iter.Current.GetAttribute("id", "");
+                int id;
+                if (int.TryParse(idAttr, out id))
+                {
+                    var m = GetMember(id);
+                    if (m != null) members.Add(m);
+                }
+            }
+
+            return members;
 		}
 
 		/// <summary>

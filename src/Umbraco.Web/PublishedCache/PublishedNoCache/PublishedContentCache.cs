@@ -9,6 +9,7 @@ using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
 using Umbraco.Core.Xml.XPath;
 using Umbraco.Core.Models;
+using Umbraco.Web.PublishedCache.PublishedNoCache.Navigable;
 using Umbraco.Web.Routing;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
@@ -16,7 +17,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     // temp - an experimental published cache that does not cache
     // temp - are we handling the published thing correctly? probably NOT?
 
-    class PublishedContentCache : PublishedCacheBase, IPublishedContentCache
+    class PublishedContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
     {
         private readonly IContentService _contentService;
 

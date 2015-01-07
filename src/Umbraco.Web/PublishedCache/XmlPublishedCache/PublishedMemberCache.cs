@@ -92,6 +92,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return new PublishedMember(member).CreateModel();
         }
 
+        public XPathNavigator CreateNavigator()
+        {
+            var doc = _xmlStore.GetMemberXml();
+            return doc.CreateNavigator();
+        }
+
+        public XPathNavigator CreateNavigator(bool preview)
+        {
+            return CreateNavigator();
+        }
+
         public XPathNavigator CreateNodeNavigator(int id, bool preview)
         {
             var n = _xmlStore.GetMemberXmlNode(id);

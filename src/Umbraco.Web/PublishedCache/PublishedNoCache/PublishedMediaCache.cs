@@ -6,10 +6,11 @@ using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
 using Umbraco.Core.Xml.XPath;
 using Umbraco.Core.Models;
+using Umbraco.Web.PublishedCache.PublishedNoCache.Navigable;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
-    class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
+    class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData
     {
         private readonly IMediaService _mediaService;
 

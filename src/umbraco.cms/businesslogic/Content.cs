@@ -9,6 +9,7 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using umbraco.cms.businesslogic.property;
+using Umbraco.Core.Models.Rdbms;
 using umbraco.DataLayer;
 using System.Runtime.CompilerServices;
 using umbraco.cms.helpers;
@@ -181,36 +182,13 @@ namespace umbraco.cms.businesslogic
         {
             get
             {
-                if (!_versionDateInitialized)
-                {
-                    // A Media item only contains a single version (which relates to it's creation) so get this value from the media xml fragment instead
-                    if (this is media.Media)
-                    {
-                        // get the xml fragment from cmsXmlContent
-                        string xmlFragment = SqlHelper.ExecuteScalar<string>(@"SELECT [xml] FROM cmsContentXml WHERE nodeId = " + this.Id);
-                        if (!string.IsNullOrWhiteSpace(xmlFragment))
-                        {
-                            XmlDocument xmlDocument = new XmlDocument();
-                            xmlDocument.LoadXml(xmlFragment);                            
+                if (_versionDateInitialized) return _versionDate;
 
-                            _versionDateInitialized = DateTime.TryParse(xmlDocument.SelectSingleNode("//*[1]").Attributes["updateDate"].Value, out _versionDate);
-                        }
-                    }
-
-                    if (!_versionDateInitialized)
-                    {
-                        object o = SqlHelper.ExecuteScalar<object>(
-                            "select VersionDate from cmsContentVersion where versionId = '" + this.Version.ToString() + "'");
-                        if (o == null)
-                        {
-                            _versionDate = DateTime.Now;
-                        }
-                        else
-                        {
-                            _versionDateInitialized = DateTime.TryParse(o.ToString(), out _versionDate);
-                        }
-                    }
-                }
+                // content & media have a version date in cmsContentVersion that is updated when saved - use it
+                var db = ApplicationContext.Current.DatabaseContext.Database;
+                _versionDate = db.ExecuteScalar<DateTime>("SELECT versionDate FROM cmsContentVersion WHERE versionId=@versionId",
+                    new { @versionId = Version });
+                _versionDateInitialized = true;
                 return _versionDate;
             }
             set

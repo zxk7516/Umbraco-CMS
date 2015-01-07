@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using umbraco.cms.businesslogic.media;
+using Umbraco.Core.Xml.XPath;
+using Umbraco.Web;
 
 namespace umbraco
 {
@@ -10,21 +13,27 @@ namespace umbraco
 		/// </summary>
 		/// <param name="xPath">XPath expression</param>
 		/// <returns>collection or empty collection</returns>
+		[Obsolete("Obsolete. Use MediaCache.GetByXPath.", false)]
 		public static IEnumerable<Media> GetMediaByXPath(string xPath)
 		{
 			var media = new List<Media>();
-			var xmlDocument = uQuery.GetPublishedXml(UmbracoObjectType.Media);
-			var xPathNavigator = xmlDocument.CreateNavigator();
-			var xPathNodeIterator = xPathNavigator.Select(xPath);
 
-			while (xPathNodeIterator.MoveNext())
-			{
-				var mediaItem = uQuery.GetMedia(xPathNodeIterator.Current.Evaluate("string(@id)").ToString());
-				if (mediaItem != null)
-				{
-					media.Add(mediaItem);
-				}
-			}
+            // have to use the RenamedRootNavigator because uQuery.GetPublishedXml used <Media> as root
+            // so if we want to maintain backward compatibility for xPath queries...
+            // but really, should be MediaCache.GetByXPath(...)
+
+            var nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MediaCache.CreateNavigator(), "Media");
+		    var iter = nav.Select(xPath);
+		    while (iter.MoveNext())
+		    {
+                var idAttr = iter.Current.GetAttribute("id", "");
+                int id;
+		        if (int.TryParse(idAttr, out id))
+		        {
+                    var m = GetMedia(id);
+                    if (m != null) media.Add(m);
+                }
+		    }
 
 			return media;
 		}

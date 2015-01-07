@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Web;
 using System.Xml;
+using System.Xml.XPath;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Xml.XPath;
 using Umbraco.Web;
 using umbraco;
 using umbraco.BusinessLogic;
@@ -34,67 +36,34 @@ namespace umbraco
 		/// </summary>
 		/// <param name="umbracoObjectType">an UmbracoObjectType value</param>
 		/// <returns>XML built from the cmsContentXml table</returns>
+		[Obsolete("Obsolete. Use IPublishedCache.CreateNavigator.", false)]
 		public static XmlDocument GetPublishedXml(UmbracoObjectType umbracoObjectType)
 		{
-			try
-			{
-				var hierarchy = new Dictionary<int, List<int>>();
-				var nodeIndex = new Dictionary<int, XmlNode>();
-				var xmlDoc = new XmlDocument();
-				var sql = "SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, cmsContentXml.xml FROM umbracoNode INNER JOIN cmsContentXml ON cmsContentXml.nodeId = umbracoNode.id AND umbracoNode.nodeObjectType = @nodeObjectType ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+            // this is here for backward compat only
 
-				using (var dr = uQuery.SqlHelper.ExecuteReader(sql, uQuery.SqlHelper.CreateParameter("@nodeObjectType", umbracoObjectType.GetGuid())))
-				{
-					while (dr.Read())
-					{
-						var currentId = dr.GetInt("id");
-						var parentId = dr.GetInt("parentId");
-						var xml = dr.GetString("xml");
+		    XPathNavigator nav;
+            switch (umbracoObjectType)
+            {
+                case UmbracoObjectType.Media:
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MediaCache.CreateNavigator(), "Media");
+                    break;
 
-						// and parse it into a DOM node
-						xmlDoc.LoadXml(xml);
-						nodeIndex.Add(currentId, xmlDoc.FirstChild);
+                case UmbracoObjectType.Member:
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MemberCache.CreateNavigator(), "Members");
+                    break;
 
-						// Build the content hierarchy
-						List<int> children;
-						if (!hierarchy.TryGetValue(parentId, out children))
-						{
-							// No children for this parent, so add one
-							children = new List<int>();
-							hierarchy.Add(parentId, children);
-						}
+                case UmbracoObjectType.Document:
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.ContentCache.CreateNavigator(false), "Nodes");
+                    break;
 
-						children.Add(currentId);
-					}
+                default:
+                    throw new NotSupportedException("Object type is not supported.");
+            }
 
-					// Set top level wrapper element
-					switch (umbracoObjectType)
-					{
-						case UmbracoObjectType.Media:
-							xmlDoc.LoadXml("<Media id=\"-1\"/>");
-							break;
-
-						case UmbracoObjectType.Member:
-							xmlDoc.LoadXml("<Members id=\"-1\"/>");
-							break;
-
-						default:
-							xmlDoc.LoadXml("<Nodes id=\"-1\"/>");
-							break;
-					}
-
-					// Start building the content tree recursively from the root (-1) node
-					GenerateXmlDocument(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
-
-					return xmlDoc;
-				}
-			}
-			catch (Exception ex)
-			{
-                LogHelper.Error<UmbracoHelper>("uQuery error", ex);
-			}
-
-			return null;
+            // ouch
+		    var doc = new XmlDocument();
+            doc.LoadXml(nav.OuterXml);
+		    return doc;
 		}
 
 		/// <summary>

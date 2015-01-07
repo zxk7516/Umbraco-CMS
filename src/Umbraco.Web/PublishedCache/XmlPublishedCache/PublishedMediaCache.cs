@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Xml;
 using System.Xml.XPath;
 using Examine;
 using Examine.LuceneEngine.SearchCriteria;
@@ -92,27 +93,56 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            var navigator = CreateNavigator(preview);
+            var iterator = navigator.Select(xpath, vars);
+            return GetSingleByXPath(iterator);
         }
 
         public override IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            var navigator = CreateNavigator(preview);
+            var iterator = navigator.Select(xpath, vars);
+            return GetSingleByXPath(iterator);
+        }
+
+        private IPublishedContent GetSingleByXPath(XPathNodeIterator iterator)
+        {
+            if (iterator.MoveNext() == false) return null;
+
+            var idAttr = iterator.Current.GetAttribute("id", "");
+            int id;
+            return int.TryParse(idAttr, out id) ? GetUmbracoMedia(id) : null;
         }
 
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            var navigator = CreateNavigator(preview);
+            var iterator = navigator.Select(xpath, vars);
+            return GetByXPath(iterator);
         }
 
         public override IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            var navigator = CreateNavigator(preview);
+            var iterator = navigator.Select(xpath, vars);
+            return GetByXPath(iterator);
+        }
+
+        private IEnumerable<IPublishedContent> GetByXPath(XPathNodeIterator iterator)
+        {
+            while (iterator.MoveNext())
+            {
+                var idAttr = iterator.Current.GetAttribute("id", "");
+                int id;
+                if (int.TryParse(idAttr, out id))
+                    yield return GetUmbracoMedia(id);
+            }
         }
 
         public override XPathNavigator CreateNavigator(bool preview)
         {
-            throw new NotImplementedException("PublishedMediaCache does not support XPath.");
+            var doc = _xmlStore.GetMediaXml();
+            return doc.CreateNavigator();
         }
 
         public override XPathNavigator CreateNodeNavigator(int id, bool preview)

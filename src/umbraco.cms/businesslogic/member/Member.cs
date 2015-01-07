@@ -467,12 +467,15 @@ namespace umbraco.cms.businesslogic.member
         {
             get
             {
-                return MemberItem.Name;
+                return MemberItem == null ? base.Text : MemberItem.Name;
             }
             set
             {
                 value = value.Trim();
-                MemberItem.Name = value;
+                if (MemberItem == null)
+                    base.Text = value;
+                else
+                    MemberItem.Name = value;
             }
         }
 

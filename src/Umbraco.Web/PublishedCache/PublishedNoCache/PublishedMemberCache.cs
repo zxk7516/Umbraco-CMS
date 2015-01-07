@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Xml.XPath;
 using Umbraco.Core;
@@ -7,11 +9,13 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Security;
 using Umbraco.Core.Services;
+using Umbraco.Core.Xml.XPath;
+using Umbraco.Web.PublishedCache.PublishedNoCache.Navigable;
 using Umbraco.Web.Security;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
-    class PublishedMemberCache : IPublishedMemberCache
+    class PublishedMemberCache : IPublishedMemberCache, INavigableData
     {
         private readonly IDataTypeService _dataTypeService;
         private readonly IMemberService _memberService;
@@ -32,6 +36,11 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
             var result = _memberService.GetByProviderKey(key);
             return result == null ? null : new PublishedMember(result).CreateModel();
+        }
+
+        public IPublishedContent GetById(bool preview, int memberId)
+        {
+            return GetById(memberId);
         }
 
         public IPublishedContent GetById(int memberId)
@@ -73,6 +82,25 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         public IPublishedContent GetByMember(IMember member)
         {
             return new PublishedMember(member).CreateModel();
+        }
+
+        public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
+        {
+            // because members are flat (not a tree) everything is at root
+            var members = _memberService.GetAllMembers();            
+            return members.Select(m => (new PublishedMember(m)).CreateModel());
+        }
+
+        public XPathNavigator CreateNavigator()
+        {
+            var source = new Navigable.Source(this, false);
+            var navigator = new NavigableNavigator(source);
+            return navigator;
+        }
+
+        public XPathNavigator CreateNavigator(bool preview)
+        {
+            return CreateNavigator();
         }
 
         public XPathNavigator CreateNodeNavigator(int id, bool preview)

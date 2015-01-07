@@ -394,6 +394,24 @@ AND (umbracoNode.id=@id)";
             return xml;
         }
 
+        public XmlDocument GetMediaXml()
+        {
+            // this is not efficient at all, not cached, nothing
+            // just here to replicate what uQuery was doing and show it can be done
+            // but really - should not be used
+
+            return LoadMoreXmlFromDatabase(new Guid(Constants.ObjectTypes.Media));
+        }
+
+        public XmlDocument GetMemberXml()
+        {
+            // this is not efficient at all, not cached, nothing
+            // just here to replicate what uQuery was doing and show it can be done
+            // but really - should not be used
+
+            return LoadMoreXmlFromDatabase(new Guid(Constants.ObjectTypes.Member));
+        }
+
         public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
             var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
@@ -600,6 +618,13 @@ JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
+        const string ReadMoreCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+cmsContentXml.xml, 1 AS published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType
+ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+
         const string ReadCmsPreviewXmlSql1 = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
 cmsPreviewXml.xml, cmsDocument.published
 FROM umbracoNode 
@@ -637,17 +662,10 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             var hierarchy = new Dictionary<int, List<int>>();
             var nodeIndex = new Dictionary<int, XmlNode>();
+            var xmlDoc = new XmlDocument();
 
             try
             {
-                // Lets cache the DTD to save on the DB hit on the subsequent use
-                var dtd = ApplicationContext.Current.Services.ContentTypeService.GetDtd(); // fixme inject
-
-                // Prepare an XmlDocument with an appropriate inline DTD to match
-                // the expected content
-                var xmlDoc = new XmlDocument();
-                InitializeXml(xmlDoc, dtd);
-
                 // get xml
                 var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlSql,
                     new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document) });
@@ -678,7 +696,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     var e2 = new ContentCacheLoadNodeEventArgs();
                     content.FireAfterContentCacheLoadNodeFromDatabase(node, e2);
                     // and checking if it was canceled again
-                    if (e1.Cancel) continue;
+                    if (e2.Cancel) continue;
 
                     nodeIndex.Add(xmlDto.Id, node);
 
@@ -697,36 +715,85 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 }
 
                 LogHelper.Debug<XmlStore>("Loaded data from database, now preparing Xml...");
-
-                try
-                {
-                    // If we got to here we must have successfully retrieved the content from the DB so
-                    // we can safely initialise and compose the final content DOM. 
-                    // Note: We are reusing the XmlDocument used to create the xml nodes above so 
-                    // we don't have to import them into a new XmlDocument
-
-                    // Initialise the document ready for the final composition of content
-                    InitializeXml(xmlDoc, dtd);
-
-                    // Start building the content tree recursively from the root (-1) node
-                    PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
-                }
-                catch (Exception e)
-                {
-                    LogHelper.Error<XmlStore>("Failed to prepare Xml from database.", e);
-                }
-
-                LogHelper.Debug<XmlStore>("Successfully loaded Xml from database.");
-                return xmlDoc;
             }
             catch (Exception e)
             {
                 LogHelper.Error<XmlStore>(string.Format("Failed to load Xml from database ({0} parents, {1} nodes).", hierarchy.Count, nodeIndex.Count), e);
+
+                // An error of some sort must have stopped us from successfully generating
+                // the content tree, so lets return null signifying there is no content available
+                return null;
             }
 
-            // An error of some sort must have stopped us from successfully generating
-            // the content tree, so lets return null signifying there is no content available
-            return null;
+            try
+            {
+                // If we got to here we must have successfully retrieved the content from the DB so
+                // we can safely initialise and compose the final content DOM. 
+                // Note: We are reusing the XmlDocument used to create the xml nodes above so 
+                // we don't have to import them into a new XmlDocument
+
+                // Lets cache the DTD to save on the DB hit on the subsequent use
+                var dtd = ApplicationContext.Current.Services.ContentTypeService.GetDtd(); // fixme inject
+
+                // Initialise the document ready for the final composition of content
+                InitializeXml(xmlDoc, dtd);
+
+                // Start building the content tree recursively from the root (-1) node
+                PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
+            }
+            catch (Exception e)
+            {
+                LogHelper.Error<XmlStore>("Failed to prepare Xml from database.", e);
+
+                // An error of some sort must have stopped us from successfully generating
+                // the content tree, so lets return null signifying there is no content available
+                return null;
+            }
+
+            LogHelper.Debug<XmlStore>("Successfully loaded Xml from database.");
+            return xmlDoc;
+        }
+
+        private XmlDocument LoadMoreXmlFromDatabase(Guid nodeObjectType)
+        {
+            var hierarchy = new Dictionary<int, List<int>>();
+            var nodeIndex = new Dictionary<int, XmlNode>();
+
+            var xmlDoc = new XmlDocument();
+
+            // get xml
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadMoreCmsContentXmlSql,
+                new { @nodeObjectType = nodeObjectType });
+
+            foreach (var xmlDto in xmlDtos)
+            {
+                // and parse it into a DOM node
+                xmlDoc.LoadXml(xmlDto.Xml);
+                var node = xmlDoc.FirstChild;
+                nodeIndex.Add(xmlDto.Id, node);
+
+                // Build the content hierarchy
+                List<int> children;
+                if (hierarchy.TryGetValue(xmlDto.ParentId, out children) == false)
+                {
+                    // No children for this parent, so add one
+                    children = new List<int>();
+                    hierarchy.Add(xmlDto.ParentId, children);
+                }
+                children.Add(xmlDto.Id);
+            }
+
+            // If we got to here we must have successfully retrieved the content from the DB so
+            // we can safely initialise and compose the final content DOM. 
+            // Note: We are reusing the XmlDocument used to create the xml nodes above so 
+            // we don't have to import them into a new XmlDocument
+
+            // Initialise the document ready for the final composition of content
+            InitializeXml(xmlDoc, string.Empty);
+
+            // Start building the content tree recursively from the root (-1) node
+            PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
+            return xmlDoc;
         }
 
         // internal - used by umbraco.content.RefreshContentFromDatabase[Async]

@@ -204,12 +204,15 @@ namespace umbraco.cms.businesslogic.media
         {
             get
             {
-                return MediaItem.Name;
+                return MediaItem == null ? base.Text : MediaItem.Name;
             }
             set
             {
                 value = value.Trim();
-                MediaItem.Name = value;
+                if (MediaItem == null) 
+                    base.Text = value;
+                else
+                    MediaItem.Name = value;
             }
         }
 

@@ -269,6 +269,7 @@
     <Compile Include="ApplicationContextExtensions.cs" />
     <Compile Include="AreaRegistrationContextExtensions.cs" />
     <Compile Include="PublishedCache\IPublishedMemberCache.cs" />
+    <Compile Include="PublishedCache\PublishedNoCache\Navigable\INavigableData.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PublishedMemberCache.cs" />
     <Compile Include="Scheduling\BackgroundTaskRunner.cs" />

@@ -1189,6 +1189,7 @@
     <Compile Include="Xml\XmlNodeListFactory.cs" />
     <Compile Include="Xml\XPathNavigatorExtensions.cs" />
     <Compile Include="Xml\XPathVariable.cs" />
+    <Compile Include="Xml\XPath\RenamedRootNavigator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
