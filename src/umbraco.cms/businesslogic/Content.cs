@@ -4,12 +4,14 @@ using System.Linq;
 using System.Xml;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using umbraco.cms.businesslogic.property;
 using Umbraco.Core.Models.Rdbms;
+using Umbraco.Core.Persistence;
 using umbraco.DataLayer;
 using System.Runtime.CompilerServices;
 using umbraco.cms.helpers;
@@ -310,14 +312,10 @@ namespace umbraco.cms.businesslogic
             // Delete all data associated with this content
             this.deleteAllProperties();
 
-            // Remove all content preview xml
-            SqlHelper.ExecuteNonQuery("delete from cmsPreviewXml where nodeId = " + Id);
+            OnDeletedContent(new ContentDeleteEventArgs(ApplicationContext.Current.DatabaseContext.Database, Id));
 
             // Delete version history
             SqlHelper.ExecuteNonQuery("Delete from cmsContentVersion where ContentId = " + this.Id);
-
-            // Delete xml
-            SqlHelper.ExecuteNonQuery("delete from cmsContentXml where nodeID = @nodeId", SqlHelper.CreateParameter("@nodeId", this.Id));
 
             // Delete Contentspecific data ()
             SqlHelper.ExecuteNonQuery("Delete from cmsContent where NodeId = " + this.Id);
@@ -574,6 +572,32 @@ namespace umbraco.cms.businesslogic
             return (versionCount > 0);
         }
 
+        #endregion
+
+        #region Change Events
+
+        // this is temp. until we get rid of Content
+
+        public class ContentDeleteEventArgs : EventArgs
+        {
+            public ContentDeleteEventArgs(UmbracoDatabase database, int id)
+            {
+                Database = database;
+                Id = id;
+            }
+
+            public int Id { get; private set; }
+            public UmbracoDatabase Database { get; private set; }
+        }
+
+        public static event TypedEventHandler<Content, ContentDeleteEventArgs> DeletedContent;
+
+        protected void OnDeletedContent(ContentDeleteEventArgs args)
+        {
+            var handler = DeletedContent;
+            if (handler != null) handler(this, args);
+        }
+        
         #endregion
     }
 }

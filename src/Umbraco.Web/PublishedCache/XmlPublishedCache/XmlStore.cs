@@ -88,6 +88,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
                 MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
 
+                // temp - until we get rid of Content
+                global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+
                 // and populate the cache
                 lock (XmlLock)
                 {
@@ -1459,6 +1462,14 @@ WHERE cmsContentXml.nodeId IN (
             var parms = new { @nodeObjectType = nodeObjectType };
             db.Execute(sql1, parms);
             db.Execute(sql2, parms);
+        }
+
+        private void OnDeletedContent(object sender, global::umbraco.cms.businesslogic.Content.ContentDeleteEventArgs args)
+        {
+            var db = args.Database;
+            var parms = new { @nodeId = args.Id };
+            db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@nodeId", parms);
+            db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@nodeId", parms);
         }
 
         #endregion
