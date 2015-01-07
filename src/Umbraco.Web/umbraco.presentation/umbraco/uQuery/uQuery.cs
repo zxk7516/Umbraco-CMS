@@ -32,10 +32,9 @@ namespace umbraco
 		}
 
 		/// <summary>
-		/// Constructs the XML source from the cmsContentXml table used for Media and Members.
+		/// Gets Xml
 		/// </summary>
 		/// <param name="umbracoObjectType">an UmbracoObjectType value</param>
-		/// <returns>XML built from the cmsContentXml table</returns>
 		[Obsolete("Obsolete. Use IPublishedCache.CreateNavigator.", false)]
 		public static XmlDocument GetPublishedXml(UmbracoObjectType umbracoObjectType)
 		{
