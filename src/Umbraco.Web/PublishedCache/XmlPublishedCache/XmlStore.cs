@@ -81,6 +81,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 MemberRepository.RemovedVersion += OnMemberRemovedVersion;
                 MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
 
+                // plug event handlers
+                // these trigger within the transaction to ensure consistency
+                // and are used to maintain the central, database-level XML cache
+                // fixme - shouldn't we just make sure we clear XML when trashing?
+                ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
+                MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
+
                 // and populate the cache
                 lock (XmlLock)
                 {
@@ -1413,6 +1420,45 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 db.Insert(dto);
             }
+        }
+
+        private void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)
+        {
+            OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
+        }
+
+        private void OnEmptiedRecycleBin(object sender, MediaRepository.RecycleBinEventArgs args)
+        {
+            OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
+        }
+
+        private void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
+        {
+            // unfortunately, SQL-CE does not support this
+            /*
+            const string sql1 = @"DELETE cmsPreviewXml FROM cmsPreviewXml
+INNER JOIN umbracoNode on cmsPreviewXml.nodeId=umbracoNode.id
+WHERE umbracoNode.trashed=1 AND umbracoNode.nodeObjectType=@nodeObjectType";
+            const string sql2 = @"DELETE cmsContentXml FROM cmsContentXml
+INNER JOIN umbracoNode on cmsContentXml.nodeId=umbracoNode.id
+WHERE umbracoNode.trashed=1 AND umbracoNode.nodeObjectType=@nodeObjectType";
+            */
+
+            // required by SQL-CE
+            const string sql1 = @"DELETE FROM cmsPreviewXml
+WHERE cmsPreviewXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    WHERE trashed=1 AND nodeObjectType=@nodeObjectType
+)";
+            const string sql2 = @"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    WHERE trashed=1 AND nodeObjectType=@nodeObjectType
+)";
+
+            var parms = new { @nodeObjectType = nodeObjectType };
+            db.Execute(sql1, parms);
+            db.Execute(sql2, parms);
         }
 
         #endregion

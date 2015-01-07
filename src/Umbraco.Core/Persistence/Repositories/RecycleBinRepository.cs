@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models.EntityBase;
@@ -52,9 +53,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 FormatDeleteStatement("umbracoDomains", "domainRootStructureID"),
                 FormatDeleteStatement("cmsDocument", "nodeId"),
                 FormatDeleteStatement("cmsPropertyData", "contentNodeId"),
-                FormatDeleteStatement("cmsPreviewXml", "nodeId"),
                 FormatDeleteStatement("cmsContentVersion", "ContentId"),
-                FormatDeleteStatement("cmsContentXml", "nodeId"),
                 FormatDeleteStatement("cmsContent", "nodeId"),
                 "UPDATE umbracoNode SET parentID = '" + RecycleBinId + "' WHERE trashed = '1' AND nodeObjectType = @NodeObjectType",
                 "DELETE FROM umbracoNode WHERE trashed = '1' AND nodeObjectType = @NodeObjectType"
@@ -66,6 +65,8 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 try
                 {
+                    OnEmptiedRecycleBin(new RecycleBinEventArgs(UnitOfWork, NodeObjectTypeId));
+
                     foreach (var delete in deletes)
                     {
                         db.Execute(delete, new { NodeObjectType = NodeObjectTypeId });
@@ -168,5 +169,29 @@ namespace Umbraco.Core.Persistence.Repositories
             var files = db.Fetch<string>(sql);
             return files;
         }
+
+        #region Change Events
+
+        public class RecycleBinEventArgs : EventArgs
+        {
+            public RecycleBinEventArgs(IDatabaseUnitOfWork unitOfWork, Guid nodeObjectType)
+            {
+                UnitOfWork = unitOfWork;
+                NodeObjectType = nodeObjectType;
+            }
+
+            public Guid NodeObjectType { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        public static event TypedEventHandler<RecycleBinRepository<TId, TEntity>, RecycleBinEventArgs> EmptiedRecycleBin;
+
+        protected void OnEmptiedRecycleBin(RecycleBinEventArgs args)
+        {
+            var handler = EmptiedRecycleBin;
+            if (handler != null) handler(this, args);
+        }
+
+        #endregion
     }
 }
