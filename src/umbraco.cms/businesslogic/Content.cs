@@ -578,7 +578,7 @@ namespace umbraco.cms.businesslogic
 
         // this is temp. until we get rid of Content
 
-        public class ContentDeleteEventArgs : EventArgs
+        internal protected class ContentDeleteEventArgs : EventArgs
         {
             public ContentDeleteEventArgs(UmbracoDatabase database, int id)
             {
@@ -590,9 +590,9 @@ namespace umbraco.cms.businesslogic
             public UmbracoDatabase Database { get; private set; }
         }
 
-        public static event TypedEventHandler<Content, ContentDeleteEventArgs> DeletedContent;
+        internal static event TypedEventHandler<Content, ContentDeleteEventArgs> DeletedContent;
 
-        protected void OnDeletedContent(ContentDeleteEventArgs args)
+        internal protected void OnDeletedContent(ContentDeleteEventArgs args)
         {
             var handler = DeletedContent;
             if (handler != null) handler(this, args);
