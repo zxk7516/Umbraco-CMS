@@ -17,7 +17,6 @@ namespace Umbraco.Web.Cache
     /// </remarks>    
     public class PageCacheRefresher : TypedCacheRefresherBase<PageCacheRefresher, IContent>
     {
-
         protected override PageCacheRefresher Instance
         {
             get { return this; }
@@ -29,14 +28,11 @@ namespace Umbraco.Web.Cache
         /// <value>The unique identifier.</value>
         public override Guid UniqueIdentifier
         {
-            get
-            {
-                return new Guid(DistributedCache.PageCacheRefresherId);
-            }
+            get { return DistributedCache.PageCacheRefresherGuid; }
         }
 
         /// <summary>
-        /// Gets the name of the CacheRefresher
+        /// Gets the name of the CacheRefresher.
         /// </summary>
         /// <value>The name.</value>
         public override string Name
@@ -44,44 +40,49 @@ namespace Umbraco.Web.Cache
             get { return "Page Refresher"; }
         }
 
-        /// <summary>
-        /// Refreshes the cache for the node with specified id
-        /// </summary>
-        /// <param name="id">The id.</param>
-        public override void Refresh(int id)
+        public override void RefreshAll()
         {
+            base.RefreshAll();
+
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
-            base.Refresh(id);
         }
 
-        /// <summary>
-        /// Removes the node with the specified id from the cache
-        /// </summary>
-        /// <param name="id">The id.</param>
-        public override void Remove(int id)
+        public override void Refresh(int id)
         {
+            base.Refresh(id);
+
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+        }
+
+        public override void Remove(int id)
+        {
             base.Remove(id);
+
+            ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
+            DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
+            DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
         }
 
         public override void Refresh(IContent instance)
         {
+            base.Refresh(instance);
+
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
-            base.Refresh(instance);
         }
 
         public override void Remove(IContent instance)
         {
+            base.Remove(instance);
+
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
-            base.Remove(instance);
         }
     }
 }

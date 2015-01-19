@@ -203,7 +203,7 @@ namespace Umbraco.Web.Cache
         /// <param name="dc"></param>
         public static void RefreshAllPageCache(this DistributedCache dc)
         {
-            dc.RefreshAll(new Guid(DistributedCache.PageCacheRefresherId));
+            dc.RefreshAll(DistributedCache.PageCacheRefresherGuid);
         }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace Umbraco.Web.Cache
         /// <param name="documentId"></param>
         public static void RefreshPageCache(this DistributedCache dc, int documentId)
         {
-            dc.Refresh(new Guid(DistributedCache.PageCacheRefresherId), documentId);
+            dc.Refresh(DistributedCache.PageCacheRefresherGuid, documentId);
         }
 
         /// <summary>
@@ -223,7 +223,7 @@ namespace Umbraco.Web.Cache
         /// <param name="content"></param>
         public static void RefreshPageCache(this DistributedCache dc, params IContent[] content)
         {
-            dc.Refresh(new Guid(DistributedCache.PageCacheRefresherId), x => x.Id, content);
+            dc.Refresh(DistributedCache.PageCacheRefresherGuid, x => x.Id, content);
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Umbraco.Web.Cache
         /// <param name="content"></param>
         public static void RemovePageCache(this DistributedCache dc, params IContent[] content)
         {
-            dc.Remove(new Guid(DistributedCache.PageCacheRefresherId), x => x.Id, content);
+            dc.Remove(DistributedCache.PageCacheRefresherGuid, x => x.Id, content);
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace Umbraco.Web.Cache
         /// <param name="documentId"></param>
         public static void RemovePageCache(this DistributedCache dc, int documentId)
         {
-            dc.Remove(new Guid(DistributedCache.PageCacheRefresherId), documentId);
+            dc.Remove(DistributedCache.PageCacheRefresherGuid, documentId);
         }
 
         /// <summary>

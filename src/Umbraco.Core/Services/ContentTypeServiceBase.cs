@@ -7,59 +7,81 @@ namespace Umbraco.Core.Services
 {
     public class ContentTypeServiceBase
     {
-        /// <summary>
-        /// This is called after an content type is saved and is used to update the content xml structures in the database
-        /// if they are required to be updated.
-        /// </summary>
-        /// <param name="contentTypes"></param>
-        internal IEnumerable<IContentTypeBase> GetContentTypesForXmlUpdates(params IContentTypeBase[] contentTypes)
-        {
+        // this is called after some content types are changed, and is used to determine which content types
+        // are impacted by the changes in a way that needs to be notified to the content service -- including
+        // content types that were not directly changed but may be impacted due to compositions.
+        //
+        // need to notify of everything that would change the serialized view of any content.
+        //
+        // things that need to be notified:
+        // - renaming a content type
+        // - renaming a property type
+        // - removing a property type
+        //
+        // things don't need to be notified:
+        // - adding a property type to a content type (missing in serialized view = default value anyway)
 
-            var toUpdate = new List<IContentTypeBase>();
+        // FIXME - what about composition changes?
+
+        /// <summary>
+        /// Determines which content types are impacted by content types changes, in a way that needs
+        /// to be notified to the content service.
+        /// </summary>
+        /// <param name="contentTypes">The changed content types.</param>
+        /// <returns>The impacted content types.</returns>
+        internal IEnumerable<IContentTypeBase> GetContentTypesToNotify(params IContentTypeBase[] contentTypes)
+        {
+            // hash set handles duplicates
+            var notify = new HashSet<IContentTypeBase>(new DelegateEqualityComparer<IContentTypeBase>(
+                (x, y) => x.Id == y.Id,
+                x => x.Id.GetHashCode()));
 
             foreach (var contentType in contentTypes)
             {
-                //we need to determine if we need to refresh the xml content in the database. This is to be done when:
-                // - the item is not new (already existed in the db) AND
-                //      - a content type changes it's alias OR
-                //      - if a content type has it's property removed OR
-                //      - if a content type has a property whose alias has changed
-                //here we need to check if the alias of the content type changed or if one of the properties was removed.                    
                 var dirty = contentType as IRememberBeingDirty;
                 if (dirty == null) continue;
 
-                //check if any property types have changed their aliases (and not new property types)
-                var hasAnyPropertiesChangedAlias = contentType.PropertyTypes.Any(propType =>
+                // skip new content types
+                var isNewContentType = dirty.WasPropertyDirty("HasIdentity");
+                if (isNewContentType) continue;
+
+                // existing property alias change?
+                var hasAnyPropertyChangedAlias = contentType.PropertyTypes.Any(propertyType =>
                     {
-                        var dirtyProperty = propType as IRememberBeingDirty;
+                        var dirtyProperty = propertyType as IRememberBeingDirty;
                         if (dirtyProperty == null) return false;
-                        return dirtyProperty.WasPropertyDirty("HasIdentity") == false   //ensure it's not 'new'
-                               && dirtyProperty.WasPropertyDirty("Alias");              //alias has changed
+
+                        // skip new properties
+                        var isNewProperty = dirtyProperty.WasPropertyDirty("HasIdentity");
+                        if (isNewProperty) return false;
+
+                        // alias change?
+                        var hasPropertyAliasBeenChanged = dirtyProperty.WasPropertyDirty("Alias");
+                        return hasPropertyAliasBeenChanged;
                     });
 
-                if (dirty.WasPropertyDirty("HasIdentity") == false //ensure it's not 'new'
-                    && (dirty.WasPropertyDirty("Alias") || dirty.WasPropertyDirty("HasPropertyTypeBeenRemoved") || hasAnyPropertiesChangedAlias))
+                // removed properties?
+                var hasAnyPropertyBeenRemoved = dirty.WasPropertyDirty("HasPropertyTypeBeenRemoved");
+
+                // alias change?
+                var hasAliasBeenChanged = dirty.WasPropertyDirty("Alias");
+
+                // skip if nothing changed
+                if ((hasAliasBeenChanged || hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias) == false) continue;
+
+                // alias changes impact only the current content type whereas property changes impact descendants
+                if (hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias)
                 {
-                    //If the alias was changed then we only need to update the xml structures for content of the current content type.
-                    //If a property was deleted or a property alias was changed then we need to update the xml structures for any 
-                    // content of the current content type and any of the content type's child content types.
-                    if (dirty.WasPropertyDirty("Alias")
-                        && dirty.WasPropertyDirty("HasPropertyTypeBeenRemoved") == false && hasAnyPropertiesChangedAlias == false)
-                    {
-                        //if only the alias changed then only update the current content type                        
-                        toUpdate.Add(contentType);
-                    }
-                    else
-                    {
-                        //if a property was deleted or alias changed, then update all content of the current content type
-                        // and all of it's desscendant doc types.     
-                        toUpdate.AddRange(contentType.DescendantsAndSelf());
-                    }
+                    foreach (var c in contentType.DescendantsAndSelf())
+                        notify.Add(c);
+                }
+                else
+                {
+                    notify.Add(contentType);
                 }
             }
 
-            return toUpdate;
-
+            return notify;
         }
     }
 }

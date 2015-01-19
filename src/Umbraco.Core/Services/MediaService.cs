@@ -1140,22 +1140,38 @@ namespace Umbraco.Core.Services
 
         #region Refactoring
 
-        /// <summary>
-        /// Rebuilds the cmsContentXml table content for all media.
-        /// </summary>
-        /// <param name="contentTypeIds">The content type identifiers of media to rebuild</param>
-        /// <remarks>If no content type identifiers are specified then all media are rebuilt.</remarks>
-        public void RebuildMediaXml(params int[] contentTypeIds)
+        // see note in ContentService
+
+        internal void NotifyContentTypeChanges(params int[] contentTypeIds)
         {
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateMediaRepository(uow))
+            // assuming that all content types here are locked
+            // lock all content and raise the event
+
+            using (new WriteLock(Locker))
             {
-                repository.RebuildMediaXml(
-                    media => _entitySerializer.Serialize(this, _dataTypeService, _userService, media),
-                    contentTypeIds: contentTypeIds.Length == 0 ? null : contentTypeIds);
+                var uow = _uowProvider.GetUnitOfWork();
+                OnContentTypesChanged(new ContentTypeChangedEventArgs(uow, contentTypeIds));
+            }
+        }
+
+        internal class ContentTypeChangedEventArgs : EventArgs
+        {
+            public ContentTypeChangedEventArgs(IDatabaseUnitOfWork unitOfWork, int[] contentTypeIds)
+            {
+                UnitOfWork = unitOfWork;
+                ContentTypeIds = contentTypeIds;
             }
 
-            Audit.Add(AuditTypes.Publish, "MediaService.RebuildMediaXml completed, the xml has been regenerated in the database", 0, -1);
+            public int[] ContentTypeIds { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        internal static event TypedEventHandler<MediaService, ContentTypeChangedEventArgs> ContentTypesChanged;
+
+        internal void OnContentTypesChanged(ContentTypeChangedEventArgs args)
+        {
+            var handler = ContentTypesChanged;
+            if (handler != null) handler(this, args);
         }
 
         internal IMediaRepository GetMediaRepository()

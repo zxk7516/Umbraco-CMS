@@ -1238,22 +1238,38 @@ namespace Umbraco.Core.Services
 
         #region Refactoring
 
-        /// <summary>
-        /// Rebuilds the cmsContentXml table content for all member.
-        /// </summary>
-        /// <param name="memberTypeIds">The member type identifiers of member to rebuild</param>
-        /// <remarks>If no member type identifiers are specified then all member are rebuilt. Use with care!</remarks>
-        public void RebuildMemberXml(params int[] memberTypeIds)
+        // see note in ContentService
+
+        internal void NotifyMemberTypeChanges(params int[] memberTypeIds)
         {
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateMemberRepository(uow))
+            // assuming that all content types here are locked
+            // lock all content and raise the event
+
+            using (new WriteLock(Locker))
             {
-                repository.RebuildMemberXml(
-                    member => _entitySerializer.Serialize(_dataTypeService, member),
-                    contentTypeIds: memberTypeIds.Length == 0 ? null : memberTypeIds);
+                var uow = _uowProvider.GetUnitOfWork();
+                OnContentTypesChanged(new MemberTypeChangedEventArgs(uow, memberTypeIds));
+            }
+        }
+
+        internal class MemberTypeChangedEventArgs : EventArgs
+        {
+            public MemberTypeChangedEventArgs(IDatabaseUnitOfWork unitOfWork, int[] memberTypeIds)
+            {
+                UnitOfWork = unitOfWork;
+                MemberTypeIds = memberTypeIds;
             }
 
-            Audit.Add(AuditTypes.Publish, "MemberService.RebuildMemberXml completed, the xml has been regenerated in the database", 0, -1);
+            public int[] MemberTypeIds { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        internal static event TypedEventHandler<MemberService, MemberTypeChangedEventArgs> MemberTypesChanged;
+
+        internal void OnContentTypesChanged(MemberTypeChangedEventArgs args)
+        {
+            var handler = MemberTypesChanged;
+            if (handler != null) handler(this, args);
         }
 
         internal IMemberRepository GetMemberRepository()

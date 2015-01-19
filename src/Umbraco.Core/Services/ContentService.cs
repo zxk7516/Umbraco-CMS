@@ -778,18 +778,12 @@ namespace Umbraco.Core.Services
         /// This is used for when a document type alias or a document type property is changed, the xml will need to 
         /// be regenerated.
         /// </remarks>
+        [Obsolete("See IPublishedCachesService implementations.", false)]
         public bool RePublishAll(int userId = 0)
         {
-            try
-            {
-                RebuildContentXml();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogHelper.Error<ContentService>("An error occurred executing RePublishAll", ex);
-                return false;
-            }
+            // FIXME locks?
+            NotifyContentTypeChanges();
+            return true;
         }
 
         /// <summary>
@@ -799,16 +793,11 @@ namespace Umbraco.Core.Services
         /// If specified will only rebuild the xml for the content type's specified, otherwise will update the structure
         /// for all published content.
         /// </param>
+        [Obsolete("See IPublishedCachesService implementations.", false)]
         internal void RePublishAll(params int[] contentTypeIds)
         {
-            try
-            {
-                RebuildContentXml(contentTypeIds);
-            }
-            catch (Exception ex)
-            {
-                LogHelper.Error<ContentService>("An error occurred executing RePublishAll", ex);
-            }
+            // FIXME locks?
+            NotifyContentTypeChanges(contentTypeIds);
         }
 
         /// <summary>
@@ -2024,42 +2013,45 @@ namespace Umbraco.Core.Services
 
         #region Refactoring
 
-        // this is temp
-        // should xml-cache-specific stuff belong here?
+        // NotifyContentTypeChanges is used by IContentTypeService to notify IContentService that
+        // some content types have changed, so that the content service can do whatever it has to
+        // do in such situation - it is assumed that content types are locked and will not change.
+        // Here, we lock content, and then raise the ContentTypesChanged event, so that subscribers
+        // can do what they have to do in such a situation - this is for published content cache
+        // to update themselves, while both content types and content are locked.
+        //
+        // The Xml content cache use this mechanism to rebuild the Xml when content types change.
 
-        /// <summary>
-        /// Rebuilds the cmsContentXml table content for all content.
-        /// </summary>
-        internal void RebuildPreviewXml()
+        internal void NotifyContentTypeChanges(params int[] contentTypeIds)
         {
-            // fixme - this CANNOT call into the XmlStore because it CANNOT be referenced from here => WTF?
+            // assuming that all content types here are locked
+            // lock all content and raise the event
 
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            using (new WriteLock(Locker))
             {
-                repository.RebuildPreviewXml(
-                    content => _entitySerializer.Serialize(this, _dataTypeService, _userService, content));
+                var uow = _uowProvider.GetUnitOfWork();
+                OnContentTypesChanged(new ContentTypeChangedEventArgs(uow, contentTypeIds));
             }
-
-            Audit.Add(AuditTypes.Publish, "ContentService.RebuildPreviewXml completed, the xml has been regenerated in the database", 0, -1);
         }
 
-        /// <summary>
-        /// Rebuilds the cmsContentXml table content for all content.
-        /// </summary>
-        /// <param name="contentTypeIds">The content type identifiers of content to rebuild</param>
-        /// <remarks>If no content type identifiers are specified then all content are rebuilt.</remarks>
-        internal void RebuildContentXml(params int[] contentTypeIds)
+        internal class ContentTypeChangedEventArgs : EventArgs
         {
-            var uow = _uowProvider.GetUnitOfWork();
-            using (var repository = _repositoryFactory.CreateContentRepository(uow))
+            public ContentTypeChangedEventArgs(IDatabaseUnitOfWork unitOfWork, int[] contentTypeIds)
             {
-                repository.RebuildContentXml(
-                    content => _entitySerializer.Serialize(this, _dataTypeService, _userService, content),
-                    contentTypeIds: contentTypeIds.Length == 0 ? null : contentTypeIds);
+                UnitOfWork = unitOfWork;
+                ContentTypeIds = contentTypeIds;
             }
 
-            Audit.Add(AuditTypes.Publish, "ContentService.RebuildContentXml completed, the xml has been regenerated in the database", 0, -1);
+            public int[] ContentTypeIds { get; private set; }
+            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
+        }
+
+        internal static event TypedEventHandler<ContentService, ContentTypeChangedEventArgs> ContentTypesChanged;
+
+        internal void OnContentTypesChanged(ContentTypeChangedEventArgs args)
+        {
+            var handler = ContentTypesChanged;
+            if (handler != null) handler(this, args);
         }
 
         internal IContentRepository GetContentRepository()

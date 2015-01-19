@@ -56,6 +56,28 @@ namespace Umbraco.Web.Cache
         public const string DictionaryCacheRefresherId = "D1D7E227-F817-4816-BFE9-6C39B6152884";
         public const string PublicAccessCacheRefresherId = "1DB08769-B104-4F8B-850E-169CAC1DF2EC";
 
+        // note - use these and stop creating GUIDs all the time
+        public static readonly Guid ApplicationTreeCacheRefresherGuid = new Guid(ApplicationTreeCacheRefresherId);
+        public static readonly Guid ApplicationCacheRefresherGuid = new Guid(ApplicationCacheRefresherId);
+        public static readonly Guid TemplateRefresherGuid = new Guid(TemplateRefresherId);
+        public static readonly Guid PageCacheRefresherGuid = new Guid(PageCacheRefresherId);
+        public static readonly Guid UnpublishedPageCacheRefresherGuid = new Guid(UnpublishedPageCacheRefresherId);
+        public static readonly Guid MemberCacheRefresherGuid = new Guid(MemberCacheRefresherId);
+        public static readonly Guid MemberGroupCacheRefresherGuid = new Guid(MemberGroupCacheRefresherId);
+        public static readonly Guid MediaCacheRefresherGuid = new Guid(MediaCacheRefresherId);
+        public static readonly Guid MacroCacheRefresherGuid = new Guid(MacroCacheRefresherId);
+        public static readonly Guid UserCacheRefresherGuid = new Guid(UserCacheRefresherId);
+        public static readonly Guid UserPermissionsCacheRefresherGuid = new Guid(UserPermissionsCacheRefresherId);
+        public static readonly Guid UserTypeCacheRefresherGuid = new Guid(UserTypeCacheRefresherId);
+        public static readonly Guid ContentTypeCacheRefresherGuid = new Guid(ContentTypeCacheRefresherId);
+        public static readonly Guid LanguageCacheRefresherGuid = new Guid(LanguageCacheRefresherId);
+        public static readonly Guid DomainCacheRefresherGuid = new Guid(DomainCacheRefresherId);
+        public static readonly Guid StylesheetCacheRefresherGuid = new Guid(StylesheetCacheRefresherId);
+        public static readonly Guid StylesheetPropertyCacheRefresherGuid = new Guid(StylesheetPropertyCacheRefresherId);
+        public static readonly Guid DataTypeCacheRefresherGuid = new Guid(DataTypeCacheRefresherId);
+        public static readonly Guid DictionaryCacheRefresherGuid = new Guid(DictionaryCacheRefresherId);
+        public static readonly Guid PublicAccessCacheRefresherGuid = new Guid(PublicAccessCacheRefresherId);
+
         #endregion
 
         private static readonly DistributedCache InstanceObject = new DistributedCache();

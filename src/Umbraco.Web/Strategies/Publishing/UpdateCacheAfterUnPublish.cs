@@ -31,29 +31,16 @@ namespace Umbraco.Web.Strategies.Publishing
         
         void PublishingStrategy_UnPublished(IPublishingStrategy sender, PublishEventArgs<IContent> e)
         {
-            if (e.PublishedEntities.Any())
-            {
-                if (e.PublishedEntities.Count() > 1)
-                {
-                    foreach (var c in e.PublishedEntities)
-                    {
-                        UnPublishSingle(c);
-                    }
-                }
-                else
-                {
-                    var content = e.PublishedEntities.FirstOrDefault();
-                    UnPublishSingle(content);
-                }
-            }
-        }
+            //foreach (var content in e.PublishedEntities)
+            //{
+            //    DistributedCache.Instance.RefreshUnpublishedPageCache(content);
+            //    DistributedCache.Instance.RemovePageCache(content);
+            //}
 
-        /// <summary>
-        /// Refreshes the xml cache for a single node by removing it
-        /// </summary>
-        private void UnPublishSingle(IContent content)
-        {
-            DistributedCache.Instance.RemovePageCache(content);
+            // assuming order is not important here...
+            var entities = e.PublishedEntities.ToArray();
+            DistributedCache.Instance.RefreshUnpublishedPageCache(entities);
+            DistributedCache.Instance.RemovePageCache(entities);
         }
     }
 }

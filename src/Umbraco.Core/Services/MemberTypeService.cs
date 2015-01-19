@@ -89,7 +89,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                UpdateContentXmlStructure(memberType);
+                NotifyMemberServiceOfMemberTypeChanges(memberType);
             }
             Saved.RaiseEvent(new SaveEventArgs<IMemberType>(memberType, false), this);
         }
@@ -116,7 +116,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                UpdateContentXmlStructure(asArray.Cast<IContentTypeBase>().ToArray());
+                NotifyMemberServiceOfMemberTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
             }
             Saved.RaiseEvent(new SaveEventArgs<IMemberType>(asArray, false), this);
         }
@@ -171,25 +171,17 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
-        /// This is called after an IContentType is saved and is used to update the content xml structures in the database
-        /// if they are required to be updated.
+        /// Notifies the member service of member type changes.
         /// </summary>
-        /// <param name="contentTypes">A tuple of a content type and a boolean indicating if it is new (HasIdentity was false before committing)</param>
-        private void UpdateContentXmlStructure(params IContentTypeBase[] contentTypes)
+        /// <param name="memberTypes">The changed member types.</param>
+        private void NotifyMemberServiceOfMemberTypeChanges(params IContentTypeBase[] memberTypes)
         {
+            var ids = GetContentTypesToNotify(memberTypes).Select(x => x.Id).ToArray();
+            if (ids.Length == 0) return;
 
-            var toUpdate = GetContentTypesForXmlUpdates(contentTypes).ToArray();
-
-            if (toUpdate.Any())
-            {
-                //if it is a media type then call the rebuilding methods for media
-                var typedMemberService = _memberService as MemberService;
-                if (typedMemberService != null)
-                {
-                    typedMemberService.RebuildMemberXml(toUpdate.Select(x => x.Id).ToArray());
-                }
-            }
-
+            var svc = _memberService as MemberService;
+            if (svc == null) throw new Exception("Oops!");
+            svc.NotifyMemberTypeChanges(ids);
         }
 
         /// <summary>

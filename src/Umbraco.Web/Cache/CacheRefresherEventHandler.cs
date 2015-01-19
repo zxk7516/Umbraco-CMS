@@ -247,10 +247,10 @@ namespace Umbraco.Web.Cache
                 DistributedCache.Instance.RefreshAllUserPermissionsCache();
             }
 
-            //filter out the entities that have only been saved (not newly published) since
-            // newly published ones will be synced with the published page cache refresher
-            var unpublished = e.SavedEntities.Where(x => x.JustPublished() == false);
-            //run the un-published cache refresher
+            // trigger the un-published cache refresher UNLESS the published cache refresher 
+            // is going to trigger, because we want only ONE of them to trigger - until we 
+            // merge PageCache and UnpublishedPageCache.
+            var unpublished = e.SavedEntities.Where(x => x.Published == false);
             DistributedCache.Instance.RefreshUnpublishedPageCache(unpublished.ToArray());
         }
 

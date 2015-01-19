@@ -32,7 +32,7 @@ namespace Umbraco.Web.Cache
         /// </summary>
         /// <param name="json"></param>
         /// <returns></returns>
-        private static JsonPayload[] DeserializeFromJsonPayload(string json)
+        internal static JsonPayload[] DeserializeFromJsonPayload(string json)
         {
             var serializer = new JavaScriptSerializer();
             var jsonObject = serializer.Deserialize<JsonPayload[]>(json);
@@ -90,7 +90,7 @@ namespace Umbraco.Web.Cache
 
         #region Sub classes
 
-        private class JsonPayload
+        internal class JsonPayload
         {
             public JsonPayload()
             {
@@ -117,8 +117,9 @@ namespace Umbraco.Web.Cache
 
         public override Guid UniqueIdentifier
         {
-            get { return new Guid(DistributedCache.ContentTypeCacheRefresherId); }
+            get { return DistributedCache.ContentTypeCacheRefresherGuid; }
         }
+
         public override string Name
         {
             get { return "ContentTypeCacheRefresher"; }
@@ -138,21 +139,23 @@ namespace Umbraco.Web.Cache
             //clear static object cache
             global::umbraco.cms.businesslogic.ContentType.RemoveAllDataTypeCache();
 
-            PublishedContentType.ClearAll();
-
+            // do it in THIS order: we want to trigger content type events FIRST
             base.RefreshAll();
+            PublishedContentType.ClearAll();
         }
 
         public override void Refresh(int id)
         {
-            ClearContentTypeCache(false, id);
+            // do it in THIS order: we want to trigger content type events BEFORE content events
             base.Refresh(id);
+            ClearContentTypeCache(false, id);
         }
 
         public override void Remove(int id)
         {
-            ClearContentTypeCache(true, id);
+            // do it in THIS order: we want to trigger content type events BEFORE content events
             base.Remove(id);
+            ClearContentTypeCache(true, id);
         }
 
         /// <summary>
@@ -162,8 +165,10 @@ namespace Umbraco.Web.Cache
         public override void Refresh(string jsonPayload)
         {
             var payload = DeserializeFromJsonPayload(jsonPayload);
-            ClearContentTypeCache(payload);
+
+            // do it in THIS order: we want to trigger content type events BEFORE content events
             base.Refresh(jsonPayload);
+            ClearContentTypeCache(payload);
         }
 
         /// <summary>
@@ -201,9 +206,10 @@ namespace Umbraco.Web.Cache
                 });
 
             //need to refresh the xml content cache if required
+            // FIXME - should not take place here!!
             if (needsContentRefresh)
             {
-                var pageRefresher = CacheRefreshersResolver.Current.GetById(new Guid(DistributedCache.PageCacheRefresherId));
+                var pageRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.PageCacheRefresherGuid);
                 pageRefresher.RefreshAll();
             }
 

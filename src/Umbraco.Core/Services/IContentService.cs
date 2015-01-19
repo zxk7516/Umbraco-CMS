@@ -303,6 +303,7 @@ namespace Umbraco.Core.Services
         /// </summary>
         /// <param name="userId">Optional Id of the User issueing the publishing</param>
         /// <returns>True if publishing succeeded, otherwise False</returns>
+        [Obsolete("See IPublishedCachesService implementations.", false)]
         bool RePublishAll(int userId = 0);
 
         /// <summary>

@@ -91,7 +91,6 @@ namespace Umbraco.Web.Cache
             base.Remove(id);
         }
 
-
         public override void Refresh(IContent instance)
         {
             RuntimeCacheProvider.Current.Delete(typeof(IContent), instance.Id);

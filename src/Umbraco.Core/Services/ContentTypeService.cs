@@ -237,43 +237,32 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
-        /// This is called after an IContentType is saved and is used to update the content xml structures in the database
-        /// if they are required to be updated.
+        /// Notifies the content service of content type changes.
         /// </summary>
-        /// <param name="contentTypes">A tuple of a content type and a boolean indicating if it is new (HasIdentity was false before committing)</param>
-        private void UpdateContentXmlStructure(params IContentTypeBase[] contentTypes)
+        /// <param name="contentTypes">The changed content types.</param>
+        private void NotifyContentServiceOfContentTypeChanges(params IContentTypeBase[] contentTypes)
         {
+            var types = GetContentTypesToNotify(contentTypes).ToArray();
+            if (types.Length == 0) return;
 
-            var toUpdate = GetContentTypesForXmlUpdates(contentTypes).ToArray();
-
-            if (toUpdate.Any())
+            var t = types[0];
+            var ids = types.Select(x => x.Id).ToArray();
+            if (t is IContentType)
             {
-                var firstType = toUpdate.First();
-                //if it is a content type then call the rebuilding methods or content
-                if (firstType is IContentType)
-                {
-                    var typedContentService = _contentService as ContentService;
-                    if (typedContentService != null)
-                    {
-                        typedContentService.RePublishAll(toUpdate.Select(x => x.Id).ToArray());
-                    }
-                    else
-                    {
-                        //this should never occur, the content service should always be typed but we'll check anyways.
-                        _contentService.RePublishAll();
-                    }    
-                }
-                else if (firstType is IMediaType)
-                {
-                    //if it is a media type then call the rebuilding methods for media
-                    var typedContentService = _mediaService as MediaService;
-                    if (typedContentService != null)
-                    {
-                        typedContentService.RebuildMediaXml(toUpdate.Select(x => x.Id).ToArray());
-                    }                     
-                }
+                var svc = _contentService as ContentService;
+                if (svc == null) throw new Exception("Oops!");
+                svc.NotifyContentTypeChanges(ids);
             }
-            
+            else if (t is IMediaType)
+            {
+                var svc = _mediaService as MediaService;
+                if (svc == null) throw new Exception("Oops!");
+                svc.NotifyContentTypeChanges(ids);
+            }
+            else
+            {
+                throw new Exception("Oops!");
+            }
         }
 
         public void Validate(IContentTypeComposition compo)
@@ -366,7 +355,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                UpdateContentXmlStructure(contentType);
+                NotifyContentServiceOfContentTypeChanges(contentType);
             }
             SavedContentType.RaiseEvent(new SaveEventArgs<IContentType>(contentType, false), this);
 	        Audit.Add(AuditTypes.Save, string.Format("Save ContentType performed by user"), userId, contentType.Id);
@@ -404,7 +393,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                UpdateContentXmlStructure(asArray.Cast<IContentTypeBase>().ToArray());
+                NotifyContentServiceOfContentTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
             }
             SavedContentType.RaiseEvent(new SaveEventArgs<IContentType>(asArray, false), this);
 	        Audit.Add(AuditTypes.Save, string.Format("Save ContentTypes performed by user"), userId, -1);
@@ -571,7 +560,7 @@ namespace Umbraco.Core.Services
                     
                 }
 
-                UpdateContentXmlStructure(mediaType);
+                NotifyContentServiceOfContentTypeChanges(mediaType);
             }
 
             SavedMediaType.RaiseEvent(new SaveEventArgs<IMediaType>(mediaType, false), this);
@@ -610,7 +599,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();                    
                 }
 
-                UpdateContentXmlStructure(asArray.Cast<IContentTypeBase>().ToArray());
+                NotifyContentServiceOfContentTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
             }
 
             SavedMediaType.RaiseEvent(new SaveEventArgs<IMediaType>(asArray, false), this);

@@ -65,8 +65,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             Resolution.Frozen += (sender, args) =>
             {
                 // plug event handlers
+                // distributed events
                 PageCacheRefresher.CacheUpdated += PageCacheUpdated;
                 UnpublishedPageCacheRefresher.CacheUpdated += UnpublishedPageCacheUpdated;
+                ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
 
                 // plug repository event handlers
                 // these trigger within the transaction to ensure consistency
@@ -90,6 +92,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 // temp - until we get rid of Content
                 global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+
+                // plug event handlers
+                // used to maintain the central, database-level XML cache - NOT distributed
+                ContentService.ContentTypesChanged += OnContentTypesChanged;
+                MediaService.ContentTypesChanged += OnMediaTypesChanged;
+                MemberService.MemberTypesChanged += OnMemberTypesChanged;
 
                 // and populate the cache
                 lock (XmlLock)
@@ -620,23 +628,28 @@ AND (umbracoNode.id=@id)";
 
         private static readonly object DbLock = new object(); // ensure no concurrency on db
 
-        const string ReadCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
-cmsContentXml.xml, cmsDocument.published
+        const string ReadCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadMoreCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
-cmsContentXml.xml, 1 AS published
+        const string ReadCmsContentXmlForContentTypesSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, cmsDocument.published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
+JOIN cmsContent ON (cmsDocument.nodeId=cmsContent.nodeId)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1 AND cmsContent.contentType IN (@ids)
+ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+
+        const string ReadMoreCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, 1 AS published
 FROM umbracoNode 
 JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadCmsPreviewXmlSql1 = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
-cmsPreviewXml.xml, cmsDocument.published
+        const string ReadCmsPreviewXmlSql1 = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsPreviewXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
@@ -849,6 +862,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     RefreshSortOrder(refreshedInstance);
                     break;
                 case MessageType.RefreshByJson:
+                    // FIXME - BEWARE OF THE OPERATION!
                     var json = (string)args.MessageObject;
                     var contentService = ApplicationContext.Current.Services.ContentService;
                     foreach (var c in UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
@@ -894,6 +908,88 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     Remove(removedInstance.Id);
                     break;
             }
+        }
+
+        private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
+        {
+            IContentType contentType;
+            IMediaType mediaType;
+            IMemberType memberType;
+
+            switch (args.MessageType)
+            {
+                case MessageType.RefreshAll:
+                    ReloadXmlFromDatabase();
+                    break;
+                case MessageType.RefreshById:
+                    var refreshedId = (int)args.MessageObject;
+                    contentType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(refreshedId);
+                    if (contentType != null) RefreshContentTypes(new[] { refreshedId });
+                    else
+                    {
+                        mediaType = ApplicationContext.Current.Services.ContentTypeService.GetMediaType(refreshedId);
+                        if (mediaType != null) RefreshMediaTypes(new[] { refreshedId });
+                        else
+                        {
+                            memberType = ApplicationContext.Current.Services.MemberTypeService.Get(refreshedId);
+                            if (memberType != null) RefreshMemberTypes(new[] { refreshedId });
+                        }
+                    }
+                    break;
+                case MessageType.RefreshByInstance:
+                    var refreshedInstance = (IContentTypeBase)args.MessageObject;
+                    contentType = refreshedInstance as IContentType;
+                    if (contentType != null) RefreshContentTypes(new[] { refreshedInstance.Id });
+                    else
+                    {
+                        mediaType = refreshedInstance as IMediaType;
+                        if (mediaType != null) RefreshMediaTypes(new[] { refreshedInstance.Id });
+                        else
+                        {
+                            memberType = refreshedInstance as IMemberType;
+                            if (memberType != null) RefreshMemberTypes(new[] { refreshedInstance.Id });
+                        }
+                    }
+                    break;
+                case MessageType.RefreshByJson:
+                    var json = (string)args.MessageObject;
+                    foreach (var payload in ContentTypeCacheRefresher.DeserializeFromJsonPayload(json))
+                    {
+                        // skip those that don't really change anything for us
+                        if (payload.IsNew 
+                            || (payload.WasDeleted || payload.AliasChanged || payload.PropertyRemoved) == false)
+                            continue;
+
+                        switch (payload.Type)
+                        {
+                            // assume all descendants will be of the same type
+
+                            case "IContentType":
+                                RefreshContentTypes(FlattenIds(payload));
+                                break;
+                            case "IMediaType":
+                                RefreshMediaTypes(FlattenIds(payload));
+                                break;
+                            case "IMemberType":
+                                RefreshMemberTypes(FlattenIds(payload));
+                                break;
+                            default:
+                                throw new NotSupportedException("Invalid type: " + payload.Type);
+                        }
+                    }
+                    break;
+                case MessageType.RemoveById:
+                case MessageType.RemoveByInstance:
+                    // do nothing - content should be removed via their own events
+                    break;
+            }
+        }
+
+        private static IEnumerable<int> FlattenIds(ContentTypeCacheRefresher.JsonPayload payload)
+        {
+            yield return payload.Id;
+            foreach (var id in payload.DescendantPayloads.SelectMany(FlattenIds))
+                yield return id;
         }
 
         #endregion
@@ -1007,6 +1103,53 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             attr.Value = content.SortOrder.ToInvariantString();
 
             AppendDocumentXml(xml, content.Id, content.Level, parentId, node);
+        }
+
+        public void RefreshContentTypes(IEnumerable<int> ids)
+        {
+            // for single-refresh of one content we just re-serialize it instead of hitting the DB
+            // but for mass-refresh, we want to reload what's been serialized in the DB = faster
+            // so we want one big SQL that loads all the impacted xml DTO so we can update our XML
+            //
+            // oh and it should be an enum of content types (due to dependencies & such)
+
+            // get xml
+            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlForContentTypesSql,
+                new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document), @ids = ids });
+
+            // fixme - still, missing plenty of locks here
+            // fixme - should we run the events as we do above?
+            SafeExecute(xmlDoc =>
+            {
+                foreach (var xmlDto in xmlDtos)
+                {
+                    // fix sortOrder - see notes in UpdateSortOrder
+                    // fixme - is that still needed?
+                    var tmp = new XmlDocument();
+                    tmp.LoadXml(xmlDto.Xml);
+                    if (tmp.DocumentElement == null) throw new Exception("oops");
+                    var attr = tmp.DocumentElement.GetAttributeNode("sortOrder");
+                    if (attr == null) throw new Exception("oops");
+                    attr.Value = xmlDto.SortOrder.ToInvariantString();
+                    xmlDto.Xml = tmp.InnerXml;
+
+                    // and parse it into a DOM node
+                    xmlDoc.LoadXml(xmlDto.Xml);
+                    var node = xmlDoc.FirstChild;
+
+                    AppendDocumentXml(xmlDoc, xmlDto.Id, xmlDto.Level, xmlDto.ParentId, node);
+                }
+            });
+        }
+
+        public void RefreshMediaTypes(IEnumerable<int> ids)
+        {
+            // nothing to do, we have no cache
+        }
+
+        public void RefreshMemberTypes(IEnumerable<int> ids)
+        {
+            // nothing to do, we have no cache
         }
 
         public void Remove(int contentId)
@@ -1437,6 +1580,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
         {
+            // fixme - look for SqlSyntaxProviderExtensions.GetDeleteSubquery
+
             // unfortunately, SQL-CE does not support this
             /*
             const string sql1 = @"DELETE cmsPreviewXml FROM cmsPreviewXml
@@ -1475,6 +1620,10 @@ WHERE cmsContentXml.nodeId IN (
         #endregion
 
         #region Rebuild Database Xml
+
+        // fixme - locks when rebuilding all?!
+        // want to lock all content & content type & what else?!
+        // fixme - may also want a way to distribute a 'republish all' message?
 
         public void RebuildContentAndPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
@@ -1791,6 +1940,24 @@ AND cmsContentXml.nodeId IS NULL
 ", new { objType = memberObjectType });
 
             return count == 0;
+        }
+
+        private void OnContentTypesChanged(ContentService sender, ContentService.ContentTypeChangedEventArgs args)
+        {
+            // assuming that content types & content are locked
+            RebuildContentAndPreviewXml(5000, args.ContentTypeIds);
+        }
+
+        private void OnMediaTypesChanged(MediaService sender, MediaService.ContentTypeChangedEventArgs args)
+        {
+            // assuming that content types & content are locked
+            RebuildMediaXml(5000, args.ContentTypeIds);
+        }
+
+        private void OnMemberTypesChanged(MemberService sender, MemberService.MemberTypeChangedEventArgs args)
+        {
+            // assuming that content types & content are locked
+            RebuildMemberXml(500, args.MemberTypeIds);
         }
 
         #endregion
