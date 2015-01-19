@@ -13,9 +13,6 @@ namespace Umbraco.Core.Persistence.Repositories
 {
     public interface IContentRepository : IRepositoryVersionable<int, IContent>, IRecycleBinRepository<IContent>
     {
-        void RebuildContentXml(Func<IContent, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null);
-        void RebuildPreviewXml(Func<IContent, XElement> serializer, int groupSize = 5000, IEnumerable<int> contentTypeIds = null);
-
         /// <summary>
         /// Get the count of published items
         /// </summary>

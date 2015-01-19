@@ -42,7 +42,6 @@ namespace Umbraco.Core.Persistence.Repositories
             var db = this.Database;
 
             //Construct and execute delete statements for all trashed items by 'nodeObjectType'
-            // fixme MORE cmsPreviewXml & cmsContentXml here!!!
             var deletes = new List<string>
             {
                 FormatDeleteStatement("umbracoUser2NodeNotify", "nodeId"),
