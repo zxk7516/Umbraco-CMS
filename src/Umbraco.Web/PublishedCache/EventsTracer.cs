@@ -23,7 +23,7 @@ namespace Umbraco.Web.PublishedCache
     {
         // set const to true to enable
         // do NOT commit this class with Enabled set to true!
-        private const bool Enabled = true;
+        private const bool Enabled = false;
 
         protected override void ApplicationStarted(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
         {
