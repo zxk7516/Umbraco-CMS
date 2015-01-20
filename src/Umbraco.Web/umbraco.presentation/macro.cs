@@ -871,9 +871,10 @@ namespace umbraco
         {
             var request = UmbracoContext.Current.PublishedContentRequest;
             if (request == null || request.HasPublishedContent == false)
-                throw new Exception("Internal error, there is no current node.");
+                //throw new Exception("Internal error, there is no current node.");
+                return null;
 
-            return CompatibilityHelper.ConvertToNode(UmbracoContext.Current.PublishedContentRequest.PublishedContent);
+            return LegacyNodeHelper.ConvertToNode(UmbracoContext.Current.PublishedContentRequest.PublishedContent);
         }
 
         private static string GetControlUniqueId(string filename)
@@ -1071,12 +1072,6 @@ namespace umbraco
         {
             // allow any old dodgy certificate in debug mode
             return GlobalSettings.DebugMode || policyErrors == SslPolicyErrors.None;
-
-            var content = UmbracoContext.Current.ContentCache.GetById(id);
-                    ? UmbracoContext.Current.PublishedContentRequest.PublishedContent
-                    : null;
-        
-            return CompatibilityHelper.ConvertToNode(content);
         }
 
         #endregion
