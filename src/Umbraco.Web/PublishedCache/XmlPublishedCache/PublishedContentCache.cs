@@ -30,7 +30,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _routesCache = routesCache; // may be null for unit-testing
 
             _xmlStore = xmlStore;
-            _xml = _xmlStore.Xml; // capture
+            _xml = _xmlStore.Xml; // capture - because the cache has to remain consistent
 
             if (previewToken.IsNullOrWhiteSpace() == false)
                 _previewContent = new PreviewContent(_xmlStore, previewToken);

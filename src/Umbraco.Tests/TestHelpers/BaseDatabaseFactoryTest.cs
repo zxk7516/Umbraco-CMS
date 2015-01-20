@@ -341,10 +341,10 @@ namespace Umbraco.Tests.TestHelpers
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var factory = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-            if (factory == null)
-                throw new Exception("Not a proper XmlPublishedCache.PublishedCachesFactory.");
-            factory.XmlStore.GetXmlDocument = () => 
+            var svce = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (svce == null)
+                throw new Exception("Not a proper XmlPublishedCache.PublishedCachesService.");
+            svce.XmlStore.GetXmlDocument = () => 
             {
                 var doc = new XmlDocument();
                 doc.LoadXml(GetXmlContent(templateId));
@@ -355,7 +355,7 @@ namespace Umbraco.Tests.TestHelpers
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                factory.CreatePublishedCaches(null),
+                svce.CreatePublishedCaches(null),
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

@@ -12,6 +12,7 @@ using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 using Umbraco.Tests.TestHelpers;
 using Umbraco.Tests.TestHelpers.Entities;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Tests.Services
 {
@@ -711,6 +712,8 @@ namespace Umbraco.Tests.Services
         public void Can_UnPublish_Content()
         {
             // Arrange
+            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
+
             var contentService = ServiceContext.ContentService;
             var content = contentService.GetById(NodeDto.NodeIdSeed + 1);
             bool published = contentService.Publish(content, 0);
@@ -775,6 +778,8 @@ namespace Umbraco.Tests.Services
         public void Can_RePublish_All_Content()
         {
             // Arrange
+            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
+
             var contentService = (ContentService)ServiceContext.ContentService;
             var rootContent = contentService.GetRootContent().ToList();
             foreach (var c in rootContent)
@@ -809,6 +814,8 @@ namespace Umbraco.Tests.Services
         public void Can_RePublish_All_Content_Of_Type()
         {
             // Arrange
+            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
+
             var contentService = (ContentService)ServiceContext.ContentService;
             var rootContent = contentService.GetRootContent().ToList();
             foreach (var c in rootContent)

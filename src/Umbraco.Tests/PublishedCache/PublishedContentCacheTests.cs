@@ -109,6 +109,12 @@ namespace Umbraco.Tests.PublishedCache
             SettingsForTests.ConfigureSettings(settings);
             _xml = new XmlDocument();
             _xml.LoadXml(GetLegacyXml());
+            
+            // updating _xml will update XmlStore.Xml
+            // but not _cache.GetXml() since the purpose of the cache is to be consistent
+            // so we need to resync - at the moment there's no common way, use internal resync
+	        var cache = _cache as PublishedContentCache;
+	        cache.Resync();
 		}
 
 	    protected override void FreezeResolution()

@@ -64,52 +64,57 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
 
             // need to wait for resolution to be frozen
-            Resolution.Frozen += (sender, args) =>
+            if (Resolution.IsFrozen)
+                Initialize();
+            else
+                Resolution.Frozen += (sender, args) => Initialize();
+        }
+
+        private void Initialize()
+        {
+            // plug event handlers
+            // distributed events
+            PageCacheRefresher.CacheUpdated += PageCacheUpdated;
+            UnpublishedPageCacheRefresher.CacheUpdated += UnpublishedPageCacheUpdated;
+            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
+
+            // plug repository event handlers
+            // these trigger within the transaction to ensure consistency
+            // and are used to maintain the central, database-level XML cache
+            ContentRepository.RemovedEntity += OnContentRemovedEntity;
+            ContentRepository.RemovedVersion += OnContentRemovedVersion;
+            ContentRepository.RefreshedEntity += OnContentRefreshedEntity;
+            MediaRepository.RemovedEntity += OnMediaRemovedEntity;
+            MediaRepository.RemovedVersion += OnMediaRemovedVersion;
+            MediaRepository.RefreshedEntity += OnMediaRefreshedEntity;
+            MemberRepository.RemovedEntity += OnMemberRemovedEntity;
+            MemberRepository.RemovedVersion += OnMemberRemovedVersion;
+            MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
+
+            // plug event handlers
+            // these trigger within the transaction to ensure consistency
+            // and are used to maintain the central, database-level XML cache
+            // fixme - shouldn't we just make sure we clear XML when trashing?
+            ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
+            MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
+
+            // temp - until we get rid of Content
+            global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+
+            // plug event handlers
+            // used to maintain the central, database-level XML cache - NOT distributed
+            ContentService.ContentTypesChanged += OnContentTypesChanged;
+            MediaService.ContentTypesChanged += OnMediaTypesChanged;
+            MemberService.MemberTypesChanged += OnMemberTypesChanged;
+
+            // and populate the cache
+            lock (XmlLock)
             {
-                // plug event handlers
-                // distributed events
-                PageCacheRefresher.CacheUpdated += PageCacheUpdated;
-                UnpublishedPageCacheRefresher.CacheUpdated += UnpublishedPageCacheUpdated;
-                ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
-
-                // plug repository event handlers
-                // these trigger within the transaction to ensure consistency
-                // and are used to maintain the central, database-level XML cache
-                ContentRepository.RemovedEntity += OnContentRemovedEntity;
-                ContentRepository.RemovedVersion += OnContentRemovedVersion;
-                ContentRepository.RefreshedEntity += OnContentRefreshedEntity;
-                MediaRepository.RemovedEntity += OnMediaRemovedEntity;
-                MediaRepository.RemovedVersion += OnMediaRemovedVersion;
-                MediaRepository.RefreshedEntity += OnMediaRefreshedEntity;
-                MemberRepository.RemovedEntity += OnMemberRemovedEntity;
-                MemberRepository.RemovedVersion += OnMemberRemovedVersion;
-                MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
-
-                // plug event handlers
-                // these trigger within the transaction to ensure consistency
-                // and are used to maintain the central, database-level XML cache
-                // fixme - shouldn't we just make sure we clear XML when trashing?
-                ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
-                MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
-
-                // temp - until we get rid of Content
-                global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
-
-                // plug event handlers
-                // used to maintain the central, database-level XML cache - NOT distributed
-                ContentService.ContentTypesChanged += OnContentTypesChanged;
-                MediaService.ContentTypesChanged += OnMediaTypesChanged;
-                MemberService.MemberTypesChanged += OnMemberTypesChanged;
-
-                // and populate the cache
-                lock (XmlLock)
-                {
-                    bool registerXmlChange;
-                    _xml = LoadXmlLocked(out registerXmlChange);
-                    if (registerXmlChange) RegisterXmlChange();
-                    // no need to clear _routesCache, should be empty
-                }
-            };
+                bool registerXmlChange;
+                _xml = LoadXmlLocked(out registerXmlChange);
+                if (registerXmlChange) RegisterXmlChange();
+                // no need to clear _routesCache, should be empty
+            }
         }
 
         // fixme - should we plug event handlers for tests?
@@ -118,8 +123,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // initialize with an xml document
         internal XmlStore(XmlDocument xmlDocument)
         {
-            if (xmlDocument == null)
-                throw new ArgumentNullException("xmlDocument");
+            //if (xmlDocument == null)
+            //    throw new ArgumentNullException("xmlDocument");
             _xmlDocument = xmlDocument;
             _xmlFileEnabled = false;
         }
@@ -210,7 +215,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// </remarks>
         public Func<XmlDocument> GetXmlDocument { get; set; }
 
-        private XmlDocument _xmlDocument; // supplied xml document (for tests)
+        private readonly XmlDocument _xmlDocument; // supplied xml document (for tests)
         private volatile XmlDocument _xml; // master xml document
         private static readonly object XmlLock = new object(); // protects _xml
         private DateTime _lastXmlChange; // last time Xml was reported as changed
@@ -228,7 +233,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 if (_xmlDocument != null)
                     return _xmlDocument;
                 if (GetXmlDocument != null)
-                    return _xmlDocument = GetXmlDocument();
+                    return GetXmlDocument();
 
                 return XmlInternal;
             }
@@ -1555,7 +1560,11 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
         {
-            // fixme - look for SqlSyntaxProviderExtensions.GetDeleteSubquery
+            // could use
+            // var select = new Sql().Select("DISTINCT id").From<...
+            // SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsContentXml", "nodeId", subQuery);
+            // SqlSyntaxContext.SqlSyntaxProvider.GetDeleteSubquery("cmsPreviewXml", "nodeId", subQuery);
+            // but let's keep it simple for now...
 
             // unfortunately, SQL-CE does not support this
             /*
@@ -1625,20 +1634,34 @@ WHERE cmsContentXml.nodeId IN (
                 // remove all - if anything fails the transaction will rollback
                 if (contentTypeIds == null || contentTypeIdsA.Length == 0)
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-WHERE umbracoNode.nodeObjectType=@objType",
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//WHERE umbracoNode.nodeObjectType=@objType",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
+)",
                         new { objType = contentObjectType });
                 }
                 else
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-WHERE umbracoNode.nodeObjectType=@objType
-AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                    // assume number of ctypes won't blow IN(...)
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+//WHERE umbracoNode.nodeObjectType=@objType
+//AND cmsContent.contentType IN (@ctypes)",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
+    WHERE umbracoNode.nodeObjectType=@objType
+    AND cmsContent.contentType IN (@ctypes) 
+)",
                         new { objType = contentObjectType, ctypes = contentTypeIdsA }); 
                 }
 
@@ -1679,20 +1702,34 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
                 // remove all - if anything fails the transaction will rollback
                 if (contentTypeIds == null || contentTypeIdsA.Length == 0)
                 {
-                    db.Execute(@"DELETE cmsPreviewXml 
-FROM cmsPreviewXml 
-JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
-WHERE umbracoNode.nodeObjectType=@objType",
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsPreviewXml 
+//FROM cmsPreviewXml 
+//JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+//WHERE umbracoNode.nodeObjectType=@objType",
+                    db.Execute(@"DELETE FROM cmsPreviewXml
+WHERE cmsPreviewXml.nodeId IN (
+    SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
+)",
                         new { objType = contentObjectType });
                 }
                 else
                 {
-                    db.Execute(@"DELETE cmsPreviewXml 
-FROM cmsPreviewXml 
-JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
-JOIN cmsContent ON (cmsPreviewXml.nodeId=cmsContent.nodeId)
-WHERE umbracoNode.nodeObjectType=@objType
-AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                    // assume number of ctypes won't blow IN(...)
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsPreviewXml 
+//FROM cmsPreviewXml 
+//JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+//JOIN cmsContent ON (cmsPreviewXml.nodeId=cmsContent.nodeId)
+//WHERE umbracoNode.nodeObjectType=@objType
+//AND cmsContent.contentType IN (@ctypes)",
+                    db.Execute(@"DELETE FROM cmsPreviewXml
+WHERE cmsPreviewXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
+    WHERE umbracoNode.nodeObjectType=@objType
+    AND cmsContent.contentType IN (@ctypes) 
+)",
                         new { objType = contentObjectType, ctypes = contentTypeIdsA });
                 }
 
