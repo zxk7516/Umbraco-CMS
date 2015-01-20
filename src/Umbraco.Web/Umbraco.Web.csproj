@@ -268,6 +268,8 @@
     </Compile>
     <Compile Include="ApplicationContextExtensions.cs" />
     <Compile Include="AreaRegistrationContextExtensions.cs" />
+    <Compile Include="Models\LegacyConvertedNode.cs" />
+    <Compile Include="Models\LegacyConvertedNodeProperty.cs" />
     <Compile Include="PublishedCache\EventsTracer.cs" />
     <Compile Include="PublishedCache\IPublishedMemberCache.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\Navigable\INavigableData.cs" />
@@ -407,7 +409,6 @@
     <Compile Include="Mvc\UmbracoViewPage.cs" />
     <Compile Include="Editors\LogController.cs" />
     <Compile Include="Editors\MacroController.cs" />
-    <Compile Include="Editors\MembershipProviderValidationFilterAttribute.cs" />
     <Compile Include="Editors\MemberTypeController.cs" />
     <Compile Include="Editors\UpdateCheckController.cs" />
     <Compile Include="MembershipProviderExtensions.cs" />
@@ -565,9 +566,11 @@
     <Compile Include="WebApi\Filters\AngularAntiForgeryHelper.cs" />
     <Compile Include="WebApi\Filters\ClearAngularAntiForgeryTokenAttribute.cs" />
     <Compile Include="WebApi\Filters\DisableBrowserCacheAttribute.cs" />
+    <Compile Include="WebApi\Filters\EnableOverrideAuthorizationAttribute.cs" />
     <Compile Include="WebApi\Filters\FilterGrouping.cs" />
     <Compile Include="WebApi\Filters\LegacyTreeAuthorizeAttribute.cs" />
     <Compile Include="WebApi\Filters\OutgoingNoHyphenGuidFormatAttribute.cs" />
+    <Compile Include="WebApi\Filters\OverridableAuthorizationAttribute.cs" />
     <Compile Include="WebApi\Filters\SetAngularAntiForgeryTokensAttribute.cs" />
     <Compile Include="WebApi\Filters\UmbracoBackOfficeLogoutAttribute.cs" />
     <Compile Include="WebApi\Filters\UmbracoTreeAuthorizeAttribute.cs" />
@@ -760,7 +763,7 @@
     <Compile Include="UI\Bundles\JsUmbracoApplicationUI.cs" />
     <Compile Include="UI\Bundles\JsUmbracoTree.cs" />
     <Compile Include="UI\CdfLogger.cs" />
-    <Compile Include="umbraco.presentation\CompatibilityHelper.cs" />
+    <Compile Include="Models\LegacyNodeHelper.cs" />
     <Compile Include="umbraco.presentation\umbraco\controls\PasswordChanger.ascx.cs">
       <SubType>ASPXCodeBehind</SubType>
     </Compile>

@@ -169,6 +169,8 @@
     <Compile Include="AttemptTests.cs" />
     <Compile Include="Cache\CacheRefresherTests.cs" />
     <Compile Include="CoreXml\RenamedRootNavigatorTests.cs" />
+    <Compile Include="CoreStrings\StringValidationTests.cs" />
+    <Compile Include="FrontEnd\UmbracoHelperTests.cs" />
     <Compile Include="Membership\DynamicMemberContentTests.cs" />
     <Compile Include="Membership\MembershipProviderBaseTests.cs" />
     <Compile Include="Membership\UmbracoServiceMembershipProviderTests.cs" />

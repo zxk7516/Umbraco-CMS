@@ -23,6 +23,7 @@ using Umbraco.Core.Models;
 using umbraco.interfaces;
 using Umbraco.Web;
 using Umbraco.Web.Macros;
+using Umbraco.Web.Models;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic.macro;
 using Umbraco.Web.Security;
@@ -1070,6 +1071,12 @@ namespace umbraco
         {
             // allow any old dodgy certificate in debug mode
             return GlobalSettings.DebugMode || policyErrors == SslPolicyErrors.None;
+
+            var content = UmbracoContext.Current.ContentCache.GetById(id);
+                    ? UmbracoContext.Current.PublishedContentRequest.PublishedContent
+                    : null;
+        
+            return CompatibilityHelper.ConvertToNode(content);
         }
 
         #endregion

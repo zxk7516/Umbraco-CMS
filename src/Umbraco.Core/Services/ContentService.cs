@@ -403,7 +403,7 @@ namespace Umbraco.Core.Services
         {
             using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
             {
-                var query = Query<IContent>.Builder.Where(x => x.Level == level && !x.Path.StartsWith("-20"));
+                var query = Query<IContent>.Builder.Where(x => x.Level == level && !x.Path.StartsWith(Constants.System.RecycleBinContent.ToInvariantString()));
                 var contents = repository.GetByQuery(query);
 
                 return contents;
@@ -456,7 +456,7 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
         public IEnumerable<IContent> GetAncestors(IContent content)
         {
-            var ids = content.Path.Split(',').Where(x => x != "-1" && x != content.Id.ToString(CultureInfo.InvariantCulture)).Select(int.Parse).ToArray();
+            var ids = content.Path.Split(',').Where(x => x != Constants.System.Root.ToInvariantString() && x != content.Id.ToString(CultureInfo.InvariantCulture)).Select(int.Parse).ToArray();
             if (ids.Any() == false)
                 return new List<IContent>();
 
@@ -518,8 +518,8 @@ namespace Umbraco.Core.Services
             {
                 
                 var query = Query<IContent>.Builder;
-                //if the id is -1, then just get all
-                if (id != -1)
+                //if the id is System Root, then just get all
+                if (id != Constants.System.Root)
                 {
                     query.Where(x => x.ParentId == id);
                 }
@@ -548,8 +548,8 @@ namespace Umbraco.Core.Services
             {
 
                 var query = Query<IContent>.Builder;
-                //if the id is -1, then just get all
-                if (id != -1)
+                //if the id is System Root, then just get all
+                if (id != Constants.System.Root)
                 {
                     query.Where(x => x.Path.SqlContains(string.Format(",{0},", id), TextColumnType.NVarchar));
                 }
@@ -626,7 +626,7 @@ namespace Umbraco.Core.Services
         /// <returns>Parent <see cref="IContent"/> object</returns>
         public IContent GetParent(IContent content)
         {
-            if (content.ParentId == -1 || content.ParentId == -20)
+            if (content.ParentId == Constants.System.Root || content.ParentId == Constants.System.RecycleBinContent)
                 return null;
 
             return GetById(content.ParentId);
@@ -651,7 +651,7 @@ namespace Umbraco.Core.Services
         {
             using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
             {
-                var query = Query<IContent>.Builder.Where(x => x.ParentId == -1);
+                var query = Query<IContent>.Builder.Where(x => x.ParentId == Constants.System.Root);
                 var contents = repository.GetByQuery(query);
 
                 return contents;
@@ -709,7 +709,7 @@ namespace Umbraco.Core.Services
         {
             using (var repository = _repositoryFactory.CreateContentRepository(_uowProvider.GetUnitOfWork()))
             {
-                var query = Query<IContent>.Builder.Where(x => x.Path.Contains("-20"));
+                var query = Query<IContent>.Builder.Where(x => x.Path.Contains(Constants.System.RecycleBinContent.ToInvariantString()));
                 var contents = repository.GetByQuery(query);
 
                 return contents;
@@ -957,7 +957,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(asArray, false), this);
 
-                Audit.Add(AuditTypes.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, -1);
+                Audit.Add(AuditTypes.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
             }
         }
 
@@ -1001,7 +1001,7 @@ namespace Umbraco.Core.Services
 
                 Audit.Add(AuditTypes.Delete,
                           string.Format("Delete Content of Type {0} performed by user", contentTypeId),
-                          userId, -1);
+                          userId, Constants.System.Root);
             }
         }
 
@@ -1072,7 +1072,7 @@ namespace Umbraco.Core.Services
 
             DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, dateToRetain: versionDate), this);
 
-            Audit.Add(AuditTypes.Delete, "Delete Content by version date performed by user", userId, -1);
+            Audit.Add(AuditTypes.Delete, "Delete Content by version date performed by user", userId, Constants.System.Root);
         }
 
         /// <summary>
@@ -1105,7 +1105,7 @@ namespace Umbraco.Core.Services
 
                 DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, specificVersion: versionId), this);
 
-                Audit.Add(AuditTypes.Delete, "Delete Content by version performed by user", userId, -1);
+                Audit.Add(AuditTypes.Delete, "Delete Content by version performed by user", userId, Constants.System.Root);
             }
         }
 
@@ -1188,7 +1188,7 @@ namespace Umbraco.Core.Services
             using (new WriteLock(Locker))
             {
                 //This ensures that the correct method is called if this method is used to Move to recycle bin.
-                if (parentId == -20)
+                if (parentId == Constants.System.RecycleBinContent)
                 {
                     MoveToRecycleBin(content, userId);
                     return;
@@ -1248,7 +1248,7 @@ namespace Umbraco.Core.Services
 
                 
             }
-            Audit.Add(AuditTypes.Delete, "Empty Content Recycle Bin performed by user", 0, -20);
+            Audit.Add(AuditTypes.Delete, "Empty Content Recycle Bin performed by user", 0, Constants.System.RecycleBinContent);
         }
 
         /// <summary>
@@ -1481,9 +1481,9 @@ namespace Umbraco.Core.Services
             moveInfo.Add(new MoveEventInfo<IContent>(content, content.Path, parentId));
 
             content.WriterId = userId;
-            if (parentId == -1)
+            if (parentId == Constants.System.Root)
             {
-                content.Path = string.Concat("-1,", content.Id);
+                content.Path = string.Concat(Constants.System.Root, ",", content.Id);
                 content.Level = 1;
             }
             else
@@ -1556,7 +1556,7 @@ namespace Umbraco.Core.Services
                 var result = new List<Attempt<PublishStatus>>();
 
                 //Check if parent is published (although not if its a root node) - if parent isn't published this Content cannot be published
-                if (content.ParentId != -1 && content.ParentId != -20 && IsPublishable(content) == false)
+                if (content.ParentId != Constants.System.Root && content.ParentId != Constants.System.RecycleBinContent && IsPublishable(content) == false)
                 {
                     LogHelper.Info<ContentService>(
                         string.Format(
@@ -1791,11 +1791,11 @@ namespace Umbraco.Core.Services
             foreach (var id in ids)
             {
                 //If Id equals that of the recycle bin we return false because nothing in the bin can be published
-                if (id == -20)
+                if (id == Constants.System.RecycleBinContent)
                     return false;
 
                 //We don't check the System Root, so just continue
-                if (id == -1) continue;
+                if (id == Constants.System.Root) continue;
 
                 //If the current id equals that of the passed in content and if current shouldn't be checked we skip it.
                 if (checkCurrent == false && id == content.Id) continue;
@@ -1812,7 +1812,7 @@ namespace Umbraco.Core.Services
         private PublishStatusType CheckAndLogIsPublishable(IContent content)
         {
             //Check if parent is published (although not if its a root node) - if parent isn't published this Content cannot be published
-            if (content.ParentId != -1 && content.ParentId != -20 && IsPublishable(content) == false)
+            if (content.ParentId != Constants.System.Root && content.ParentId != Constants.System.RecycleBinContent && IsPublishable(content) == false)
             {
                 LogHelper.Info<ContentService>(
                     string.Format(
