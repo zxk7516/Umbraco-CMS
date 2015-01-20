@@ -14,13 +14,21 @@ namespace Umbraco.Tests.PublishedContent
     public class PublishedContentExtensionTests : PublishedContentTestBase
 	{
 		private UmbracoContext ctx;
-		private string xmlContent = "";
 		private bool createContentTypes = true;
-        
-		protected override string GetXmlContent(int templateId)
-		{
-			return xmlContent;
-		}
+
+        private string xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<!DOCTYPE root[ 
+<!ELEMENT inherited ANY>
+<!ATTLIST inherited id ID #REQUIRED>
+]>
+<root id=""-1"">
+	<inherited id=""1100"" parentID=""-1"" level=""1"" writerID=""0"" creatorID=""0"" nodeType=""1044"" template=""1"" sortOrder=""1"" createDate=""2012-06-12T14:13:17"" updateDate=""2012-07-20T18:50:43"" nodeName=""Home"" urlName=""home"" writerName=""admin"" creatorName=""admin"" path=""-1,1046"" isDoc=""""/>
+</root>";
+
+        protected override string GetXmlContent(int templateId)
+        {
+            return xmlContent;
+        }
 
 		[Test]
 		public void IsDocumentType_NonRecursive_ActualType_ReturnsTrue()
@@ -80,16 +88,6 @@ namespace Umbraco.Tests.PublishedContent
 				contentTypeService.Save(inheritedType);
 				createContentTypes = false;
 			}
-			#region setup xml content
-			xmlContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
-<!DOCTYPE root[ 
-<!ELEMENT inherited ANY>
-<!ATTLIST inherited id ID #REQUIRED>
-]>
-<root id=""-1"">
-	<inherited id=""1100"" parentID=""-1"" level=""1"" writerID=""0"" creatorID=""0"" nodeType=""1044"" template=""1"" sortOrder=""1"" createDate=""2012-06-12T14:13:17"" updateDate=""2012-07-20T18:50:43"" nodeName=""Home"" urlName=""home"" writerName=""admin"" creatorName=""admin"" path=""-1,1046"" isDoc=""""/>
-</root>";
-			#endregion
 		}
 	}
 }
