@@ -1779,20 +1779,34 @@ WHERE cmsPreviewXml.nodeId IN (
                 // remove all - if anything fails the transaction will rollback
                 if (contentTypeIds == null || contentTypeIdsA.Length == 0)
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-WHERE umbracoNode.nodeObjectType=@objType",
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//WHERE umbracoNode.nodeObjectType=@objType",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
+)",
                         new { objType = mediaObjectType });
                 }
                 else
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-WHERE umbracoNode.nodeObjectType=@objType
-AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                    // assume number of ctypes won't blow IN(...)
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+//WHERE umbracoNode.nodeObjectType=@objType
+//AND cmsContent.contentType IN (@ctypes)",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
+    WHERE umbracoNode.nodeObjectType=@objType
+    AND cmsContent.contentType IN (@ctypes) 
+)",
                         new { objType = mediaObjectType, ctypes = contentTypeIdsA });
                 }
 
@@ -1831,20 +1845,34 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
                 // remove all - if anything fails the transaction will rollback
                 if (contentTypeIds == null || contentTypeIdsA.Length == 0)
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-WHERE umbracoNode.nodeObjectType=@objType",
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//WHERE umbracoNode.nodeObjectType=@objType",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
+)",
                         new { objType = memberObjectType });
                 }
                 else
                 {
-                    db.Execute(@"DELETE cmsContentXml 
-FROM cmsContentXml 
-JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-WHERE umbracoNode.nodeObjectType=@objType
-AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow IN(...)
+                    // assume number of ctypes won't blow IN(...)
+                    // must support SQL-CE
+//                    db.Execute(@"DELETE cmsContentXml 
+//FROM cmsContentXml 
+//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+//WHERE umbracoNode.nodeObjectType=@objType
+//AND cmsContent.contentType IN (@ctypes)",
+                    db.Execute(@"DELETE FROM cmsContentXml
+WHERE cmsContentXml.nodeId IN (
+    SELECT id FROM umbracoNode
+    JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
+    WHERE umbracoNode.nodeObjectType=@objType
+    AND cmsContent.contentType IN (@ctypes) 
+)",
                         new { objType = memberObjectType, ctypes = contentTypeIdsA });
                 }
 

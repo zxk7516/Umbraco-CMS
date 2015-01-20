@@ -8,6 +8,7 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Tests.TestHelpers;
 using Umbraco.Tests.TestHelpers.Entities;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Tests.Services
 {
@@ -112,6 +113,8 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Rebuild_Member_Xml_On_Alias_Change()
         {
+            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
+
             var contentType1 = MockedContentTypes.CreateSimpleMemberType("test1", "Test1");
             var contentType2 = MockedContentTypes.CreateSimpleMemberType("test2", "Test2");
             ServiceContext.MemberTypeService.Save(contentType1);
@@ -141,6 +144,8 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Rebuild_Member_Xml_On_Property_Removal()
         {
+            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
+
             var standardProps = Constants.Conventions.Member.GetStandardPropertyTypeStubs();
 
             var contentType1 = MockedContentTypes.CreateSimpleMemberType("test1", "Test1");

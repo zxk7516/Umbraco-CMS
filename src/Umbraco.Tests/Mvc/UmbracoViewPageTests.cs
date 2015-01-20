@@ -8,6 +8,10 @@ using System.Web.Routing;
 using System.Xml;
 using NUnit.Framework;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Publishing;
+using Umbraco.Core.Services;
 using Umbraco.Web.Security;
 using umbraco.BusinessLogic;
 using Umbraco.Core;
@@ -26,7 +30,7 @@ using Umbraco.Web.Routing;
 namespace Umbraco.Tests.Mvc
 {
     [TestFixture]
-    public class UmbracoViewPageTests
+    public class UmbracoViewPageTests : BaseUmbracoConfigurationTest
     {
         #region RenderModel To ...
 
@@ -392,10 +396,16 @@ namespace Umbraco.Tests.Mvc
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            // ApplicationContext.Current = new ApplicationContext(false) { IsReady = true };
             var appCtx = new ApplicationContext(CacheHelper.CreateDisabledCacheHelper()) { IsReady = true };
+            //var cacheHelper = CacheHelper.CreateDisabledCacheHelper();
+            //var dbCtx = new DatabaseContext(new DefaultDatabaseFactory());
+            //var serviceCtx = new ServiceContext(new PetaPocoUnitOfWorkProvider(), new FileUnitOfWorkProvider(), new PublishingStrategy(), cacheHelper);
+            //var appCtx = new ApplicationContext(dbCtx, serviceCtx, cacheHelper) { IsReady = true };
 
-            var xmlStore = new XmlStore(appCtx.Services, null);
+
+            // FIXME but soon as we create a store we need CONFIG - HOW?!
+            //var xmlStore = new XmlStore(appCtx.Services, null);
+            var xmlStore = new XmlStore(null, null);
             var cache = new PublishedContentCache(xmlStore, new StaticCacheProvider(), null, null);
 
             //cache.GetXmlDelegate = (context, preview) =>
