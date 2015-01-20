@@ -392,7 +392,10 @@ namespace Umbraco.Tests.Mvc
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var xmlStore = new XmlStore();
+            // ApplicationContext.Current = new ApplicationContext(false) { IsReady = true };
+            var appCtx = new ApplicationContext(CacheHelper.CreateDisabledCacheHelper()) { IsReady = true };
+
+            var xmlStore = new XmlStore(appCtx.Services, null);
             var cache = new PublishedContentCache(xmlStore, new StaticCacheProvider(), null, null);
 
             //cache.GetXmlDelegate = (context, preview) =>
@@ -404,8 +407,6 @@ namespace Umbraco.Tests.Mvc
 
             //PublishedContentCache.UnitTesting = true;
 
-            // ApplicationContext.Current = new ApplicationContext(false) { IsReady = true };
-            var appCtx = new ApplicationContext(CacheHelper.CreateDisabledCacheHelper()) { IsReady = true };
             var http = GetHttpContextFactory(url, routeData).HttpContext;
             var cacheProvider = new StaticCacheProvider();
             var ctx = new UmbracoContext(

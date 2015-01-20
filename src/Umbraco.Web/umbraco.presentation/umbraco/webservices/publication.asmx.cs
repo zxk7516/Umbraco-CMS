@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Web.Services;
 using System.Web.Script.Services;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.WebServices;
 using umbraco.BusinessLogic;
 using umbraco.presentation.webservices;
@@ -79,7 +81,8 @@ namespace umbraco.webservices
             if (!AuthorizeRequest(DefaultApps.content.ToString()))
                 return;
 
-            content.Instance.PersistXmlToFile();
+            // xml cache will persist file, other caches may do something else
+            PublishedCachesServiceResolver.Current.Service.Flush();
         }
 
 		

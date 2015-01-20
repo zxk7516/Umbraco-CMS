@@ -360,9 +360,7 @@ namespace Umbraco.Web
 
             var publishedCachesService =
                 // use the Xml cache
-                new PublishedCache.XmlPublishedCache.PublishedCachesService(
-                    new PublishedCache.XmlPublishedCache.XmlStore(),
-                    _isForTesting ? null : new PublishedCache.XmlPublishedCache.RoutesCache());
+                new PublishedCache.XmlPublishedCache.PublishedCachesService(ApplicationContext.Current.Services, _isForTesting);
                 // use the NoCache
                 //new PublishedCache.PublishedNoCache.PublishedCachesService(
                 //    () => ApplicationContext.Current.Services);

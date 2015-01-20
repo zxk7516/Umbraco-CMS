@@ -5,6 +5,8 @@ using System.Web;
 using System.IO;
 using Umbraco.Core.IO;
 using umbraco;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Web.Install
 {
@@ -92,10 +94,14 @@ namespace Umbraco.Web.Install
 
         public static bool TestContentXml(ref Dictionary<string, string> errorReport)
         {
-            // Test umbraco.xml file
+            // makes sense for xml cache only
+            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (svc == null) return true;
+            
             try
             {
-                content.Instance.PersistXmlToFile();
+                // xml cache will persist file, other caches may do something else
+                svc.Flush();
                 return true;
             }
             catch

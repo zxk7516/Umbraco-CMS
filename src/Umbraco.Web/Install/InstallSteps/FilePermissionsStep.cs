@@ -5,6 +5,8 @@ using umbraco;
 using Umbraco.Core;
 using Umbraco.Core.IO;
 using Umbraco.Web.Install.Models;
+using Umbraco.Web.PublishedCache;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Web.Install.InstallSteps
 {
@@ -57,22 +59,25 @@ namespace Umbraco.Web.Install.InstallSteps
                 }
             }
 
-            // Test umbraco.xml file
-            try
-            {
-                content.Instance.PersistXmlToFile();
-            }
-            catch (Exception ee)
-            {
-                permissionsOk = false;
-                string tempFile = SystemFiles.ContentCacheXml;
+            // makes sense for xml cache only
+            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (svc != null)
+                try
+                {
+                    // xml cache will persist file, other caches may do something else
+                    svc.Flush();
+                }
+                catch (Exception ee)
+                {
+                    permissionsOk = false;
+                    string tempFile = SystemFiles.ContentCacheXml;
 
-                if (tempFile.Substring(0, 1) == "/")
-                    tempFile = tempFile.Substring(1, tempFile.Length - 1);
+                    if (tempFile.Substring(0, 1) == "/")
+                        tempFile = tempFile.Substring(1, tempFile.Length - 1);
 
-                var report = reportParts.GetOrCreate("Cache file writing failed");
-                report.Add(tempFile);
-            }
+                    var report = reportParts.GetOrCreate("Cache file writing failed");
+                    report.Add(tempFile);
+                }
 
             // Test creation of folders
             try

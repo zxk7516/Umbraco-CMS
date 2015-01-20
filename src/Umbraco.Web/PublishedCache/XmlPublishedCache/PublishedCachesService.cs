@@ -1,6 +1,7 @@
 ﻿using System;
 using Umbraco.Core;
 using Umbraco.Core.Models.Membership;
+using Umbraco.Core.Services;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -9,10 +10,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly XmlStore _xmlStore;
         private readonly RoutesCache _routesCache;
 
-        public PublishedCachesService(XmlStore xmlStore, RoutesCache routesCache)
+        public PublishedCachesService(ServiceContext svcs, bool isForTesting = false)
         {
-            _xmlStore = xmlStore;
-            _routesCache = routesCache;
+            _routesCache = isForTesting ? null : new RoutesCache();
+            _xmlStore = new XmlStore(svcs, _routesCache);
         }
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)

@@ -1077,9 +1077,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="umbraco.presentation\BasePageExtensions.cs" />
-    <Compile Include="umbraco.presentation\content.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="umbraco.presentation\helper.cs">
       <SubType>Code</SubType>
     </Compile>

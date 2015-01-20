@@ -57,7 +57,7 @@ namespace Umbraco.Web.Standalone
             base.InitializeResolvers();
 
             PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(
-                new PublishedCache.XmlPublishedCache.PublishedCachesService(new XmlStore(), new RoutesCache()));
+                new PublishedCache.XmlPublishedCache.PublishedCachesService(ApplicationContext.Current.Services));
 
             UrlProviderResolver.Current = new UrlProviderResolver(typeof (DefaultUrlProvider));
             SiteDomainHelperResolver.Current = new SiteDomainHelperResolver(new SiteDomainHelper());

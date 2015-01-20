@@ -66,7 +66,7 @@ namespace Umbraco.Tests.TestHelpers
         {
             if (PublishedCachesServiceResolver.HasCurrent == false)
             {
-                var factory = new PublishedCachesService(new XmlStore(), null);
+                var factory = new PublishedCachesService(ApplicationContext.Services, true);
                 PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(factory);
             }
 

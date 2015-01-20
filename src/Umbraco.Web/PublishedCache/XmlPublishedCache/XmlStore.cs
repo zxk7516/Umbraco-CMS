@@ -26,8 +26,6 @@ using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
-    // fixme - what about routes cache?
-
     /// <summary>
     /// Represents the Xml storage for the Xml published cache.
     /// </summary>
@@ -42,6 +40,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly Func<IMember, XElement> _xmlMemberSerializer;
         private readonly Func<IMedia, XElement> _xmlMediaSerializer;
 
+        private readonly RoutesCache _routesCache;
+        private readonly ServiceContext _svcs;
+
         #region Constructors
 
         /// <summary>
@@ -49,17 +50,18 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// </summary>
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
-        public XmlStore()
+        public XmlStore(ServiceContext svcs, RoutesCache routesCache)
         {
             EnsureConfigurationIsValid();
 
+            _svcs = svcs;
+            _routesCache = routesCache;
+
             // initialize
-            // fixme - svcs should come from constructor
-            var svcs = ApplicationContext.Current.Services;
             var exs = new EntityXmlSerializer();            
-            _xmlContentSerializer = c => exs.Serialize(svcs.ContentService, svcs.DataTypeService, svcs.UserService, c);
-            _xmlMemberSerializer = m => exs.Serialize(svcs.DataTypeService, m);
-            _xmlMediaSerializer = m => exs.Serialize(svcs.MediaService, svcs.DataTypeService, svcs.UserService, m);
+            _xmlContentSerializer = c => exs.Serialize(_svcs.ContentService, _svcs.DataTypeService, _svcs.UserService, c);
+            _xmlMemberSerializer = m => exs.Serialize(_svcs.DataTypeService, m);
+            _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
 
             // need to wait for resolution to be frozen
             Resolution.Frozen += (sender, args) =>
@@ -105,6 +107,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     bool registerXmlChange;
                     _xml = LoadXmlLocked(out registerXmlChange);
                     if (registerXmlChange) RegisterXmlChange();
+                    // no need to clear _routesCache, should be empty
                 }
             };
         }
@@ -244,6 +247,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             set
             {
                 _xml = value;
+                if (_routesCache != null)
+                    _routesCache.Clear(); // anytime we set _xml
                 RegisterXmlChange();
             }
         }
@@ -278,7 +283,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             xml.InsertAfter(doctype, xml.FirstChild);
         }
 
-        private static void RefreshSchema(XmlDocument xml)
+        private void RefreshSchema(XmlDocument xml)
         {
             // remove current doctype
             var n = xml.FirstChild;
@@ -288,7 +293,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 xml.RemoveChild(n);
 
             // set new doctype
-            var dtd = ApplicationContext.Current.Services.ContentTypeService.GetContentTypesDtd();
+            var dtd = _svcs.ContentTypeService.GetContentTypesDtd();
             var doctype = xml.CreateDocumentType("root", null, null, dtd);
             xml.InsertAfter(doctype, xml.FirstChild);
         }
@@ -432,8 +437,7 @@ AND (umbracoNode.id=@id)";
 
         public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
-            var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
-            var content = contentService.GetById(contentId);
+            var content = _svcs.ContentService.GetById(contentId);
 
             var doc = (XmlDocument)Xml.Clone();
             if (content == null) return doc;
@@ -616,10 +620,9 @@ AND (umbracoNode.id=@id)";
                 bool registerXmlChange;
                 _xml = LoadXmlLocked(out registerXmlChange); // updates _lastFileRead
                 if (registerXmlChange) RegisterXmlChange();
+                if (_routesCache != null)
+                    _routesCache.Clear(); // anytime we set _xml
             }
-
-            if (content.FireEvents)
-                content.FireAfterRefreshContent(new RefreshContentEventArgs());
         }
 
         #endregion
@@ -671,7 +674,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // ReSharper restore UnusedAutoPropertyAccessor.Local
         }
 
-        private static XmlDocument LoadXmlFromDatabase()
+        private XmlDocument LoadXmlFromDatabase()
         {
             lock (DbLock) // fixme - only 1 at a time BUT should be protected by LoadXml anyway?!
             {
@@ -679,7 +682,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        private static XmlDocument LoadXmlFromDatabaseLocked()
+        private XmlDocument LoadXmlFromDatabaseLocked()
         {
             LogHelper.Info<XmlStore>("Load Xml from database...");
 
@@ -704,27 +707,18 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     attr.Value = xmlDto.SortOrder.ToInvariantString();
                     xmlDto.Xml = tmp.InnerXml;
 
-                    // Call the eventhandler to allow modification of the string
-                    var e1 = new ContentCacheLoadNodeEventArgs();
-                    var xml = xmlDto.Xml;
-                    content.FireAfterContentCacheDatabaseLoadXmlString(ref xml, e1);
-                    xmlDto.Xml = xml;
-                    // check if a listener has canceled the event
-                    if (e1.Cancel) continue;
+                    // event - allow modification of the string + cancel?
 
-                    // and parse it into a DOM node
+                    // parse into a DOM node
                     xmlDoc.LoadXml(xmlDto.Xml);
                     var node = xmlDoc.FirstChild;
-                    // same event handler loader form the xml node
-                    var e2 = new ContentCacheLoadNodeEventArgs();
-                    content.FireAfterContentCacheLoadNodeFromDatabase(node, e2);
-                    // and checking if it was canceled again
-                    if (e2.Cancel) continue;
+
+                    // event - allow modification of the node + cancel?
 
                     nodeIndex.Add(xmlDto.Id, node);
 
                     // verify if either of the handlers canceled the children to load
-                    if (e1.CancelChildren || e2.CancelChildren) continue;
+                    // ?? both events could also indicate to cancel children - continue
 
                     // Build the content hierarchy
                     List<int> children;
@@ -755,11 +749,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 // Note: We are reusing the XmlDocument used to create the xml nodes above so 
                 // we don't have to import them into a new XmlDocument
 
-                // Lets cache the DTD to save on the DB hit on the subsequent use
-                var dtd = ApplicationContext.Current.Services.ContentTypeService.GetDtd(); // fixme inject
-
                 // Initialise the document ready for the final composition of content
-                InitializeXml(xmlDoc, dtd);
+                InitializeXml(xmlDoc, _svcs.ContentTypeService.GetDtd());
 
                 // Start building the content tree recursively from the root (-1) node
                 PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
@@ -822,9 +813,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         // internal - used by umbraco.content.RefreshContentFromDatabase[Async]
         internal void ReloadXmlFromDatabase()
         {
-            var e = new RefreshContentEventArgs();
-            content.FireBeforeRefreshContent(e);
-            if (e.Cancel) return;
+            // event - cancel
 
             lock (XmlLock) // nobody should work on the Xml while we load
             {
@@ -853,7 +842,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
                 case MessageType.RefreshById:
                     var refreshedId = (int)args.MessageObject;
-                    var content = ApplicationContext.Current.Services.ContentService.GetById(refreshedId);
+                    var content = _svcs.ContentService.GetById(refreshedId);
                     if (content != null)
                         RefreshSortOrder(content);
                     break;
@@ -864,9 +853,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 case MessageType.RefreshByJson:
                     // FIXME - BEWARE OF THE OPERATION!
                     var json = (string)args.MessageObject;
-                    var contentService = ApplicationContext.Current.Services.ContentService;
                     foreach (var c in UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
-                        .Select(x => contentService.GetById(x.Id))
+                        .Select(x => _svcs.ContentService.GetById(x.Id))
                         .Where(x => x != null))
                     {
                         RefreshSortOrder(c);
@@ -890,7 +878,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
                 case MessageType.RefreshById:
                     var refreshedId = (int)args.MessageObject;
-                    Refresh(ApplicationContext.Current.Services.ContentService.GetPublishedVersion(refreshedId));
+                    Refresh(_svcs.ContentService.GetPublishedVersion(refreshedId));
                     break;
                 case MessageType.RefreshByInstance:
                     var refreshedInstance = (IContent)args.MessageObject;
@@ -923,15 +911,15 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
                 case MessageType.RefreshById:
                     var refreshedId = (int)args.MessageObject;
-                    contentType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(refreshedId);
+                    contentType = _svcs.ContentTypeService.GetContentType(refreshedId);
                     if (contentType != null) RefreshContentTypes(new[] { refreshedId });
                     else
                     {
-                        mediaType = ApplicationContext.Current.Services.ContentTypeService.GetMediaType(refreshedId);
+                        mediaType = _svcs.ContentTypeService.GetMediaType(refreshedId);
                         if (mediaType != null) RefreshMediaTypes(new[] { refreshedId });
                         else
                         {
-                            memberType = ApplicationContext.Current.Services.MemberTypeService.Get(refreshedId);
+                            memberType = _svcs.MemberTypeService.Get(refreshedId);
                             if (memberType != null) RefreshMemberTypes(new[] { refreshedId });
                         }
                     }
@@ -1034,14 +1022,9 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             DocumentCacheEventArgs e = null;
 
-            if (content.FireEvents)
-            {
-                e = new DocumentCacheEventArgs();
-                content.FireBeforeUpdateDocumentCache(d, e);
-                if (e.Cancel) return;
-            }
+            // event - cancel
 
-            var c = ApplicationContext.Current.Services.ContentService.GetPublishedVersion(d.Id);
+            var c = _svcs.ContentService.GetPublishedVersion(d.Id);
 
             // lock the xml cache so no other thread can write to it at the same time
             // note that some threads could read from it while we hold the lock, though
@@ -1055,8 +1038,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             var cachedFieldKeyStart = string.Format("{0}{1}_", CacheKeys.ContentItemCacheKey, d.Id);
             ApplicationContext.Current.ApplicationCache.ClearCacheByKeySearch(cachedFieldKeyStart);
 
-            if (content.FireEvents)
-                content.FireAfterUpdateDocumentCache(d, e);
+            // event - updated
         }
 
         public void Refresh(IContent content)
@@ -1157,13 +1139,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             DocumentCacheEventArgs e = null;
             Document d = null;
 
-            if (content.FireEvents)
-            {
-                e = new DocumentCacheEventArgs();
-                d = new Document(contentId);
-                content.FireBeforeClearDocumentCache(d, e);
-                if (e.Cancel) return;
-            }
+            // event - cancel
 
             // content.ClearDocumentCache used to also do
             // doc.XmlRemoveFromDB to remove the node from cmsContentXml
@@ -1185,8 +1161,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 ResyncCurrentPublishedCaches();
             }
 
-            if (content.FireEvents)
-                content.FireAfterClearDocumentCache(d, e);
+            // event - cleared
         }
 
         private void RefreshSortOrder(IContent c)
@@ -1636,9 +1611,7 @@ WHERE cmsContentXml.nodeId IN (
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var svc = _svcs.ContentService as ContentService;
             var repo = svc.GetContentRepository() as ContentRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1696,9 +1669,7 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var svc = _svcs.ContentService as ContentService;
             var repo = svc.GetContentRepository() as ContentRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1761,9 +1732,7 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.MediaService as MediaService;
+            var svc = _svcs.MediaService as MediaService;
             var repo = svc.GetMediaRepository() as MediaRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1815,9 +1784,7 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.MemberService as MemberService;
+            var svc = _svcs.MemberService as MemberService;
             var repo = svc.GetMemberRepository() as MemberRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1871,9 +1838,7 @@ AND cmsContent.contentType IN (@ctypes)", // assume number of ctypes won't blow 
 
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.ContentService as ContentService;
+            var svc = _svcs.ContentService as ContentService;
             var repo = svc.GetContentRepository() as ContentRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1903,9 +1868,7 @@ AND cmsPreviewXml.nodeId IS NULL
 
             var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.MediaService as MediaService;
+            var svc = _svcs.MediaService as MediaService;
             var repo = svc.GetMediaRepository() as MediaRepository;
             var db = repo.UnitOfWork.Database;
 
@@ -1926,9 +1889,7 @@ AND cmsContentXml.nodeId IS NULL
 
             var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
-            // fixme - where should it come from?
-            //var db = ApplicationContext.Current.DatabaseContext.Database;
-            var svc = ApplicationContext.Current.Services.MemberService as MemberService;
+            var svc = _svcs.MemberService as MemberService;
             var repo = svc.GetMemberRepository() as MemberRepository;
             var db = repo.UnitOfWork.Database;
 
