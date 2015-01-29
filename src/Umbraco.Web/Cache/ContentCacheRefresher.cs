@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Caching;
+using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Cache
 {
@@ -50,33 +49,21 @@ namespace Umbraco.Web.Cache
         // - IContent cache should clear the content
         // - PublishedContent cache should clear the preview content
 
-        [Flags]
-        internal enum JsonAction
+        internal static bool HasFlagAny(ContentChangeTypes action, ContentChangeTypes actions)
         {
-            None = 0,
-            RefreshPublished = 1,
-            RefreshAllPublished = 2,
-            RemovePublished = 4,
-            RefreshNewest = 8,
-            RefreshAllNewest = 16,
-            RemoveNewest = 32
-        }
-
-        internal static bool HasFlagAny(JsonAction action, JsonAction actions)
-        {
-            return (action & actions) != JsonAction.None;
+            return (action & actions) != ContentChangeTypes.None;
         }
 
         internal class JsonPayload
         {
-            public JsonPayload(int id, JsonAction action)
+            public JsonPayload(int id, ContentChangeTypes action)
             {
                 Id = id;
                 Action = action;
             }
 
             public int Id { get; private set; }
-            public JsonAction Action { get; private set; }
+            public ContentChangeTypes Action { get; private set; }
         }
 
         internal static string Serialize(IEnumerable<JsonPayload> payloads)
@@ -116,7 +103,7 @@ namespace Umbraco.Web.Cache
         {
             foreach (var payload in Deserialize(json))
             {
-                if (HasFlagAny(payload.Action, JsonAction.RefreshPublished | JsonAction.RemovePublished | JsonAction.RefreshAllPublished))
+                if (HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished | ContentChangeTypes.RemovePublished | ContentChangeTypes.RefreshAllPublished))
                 {
                     // from PageCacheRefresher
                     ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
@@ -124,7 +111,7 @@ namespace Umbraco.Web.Cache
                     DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
                 }
 
-                if (HasFlagAny(payload.Action, JsonAction.RefreshNewest | JsonAction.RemoveNewest | JsonAction.RefreshAllNewest))
+                if (HasFlagAny(payload.Action, ContentChangeTypes.RefreshNewest | ContentChangeTypes.RemoveNewest | ContentChangeTypes.RefreshAllNewest))
                 {
                     // from UnpublishedPageCacheRefresher
                     RuntimeCacheProvider.Current.Delete(typeof(IContent), payload.Id);

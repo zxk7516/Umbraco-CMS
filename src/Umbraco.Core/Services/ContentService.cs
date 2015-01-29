@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
-using System.Web;
+using System.Web.Configuration;
 using System.Xml.Linq;
 using Umbraco.Core.Auditing;
 using Umbraco.Core.Events;
@@ -259,8 +259,8 @@ namespace Umbraco.Core.Services
             }
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
-
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentTypeAlias, parentId), this);
+            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
 
             Audit.Add(AuditTypes.New, string.Format("Content '{0}' was created with Id {1}", name, content.Id), content.CreatorId, content.Id);
 
@@ -309,8 +309,8 @@ namespace Umbraco.Core.Services
             }
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
-
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentTypeAlias, parent), this);
+            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
 
             Audit.Add(AuditTypes.New, string.Format("Content '{0}' was created with Id {1}", name, content.Id), content.CreatorId, content.Id);
 
@@ -957,6 +957,8 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(asArray, false), this);
 
+                Changed.RaiseEvent(new ChangeEventArgs(asArray.Select(x => new ChangeEventArgs.Change(x, ChangeEventArgs.ChangeTypes.RefreshNewest))), this);
+
                 Audit.Add(AuditTypes.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
             }
         }
@@ -1397,11 +1399,13 @@ namespace Umbraco.Core.Services
         {
             var itemsA = items.ToArray();
 
+            // fixme - bad - we're not going to save them all, so Saving without Saved... bad
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(itemsA), this))
                 return false;
 
             var published = new List<IContent>();
             var saved = new List<IContent>();
+            var changed = new List<IContent>();
 
             using (new WriteLock(Locker))
             {
@@ -1423,22 +1427,14 @@ namespace Umbraco.Core.Services
                         content.SortOrder = sortOrder++;
                         content.WriterId = userId;
 
+                        // if it's published, register it, no point running StrategyPublish
+                        // since we're not really publishing it and it cannot be cancelled etc
                         if (content.Published)
-                        {
-                            // fixme
-                            // really, we're not "publishing" anything, just updating the sort order,
-                            // so we don't really want to go through the PublishingStrategy - however
-                            // at the moment we need strategy.PublishingFinalized so the proper
-                            // distributed PageCacheRefresher event triggers - and it would be strange
-                            // to trigger Published but not Publishing - but really, all this should
-                            // be refactored
-                            var r = StrategyPublish(content, userId);
                             published.Add(content);
-                        }
 
                         // save
                         saved.Add(content);
-                        repository.AddOrUpdate(content);
+                        repository.AddOrUpdate(content); // fixme we need to rebuild content & preview XML - HOW?
                     }
 
                     uow.Commit();
@@ -1448,8 +1444,18 @@ namespace Umbraco.Core.Services
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IContent>(saved, false), this);
 
+            // fixme - what about those that have a published version?
             if (published.Any())
-                StrategyPublished(published);
+                Published.RaiseEvent(new PublishEventArgs<IContent>(published, false, false), this);
+
+            var changes = new List<ChangeEventArgs.Change>();
+            changes.AddRange(saved.Select(x =>
+            {
+                var change = ChangeEventArgs.ChangeTypes.RefreshNewest;
+                if (x.HasPublishedVersion()) change |= ChangeEventArgs.ChangeTypes.RefreshPublished;
+                return new ChangeEventArgs.Change(x, change);
+            }));
+            Changed.RaiseEvent(new ChangeEventArgs(changes), this);
 
             Audit.Add(AuditTypes.Sort, "Sorting content performed by user", userId, 0);
 
@@ -1613,7 +1619,7 @@ namespace Umbraco.Core.Services
             using (new WriteLock(Locker))
             {
                 // fail fast
-                var attempt = StrategyCanPublish(content, userId);
+                var attempt = StrategyCanPublish(content, userId); // register in alreadyChecked below to avoid duplicate checks
                 if (attempt.Success == false)
                     return new[] { attempt };
 
@@ -1621,18 +1627,17 @@ namespace Umbraco.Core.Services
                 contents.AddRange(GetDescendants(content));
 
                 // publish using the strategy
-                var attempts = StrategyPublishWithChildren(contents, userId, includeUnpublished).ToArray();
+                var alreadyChecked = new[] { content };
+                var attempts = StrategyPublishWithChildren(contents, alreadyChecked, userId, includeUnpublished).ToArray();
 
                 var publishedItems = new List<IContent>(); // this is for events
                 var uow = _uowProvider.GetUnitOfWork();
                 using (var repository = _repositoryFactory.CreateContentRepository(uow))
                 {
-                    // fixme - means that at no point we SAVE them (in terms of event)
-                    // fixme - which is VERY WRONG because actually, we DO!
-
                     foreach (var status in attempts.Where(x => x.Success).Select(x => x.Result))
                     {
-                        // save them all, even those that are .Success because of .StatusType == PublishStatusType.SuccessAlreadyPublished
+                        // save them all, even those that are .Success because of (.StatusType == PublishStatusType.SuccessAlreadyPublished)
+                        // so we bump the date etc
                         var publishedItem = status.ContentItem;
                         publishedItem.WriterId = userId;
                         repository.AddOrUpdate(publishedItem);
@@ -1641,7 +1646,19 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                StrategyPublished(publishedItems);
+                Published.RaiseEvent(new PublishEventArgs<IContent>(publishedItems, false, false), this);
+
+                Changed.RaiseEvent(new ChangeEventArgs(attempts
+                    .Where(x => x.Success)
+                    .Select(x => x.Result)
+                    .Select(x =>
+                    {
+                        var types = ChangeEventArgs.ChangeTypes.RefreshPublished; // must refresh the published one (why?) FIXME
+                        if (x.StatusType != PublishStatusType.SuccessAlreadyPublished) // and the newest if actually published
+                            types |= ChangeEventArgs.ChangeTypes.RefreshNewest;
+                        return new ChangeEventArgs.Change(x.ContentItem, types);
+                    })), this);
+
                 Audit.Add(AuditTypes.Publish, "Publish with Children performed by user", userId, content.Id);
                 return attempts;
             }
@@ -1676,8 +1693,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                // notify strategy
-                StrategyUnPublished(content);
+                UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
 
                 Audit.Add(AuditTypes.UnPublish, "UnPublish performed by user", userId, content.Id);
                 return true;
@@ -1709,7 +1725,7 @@ namespace Umbraco.Core.Services
                 {
                     // strategy handles events, and various business rules eg release & expire
                     // dates, trashed status...
-                    status = StrategyPublish(content, userId);
+                    status = StrategyPublish(content, false, userId);
                 }
 
                 // save - aways, even if not publishing (this is SaveAndPublish)
@@ -1726,21 +1742,27 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
-                // notify strategy
+                var changes = new List<ChangeEventArgs.Change>();
+                var changeTypes = ChangeEventArgs.ChangeTypes.RefreshNewest;
+                if (status.Success) changeTypes |= ChangeEventArgs.ChangeTypes.RefreshPublished;
+                changes.Add(new ChangeEventArgs.Change(content, changeTypes));
+
                 if (status.Success)
                 {
-                    StrategyPublished(content);
+                    Published.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
 
                     // if was not published and now is... descendants that were 'published' (but 
                     // had an unpublished ancestor) are 're-published' ie not explicitely published
                     // but back as 'published' nevertheless
                     if (previouslyPublished == false && HasChildren(content.Id))
                     {
-                        var descendants = GetPublishedDescendants(content);
-                        StrategyPublished(descendants);
+                        var descendants = GetPublishedDescendants(content).ToArray();
+                        Published.RaiseEvent(new PublishEventArgs<IContent>(descendants, false, false), this);
+                        changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventArgs.ChangeTypes.RefreshPublished)));
                     }
                 }
 
+                Changed.RaiseEvent(new ChangeEventArgs(changes), this);
                 Audit.Add(AuditTypes.Publish, "Save and Publish performed by user", userId, content.Id);
                 return status;
             }
@@ -1780,6 +1802,8 @@ namespace Umbraco.Core.Services
 
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
+
+                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
 
                 Audit.Add(AuditTypes.Save, "Save Content performed by user", userId, content.Id);
             }
@@ -2001,6 +2025,50 @@ namespace Umbraco.Core.Services
         /// </summary>
         public static event TypedEventHandler<IContentService, PublishEventArgs<IContent>> UnPublished;
 
+        internal class ChangeEventArgs : EventArgs
+        {
+            public ChangeEventArgs(IEnumerable<Change> changes)
+            {
+                Changes = changes;
+            }
+
+            public ChangeEventArgs(Change change)
+            {
+                Changes = new[] { change };
+            }
+
+            public struct Change
+            {
+                public Change(IContent changedContent, ChangeTypes changeTypes)
+                {
+                    ChangedContent = changedContent;
+                    ChangeTypes = changeTypes;
+                }
+
+                public IContent ChangedContent;
+                public ChangeTypes ChangeTypes;
+            }
+
+            [Flags]
+            public enum ChangeTypes : byte
+            {
+                None = 0,
+                RefreshPublished = 1,
+                RefreshAllPublished = 2,
+                RemovePublished = 4,
+                RefreshNewest = 8,
+                RefreshAllNewest = 16,
+                RemoveNewest = 32
+            }
+
+            public IEnumerable<Change> Changes { get; private set; }
+        }
+
+        /// <summary>
+        /// Occurs after change.
+        /// </summary>
+        internal static event TypedEventHandler<IContentService, ChangeEventArgs> Changed; 
+
         #endregion
 
         #region Publishing strategies
@@ -2054,9 +2122,11 @@ namespace Umbraco.Core.Services
             return Attempt.Succeed(new PublishStatus(content));
         }
 
-        internal Attempt<PublishStatus> StrategyPublish(IContent content, int userId)
+        internal Attempt<PublishStatus> StrategyPublish(IContent content, bool alreadyCheckedCanPublish, int userId)
         {
-            var attempt = StrategyCanPublish(content, userId);
+            var attempt = alreadyCheckedCanPublish 
+                ? Attempt.Succeed(new PublishStatus(content)) // already know we can
+                : StrategyCanPublish(content, userId); // else check
             if (attempt.Success == false)
                 return attempt;
 
@@ -2068,34 +2138,36 @@ namespace Umbraco.Core.Services
             return attempt;
         }
 
-        /// <summary>
-        /// Publishes a list of content items
-        /// </summary>
-        /// <param name="contents">Contents, ordered by level ASC</param>
+        ///  <summary>
+        ///  Publishes a list of content items
+        ///  </summary>
+        ///  <param name="contents">Contents, ordered by level ASC</param>
+        /// <param name="alreadyChecked">Contents for which we've already checked CanPublish</param>
         /// <param name="userId"></param>
-        /// <param name="includeUnpublished">Indicates whether to publish content that is completely unpublished (has no published
-        /// version). If false, will only publish already published content with changes. Also impacts what happens if publishing
-        /// fails (see remarks).</param>        
-        /// <returns></returns>
-        /// <remarks>
-        /// Navigate content & descendants top-down and for each,
-        /// - if it is published
-        ///   - and unchanged, do nothing
-        ///   - else (has changes), publish those changes
-        /// - if it is not published
-        ///   - and at top-level, publish
-        ///   - or includeUnpublished is true, publish
-        ///   - else do nothing & skip the underlying branch
-        ///
-        /// When publishing fails
-        /// - if content has no published version, skip the underlying branch
-        /// - else (has published version),
-        ///   - if includeUnpublished is true, process the underlying branch
-        ///   - else, do not process the underlying branch
-        /// </remarks>
-        internal IEnumerable<Attempt<PublishStatus>> StrategyPublishWithChildren(IEnumerable<IContent> contents, int userId, bool includeUnpublished = true)
+        ///  <param name="includeUnpublished">Indicates whether to publish content that is completely unpublished (has no published
+        ///  version). If false, will only publish already published content with changes. Also impacts what happens if publishing
+        ///  fails (see remarks).</param>        
+        ///  <returns></returns>
+        ///  <remarks>
+        ///  Navigate content & descendants top-down and for each,
+        ///  - if it is published
+        ///    - and unchanged, do nothing
+        ///    - else (has changes), publish those changes
+        ///  - if it is not published
+        ///    - and at top-level, publish
+        ///    - or includeUnpublished is true, publish
+        ///    - else do nothing & skip the underlying branch
+        /// 
+        ///  When publishing fails
+        ///  - if content has no published version, skip the underlying branch
+        ///  - else (has published version),
+        ///    - if includeUnpublished is true, process the underlying branch
+        ///    - else, do not process the underlying branch
+        ///  </remarks>
+        internal IEnumerable<Attempt<PublishStatus>> StrategyPublishWithChildren(IEnumerable<IContent> contents, IEnumerable<IContent> alreadyChecked, int userId, bool includeUnpublished = true)
         {
             var statuses = new List<Attempt<PublishStatus>>();
+            var alreadyCheckedA = (alreadyChecked ?? Enumerable.Empty<IContent>()).ToArray();
 
             // list of ids that we exclude because they could not be published
             var excude = new List<int>();
@@ -2127,7 +2199,7 @@ namespace Umbraco.Core.Services
                 if (content.HasPublishedVersion())
                 {
                     // newest is not published, but another version is - publish newest
-                    var r = StrategyPublish(content, userId);
+                    var r = StrategyPublish(content, alreadyCheckedA.Contains(content), userId);
                     if (r.Success == false)
                     {
                         // we tried to publish and it failed, but it already had / still has a published version,
@@ -2147,7 +2219,7 @@ namespace Umbraco.Core.Services
                     // because it is top-level or because we include unpublished.
                     // if publishing fails, and because content does not have a published 
                     // version at all, ensure we do not process its descendants
-                    var r = StrategyPublish(content, userId);
+                    var r = StrategyPublish(content, alreadyCheckedA.Contains(content), userId);
                     if (r.Success == false)
                         excude.Add(content.Id);
 
@@ -2198,31 +2270,6 @@ namespace Umbraco.Core.Services
         internal IEnumerable<Attempt<PublishStatus>> StrategyUnPublish(IEnumerable<IContent> content, int userId)
         {
             return content.Select(x => StrategyUnPublish(x, userId));
-        }
-
-        internal void StrategyPublished(IContent content)
-        {
-            Published.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
-        }
-
-        internal void StrategyAllPublished()
-        {
-            Published.RaiseEvent(new PublishEventArgs<IContent>(Enumerable.Empty<IContent>(), false, true), this);
-        }
-
-        internal void StrategyPublished(IEnumerable<IContent> content)
-        {
-            Published.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
-        }
-
-        internal void StrategyUnPublished(IContent content)
-        {
-            UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
-        }
-
-        internal void StrategyUnPublished(IEnumerable<IContent> content)
-        {
-            UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
         }
 
         #endregion
@@ -2280,92 +2327,5 @@ namespace Umbraco.Core.Services
         }
 
         #endregion
-    }
-
-    // fixme: move!!
-    // fixme: ServiceChangeUnit ServiceUnitOfChange nesting?!
-    internal class ChangeSet : IDisposable
-    {
-        private bool _disposed;
-        private readonly Dictionary<string, object> _items = new Dictionary<string, object>();
-        private const string ContextKey = "Umbraco.Core.Services.AmbientChangeSet";
-
-        private ChangeSet()
-        { }
-
-        public IDictionary<string, object> Items { get { return _items; } }
-
-        // must be properly disposed for event to trigger
-        // if finalized without being disposed, event does not trigger
-        // when disposed, event triggers
-        // so it's "autocommit" because service events should trigger ONLY
-        // if the supporting transaction is committed - no need to rollback
-
-        internal static TypedEventHandler<ChangeSet, EventArgs> Committed;
-
-        internal static ChangeSet WithAmbient
-        {
-            get
-            {
-                var cs = (ChangeSet) ContextItems.Get(ContextKey);
-                if (cs == null)
-                    ContextItems.Set(ContextKey, cs = new ChangeSet());
-                else
-                    throw new NotSupportedException("Nested ambient change sets are not supported.");
-                return cs;
-            }
-        }
-
-        internal static ChangeSet Ambient
-        {
-            get { return (ChangeSet) ContextItems.Get(ContextKey); }
-        }
-
-        internal static bool HasAmbient
-        {
-            get { return ContextItems.Get(ContextKey) != null; }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-
-            var handler = Committed;
-            if (handler != null) handler(this, EventArgs.Empty);
-            
-            ContextItems.Clear(ContextKey);
-            _disposed = true;
-        }
-    }
-
-    // fixme: move!!
-    internal static class ContextItems
-    {
-        // note: LogicalGetData vs GetData
-        // see http://blog.stephencleary.com/2013/04/implicit-async-context-asynclocal.html
-        // GetData is "thread-local" storage and OK here, LogicalGetData flows w/execution context and would be OK for async
-
-        public static void Set(string key, object value)
-        {
-            if (HttpContext.Current != null)
-                HttpContext.Current.Items[key] = value;
-            else
-                System.Runtime.Remoting.Messaging.CallContext.SetData(key, value);
-        }
-
-        public static object Get(string key)
-        {
-            return HttpContext.Current != null
-                ? HttpContext.Current.Items[key]
-                : System.Runtime.Remoting.Messaging.CallContext.GetData(key);
-        }
-
-        public static void Clear(string key)
-        {
-            if (HttpContext.Current != null)
-                HttpContext.Current.Items.Remove(key);
-            else
-                System.Runtime.Remoting.Messaging.CallContext.FreeNamedDataSlot(key);
-        }
     }
 }

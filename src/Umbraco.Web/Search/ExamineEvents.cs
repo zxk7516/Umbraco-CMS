@@ -1,8 +1,6 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using System.Security;
-using System.Xml;
 using System.Xml.Linq;
 using Examine;
 using Examine.LuceneEngine;
@@ -11,19 +9,10 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
-using Umbraco.Core.Models.EntityBase;
-using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 using UmbracoExamine;
-using umbraco;
-using umbraco.BusinessLogic;
-using umbraco.cms.businesslogic;
-using umbraco.cms.businesslogic.member;
-using umbraco.interfaces;
-using Content = umbraco.cms.businesslogic.Content;
-using Document = umbraco.cms.businesslogic.web.Document;
-using Member = umbraco.cms.businesslogic.member.Member;
+using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Search
 {
@@ -371,32 +360,34 @@ namespace Umbraco.Web.Search
 
                 // ExamineEvents does not support RefreshAllNewest nor RefreshAllPublished
 
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshNewest))
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshNewest))
 	            {
                     // re-index newest version for indexes that support unpublished content
                     content = csvc.GetById(payload.Id);
                     if (content != null) ReIndexForContent(content, true); // true = only supporting unpublished content
 	            }
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshPublished))
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished))
                 {
                     // re-index published version for indexes that support only published content
+                    // and NOT the others because maybe it's a content that has changes, was below an unpublished parent,
+                    // and that parent has been published again - but the unpublished changed version is still there
                     content = (content != null && content.Published) ? content : csvc.GetPublishedVersion(payload.Id);
                     if (content != null) ReIndexForContent(content, false); // false = not supporting unpublished content
                 }
 
-	            if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemoveNewest | ContentCacheRefresher.JsonAction.RemovePublished))
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemoveNewest | ContentChangeTypes.RemovePublished))
 	            {
                     // permanently delete all versions from all indexes
                     DeleteIndexForEntity(payload.Id, false);
 	            }
 	            else
 	            {
-                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemoveNewest))
+                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemoveNewest))
                     {
                         // should never happen, cannot remove newest but not published
                         throw new NotSupportedException();
                     }
-                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemovePublished))
+                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemovePublished))
                     {
                         // delete from indexes that support only published content
                         DeleteIndexForEntity(payload.Id, true);

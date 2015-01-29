@@ -638,6 +638,88 @@ namespace Umbraco.Tests.Models
             // we've tested for RequiresSaving & RequiresNewVersion so it's OK
         }
 
+        [Test]
+        public void DirtyProperty_WasDirty_ContentProperty()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.Published = false;
+            content.Published = true;
+            Assert.IsTrue(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.Published = false;
+            content.Published = true;
+            content.ResetDirtyProperties(true); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsTrue(content.WasDirty());
+            content.Published = false;
+            content.Published = true;
+            content.ResetDirtyProperties(); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsTrue(content.WasDirty());
+        }
+
+        [Test]
+        public void DirtyProperty_WasDirty_ContentSortOrder()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.SortOrder = 0;
+            content.SortOrder = 1;
+            Assert.IsTrue(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.SortOrder = 0;
+            content.SortOrder = 1;
+            content.ResetDirtyProperties(true); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsTrue(content.WasDirty());
+            content.SortOrder = 0;
+            content.SortOrder = 1;
+            content.ResetDirtyProperties(); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsTrue(content.WasDirty());
+        }
+
+        [Test]
+        public void DirtyProperty_WasDirty_UserProperty()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+            var prop = content.Properties.First();
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            prop.Value = "a";
+            prop.Value = "b";
+            Assert.IsTrue(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            content.ResetDirtyProperties(false);
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty());
+            prop.Value = "a";
+            prop.Value = "b";
+            content.ResetDirtyProperties(true); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+            prop.Value = "a";
+            prop.Value = "b";
+            content.ResetDirtyProperties(); // what PersistUpdatedItem does
+            Assert.IsFalse(content.IsDirty());
+            Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+        }
+
         #endregion
     }
 }

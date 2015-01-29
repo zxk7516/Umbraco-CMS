@@ -144,8 +144,8 @@ namespace Umbraco.Web.Cache
             ContentService.Trashed += ContentServiceTrashed;
             ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin;
             ContentService.RolledBack += ContentServiceRolledBack;
-            ContentService.Published += ContentServicePublished;
             ContentService.UnPublished += ContentServiceUnPublished;
+            ContentService.Changed += ContentServiceChanged;
 
             ChangeSet.Committed += (sender, args) => DistributedCache.Instance.FlushContentCacheBuffer();
 
@@ -237,8 +237,8 @@ namespace Umbraco.Web.Cache
             ContentService.Trashed -= ContentServiceTrashed;
             ContentService.EmptiedRecycleBin -= ContentServiceEmptiedRecycleBin;
             ContentService.RolledBack -= ContentServiceRolledBack;
-            ContentService.Published -= ContentServicePublished;
             ContentService.UnPublished -= ContentServiceUnPublished;
+            ContentService.Changed -= ContentServiceChanged;
 
             Access.AfterSave -= Access_AfterSave;
         }
@@ -341,22 +341,13 @@ namespace Umbraco.Web.Cache
             {
                 DistributedCache.Instance.RefreshAllUserPermissionsCache();
             }
-
-            DistributedCache.Instance.RefreshContentCache(e.SavedEntities.ToArray());
         }
 
         static void ContentServiceRolledBack(IContentService sender, RollbackEventArgs<IContent> args)
         {
+            // fixme should be a change
             // rolled back entity changes unpublished (not published)
             DistributedCache.Instance.RefreshContentCache(args.Entity);
-        }
-
-        private void ContentServicePublished(IContentService sender, PublishEventArgs<IContent> args)
-        {
-            if (args.IsAllRepublished)
-                DistributedCache.Instance.RefreshAllPublishedContentCache();
-            else
-                DistributedCache.Instance.RefreshPublishedContentCache(args.PublishedEntities.ToArray());
         }
 
         private void ContentServiceUnPublished(IContentService sender, PublishEventArgs<IContent> e)
@@ -367,10 +358,17 @@ namespace Umbraco.Web.Cache
             //    DistributedCache.Instance.RemovePageCache(content);
             //}
 
+            // fixme should it be a change?
+
             // assuming order is not important here...
             var entities = e.PublishedEntities.ToArray();
             DistributedCache.Instance.RefreshContentCache(entities);
             DistributedCache.Instance.RemovePublishedContentCache(entities);
+        }
+
+        private void ContentServiceChanged(IContentService sender, ContentService.ChangeEventArgs args)
+        {
+            DistributedCache.Instance.RefreshContentCache(args.Changes.ToArray());
         }
 
         #endregion

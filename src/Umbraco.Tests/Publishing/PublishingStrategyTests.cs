@@ -67,7 +67,7 @@ namespace Umbraco.Tests.Publishing
             
             //publish root and nodes at it's children level
             var listToPublish = ServiceContext.ContentService.GetDescendants(_homePage.Id).Concat(new[] { _homePage });
-            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(listToPublish, 0, true);
+            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(listToPublish, null, 0, true);
 
             Assert.AreEqual(listToPublish.Count() - 2, result.Count(x => x.Success));
             Assert.IsTrue(result.Where(x => x.Success).Select(x => x.Result.ContentItem.Id)
@@ -94,7 +94,7 @@ namespace Umbraco.Tests.Publishing
 
             //publish root and nodes at it's children level
             var listToPublish = ServiceContext.ContentService.GetDescendants(_homePage.Id).Concat(new[] {_homePage});
-            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(listToPublish, 0);
+            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(listToPublish, null, 0);
             
             Assert.AreEqual(listToPublish.Count() - 2, result.Count(x => x.Success));
             Assert.IsTrue(result.Where(x => x.Success).Select(x => x.Result.ContentItem.Id)
@@ -115,12 +115,12 @@ namespace Umbraco.Tests.Publishing
             CreateTestData();
 
             //publish root and nodes at it's children level
-            var result1 = ((ContentService)ServiceContext.ContentService).StrategyPublish(_homePage, 0);
+            var result1 = ((ContentService)ServiceContext.ContentService).StrategyPublish(_homePage, false, 0);
             Assert.IsTrue(result1);
             Assert.IsTrue(_homePage.Published);
             foreach (var c in ServiceContext.ContentService.GetChildren(_homePage.Id))
             {
-                var r = ((ContentService)ServiceContext.ContentService).StrategyPublish(c, 0);    
+                var r = ((ContentService)ServiceContext.ContentService).StrategyPublish(c, false, 0);    
                 Assert.IsTrue(r);
                 Assert.IsTrue(c.Published);
             }
@@ -128,7 +128,7 @@ namespace Umbraco.Tests.Publishing
             //ok, all are published except the deepest descendant, we will pass in a flag to not include it to 
             //be published
             var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(
-                ServiceContext.ContentService.GetDescendants(_homePage).Concat(new[] {_homePage}), 0, false);
+                ServiceContext.ContentService.GetDescendants(_homePage).Concat(new[] {_homePage}), null, 0, false);
             //all of them will be SuccessAlreadyPublished unless the unpublished one gets included, in that case
             //we'll have a 'Success' result which we don't want.
             Assert.AreEqual(0, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
@@ -140,14 +140,14 @@ namespace Umbraco.Tests.Publishing
             CreateTestData();
 
             //publish root and nodes at it's children level
-            var result1 = ((ContentService)ServiceContext.ContentService).StrategyPublish(_homePage, 0);
+            var result1 = ((ContentService)ServiceContext.ContentService).StrategyPublish(_homePage, false, 0);
             Assert.IsTrue(result1);
             Assert.IsTrue(_homePage.Published);
             
             //NOTE (MCH) This isn't persisted, so not really a good test as it will look like the result should be something else.
             foreach (var c in ServiceContext.ContentService.GetChildren(_homePage.Id))
             {
-                var r = ((ContentService)ServiceContext.ContentService).StrategyPublish(c, 0);
+                var r = ((ContentService)ServiceContext.ContentService).StrategyPublish(c, false, 0);
                 Assert.IsTrue(r);
                 Assert.IsTrue(c.Published);
             }
@@ -160,7 +160,7 @@ namespace Umbraco.Tests.Publishing
             //with 'SuccessAlreadyPublished'
 
             var descendants = ServiceContext.ContentService.GetDescendants(_homePage).Concat(new[] {_homePage});
-            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(descendants, 0, true);
+            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(descendants, null, 0, true);
             
             Assert.AreEqual(3, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
             Assert.AreEqual(1, result.Count(x => x.Result.StatusType == PublishStatusType.SuccessAlreadyPublished));

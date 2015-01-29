@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
-using umbraco;
 using umbraco.cms.businesslogic;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core;
@@ -23,6 +21,7 @@ using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
+using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -842,7 +841,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 throw new NotSupportedException();
 
             var payloads = ContentCacheRefresher.Deserialize((string) args.MessageObject);
-            if (payloads.Any(x => ContentCacheRefresher.HasFlagAny(x.Action, ContentCacheRefresher.JsonAction.RefreshAllPublished)))
+            if (payloads.Any(x => ContentCacheRefresher.HasFlagAny(x.Action, ContentChangeTypes.RefreshAllPublished)))
             {
                 ReloadXmlFromDatabase();
             }
@@ -854,13 +853,13 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 // XmlStore does not support RefreshAllNewest
                 // XmlStore does not support RefreshNewest nor RemoveNewest because proper -Published events should trigger
 
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshPublished))
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished))
                 {
                     var content = _svcs.ContentService.GetPublishedVersion(payload.Id);
                     if (content != null) Refresh(content);
                 }
 
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemovePublished))
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemovePublished))
                 {
                     Remove(payload.Id);
                 }
@@ -1475,7 +1474,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
         }
 
-        private void OnContentRefreshedEntity(object sender, ContentRepository.EntityChangeEventArgs args)
+        private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
             var now = DateTime.Now;
@@ -1490,22 +1489,25 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
                 OnRepositoryRefreshed(db, dto1, exists1);
 
-                // if the content that is saved is not published, then no need to update cmsContentXml
-                // but if it's just been unpublished, remove it from the table
                 if (c.Published == false)
                 {
-                    if (c.IsPropertyDirty("Published") && ((Core.Models.Content)c).PublishedState == PublishedState.Unpublished)
+                    if (c.IsPropertyDirty("Published") && ((Core.Models.Content) c).PublishedState == PublishedState.Unpublished)
+                    {
+                        // if it's just been unpublished, remove it from the table
                         db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
-                    continue;
+                    }
+                    else if (((Core.Models.Content) c).IsEntityDirty() && c.HasPublishedVersion())
+                    {
+                        // if it's dirty + published version, refresh published xml
+                        var v = sender.GetAllVersions(c.Id).FirstOrDefault(y => y.Published);
+                        xml = _xmlContentSerializer(v).ToString(SaveOptions.None);
+                    }
+                    else
+                    {
+                        // published xml is fine
+                        continue;
+                    }
                 }
-
-                // fixme
-                // if saving a non-published version of a content that has a published version,
-                // what shall we do? nothing should change as far as properties are concerned,
-                // but OTOH attributes MAY change
-                // = sortOrder, parentID, level, path
-                // how does NAME (and therefore url segment) work? from document.text ie versionned
-                // what happens when we change the content type, NO VERSIONNED
 
                 var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id }) > 0;
                 var dto2 = new ContentXmlDto { NodeId = c.Id, Xml = xml };

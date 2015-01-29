@@ -317,6 +317,8 @@
     <Compile Include="IO\ResizedImage.cs" />
     <Compile Include="IO\UmbracoMediaFile.cs" />
     <Compile Include="Models\IPartialView.cs" />
+    <Compile Include="Services\ChangeSet.cs" />
+    <Compile Include="CurrentContextItems.cs" />
     <Compile Include="Services\LocalizedTextService.cs" />
     <Compile Include="Services\ILocalizedTextService.cs" />
     <Compile Include="Macros\XsltExtension.cs" />

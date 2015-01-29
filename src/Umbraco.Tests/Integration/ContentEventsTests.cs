@@ -147,6 +147,20 @@ namespace Umbraco.Tests.Integration
             }
         }
 
+        private bool IsDirtish(IContent icontent)
+        {
+            var content = (Content) icontent;
+
+            // UpdateDate will be dirty
+            // Published may be dirty if saving a Published entity
+            // so cannot do this:
+            //return content.IsEntityDirty();
+
+            // have to be more precise
+            // fixme - is that enough? what about path & trashed?
+            return content.IsPropertyDirty("SortOrder") || content.IsPropertyDirty("ParentId") || content.IsPropertyDirty("Level");
+        }
+
         private void ContentRepositoryRefreshed(VersionableRepositoryBase<int, IContent> sender, VersionableRepositoryBase<int, IContent>.EntityChangeEventArgs args)
         {
             var e = new EventInstance
@@ -154,7 +168,38 @@ namespace Umbraco.Tests.Integration
                 Msg = _msgCount++,
                 Sender = "ContentRepository",
                 Name = "Refresh",
-                Args = string.Join(",", args.Entities.Select(x => (x.Published ? "p" : "u") + "-" + x.Id))
+                Args = string.Join(",", args.Entities.Select(x =>
+                {
+                    // is the content published or unpublished?
+                    var state = (x.Published ? "p" : "u");
+
+                    // what shall we do with published
+                    // (newest is always updated)
+                    string p;
+                    if (x.Published == false) // not published
+                    {
+                        if (x.IsPropertyDirty("Published") && ((Content) x).PublishedState == PublishedState.Unpublished)
+                            p = "x"; // just unpublished, clear
+                        else if (IsDirtish(x) == false)
+                            p = "-"; // no interesting content property was changed, ignore
+                        else if (x.HasPublishedVersion() == false)
+                            p = "-"; // not published at all, ignore
+                        else
+                        {
+                            p = "w";
+                            // else it has a published version and we need to update it
+                            var v = sender.GetAllVersions(x.Id).FirstOrDefault(y => y.Published); // how come we don't have a faster way of getting this?
+                            // RefreshPublishedWith(v)
+                        }
+                    }
+                    else
+                    {
+                        p = "w"; // published, must refresh, using x
+                        // RefreshPublishedWith(x)
+                    }
+
+                    return "{0}{1}-{2}".FormatWith(state, p, x.Id);
+                }))
             };
             _events.Add(e);
         }
@@ -206,63 +251,6 @@ namespace Umbraco.Tests.Integration
             _msgCount++;
         }
 
-        /*
-        private void PageCacheUpdated(PageCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            var e = new EventInstance
-            {
-                Sender = sender.Name,
-                EventArgs = args,
-                Name = args.MessageType.ToString()
-            };
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshById:
-                case MessageType.RemoveById:
-                    e.Args = ((int)args.MessageObject).ToInvariantString();
-                    break;
-                case MessageType.RefreshByInstance:
-                case MessageType.RemoveByInstance:
-                    e.Args = ((IContent)args.MessageObject).Id.ToInvariantString();
-                    break;
-                case MessageType.RefreshByJson:
-                    // is NOT a JSON refresher!
-                    break;
-            }
-            _events.Add(e);
-        }
-
-        private void UnpublishedPageCacheUpdated(UnpublishedPageCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            var e = new EventInstance
-            {
-                Sender = sender.Name,
-                EventArgs = args,
-                Name = args.MessageType.ToString()
-            };
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshById:
-                case MessageType.RemoveById:
-                    e.Args = ((int)args.MessageObject).ToInvariantString();
-                    break;
-                case MessageType.RefreshByInstance:
-                case MessageType.RemoveByInstance:
-                    e.Args = ((IContent)args.MessageObject).Id.ToInvariantString();
-                    break;
-                case MessageType.RefreshByJson:
-                    var json = (string)args.MessageObject;
-                    e.Args = string.Join(",",
-                        UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
-                            .Select(payload => "{0}{1}".FormatWith(
-                                payload.Operation == UnpublishedPageCacheRefresher.OperationType.Deleted ? "-" : "+",
-                                payload.Id)));
-                    break;
-            }
-            _events.Add(e);
-        }
-        */
-
         #endregion
 
         #region Save, Publish & UnPublish single content
@@ -291,13 +279,13 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(2, _events.Count);
             var i = 0;
             var m = 0;            
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i].ToString());
         }
 
         [Test]
-        public void SavePublishedContent()
+        public void SavePublishedContent_ContentProperty()
         {
             // rule: when a content is saved,
             // - repository : refresh (u)
@@ -315,7 +303,55 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(2, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i].ToString());
+
+            ResetEvents();
+            content.Name = "again";
+            ServiceContext.ContentService.Save(content);
+
+            Assert.AreEqual(2, _msgCount);
+            Assert.AreEqual(2, _events.Count);
+            i = 0;
+            m = 0;
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i].ToString());
+        }
+
+        [Test]
+        public void SavePublishedContent_UserProperty()
+        {
+            // rule: when a content is saved,
+            // - repository : refresh (u)
+            // - content cache :: refresh newest
+
+            var content = ServiceContext.ContentService.GetRootContent().FirstOrDefault();
+            Assert.IsNotNull(content);
+            ServiceContext.ContentService.SaveAndPublishWithStatus(content);
+
+            ResetEvents();
+            content.Properties.First().Value = "changed";
+            ServiceContext.ContentService.Save(content);
+
+            Assert.AreEqual(2, _msgCount);
+            Assert.AreEqual(2, _events.Count);
+            var i = 0;
+            var m = 0;
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i].ToString());
+
+            ResetEvents();
+            content.Properties.First().Value = "again";
+            ServiceContext.ContentService.Save(content);
+
+            Assert.AreEqual(2, _msgCount);
+            Assert.AreEqual(2, _events.Count);
+            i = 0;
+            m = 0;
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i].ToString());
         }
@@ -335,13 +371,12 @@ namespace Umbraco.Tests.Integration
             ServiceContext.ContentService.SaveAndPublishWithStatus(content);
 
             Assert.AreEqual(2, _msgCount);
-            Assert.AreEqual(3, _events.Count);
+            Assert.AreEqual(2, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content.Id), _events[i].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
         }
 
         [Test]
@@ -362,13 +397,12 @@ namespace Umbraco.Tests.Integration
             ServiceContext.ContentService.PublishWithStatus(content);
 
             Assert.AreEqual(2, _msgCount);
-            Assert.AreEqual(3, _events.Count);
+            Assert.AreEqual(2, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content.Id), _events[i].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
         }
 
         [Test]
@@ -389,7 +423,7 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(3, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/ux-{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RemovePublished/{1}".FormatWith(m, content.Id), _events[i].ToString());
@@ -415,7 +449,7 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(3, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content.Id), _events[i++].ToString());
             Assert.AreEqual("changed", ServiceContext.ContentService.GetById(((ContentCacheRefresher.JsonPayload)_events[i - 1].EventArgs).Id).Name);
@@ -447,7 +481,7 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(3, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u-{1}".FormatWith(m, content1.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/ux-{1}".FormatWith(m, content1.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString());
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RemovePublished/{1}".FormatWith(m, content1.Id), _events[i].ToString());
@@ -467,13 +501,12 @@ namespace Umbraco.Tests.Integration
             ServiceContext.ContentService.PublishWithStatus(content1);
 
             Assert.AreEqual(2, _msgCount);
-            Assert.AreEqual(7, _events.Count);
+            Assert.AreEqual(6, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m, content1.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m, content1.Id), _events[i++].ToString());
             m++;
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
             var content1C = content1.Children().ToArray();
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[0].Id), _events[i++].ToString()); // repub content1.content2
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // repub content1.content4
@@ -498,31 +531,29 @@ namespace Umbraco.Tests.Integration
             ServiceContext.ContentService.PublishWithChildrenWithStatus(content1, 0, false);
 
             Assert.AreEqual(6, _msgCount);
-            Assert.AreEqual(10, _events.Count); // fixme - should be 11
+            Assert.AreEqual(10, _events.Count);
             var i = 0;
             var m = 0;
             var content1C = content1.Children().ToArray();
             var content2C = content1C[0].Children().ToArray();
             var content4C = content1C[2].Children().ToArray();
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m++, content1.Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m++, content1C[0].Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m++, content1C[2].Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m++, content2C[0].Id), _events[i++].ToString());
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m++, content4C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[2].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content2C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m, content4C[0].Id), _events[i++].ToString());
             m++;
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[0].Id), _events[i++].ToString()); // repub content1.content2
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // repub content1.content4
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // repub content1.content4
             var c = ServiceContext.ContentService.GetPublishedVersion(((ContentCacheRefresher.JsonPayload)_events[i - 1].EventArgs).Id);
             Assert.IsTrue(c.Published); // get the published one
-            Assert.AreEqual("Content4", c.Name); // published has old name
+            Assert.AreEqual("Content4X", c.Name); // published has new name
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content2C[0].Id), _events[i++].ToString()); // repub content1.content2.content21
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content4C[0].Id), _events[i].ToString()); // repub content1.content4.content41
         }
 
         [Test]
-        [Ignore("Not Implemented")]
         public void PublishContentBranchWithAllChildren()
         {
             // rule?
@@ -533,23 +564,51 @@ namespace Umbraco.Tests.Integration
             ResetEvents();
             ServiceContext.ContentService.PublishWithChildrenWithStatus(content1, 0, true);
 
-            Assert.AreEqual(2, _msgCount);
-            Assert.AreEqual(6, _events.Count);
+            Assert.AreEqual(14, _msgCount);
+            Assert.AreEqual(26, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/p-{1}".FormatWith(m, content1.Id), _events[i++].ToString());
+            var content1C = content1.Children().ToArray();
+            var content2C = content1C[0].Children().ToArray();
+            var content3C = content1C[1].Children().ToArray();
+            var content4C = content1C[2].Children().ToArray();
+            var content5C = content1C[3].Children().ToArray();
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1.Id), _events[i++].ToString());
+
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[2].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[3].Id), _events[i++].ToString());
+
+            // remember: ordered by level, sortOrder
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content2C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content3C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content4C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content5C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content2C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content3C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content4C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m, content5C[1].Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1.Id), _events[i++].ToString()); // repub content1
-            var content1C = content1.Children().ToArray();
+            
             Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[0].Id), _events[i++].ToString()); // repub content1.content2
-            var content2C = content1C[0].Children().ToArray();
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content2C[0].Id), _events[i++].ToString()); // repub content1.content2.content21
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // repub content1.content4
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[1].Id), _events[i++].ToString()); // repub content1.content3
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // repub content1.content4
             var c = ServiceContext.ContentService.GetPublishedVersion(((ContentCacheRefresher.JsonPayload)_events[i - 1].EventArgs).Id);
             Assert.IsTrue(c.Published); // get the published one
-            Assert.AreEqual("Content4", c.Name); // published has old name
-            var content4C = content1C[2].Children().ToArray();
-            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content4C[0].Id), _events[i].ToString()); // repub content1.content4.content41
+            Assert.AreEqual("Content4X", c.Name); // published has new name
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[3].Id), _events[i++].ToString()); // repub content1.content5
+
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content2C[0].Id), _events[i++].ToString()); // repub content1.content2.content21
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content3C[0].Id), _events[i++].ToString()); // repub content1.content3.content31
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content4C[0].Id), _events[i++].ToString()); // repub content1.content4.content41
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished/{1}".FormatWith(m, content5C[0].Id), _events[i++].ToString()); // repub content1.content5.content51
+
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content2C[1].Id), _events[i++].ToString()); // repub content1.content2.content22
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content3C[1].Id), _events[i++].ToString()); // repub content1.content3.content32
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content4C[1].Id), _events[i++].ToString()); // repub content1.content4.content42
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content5C[1].Id), _events[i].ToString()); // repub content1.content5.content52
         }
 
         #endregion
@@ -557,41 +616,69 @@ namespace Umbraco.Tests.Integration
         #region Sort
 
         [Test]
-        public void Sort()
+        public void SortAll()
         {
-            // rule: when sorting,
-            // fixme
-            // - repository :: refresh (each modified content)
+            // rule: ?
 
             var content1 = CreateBranch();
             var content1C = content1.Children().ToArray();
-            Assert.AreEqual(3, content1C.Length);
-            var content1Csorted = new[] { content1C[2], content1C[0], content1C[1] };
+            Assert.AreEqual(4, content1C.Length);
+            var content1Csorted = new[] { content1C[3], content1C[0], content1C[1], content1C[2] };
 
-            _events.Clear();
+            ResetEvents();
             ServiceContext.ContentService.Sort(content1Csorted);
 
             var content1Cagain = content1.Children().ToArray();
-            Assert.AreEqual(3, content1Cagain.Length);
+            Assert.AreEqual(4, content1Cagain.Length);
             Assert.AreEqual(content1C[0].Id, content1Cagain[1].Id);
             Assert.AreEqual(content1C[1].Id, content1Cagain[2].Id);
-            Assert.AreEqual(content1C[2].Id, content1Cagain[0].Id);
+            Assert.AreEqual(content1C[2].Id, content1Cagain[3].Id);
+            Assert.AreEqual(content1C[3].Id, content1Cagain[0].Id);
 
-            Assert.AreEqual(0, _msgCount);
-            Assert.AreEqual(0, _events.Count);
+            Assert.AreEqual(5, _msgCount);
+            Assert.AreEqual(8, _events.Count);
             var i = 0;
             var m = 0;
-            //Assert.AreEqual("ContentRepository/Refresh/p" + content1.Id, _events[i++].ToString());
-            //Assert.AreEqual("PageRefresher/RefreshByInstance/" + content1.Id, _events[i++].ToString()); // repub content1
-            //var content1C = content1.Children().ToArray();
-            //Assert.AreEqual("PageRefresher/RefreshByInstance/" + content1C[0].Id, _events[i++].ToString()); // repub content1.content2
-            //Assert.AreEqual("PageRefresher/RefreshByInstance/" + content1C[2].Id, _events[i++].ToString()); // repub content1.content4
-            //Assert.IsTrue(((IContent)((CacheRefresherEventArgs)_events[i - 1].EventArgs).MessageObject).Published); // get the published one
-            //Assert.AreEqual("Content4", ((IContent)((CacheRefresherEventArgs)_events[i - 1].EventArgs).MessageObject).Name); // published has old name
-            //var content2C = content1C[0].Children().ToArray();
-            //Assert.AreEqual("PageRefresher/RefreshByInstance/" + content2C[0].Id, _events[i++].ToString()); // repub content1.content2.content21
-            //var content4C = content1C[2].Children().ToArray();
-            //Assert.AreEqual("PageRefresher/RefreshByInstance/" + content4C[0].Id, _events[i++].ToString()); // repub content1.content4.content41
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m++, content1C[3].Id), _events[i++].ToString()); // content5 is not published
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pw-{1}".FormatWith(m++, content1C[0].Id), _events[i++].ToString()); // content2 is published
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m++, content1C[1].Id), _events[i++].ToString()); // content3 is not published
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uw-{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // content4 is published + changes
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1C[3].Id), _events[i++].ToString()); // content5 is not published
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[0].Id), _events[i++].ToString()); // content2 is published
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1C[1].Id), _events[i++].ToString()); // content3 is not published
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[2].Id), _events[i].ToString()); // content4 is published
+        }
+
+        [Test]
+        public void SortSome()
+        {
+            // rule: ?
+
+            var content1 = CreateBranch();
+            var content1C = content1.Children().ToArray();
+            Assert.AreEqual(4, content1C.Length);
+            var content1Csorted = new[] { content1C[0], content1C[1], content1C[3], content1C[2] };
+
+            ResetEvents();
+            ServiceContext.ContentService.Sort(content1Csorted);
+
+            var content1Cagain = content1.Children().ToArray();
+            Assert.AreEqual(4, content1Cagain.Length);
+            Assert.AreEqual(content1C[0].Id, content1Cagain[0].Id);
+            Assert.AreEqual(content1C[1].Id, content1Cagain[1].Id);
+            Assert.AreEqual(content1C[2].Id, content1Cagain[3].Id);
+            Assert.AreEqual(content1C[3].Id, content1Cagain[2].Id);
+
+            Assert.AreEqual(3, _msgCount);
+            Assert.AreEqual(4, _events.Count);
+            var i = 0;
+            var m = 0;
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/u--{1}".FormatWith(m++, content1C[3].Id), _events[i++].ToString()); // content5 is not published
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uw-{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString()); // content4 is published + changes
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshNewest/{1}".FormatWith(m, content1C[3].Id), _events[i++].ToString()); // content5 is not published
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,RefreshNewest/{1}".FormatWith(m, content1C[2].Id), _events[i].ToString()); // content4 is published
         }
         
         #endregion

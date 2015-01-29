@@ -8,6 +8,7 @@ using Umbraco.Core.Models;
 using umbraco;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core.Services;
+using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Cache
 {
@@ -232,7 +233,7 @@ namespace Umbraco.Web.Cache
         /// <param name="dc"></param>
         public static void RefreshAllPublishedContentCache(this DistributedCache dc)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentCacheRefresher.JsonAction.RefreshAllPublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentChangeTypes.RefreshAllPublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -244,7 +245,7 @@ namespace Umbraco.Web.Cache
         /// <param name="contentId"></param>
         public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentCacheRefresher.JsonAction.RefreshPublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentChangeTypes.RefreshPublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -259,7 +260,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentCacheRefresher.JsonAction.RefreshPublished));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RefreshPublished));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -271,7 +272,7 @@ namespace Umbraco.Web.Cache
         /// <param name="contentId"></param>
         public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentCacheRefresher.JsonAction.RemovePublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentChangeTypes.RemovePublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -285,7 +286,17 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentCacheRefresher.JsonAction.RemovePublished));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RemovePublished));
+
+            dc.RefreshContentCacheByJson(payloads);
+        }
+
+        public static void RefreshContentCache(this DistributedCache dc, ContentService.ChangeEventArgs.Change[] changes)
+        {
+            if (changes.Length == 0) return;
+
+            var payloads = changes
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.ChangedContent.Id, x.ChangeTypes));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -300,12 +311,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x =>
-                {
-                    var action = ContentCacheRefresher.JsonAction.RefreshNewest;
-                    //if (x.Published) action |= ContentCacheRefresher.JsonAction.RefreshPublished;
-                    return new ContentCacheRefresher.JsonPayload(x.Id, action);
-                });
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RefreshNewest));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -321,7 +327,7 @@ namespace Umbraco.Web.Cache
 
             var payloads = contentIds
                 .Select(x => new ContentCacheRefresher.JsonPayload(x,
-                    ContentCacheRefresher.JsonAction.RemoveNewest | ContentCacheRefresher.JsonAction.RemovePublished));
+                    ContentChangeTypes.RemoveNewest | ContentChangeTypes.RemovePublished));
 
             dc.RefreshContentCacheByJson(payloads);
         }
