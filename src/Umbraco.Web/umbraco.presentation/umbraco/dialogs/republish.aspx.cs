@@ -64,7 +64,7 @@ namespace umbraco.cms.presentation
             // tell each of the distributed caches to reset themselves, ie to
             // reload from whatever "central" intermediate cache they use, if any,
             // eg the cmsContentXml table for the XML-cache.
-            DistributedCache.Instance.RefreshAllPageCache();
+            DistributedCache.Instance.RefreshAllPublishedContentCache();
 
             p_republish.Visible = false;
             p_done.Visible = true;

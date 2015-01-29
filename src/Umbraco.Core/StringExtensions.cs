@@ -1350,5 +1350,10 @@ namespace Umbraco.Core
         {
             return string.IsNullOrEmpty(text) ? text : InvalidXmlChars.Replace(text, "");
         }
+
+        internal static string FormatWith(this string format, params object[] args)
+        {
+            return string.Format(format, args);
+        }
     }
 }

@@ -297,6 +297,32 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
+        public void PublishWithStatus()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            ServiceContext.ContentTypeService.Save(contentType);
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+            ServiceContext.ContentService.PublishWithStatus(content);
+            content.Properties.First().Value = "changed";
+            ServiceContext.ContentService.PublishWithStatus(content);
+            var c = ServiceContext.ContentService.GetById(content.Id);
+            Assert.AreEqual("changed", c.Properties.First().Value);
+        }
+
+        [Test]
+        public void PublishWithChildrenWithStatus()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            ServiceContext.ContentTypeService.Save(contentType);
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+            ServiceContext.ContentService.PublishWithStatus(content);
+            content.Properties.First().Value = "changed";
+            ServiceContext.ContentService.PublishWithChildrenWithStatus(content);
+            var c = ServiceContext.ContentService.GetById(content.Id);
+            Assert.AreEqual("changed", c.Properties.First().Value);
+        }
+
+        [Test]
         public void Create_Tag_Data_Bulk_Publish_Operation()
         {
             //Arrange
@@ -605,7 +631,7 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
-        public void Can_Get_Descendents_Of_Contnet()
+        public void Can_Get_Descendents_Of_Content()
         {
             // Arrange
             var contentService = ServiceContext.ContentService;

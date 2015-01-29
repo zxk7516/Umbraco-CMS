@@ -7,6 +7,7 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Persistence.Repositories;
+using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using umbraco;
 using umbraco.BusinessLogic;
@@ -142,9 +143,104 @@ namespace Umbraco.Web.Cache
             //ContentService.Moved += ContentServiceMoved;
             ContentService.Trashed += ContentServiceTrashed;
             ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin;
+            ContentService.RolledBack += ContentServiceRolledBack;
+            ContentService.Published += ContentServicePublished;
+            ContentService.UnPublished += ContentServiceUnPublished;
+
+            ChangeSet.Committed += (sender, args) => DistributedCache.Instance.FlushContentCacheBuffer();
 
             //public access events
             Access.AfterSave += Access_AfterSave;
+        }
+
+        // clear all events - for tests purposes
+        // make sure that ALL events registered above are cleared
+        internal void ClearEvents()
+        {
+            ApplicationTreeService.Deleted -= ApplicationTreeDeleted;
+            ApplicationTreeService.Updated -= ApplicationTreeUpdated;
+            ApplicationTreeService.New -= ApplicationTreeNew;
+
+            SectionService.Deleted -= ApplicationDeleted;
+            SectionService.New -= ApplicationNew;
+
+            UserService.SavedUserType -= UserServiceSavedUserType;
+            UserService.DeletedUserType -= UserServiceDeletedUserType;
+            UserService.SavedUser -= UserServiceSavedUser;
+            UserService.DeletedUser -= UserServiceDeletedUser;
+
+            global::umbraco.cms.businesslogic.Dictionary.DictionaryItem.New -= DictionaryItemNew;
+            global::umbraco.cms.businesslogic.Dictionary.DictionaryItem.Saving -= DictionaryItemSaving;
+            global::umbraco.cms.businesslogic.Dictionary.DictionaryItem.Deleted -= DictionaryItemDeleted;
+            LocalizationService.DeletedDictionaryItem -= LocalizationServiceDeletedDictionaryItem;
+            LocalizationService.SavedDictionaryItem -= LocalizationServiceSavedDictionaryItem;
+
+            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.AfterDelete -= DataTypeDefinitionDeleting;
+            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.Saving -= DataTypeDefinitionSaving;
+            DataTypeService.Deleted -= DataTypeServiceDeleted;
+            DataTypeService.Saved -= DataTypeServiceSaved;
+
+            global::umbraco.cms.businesslogic.web.StylesheetProperty.AfterSave -= StylesheetPropertyAfterSave;
+            global::umbraco.cms.businesslogic.web.StylesheetProperty.AfterDelete -= StylesheetPropertyAfterDelete;
+            global::umbraco.cms.businesslogic.web.StyleSheet.AfterDelete -= StyleSheetAfterDelete;
+            global::umbraco.cms.businesslogic.web.StyleSheet.AfterSave -= StyleSheetAfterSave;
+            FileService.SavedStylesheet -= FileServiceSavedStylesheet;
+            FileService.DeletedStylesheet -= FileServiceDeletedStylesheet;
+
+            Domain.AfterSave -= DomainAfterSave;
+            Domain.AfterDelete -= DomainAfterDelete;
+            Domain.New -= DomainNew;
+
+            global::umbraco.cms.businesslogic.language.Language.AfterDelete -= LanguageAfterDelete;
+            global::umbraco.cms.businesslogic.language.Language.New -= LanguageNew;
+            global::umbraco.cms.businesslogic.language.Language.AfterSave -= LanguageAfterSave;
+            LocalizationService.SavedLanguage -= LocalizationServiceSavedLanguage;
+            LocalizationService.DeletedLanguage -= LocalizationServiceDeletedLanguage;
+
+            ContentTypeService.SavedContentType -= ContentTypeServiceSavedContentType;
+            ContentTypeService.SavedMediaType -= ContentTypeServiceSavedMediaType;
+            ContentTypeService.DeletedContentType -= ContentTypeServiceDeletedContentType;
+            ContentTypeService.DeletedMediaType -= ContentTypeServiceDeletedMediaType;
+            MemberTypeService.Saved -= MemberTypeServiceSaved;
+            MemberTypeService.Deleted -= MemberTypeServiceDeleted;
+
+            Permission.New -= PermissionNew;
+            Permission.Updated -= PermissionUpdated;
+            Permission.Deleted -= PermissionDeleted;
+            PermissionRepository<IContent>.AssignedPermissions -= CacheRefresherEventHandler_AssignedPermissions;
+
+            Template.AfterSave -= TemplateAfterSave;
+            Template.AfterDelete -= TemplateAfterDelete;
+            FileService.SavedTemplate -= FileServiceSavedTemplate;
+            FileService.DeletedTemplate -= FileServiceDeletedTemplate;
+
+            Macro.AfterSave -= MacroAfterSave;
+            Macro.AfterDelete -= MacroAfterDelete;
+            MacroService.Saved -= MacroServiceSaved;
+            MacroService.Deleted -= MacroServiceDeleted;
+
+            MemberService.Saved -= MemberServiceSaved;
+            MemberService.Deleted -= MemberServiceDeleted;
+            MemberGroupService.Saved -= MemberGroupService_Saved;
+            MemberGroupService.Deleted -= MemberGroupService_Deleted;
+
+            MediaService.Saved -= MediaServiceSaved;
+            MediaService.Deleted -= MediaServiceDeleted;
+            MediaService.Moved -= MediaServiceMoved;
+            MediaService.Trashed -= MediaServiceTrashed;
+            MediaService.EmptiedRecycleBin -= MediaServiceEmptiedRecycleBin;
+
+            ContentService.Saved -= ContentServiceSaved;
+            ContentService.Deleted -= ContentServiceDeleted;
+            ContentService.Copied -= ContentServiceCopied;
+            //ContentService.Moved -= ContentServiceMoved;
+            ContentService.Trashed -= ContentServiceTrashed;
+            ContentService.EmptiedRecycleBin -= ContentServiceEmptiedRecycleBin;
+            ContentService.RolledBack -= ContentServiceRolledBack;
+            ContentService.Published -= ContentServicePublished;
+            ContentService.UnPublished -= ContentServiceUnPublished;
+
+            Access.AfterSave -= Access_AfterSave;
         }
 
         #region Public access event handlers
@@ -156,13 +252,13 @@ namespace Umbraco.Web.Cache
 
         #endregion
 
-        #region Content service event handlers
+        #region Content service and publishing strategy event handlers
 
         static void ContentServiceEmptiedRecycleBin(IContentService sender, RecycleBinEventArgs e)
         {
             if (e.RecycleBinEmptiedSuccessfully && e.IsContentRecycleBin)
             {
-                DistributedCache.Instance.RemoveUnpublishedCachePermanently(e.Ids.ToArray());
+                DistributedCache.Instance.RemoveContentCache(e.Ids.ToArray());
             }
         }
         
@@ -177,8 +273,7 @@ namespace Umbraco.Web.Cache
         /// </remarks>
         static void ContentServiceTrashed(IContentService sender, MoveEventArgs<IContent> e)
         {
-            DistributedCache.Instance.RefreshUnpublishedPageCache(
-                e.MoveInfoCollection.Select(x => x.Entity).ToArray());
+            DistributedCache.Instance.RefreshContentCache(e.MoveInfoCollection.Select(x => x.Entity).ToArray());
         }
 
         /// <summary>
@@ -200,7 +295,7 @@ namespace Umbraco.Web.Cache
             }
 
             //run the un-published cache refresher since copied content is not published
-            DistributedCache.Instance.RefreshUnpublishedPageCache(e.Copy);
+            DistributedCache.Instance.RefreshContentCache(e.Copy);
         }
 
         /// <summary>
@@ -210,7 +305,7 @@ namespace Umbraco.Web.Cache
         /// <param name="e"></param>
         static void ContentServiceDeleted(IContentService sender, DeleteEventArgs<IContent> e)
         {
-            DistributedCache.Instance.RemoveUnpublishedPageCache(e.DeletedEntities.ToArray());
+            DistributedCache.Instance.RemoveContentCache(e.DeletedEntities.Select(x => x.Id).ToArray());
         }
 
         /// <summary>
@@ -247,13 +342,36 @@ namespace Umbraco.Web.Cache
                 DistributedCache.Instance.RefreshAllUserPermissionsCache();
             }
 
-            // trigger the un-published cache refresher UNLESS the published cache refresher 
-            // is going to trigger, because we want only ONE of them to trigger - until we 
-            // merge PageCache and UnpublishedPageCache.
-            var unpublished = e.SavedEntities.Where(x => x.Published == false);
-            DistributedCache.Instance.RefreshUnpublishedPageCache(unpublished.ToArray());
+            DistributedCache.Instance.RefreshContentCache(e.SavedEntities.ToArray());
         }
 
+        static void ContentServiceRolledBack(IContentService sender, RollbackEventArgs<IContent> args)
+        {
+            // rolled back entity changes unpublished (not published)
+            DistributedCache.Instance.RefreshContentCache(args.Entity);
+        }
+
+        private void ContentServicePublished(IContentService sender, PublishEventArgs<IContent> args)
+        {
+            if (args.IsAllRepublished)
+                DistributedCache.Instance.RefreshAllPublishedContentCache();
+            else
+                DistributedCache.Instance.RefreshPublishedContentCache(args.PublishedEntities.ToArray());
+        }
+
+        private void ContentServiceUnPublished(IContentService sender, PublishEventArgs<IContent> e)
+        {
+            //foreach (var content in e.PublishedEntities)
+            //{
+            //    DistributedCache.Instance.RefreshUnpublishedPageCache(content);
+            //    DistributedCache.Instance.RemovePageCache(content);
+            //}
+
+            // assuming order is not important here...
+            var entities = e.PublishedEntities.ToArray();
+            DistributedCache.Instance.RefreshContentCache(entities);
+            DistributedCache.Instance.RemovePublishedContentCache(entities);
+        }
 
         #endregion
 

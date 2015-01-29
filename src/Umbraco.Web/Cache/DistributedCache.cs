@@ -55,6 +55,7 @@ namespace Umbraco.Web.Cache
         public const string DataTypeCacheRefresherId = "35B16C25-A17E-45D7-BC8F-EDAB1DCC28D2";
         public const string DictionaryCacheRefresherId = "D1D7E227-F817-4816-BFE9-6C39B6152884";
         public const string PublicAccessCacheRefresherId = "1DB08769-B104-4F8B-850E-169CAC1DF2EC";
+        public const string ContentCacheRefresherId = "900A4FBE-DF3C-41E6-BB77-BE896CD158EA";
 
         // note - use these and stop creating GUIDs all the time
         public static readonly Guid ApplicationTreeCacheRefresherGuid = new Guid(ApplicationTreeCacheRefresherId);
@@ -77,6 +78,7 @@ namespace Umbraco.Web.Cache
         public static readonly Guid DataTypeCacheRefresherGuid = new Guid(DataTypeCacheRefresherId);
         public static readonly Guid DictionaryCacheRefresherGuid = new Guid(DictionaryCacheRefresherId);
         public static readonly Guid PublicAccessCacheRefresherGuid = new Guid(PublicAccessCacheRefresherId);
+        public static readonly Guid ContentCacheRefresherGuid = new Guid(ContentCacheRefresherId);
 
         #endregion
 
@@ -237,7 +239,10 @@ namespace Umbraco.Web.Cache
 
         private static ICacheRefresher GetRefresherById(Guid uniqueIdentifier)
         {
-            return CacheRefreshersResolver.Current.GetById(uniqueIdentifier);
+            var refresher = CacheRefreshersResolver.Current.GetById(uniqueIdentifier);
+            if (refresher == null)
+                throw new ArgumentException("Not a registered cache refresher UID: {0}".FormatWith(uniqueIdentifier));
+            return refresher;
         }
 
     }

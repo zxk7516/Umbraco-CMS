@@ -74,8 +74,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             // plug event handlers
             // distributed events
-            PageCacheRefresher.CacheUpdated += PageCacheUpdated;
-            UnpublishedPageCacheRefresher.CacheUpdated += UnpublishedPageCacheUpdated;
+            ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
             ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
 
             // plug repository event handlers
@@ -704,6 +703,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 foreach (var xmlDto in xmlDtos)
                 {
                     // fix sortOrder - see notes in UpdateSortOrder
+                    /*
                     var tmp = new XmlDocument();
                     tmp.LoadXml(xmlDto.Xml);
                     if (tmp.DocumentElement == null) throw new Exception("oops");
@@ -711,6 +711,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     if (attr == null) throw new Exception("oops");
                     attr.Value = xmlDto.SortOrder.ToInvariantString();
                     xmlDto.Xml = tmp.InnerXml;
+                    */
 
                     // event - allow modification of the string + cancel?
 
@@ -835,9 +836,38 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         // it's the cache that subscribes to events and manages itself
         // except for requests for cache reset
 
-        // fixme - check that NO other event touches the cache!
-        // fixme - what about the "refresh" .aspx that can rebuilt the xml too?
+        private void ContentCacheUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
+        {
+            if (args.MessageType != MessageType.RefreshByJson)
+                throw new NotSupportedException();
 
+            var payloads = ContentCacheRefresher.Deserialize((string) args.MessageObject);
+            if (payloads.Any(x => ContentCacheRefresher.HasFlagAny(x.Action, ContentCacheRefresher.JsonAction.RefreshAllPublished)))
+            {
+                ReloadXmlFromDatabase();
+            }
+
+            // FIXME as soon as we are cloning then we should run all events on a single clone!
+
+            foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
+            {
+                // XmlStore does not support RefreshAllNewest
+                // XmlStore does not support RefreshNewest nor RemoveNewest because proper -Published events should trigger
+
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshPublished))
+                {
+                    var content = _svcs.ContentService.GetPublishedVersion(payload.Id);
+                    if (content != null) Refresh(content);
+                }
+
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemovePublished))
+                {
+                    Remove(payload.Id);
+                }
+            }
+        }
+
+        /*
         private void UnpublishedPageCacheUpdated(UnpublishedPageCacheRefresher sender, CacheRefresherEventArgs args)
         {
             switch (args.MessageType)
@@ -856,9 +886,9 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     RefreshSortOrder(refreshedInstance);
                     break;
                 case MessageType.RefreshByJson:
-                    // FIXME - BEWARE OF THE OPERATION!
                     var json = (string)args.MessageObject;
                     foreach (var c in UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
+                        .Where(x => x.Operation != UnpublishedPageCacheRefresher.OperationType.Deleted)
                         .Select(x => _svcs.ContentService.GetById(x.Id))
                         .Where(x => x != null))
                     {
@@ -902,6 +932,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
             }
         }
+        */
 
         private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
         {
@@ -1082,12 +1113,14 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             if (content.Published == false) return;
 
             var parentId = content.ParentId; // -1 if no parent
+            var node = ImportContent(xml, content);
 
             // fix sortOrder - see note in UpdateSortOrder
-            var node = ImportContent(xml, content);
+            /*
             var attr = ((XmlElement)node).GetAttributeNode("sortOrder");
             if (attr == null) throw new Exception("oops");
             attr.Value = content.SortOrder.ToInvariantString();
+            */
 
             AppendDocumentXml(xml, content.Id, content.Level, parentId, node);
         }
@@ -1111,7 +1144,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 foreach (var xmlDto in xmlDtos)
                 {
                     // fix sortOrder - see notes in UpdateSortOrder
-                    // fixme - is that still needed?
+                    /*
                     var tmp = new XmlDocument();
                     tmp.LoadXml(xmlDto.Xml);
                     if (tmp.DocumentElement == null) throw new Exception("oops");
@@ -1119,6 +1152,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     if (attr == null) throw new Exception("oops");
                     attr.Value = xmlDto.SortOrder.ToInvariantString();
                     xmlDto.Xml = tmp.InnerXml;
+                    */
 
                     // and parse it into a DOM node
                     xmlDoc.LoadXml(xmlDto.Xml);
@@ -1169,6 +1203,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // event - cleared
         }
 
+        /*
         private void RefreshSortOrder(IContent c)
         {
             if (c == null) throw new ArgumentNullException("c");
@@ -1206,7 +1241,9 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 });
             }
         }
+        */
 
+        /*
         public void SortChildren(int parentId)
         {
             var childNodesXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
@@ -1236,6 +1273,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 ResyncCurrentPublishedCaches();
             }
         }
+        */
 
         // appends a node (docNode) into a cache (xmlContentCopy)
         // and returns a cache (not necessarily the original one)
@@ -1460,6 +1498,14 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
                     continue;
                 }
+
+                // fixme
+                // if saving a non-published version of a content that has a published version,
+                // what shall we do? nothing should change as far as properties are concerned,
+                // but OTOH attributes MAY change
+                // = sortOrder, parentID, level, path
+                // how does NAME (and therefore url segment) work? from document.text ie versionned
+                // what happens when we change the content type, NO VERSIONNED
 
                 var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id }) > 0;
                 var dto2 = new ContentXmlDto { NodeId = c.Id, Xml = xml };

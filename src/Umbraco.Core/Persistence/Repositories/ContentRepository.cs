@@ -104,7 +104,7 @@ namespace Umbraco.Core.Persistence.Repositories
             var translator = new SqlTranslator<IContent>(sqlClause, query);
             var sql = translator.Translate()
                                 .Where<DocumentDto>(x => x.Newest)
-                                .OrderByDescending<ContentVersionDto>(x => x.VersionDate)
+                                .OrderBy<NodeDto>(x => x.Level)
                                 .OrderBy<NodeDto>(x => x.SortOrder);
 
             return ProcessQuery(sql);
@@ -351,8 +351,8 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             //check if we need to create a new version
-            bool shouldCreateNewVersion = entity.ShouldCreateNewVersion(publishedState);
-            if (shouldCreateNewVersion)
+            var requiresNewVersion = entity.RequiresNewVersion(publishedState);
+            if (requiresNewVersion)
             {
                 //Updates Modified date and Version Guid
                 ((Content)entity).UpdatingEntity();
@@ -409,15 +409,9 @@ namespace Umbraco.Core.Persistence.Repositories
             //If Published state has changed then previous versions should have their publish state reset.
             //If state has been changed to unpublished the previous versions publish state should also be reset.
             //if (((ICanBeDirty)entity).IsPropertyDirty("Published") && (entity.Published || publishedState == PublishedState.Unpublished))
-            if (entity.ShouldClearPublishedFlagForPreviousVersions(publishedState, shouldCreateNewVersion))            
+            if (entity.RequiresClearPublishedFlag(publishedState, requiresNewVersion))            
             {
-                var publishedDocs = Database.Fetch<DocumentDto>("WHERE nodeId = @Id AND published = @IsPublished", new { Id = entity.Id, IsPublished = true });
-                foreach (var doc in publishedDocs)
-                {
-                    var docDto = doc;
-                    docDto.Published = false;
-                    Database.Update(docDto);
-                }
+                ClearPublishedFlag(entity);
 
                 //this is a newly published version so we'll update the tags table too (end of this method)
                 publishedStateChanged = true;
@@ -433,7 +427,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             var contentVersionDto = dto.ContentVersionDto;
-            if (shouldCreateNewVersion)
+            if (requiresNewVersion)
             {
                 //Create a new version - cmsContentVersion
                 //Assumes a new Version guid and Version date (modified date) has been set
@@ -460,7 +454,7 @@ namespace Umbraco.Core.Persistence.Repositories
             //Add Properties
             foreach (var propertyDataDto in propertyDataDtos)
             {
-                if (shouldCreateNewVersion == false && propertyDataDto.Id > 0)
+                if (requiresNewVersion == false && propertyDataDto.Id > 0)
                 {
                     Database.Update(propertyDataDto);
                 }
@@ -512,9 +506,7 @@ namespace Umbraco.Core.Persistence.Repositories
         public IEnumerable<IContent> GetByPublishedVersion(IQuery<IContent> query)
         {
             // we WANT to return contents in top-down order, ie parents should come before children
-            // ideal would be pure xml "document order" which can be achieved with:
-            // ORDER BY substring(path, 1, len(path) - charindex(',', reverse(path))), sortOrder
-            // but that's probably an overkill - sorting by level,sortOrder should be enough
+            // ideal would be pure xml "document order" - which we cannot achieve at database level
 
             var sqlClause = GetBaseQuery(false);
             var translator = new SqlTranslator<IContent>(sqlClause, query);
@@ -528,19 +520,12 @@ namespace Umbraco.Core.Persistence.Repositories
 
             foreach (var dto in dtos)
             {
-                //Check in the cache first. If it exists there AND it is published
-                // then we can use that entity. Otherwise if it is not published (which can be the case
-                // because we only store the 'latest' entries in the cache which might not be the published
-                // version)
-                var fromCache = TryGetFromCache(dto.NodeId);
-                if (fromCache.Success && fromCache.Result.Published)
-                {
-                    yield return fromCache.Result;
-                }
-                else
-                {
-                    yield return CreateContentFromDto(dto, dto.VersionId, sql);
-                }
+                // check cache first, if it exists and is published, use it
+                // it may exist and not be published as the cache has 'latest version used'
+                var cached = TryGetFromCache(dto.NodeId);
+                yield return cached.Success && cached.Result.Published
+                    ? cached.Result
+                    : CreateContentFromDto(dto, dto.VersionId, sql);
             }
         }
 
@@ -558,7 +543,7 @@ namespace Umbraco.Core.Persistence.Repositories
             repo.ReplaceEntityPermissions(permissionSet);
         }
 
-        public void ClearPublished(IContent content)
+        public void ClearPublishedFlag(IContent content)
         {
             // race cond!
             var documentDtos = Database.Fetch<DocumentDto>("WHERE nodeId=@id AND published=@published", new { id = content.Id, published = true });

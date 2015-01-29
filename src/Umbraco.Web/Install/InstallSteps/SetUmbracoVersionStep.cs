@@ -31,7 +31,7 @@ namespace Umbraco.Web.Install.InstallSteps
             // for anything anymore so welll use the method that it is wrapping. This will just make sure
             // the correct xml structure exists in the xml cache file. This is required by some upgrade scripts
             // that may modify the cmsContentXml table directly.
-            DistributedCache.Instance.RefreshAllPageCache();
+            DistributedCache.Instance.RefreshAllPublishedContentCache();
 
             // Update configurationStatus
             GlobalSettings.ConfigurationStatus = UmbracoVersion.Current.ToString(3);

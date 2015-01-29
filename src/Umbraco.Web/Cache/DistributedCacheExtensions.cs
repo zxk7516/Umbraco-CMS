@@ -7,6 +7,7 @@ using Umbraco.Core.Events;
 using Umbraco.Core.Models;
 using umbraco;
 using umbraco.cms.businesslogic.web;
+using Umbraco.Core.Services;
 
 namespace Umbraco.Web.Cache
 {
@@ -196,85 +197,133 @@ namespace Umbraco.Web.Cache
 
         #endregion
 
-        #region Page cache
-        /// <summary>
-        /// Refreshes the cache amongst servers for all pages
-        /// </summary>
-        /// <param name="dc"></param>
-        public static void RefreshAllPageCache(this DistributedCache dc)
+        #region Content cache
+
+        const string ContentCacheBufferKey = "DistributedCache.ContentCacheBuffer";
+
+        public static void FlushContentCacheBuffer(this DistributedCache dc)
         {
-            dc.RefreshAll(DistributedCache.PageCacheRefresherGuid);
+            var changeSet = ChangeSet.Ambient;
+            if (changeSet == null || changeSet.Items.ContainsKey(ContentCacheBufferKey) == false) return;
+
+            var buffer = (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[ContentCacheBufferKey];
+            dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(buffer));
+            changeSet.Items.Remove(ContentCacheBufferKey);
+        }
+
+        private static void RefreshContentCacheByJson(this DistributedCache dc, IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
+        {
+            var changeSet = ChangeSet.Ambient;
+            if (changeSet == null)
+            {
+                dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(payloads));
+            }
+            else
+            {
+                var buffer = changeSet.Items.ContainsKey(ContentCacheBufferKey) ? (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[ContentCacheBufferKey] : null;
+                if (buffer == null) changeSet.Items[ContentCacheBufferKey] = buffer = new List<ContentCacheRefresher.JsonPayload>();
+                buffer.AddRange(payloads);
+            }
         }
 
         /// <summary>
-        /// Refreshes the cache amongst servers for a page
+        /// Refreshes all published content.
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="documentId"></param>
-        public static void RefreshPageCache(this DistributedCache dc, int documentId)
+        public static void RefreshAllPublishedContentCache(this DistributedCache dc)
         {
-            dc.Refresh(DistributedCache.PageCacheRefresherGuid, documentId);
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentCacheRefresher.JsonAction.RefreshAllPublished) };
+
+            dc.RefreshContentCacheByJson(payloads);
         }
 
         /// <summary>
-        /// Refreshes page cache for all instances passed in
+        /// Refreshes published content.
         /// </summary>
         /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshPageCache(this DistributedCache dc, params IContent[] content)
+        /// <param name="contentId"></param>
+        public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
         {
-            dc.Refresh(DistributedCache.PageCacheRefresherGuid, x => x.Id, content);
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentCacheRefresher.JsonAction.RefreshPublished) };
+
+            dc.RefreshContentCacheByJson(payloads);
         }
 
         /// <summary>
-        /// Removes the cache amongst servers for a page
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RemovePageCache(this DistributedCache dc, params IContent[] content)
-        {
-            dc.Remove(DistributedCache.PageCacheRefresherGuid, x => x.Id, content);
-        }
-
-        /// <summary>
-        /// Removes the cache amongst servers for a page
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="documentId"></param>
-        public static void RemovePageCache(this DistributedCache dc, int documentId)
-        {
-            dc.Remove(DistributedCache.PageCacheRefresherGuid, documentId);
-        }
-
-        /// <summary>
-        /// invokes the unpublished page cache refresher
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshUnpublishedPageCache(this DistributedCache dc, params IContent[] content)
-        {
-            dc.Refresh(new Guid(DistributedCache.UnpublishedPageCacheRefresherId), x => x.Id, content);
-        }
-
-        /// <summary>
-        /// invokes the unpublished page cache refresher
+        /// Refreshes published content.
         /// </summary>
         /// <param name="dc"></param>
         /// <param name="content"></param>
-        public static void RemoveUnpublishedPageCache(this DistributedCache dc, params IContent[] content)
+        public static void RefreshPublishedContentCache(this DistributedCache dc, params IContent[] content)
         {
-            dc.Remove(new Guid(DistributedCache.UnpublishedPageCacheRefresherId), x => x.Id, content);
+            if (content.Length == 0) return;
+
+            var payloads = content
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentCacheRefresher.JsonAction.RefreshPublished));
+
+            dc.RefreshContentCacheByJson(payloads);
         }
 
         /// <summary>
-        /// invokes the unpublished page cache refresher to mark all ids for permanent removal
+        /// Removes published content.
+        /// </summary>
+        /// <param name="dc"></param>
+        /// <param name="contentId"></param>
+        public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
+        {
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentCacheRefresher.JsonAction.RemovePublished) };
+
+            dc.RefreshContentCacheByJson(payloads);
+        }
+        /// <summary>
+        /// Removes published content.
+        /// </summary>
+        /// <param name="dc"></param>
+        /// <param name="content"></param>
+        public static void RemovePublishedContentCache(this DistributedCache dc, params IContent[] content)
+        {
+            if (content.Length == 0) return;
+
+            var payloads = content
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentCacheRefresher.JsonAction.RemovePublished));
+
+            dc.RefreshContentCacheByJson(payloads);
+        }
+
+        /// <summary>
+        /// Refreshes newest (published or unpublished) content.
+        /// </summary>
+        /// <param name="dc"></param>
+        /// <param name="content"></param>
+        public static void RefreshContentCache(this DistributedCache dc, params IContent[] content)
+        {
+            if (content.Length == 0) return;
+
+            var payloads = content
+                .Select(x =>
+                {
+                    var action = ContentCacheRefresher.JsonAction.RefreshNewest;
+                    //if (x.Published) action |= ContentCacheRefresher.JsonAction.RefreshPublished;
+                    return new ContentCacheRefresher.JsonPayload(x.Id, action);
+                });
+
+            dc.RefreshContentCacheByJson(payloads);
+        }
+
+        /// <summary>
+        /// Removes content completely.
         /// </summary>
         /// <param name="dc"></param>
         /// <param name="contentIds"></param>
-        public static void RemoveUnpublishedCachePermanently(this DistributedCache dc, params int[] contentIds)
+        public static void RemoveContentCache(this DistributedCache dc, params int[] contentIds)
         {
-            dc.RefreshByJson(new Guid(DistributedCache.UnpublishedPageCacheRefresherId),
-                UnpublishedPageCacheRefresher.SerializeToJsonPayloadForPermanentDeletion(contentIds));
+            if (contentIds.Length == 0) return;
+
+            var payloads = contentIds
+                .Select(x => new ContentCacheRefresher.JsonPayload(x,
+                    ContentCacheRefresher.JsonAction.RemoveNewest | ContentCacheRefresher.JsonAction.RemovePublished));
+
+            dc.RefreshContentCacheByJson(payloads);
         }
 
         #endregion

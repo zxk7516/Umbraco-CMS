@@ -268,9 +268,9 @@
     </Compile>
     <Compile Include="ApplicationContextExtensions.cs" />
     <Compile Include="AreaRegistrationContextExtensions.cs" />
+    <Compile Include="Cache\ContentCacheRefresher.cs" />
     <Compile Include="Models\LegacyConvertedNode.cs" />
     <Compile Include="Models\LegacyConvertedNodeProperty.cs" />
-    <Compile Include="PublishedCache\EventsTracer.cs" />
     <Compile Include="PublishedCache\IPublishedMemberCache.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\Navigable\INavigableData.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
@@ -905,8 +905,6 @@
     <Compile Include="Search\ExamineEvents.cs" />
     <Compile Include="Strategies\DataTypes\LegacyUploadFieldWorkaround.cs" />
     <Compile Include="Strategies\Migrations\PublishAfterUpgradeToVersionSixth.cs" />
-    <Compile Include="Strategies\Publishing\UpdateCacheAfterPublish.cs" />
-    <Compile Include="Strategies\Publishing\UpdateCacheAfterUnPublish.cs" />
     <Compile Include="Strategies\Migrations\EnsureAppsTreesUpdatedOnUpgrade.cs" />
     <Compile Include="Strategies\ServerRegistrationEventHandler.cs" />
     <Compile Include="Templates\TemplateRenderer.cs" />

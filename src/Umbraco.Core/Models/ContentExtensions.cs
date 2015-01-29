@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Web;
-using System.Xml;
 using System.Xml.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,9 +14,6 @@ using Umbraco.Core.IO;
 using Umbraco.Core.Media;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
-using Umbraco.Core.Strings;
-using Umbraco.Core.Persistence;
-using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Models
@@ -43,159 +37,218 @@ namespace Umbraco.Core.Models
         }
 
         /// <summary>
-        /// Determines if the item should be persisted at all
+        /// Determines whether the content should be persisted.
         /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// In one particular case, a content item shouldn't be persisted:
-        /// * The item exists and is published
-        /// * A call to ContentService.Save is made
-        /// * The item has not been modified whatsoever apart from changing it's published status from published to saved
-        /// 
-        /// In this case, there is no reason to make any database changes at all
-        /// </remarks>
+        /// <param name="entity">The content.</param>
+        /// <returns>True is the content should be persisted, otherwise false.</returns>
+        /// <remarks>See remarks in overload.</remarks>
         internal static bool RequiresSaving(this IContent entity)
         {
-            var publishedState = ((Content)entity).PublishedState;
-            return RequiresSaving(entity, publishedState);
+            return RequiresSaving(entity, ((Content) entity).PublishedState);
         }
 
         /// <summary>
-        /// Determines if the item should be persisted at all
+        /// Determines whether the content should be persisted.
         /// </summary>
-        /// <param name="entity"></param>
-        /// <param name="publishedState"></param>
-        /// <returns></returns>
+        /// <param name="entity">The content.</param>
+        /// <param name="publishedState">The published state of the content.</param>
+        /// <returns>True is the content should be persisted, otherwise false.</returns>
         /// <remarks>
-        /// In one particular case, a content item shouldn't be persisted:
-        /// * The item exists and is published
-        /// * A call to ContentService.Save is made
-        /// * The item has not been modified whatsoever apart from changing it's published status from published to saved
-        /// 
-        /// In this case, there is no reason to make any database changes at all
+        /// This is called by the repository when persisting an existing content, to
+        /// figure out whether it needs to persist the content at all.
         /// </remarks>
         internal static bool RequiresSaving(this IContent entity, PublishedState publishedState)
         {
-            var dirtyEntity = (ICanBeDirty)entity;
-            var publishedChanged = dirtyEntity.IsPropertyDirty("Published") && publishedState != PublishedState.Unpublished;
-            //check if any user prop has changed
-            var propertyValueChanged = ((Content)entity).IsAnyUserPropertyDirty();
+            // note: publishedState is always the entity's PublishedState except for tests
+
+            // FIXME
+            // the only situation where we don't want to SAVE is if we are SAVING
+            // and nothing has changed - whatever the rest
+
+            var content = (Content)entity;
+            //var contentPropertyChanged = content2.IsEntityDirty();
+            var userPropertyChanged = content.IsAnyUserPropertyDirty();
+            var dirtyProps = content.GetDirtyProperties();
+            var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
+
+            return publishedState != PublishedState.Saved || userPropertyChanged || contentPropertyChangedExceptPublished;
             
-            //We need to know if any other property apart from Published was changed here
-            //don't create a new version if the published state has changed to 'Save' but no data has actually been changed
-            if (publishedChanged && entity.Published == false && propertyValueChanged == false)
+            /*
+            // figure out whether .Published has changed, and why
+            var hasPublishedChanged = entity.IsPropertyDirty("Published");
+            //var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
+            var publishedStateSaved = publishedState == PublishedState.Saved;
+            //var publishedStatePublished = publishedState == PublishedState.Published;
+
+            // so if .Published has changed, because of other than .Saved, must save
+            if (hasPublishedChanged && publishedStateSaved == false)
+                return true;
+
+            // else either .Published has not changed, or changed because of .Saved,
+            // ie went from Published to !Published to save a published version,
+            // then no need to save if no property has changed
+
+            // FIXME but if it has NOT changed Published-to-Published, OK to NOT save (or, update the date?)
+            // FIXME but if it has NOT changed Unpublished-to-Unpublished because the published version is another one
+            // FIXME then we have an issue because we SHOULD save
+            // FIXME in fact we should ALWAYS save, just to bump the UpdateDate ?!
+
+            // if a user property is dirty, must save
+            var content = (Content)entity;
+            var userPropertyChanged = content.IsAnyUserPropertyDirty();
+            if (userPropertyChanged)
+                return true;
+
+            // if a content property is dirty, other than .Published, must save
+            var dirtyProps = content.GetDirtyProperties();
+            var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
+            if (contentPropertyChangedExceptPublished)
+                return true;
+
+            // else no need to save
+            return false;
+            */
+        }
+
+        /// <summary>
+        /// Determines whether a new version of the content should be created.
+        /// </summary>
+        /// <param name="entity">The content.</param>
+        /// <returns>True if a new version should be created, otherwise false.</returns>
+        /// <remarks>See remarks in overload.</remarks>
+        internal static bool RequiresNewVersion(this IContent entity)
+        {
+            return RequiresNewVersion(entity, ((Content) entity).PublishedState);
+        }
+
+        /// <summary>
+        /// Determines whether a new version of the content should be created.
+        /// </summary>
+        /// <param name="entity">The content.</param>
+        /// <param name="publishedState">The published state of the content.</param>
+        /// <returns>True if a new version should be created, otherwise false.</returns>
+        /// <remarks>
+        /// This is called by the repository when persisting an existing content, to
+        /// figure out whether it needs to create a new version for that content.
+        /// A new version needs to be created when:
+        /// * The publish status is changed
+        /// * The language is changed
+        /// * A content property is changed (? why ?)
+        /// * The item is already published and is being published again and any property value is changed (to enable a rollback)
+        /// </remarks>
+        internal static bool RequiresNewVersion(this IContent entity, PublishedState publishedState)
+        {
+            // note: publishedState is always the entity's PublishedState except for tests
+
+            // read
+            // http://issues.umbraco.org/issue/U4-2589
+            // http://issues.umbraco.org/issue/U4-3404
+            // http://issues.umbraco.org/issue/U4-5510
+            //
+            // slightly modifying the rules to make more sense (marked with CHANGE)
+            // but should respect the result of the discussions in those issues
+
+            // figure out whether .Language has changed
+            // this language stuff was an old POC and should be removed
+            var hasLanguageChanged = entity.IsPropertyDirty("Language");
+            if (hasLanguageChanged)
+                return true; // language change => new version
+
+            // figure out whether .Published has changed, and why
+            var hasPublishedChanged = entity.IsPropertyDirty("Published");
+            //var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
+            //var publishedStateSaved = publishedState == PublishedState.Saved;
+            //var publishedStatePublished = publishedState == PublishedState.Published;
+
+            var content = (Content)entity;
+            //var contentPropertyChanged = content2.IsEntityDirty();
+            var userPropertyChanged = content.IsAnyUserPropertyDirty();
+            var dirtyProps = content.GetDirtyProperties();
+            var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
+            if (hasPublishedChanged)
             {
-                //at this point we need to check if any non property value has changed that wasn't the published state
-                var changedProps = ((TracksChangesEntityBase)entity).GetDirtyProperties();
-                if (changedProps.Any(x => x != "Published") == false)
+                switch (publishedState)
                 {
-                    return false;
+                    case PublishedState.Published:
+                        // from Unpublished to Published, publishing
+                        //// always require a new version
+                        //return true;
+                        // require a new version only if anything has changed
+                        // else can publish the current version
+                        return contentPropertyChangedExceptPublished || userPropertyChanged;
+                    case PublishedState.Saved:
+                        // has changed => was .Published
+                        // from Published to Saved, saving
+                        // require a new version only if anything has changed
+                        // else we have nothing to save, really
+                        return contentPropertyChangedExceptPublished || userPropertyChanged;
+                    case PublishedState.Unpublished:
+                        // from Published to Unpublished, unpublishing
+                        // always require a new version
+                        // because later on that new version will be modified by saves
+                        // and we want to preserve the version that was published
+                        return true;
                 }
             }
 
-            return true;
-        }
-
-        /// <summary>
-        /// Determines if a new version should be created
-        /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// A new version needs to be created when:
-        /// * The publish status is changed
-        /// * The language is changed
-        /// * The item is already published and is being published again and any property value is changed (to enable a rollback)
-        /// </remarks>
-        internal static bool ShouldCreateNewVersion(this IContent entity)
-        {
-            var publishedState = ((Content)entity).PublishedState;
-            return ShouldCreateNewVersion(entity, publishedState);
-        }
-
-        /// <summary>
-        /// Determines if a new version should be created
-        /// </summary>
-        /// <param name="entity"></param>
-        /// <param name="publishedState"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// A new version needs to be created when:
-        /// * The publish status is changed
-        /// * The language is changed
-        /// * The item is already published and is being published again and any property value is changed (to enable a rollback)
-        /// </remarks>
-        internal static bool ShouldCreateNewVersion(this IContent entity, PublishedState publishedState)
-        {
-            var dirtyEntity = (ICanBeDirty)entity;
-
-            //check if the published state has changed or the language
-            var publishedChanged = dirtyEntity.IsPropertyDirty("Published") && publishedState != PublishedState.Unpublished;
-            var langChanged = dirtyEntity.IsPropertyDirty("Language");
-            var contentChanged = publishedChanged || langChanged;
-
-            //check if any user prop has changed
-            var propertyValueChanged = ((Content)entity).IsAnyUserPropertyDirty();            
-
-            //return true if published or language has changed
-            if (contentChanged)
-            {
+            // has not changed
+            // require a new version except if Saved (has not changed => was .Unpublished)
+            // and a user property changed - we don't want a new version each time we save
+            if (contentPropertyChangedExceptPublished)  // published hasn't changed anyway
                 return true;
-            }
-
-            //check if any content prop has changed
-            var contentDataChanged = ((Content)entity).IsEntityDirty();
-
-            //return true if the item is published and a property has changed or if any content property has changed
-            return (propertyValueChanged && publishedState == PublishedState.Published) || contentDataChanged;
-        }
-
-        /// <summary>
-        /// Determines if the published db flag should be set to true for the current entity version and all other db
-        /// versions should have their flag set to false.
-        /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// This is determined by:
-        /// * If a new version is being created and the entity is published
-        /// * If the published state has changed and the entity is published OR the entity has been un-published.
-        /// </remarks>
-        internal static bool ShouldClearPublishedFlagForPreviousVersions(this IContent entity)
-        {
-            var publishedState = ((Content)entity).PublishedState;
-            return entity.ShouldClearPublishedFlagForPreviousVersions(publishedState, entity.ShouldCreateNewVersion(publishedState));
-        }
-
-        /// <summary>
-        /// Determines if the published db flag should be set to true for the current entity version and all other db
-        /// versions should have their flag set to false.
-        /// </summary>
-        /// <param name="entity"></param>
-        /// <param name="publishedState"></param>
-        /// <param name="isCreatingNewVersion"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// This is determined by:
-        /// * If a new version is being created and the entity is published
-        /// * If the published state has changed and the entity is published OR the entity has been un-published.
-        /// </remarks>
-        internal static bool ShouldClearPublishedFlagForPreviousVersions(this IContent entity, PublishedState publishedState, bool isCreatingNewVersion)
-        {
-            if (isCreatingNewVersion && entity.Published)
-            {
+            if (publishedState != PublishedState.Saved && userPropertyChanged)
                 return true;
-            }
-
-            //If Published state has changed then previous versions should have their publish state reset.
-            //If state has been changed to unpublished the previous versions publish state should also be reset.
-            if (entity.IsPropertyDirty("Published") && (entity.Published || publishedState == PublishedState.Unpublished))
-            {
-                return true;
-            }
 
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether the database published flag should be cleared for versions
+        /// other than this content version.
+        /// </summary>
+        /// <param name="entity">The content.</param>
+        /// <returns>True if the published flag should be cleared, otherwise false.</returns>
+        /// <returns>See remarks in overload.</returns>
+        internal static bool RequiresClearPublishedFlag(this IContent entity)
+        {
+            var publishedState = ((Content) entity).PublishedState;
+            var requiresNewVersion = entity.RequiresNewVersion(publishedState);
+            return entity.RequiresClearPublishedFlag(publishedState, requiresNewVersion);
+        }
+
+        /// <summary>
+        /// Determines whether the database published flag should be cleared for versions
+        /// other than this content version.
+        /// </summary>
+        /// <param name="entity">The content.</param>
+        /// <param name="publishedState">The published state of the content.</param>
+        /// <param name="isNewVersion">Indicates whether the content is a new version.</param>
+        /// <returns>True if the published flag should be cleared, otherwise false.</returns>
+        /// <remarks>
+        /// This is called by the repository when persisting an existing content, to
+        /// figure out whether it needs to clear the published flag for other versions.
+        /// </remarks>
+        internal static bool RequiresClearPublishedFlag(this IContent entity, PublishedState publishedState, bool isNewVersion)
+        {
+            // note: publishedState is always the entity's PublishedState except for tests
+
+            // new, published version => everything else must be cleared
+            if (isNewVersion && entity.Published)
+                return true;
+
+            // figure out whether .Published has changed, and why
+            var hasPublishedChanged = entity.IsPropertyDirty("Published");
+            var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
+            //var publishedStateSaved = publishedState == PublishedState.Saved;
+            var publishedStatePublished = publishedState == PublishedState.Published;
+
+            // if it has changed, because the version we are saving has been published
+            // or unpublished (not just saved) then clear - if it's not changed then no
+            // need to clear, and if it's changed because the version has been saved,
+            // then it's now false for that version, but does not change anything for the
+            // content itself, so no need to clear either.
+
+            return hasPublishedChanged && (publishedStateUnpublished || publishedStatePublished);
         }
 
         /// <summary>

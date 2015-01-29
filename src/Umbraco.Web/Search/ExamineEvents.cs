@@ -56,8 +56,7 @@ namespace Umbraco.Web.Search
 
             //Bind to distributed cache events - this ensures that this logic occurs on ALL servers that are taking part 
             // in a load balanced environment.
-            CacheRefresherBase<UnpublishedPageCacheRefresher>.CacheUpdated += UnpublishedPageCacheRefresherCacheUpdated;
-            CacheRefresherBase<PageCacheRefresher>.CacheUpdated += PublishedPageCacheRefresherCacheUpdated;
+		    CacheRefresherBase<ContentCacheRefresher>.CacheUpdated += ContentCacheRefresherUpdated;
             CacheRefresherBase<MediaCacheRefresher>.CacheUpdated += MediaCacheRefresherCacheUpdated;
             CacheRefresherBase<MemberCacheRefresher>.CacheUpdated += MemberCacheRefresherCacheUpdated;
             CacheRefresherBase<ContentTypeCacheRefresher>.CacheUpdated += ContentTypeCacheRefresherCacheUpdated;
@@ -218,6 +217,7 @@ namespace Umbraco.Web.Search
             }
         }
 
+        /*
         /// <summary>
         /// Handles index management for all published content events - basically handling published/unpublished
         /// </summary>
@@ -356,8 +356,58 @@ namespace Umbraco.Web.Search
                     break;
             }
         }
+        */
 
-		
+	    static void ContentCacheRefresherUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
+	    {
+            if (args.MessageType != MessageType.RefreshByJson)
+                throw new NotSupportedException();
+
+	        var csvc = ApplicationContext.Current.Services.ContentService;
+
+	        foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
+	        {
+	            IContent content = null;
+
+                // ExamineEvents does not support RefreshAllNewest nor RefreshAllPublished
+
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshNewest))
+	            {
+                    // re-index newest version for indexes that support unpublished content
+                    content = csvc.GetById(payload.Id);
+                    if (content != null) ReIndexForContent(content, true); // true = only supporting unpublished content
+	            }
+                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RefreshPublished))
+                {
+                    // re-index published version for indexes that support only published content
+                    content = (content != null && content.Published) ? content : csvc.GetPublishedVersion(payload.Id);
+                    if (content != null) ReIndexForContent(content, false); // false = not supporting unpublished content
+                }
+
+	            if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemoveNewest | ContentCacheRefresher.JsonAction.RemovePublished))
+	            {
+                    // permanently delete all versions from all indexes
+                    DeleteIndexForEntity(payload.Id, false);
+	            }
+	            else
+	            {
+                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemoveNewest))
+                    {
+                        // should never happen, cannot remove newest but not published
+                        throw new NotSupportedException();
+                    }
+                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentCacheRefresher.JsonAction.RemovePublished))
+                    {
+                        // delete from indexes that support only published content
+                        DeleteIndexForEntity(payload.Id, true);
+                        // then re-index newest version for those indexes
+                        content = csvc.GetById(payload.Id);
+                        if (content != null) ReIndexForContent(content, true); // true = only supporting unpublished content
+                    }
+                }
+            }
+	    }
+
         private static void ReIndexForMember(IMember member)
 		{
 		    ExamineManager.Instance.ReIndexNode(
@@ -432,10 +482,10 @@ namespace Umbraco.Web.Search
 	    /// Re-indexes a content item whether published or not but only indexes them for indexes supporting unpublished content
 	    /// </summary>
 	    /// <param name="sender"></param>
-	    /// <param name="isContentPublished">
+	    /// <param name="supportUnpublished">
 	    /// Value indicating whether the item is published or not
 	    /// </param>
-	    private static void ReIndexForContent(IContent sender, bool isContentPublished)
+	    private static void ReIndexForContent(IContent sender, bool supportUnpublished)
 	    {
             var xml = sender.ToXml();
             //add an icon attribute to get indexed
@@ -445,10 +495,9 @@ namespace Umbraco.Web.Search
                 xml, IndexTypes.Content,
 	            ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
                     
-	                //Index this item for all indexers if the content is published, otherwise if the item is not published
-	                // then only index this for indexers supporting unpublished content
-
-	                .Where(x => isContentPublished || (x.SupportUnpublishedContent))
+                    // only for the specified indexers
+                    // if we want both then this method will be invoked twice
+	                .Where(x => supportUnpublished == x.SupportUnpublishedContent)
 	                .Where(x => x.EnableDefaultEventHandler));
 	    }
 	}

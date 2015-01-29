@@ -78,7 +78,6 @@ namespace Umbraco.Core
 			var serviceContext = new ServiceContext(
 				new PetaPocoUnitOfWorkProvider(dbFactory), 
 				new FileUnitOfWorkProvider(), 
-				new PublishingStrategy(),
                 ApplicationCache);
 
             CreateApplicationContext(dbContext, serviceContext);

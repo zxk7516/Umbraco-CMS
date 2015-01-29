@@ -104,9 +104,9 @@ namespace Umbraco.Core.Services
         /// <param name="fileUnitOfWorkProvider"></param>
         /// <param name="publishingStrategy"></param>
         /// <param name="cache"></param>
-        internal ServiceContext(IDatabaseUnitOfWorkProvider dbUnitOfWorkProvider, IUnitOfWorkProvider fileUnitOfWorkProvider, BasePublishingStrategy publishingStrategy, CacheHelper cache)
+        internal ServiceContext(IDatabaseUnitOfWorkProvider dbUnitOfWorkProvider, IUnitOfWorkProvider fileUnitOfWorkProvider, CacheHelper cache)
         {
-			BuildServiceCache(dbUnitOfWorkProvider, fileUnitOfWorkProvider, publishingStrategy, cache,
+			BuildServiceCache(dbUnitOfWorkProvider, fileUnitOfWorkProvider, cache,
                               //this needs to be lazy because when we create the service context it's generally before the
                               //resolvers have been initialized!
                               new Lazy<RepositoryFactory>(() => RepositoryResolver.Current.Factory));
@@ -118,7 +118,6 @@ namespace Umbraco.Core.Services
         private void BuildServiceCache(
             IDatabaseUnitOfWorkProvider dbUnitOfWorkProvider,
             IUnitOfWorkProvider fileUnitOfWorkProvider,
-            BasePublishingStrategy publishingStrategy,
             CacheHelper cache,
             Lazy<RepositoryFactory> repositoryFactory)
         {
@@ -144,7 +143,7 @@ namespace Umbraco.Core.Services
                 _memberService = new Lazy<IMemberService>(() => new MemberService(provider, repositoryFactory.Value, _memberGroupService.Value, _dataTypeService.Value));
 
             if (_contentService == null)
-                _contentService = new Lazy<IContentService>(() => new ContentService(provider, repositoryFactory.Value, publishingStrategy, _dataTypeService.Value, _userService.Value));
+                _contentService = new Lazy<IContentService>(() => new ContentService(provider, repositoryFactory.Value, _dataTypeService.Value, _userService.Value));
 
             if (_mediaService == null)
                 _mediaService = new Lazy<IMediaService>(() => new MediaService(provider, repositoryFactory.Value, _dataTypeService.Value, _userService.Value));

@@ -58,7 +58,6 @@ namespace Umbraco.Core.Standalone
                     _serviceContext = new ServiceContext(
                         new PetaPocoUnitOfWorkProvider(dbFactory),
                         new FileUnitOfWorkProvider(),
-                        new PublishingStrategy(),
                         cacheHelper);
 
                     //initialize the DatabaseContext

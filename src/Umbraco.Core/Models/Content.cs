@@ -318,6 +318,7 @@ namespace Umbraco.Core.Models
             PublishedState = state;
         }
 
+        // note: set is used only in ContentFactory - and here in Content right above - and nowhere else
         [DataMember]
         internal PublishedState PublishedState { get; set; }
 
@@ -403,6 +404,14 @@ namespace Umbraco.Core.Models
             {
                 property.ResetDirtyProperties();
             }
+        }
+
+        public override void ResetDirtyProperties(bool rememberPreviouslyChangedProperties)
+        {
+            base.ResetDirtyProperties(rememberPreviouslyChangedProperties);
+
+            // clear the .Saved PublishedState
+            PublishedState = Published ? PublishedState.Published : PublishedState.Unpublished;
         }
 
         /// <summary>
