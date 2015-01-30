@@ -869,12 +869,23 @@ namespace umbraco
 
         private static INode GetCurrentNode()
         {
-            var request = UmbracoContext.Current.PublishedContentRequest;
-            if (request == null || request.HasPublishedContent == false)
-                //throw new Exception("Internal error, there is no current node.");
-                return null;
-
-            return LegacyNodeHelper.ConvertToNode(UmbracoContext.Current.PublishedContentRequest.PublishedContent);
+        
+            // get the current content request
+            
+            IPublishedContent content;
+            if (UmbracoContext.Current.IsFrontEndUmbracoRequest)
+            {
+                var request = UmbracoContext.Current.PublishedContentRequest;
+                content = (request == null || request.HasPublishedContent == false) ? null : request.PublishedContent;
+            }
+            }
+            else
+            {
+                var pageId = UmbracoContext.Current.PageId;
+                content = pageId.HasValue ? UmbracoContext.Current.ContentCache.GetById(pageId.Value) : null;
+            }
+                    
+            return content == null ? null : LegacyNodeHelper.ConvertToNode(content);
         }
 
         private static string GetControlUniqueId(string filename)
