@@ -1568,32 +1568,25 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private void OnRepositoryRefreshed(UmbracoDatabase db, ContentXmlDto dto, bool exists)
         {
-            if (exists)
-                db.Update(dto);
-            else
-                db.Insert(dto);
+            db.InsertOrUpdate(dto);
         }
 
         private void OnRepositoryRefreshed(UmbracoDatabase db, PreviewXmlDto dto, bool exists)
         {
-            if (exists)
-            {
-                // cannot simply update because of PetaPoco handling of the composite key ;-(
-                //db.Update(dto);
-                db.Update<PreviewXmlDto>(
-                    "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
-                    new
-                    {
-                        xml = dto.Xml,
-                        timestamp = dto.Timestamp,
-                        id = dto.NodeId,
-                        versionId = dto.VersionId
-                    });
-            }
-            else
-            {
-                db.Insert(dto);
-            }
+            // cannot simply update because of PetaPoco handling of the composite key ;-(
+            // read http://stackoverflow.com/questions/11169144/how-to-modify-petapoco-class-to-work-with-composite-key-comprising-of-non-numeri
+            // it works in https://github.com/schotime/PetaPoco and then https://github.com/schotime/NPoco but not here
+            //db.InsertOrUpdate(dto);
+
+            db.InsertOrUpdate(dto, 
+                "SET xml=@xml, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
+                new
+                {
+                    xml = dto.Xml,
+                    timestamp = dto.Timestamp,
+                    id = dto.NodeId,
+                    versionId = dto.VersionId
+                });
         }
 
         private void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)

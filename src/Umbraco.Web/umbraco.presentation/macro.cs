@@ -868,8 +868,7 @@ namespace umbraco
         #region Execute helpers
 
         private static INode GetCurrentNode()
-        {
-        
+        {       
             // get the current content request
             
             IPublishedContent content;
@@ -877,7 +876,6 @@ namespace umbraco
             {
                 var request = UmbracoContext.Current.PublishedContentRequest;
                 content = (request == null || request.HasPublishedContent == false) ? null : request.PublishedContent;
-            }
             }
             else
             {
