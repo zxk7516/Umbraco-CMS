@@ -65,6 +65,7 @@ namespace Umbraco.Web.Cache
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
         }
 
         public override void Refresh(IContent instance)
@@ -74,6 +75,7 @@ namespace Umbraco.Web.Cache
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
         }
 
         public override void Remove(IContent instance)
@@ -83,6 +85,7 @@ namespace Umbraco.Web.Cache
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
             DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
         }
     }
 }

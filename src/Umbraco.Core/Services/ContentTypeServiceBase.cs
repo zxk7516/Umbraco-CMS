@@ -1,12 +1,19 @@
 using System.Collections.Generic;
 using System.Linq;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
+using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.UnitOfWork;
 
 namespace Umbraco.Core.Services
 {
-    public class ContentTypeServiceBase
+    public class ContentTypeServiceBase : RepositoryService
     {
+        public ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
+            : base(provider, repositoryFactory, logger)
+        { }
+
         // this is called after some content types are changed, and is used to determine which content types
         // are impacted by the changes in a way that needs to be notified to the content service -- including
         // content types that were not directly changed but may be impacted due to compositions.

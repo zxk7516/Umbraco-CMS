@@ -9,11 +9,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     {
         private readonly XmlStore _xmlStore;
         private readonly RoutesCache _routesCache;
+        private readonly IDomainService _domainService;
 
         public PublishedCachesService(ServiceContext svcs, bool isForTesting = false)
         {
             _routesCache = isForTesting ? null : new RoutesCache();
             _xmlStore = new XmlStore(svcs, _routesCache);
+            _domainService = svcs.DomainService;
         }
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
@@ -25,7 +27,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var cache = ApplicationContext.Current.ApplicationCache.RequestCache;
 
             return new PublishedCaches(
-                new PublishedContentCache(_xmlStore, cache, _routesCache, previewToken),
+                new PublishedContentCache(_xmlStore, _domainService, cache, _routesCache, previewToken),
                 new PublishedMediaCache(_xmlStore, ApplicationContext.Current, cache),
                 new PublishedMemberCache(_xmlStore, cache, ApplicationContext.Current.Services.MemberService));
         }

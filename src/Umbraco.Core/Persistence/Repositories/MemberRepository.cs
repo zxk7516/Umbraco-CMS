@@ -8,10 +8,11 @@ using System.Xml.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Events;
 using Umbraco.Core.IO;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
-using Umbraco.Core.Persistence.Caching;
+
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
@@ -31,18 +32,8 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly ITagRepository _tagRepository;
         private readonly IMemberGroupRepository _memberGroupRepository;
 
-        public MemberRepository(IDatabaseUnitOfWork work, IMemberTypeRepository memberTypeRepository, IMemberGroupRepository memberGroupRepository, ITagRepository tagRepository)
-            : base(work)
-        {
-            if (memberTypeRepository == null) throw new ArgumentNullException("memberTypeRepository");
-            if (tagRepository == null) throw new ArgumentNullException("tagRepository");
-            _memberTypeRepository = memberTypeRepository;
-            _tagRepository = tagRepository;
-            _memberGroupRepository = memberGroupRepository;
-        }
-
-        public MemberRepository(IDatabaseUnitOfWork work, IRepositoryCacheProvider cache, IMemberTypeRepository memberTypeRepository, IMemberGroupRepository memberGroupRepository, ITagRepository tagRepository)
-            : base(work, cache)
+        public MemberRepository(IDatabaseUnitOfWork work, CacheHelper cache, ILogger logger, ISqlSyntaxProvider sqlSyntax, IMemberTypeRepository memberTypeRepository, IMemberGroupRepository memberGroupRepository, ITagRepository tagRepository)
+            : base(work, cache, logger, sqlSyntax)
         {
             if (memberTypeRepository == null) throw new ArgumentNullException("memberTypeRepository");
             if (tagRepository == null) throw new ArgumentNullException("tagRepository");
@@ -579,7 +570,7 @@ namespace Umbraco.Core.Persistence.Repositories
             Func<Tuple<string, object[]>> filterCallback = null;
             if (filter.IsNullOrWhiteSpace() == false)
             {
-                sbWhere.Append("AND ((umbracoNode. " + SqlSyntaxContext.SqlSyntaxProvider.GetQuotedColumnName("text") + " LIKE @" + args.Count + ") " +
+                sbWhere.Append("AND ((umbracoNode. " + SqlSyntax.GetQuotedColumnName("text") + " LIKE @" + args.Count + ") " +
                                 "OR (cmsMember.LoginName LIKE @0" + args.Count + "))");
                 args.Add("%" + filter + "%");
                 filterCallback = () => new Tuple<string, object[]>(sbWhere.ToString().Trim(), args.ToArray());
@@ -694,6 +685,19 @@ namespace Umbraco.Core.Persistence.Repositories
             // http://issues.umbraco.org/issue/U4-1946
             ((Entity)member).ResetDirtyProperties(false);
             return member;
+        }
+
+        /// <summary>
+        /// Dispose disposable properties
+        /// </summary>
+        /// <remarks>
+        /// Ensure the unit of work is disposed
+        /// </remarks>
+        protected override void DisposeResources()
+        {
+            _memberTypeRepository.Dispose();
+            _tagRepository.Dispose();
+            _memberGroupRepository.Dispose();
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
-using Umbraco.Core.Persistence.Caching;
+using Umbraco.Core.Persistence.Repositories;
 using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Cache
@@ -109,12 +109,14 @@ namespace Umbraco.Web.Cache
                     ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
                     DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
                     DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
                 }
 
                 if (HasFlagAny(payload.Action, ContentChangeTypes.RefreshNewest | ContentChangeTypes.RemoveNewest | ContentChangeTypes.RefreshAllNewest))
                 {
                     // from UnpublishedPageCacheRefresher
-                    RuntimeCacheProvider.Current.Delete(typeof(IContent), payload.Id);
+                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
+                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheItem(RepositoryBase.GetCacheIdKey<IContent>(payload.Id));
                 }
             }
 

@@ -8,10 +8,11 @@ using Umbraco.Core.Configuration;
 using Umbraco.Core.Dynamics;
 using Umbraco.Core.Events;
 using Umbraco.Core.IO;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Rdbms;
-using Umbraco.Core.Persistence.Caching;
+
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
@@ -29,18 +30,8 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly IMediaTypeRepository _mediaTypeRepository;
         private readonly ITagRepository _tagRepository;
 
-        public MediaRepository(IDatabaseUnitOfWork work, IMediaTypeRepository mediaTypeRepository, ITagRepository tagRepository)
-            : base(work)
-        {
-            if (mediaTypeRepository == null) throw new ArgumentNullException("mediaTypeRepository");
-            if (tagRepository == null) throw new ArgumentNullException("tagRepository");
-            _mediaTypeRepository = mediaTypeRepository;
-            _tagRepository = tagRepository;
-            EnsureUniqueNaming = true;
-        }
-
-        public MediaRepository(IDatabaseUnitOfWork work, IRepositoryCacheProvider cache, IMediaTypeRepository mediaTypeRepository, ITagRepository tagRepository)
-            : base(work, cache)
+        public MediaRepository(IDatabaseUnitOfWork work, CacheHelper cache, ILogger logger, ISqlSyntaxProvider sqlSyntax, IMediaTypeRepository mediaTypeRepository, ITagRepository tagRepository)
+            : base(work, cache, logger, sqlSyntax)
         {
             if (mediaTypeRepository == null) throw new ArgumentNullException("mediaTypeRepository");
             if (tagRepository == null) throw new ArgumentNullException("tagRepository");
@@ -351,7 +342,7 @@ namespace Umbraco.Core.Persistence.Repositories
         {
             get { return Constants.System.RecycleBinMedia; }
         }
-      
+
         #endregion
 
         /// <summary>
@@ -373,7 +364,7 @@ namespace Umbraco.Core.Persistence.Repositories
             Func<Tuple<string, object[]>> filterCallback = null;
             if (filter.IsNullOrWhiteSpace() == false)
             {
-                sbWhere.Append("AND (umbracoNode." + SqlSyntaxContext.SqlSyntaxProvider.GetQuotedColumnName("text") + " LIKE @" + args.Count + ")");
+                sbWhere.Append("AND (umbracoNode." + SqlSyntax.GetQuotedColumnName("text") + " LIKE @" + args.Count + ")");
                 args.Add("%" + filter + "%");
                 filterCallback = () => new Tuple<string, object[]>(sbWhere.ToString().Trim(), args.ToArray());
             }
@@ -496,6 +487,18 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             return currentName;
+        }
+
+        /// <summary>
+        /// Dispose disposable properties
+        /// </summary>
+        /// <remarks>
+        /// Ensure the unit of work is disposed
+        /// </remarks>
+        protected override void DisposeResources()
+        {
+            _mediaTypeRepository.Dispose();
+            _tagRepository.Dispose();
         }
     }
 }

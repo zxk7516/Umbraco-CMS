@@ -11,14 +11,16 @@ using Umbraco.Core.Configuration;
 using Umbraco.Core.Dynamics;
 using Umbraco.Core.Events;
 using Umbraco.Core.IO;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
-using Umbraco.Core.Persistence.Caching;
+
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
@@ -34,23 +36,9 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly ITemplateRepository _templateRepository;
         private readonly ITagRepository _tagRepository;
         private readonly CacheHelper _cacheHelper;
-        
-        public ContentRepository(IDatabaseUnitOfWork work, IContentTypeRepository contentTypeRepository, ITemplateRepository templateRepository, ITagRepository tagRepository, CacheHelper cacheHelper)
-            : base(work)
-        {
-            if (contentTypeRepository == null) throw new ArgumentNullException("contentTypeRepository");
-            if (templateRepository == null) throw new ArgumentNullException("templateRepository");
-            if (tagRepository == null) throw new ArgumentNullException("tagRepository");
-            _contentTypeRepository = contentTypeRepository;
-            _templateRepository = templateRepository;
-		    _tagRepository = tagRepository;
-            _cacheHelper = cacheHelper;
 
-		    EnsureUniqueNaming = true;
-        }
-
-        public ContentRepository(IDatabaseUnitOfWork work, IRepositoryCacheProvider cache, IContentTypeRepository contentTypeRepository, ITemplateRepository templateRepository, ITagRepository tagRepository, CacheHelper cacheHelper)
-            : base(work, cache)
+        public ContentRepository(IDatabaseUnitOfWork work, CacheHelper cacheHelper, ILogger logger, ISqlSyntaxProvider syntaxProvider, IContentTypeRepository contentTypeRepository, ITemplateRepository templateRepository, ITagRepository tagRepository)
+            : base(work, cacheHelper, logger, syntaxProvider)
         {
             if (contentTypeRepository == null) throw new ArgumentNullException("contentTypeRepository");
             if (templateRepository == null) throw new ArgumentNullException("templateRepository");
@@ -73,7 +61,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 .Where(GetBaseWhereClause(), new { Id = id })
                 .Where<DocumentDto>(x => x.Newest)
                 .OrderByDescending<ContentVersionDto>(x => x.VersionDate);
-            
+
             var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto>(sql).FirstOrDefault();
 
             if (dto == null)
@@ -89,7 +77,7 @@ namespace Umbraco.Core.Persistence.Repositories
             var sql = GetBaseQuery(false);
             if (ids.Any())
             {
-                sql.Where("umbracoNode.id in (@ids)", new {ids = ids});
+                sql.Where("umbracoNode.id in (@ids)", new { ids = ids });
             }
 
             //we only want the newest ones with this method
@@ -125,7 +113,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 .On<ContentVersionDto, ContentDto>(left => left.NodeId, right => right.NodeId)
                 .InnerJoin<NodeDto>()
                 .On<ContentDto, NodeDto>(left => left.NodeId, right => right.NodeId)
-                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId );
+                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId);
             return sql;
         }
 
@@ -149,7 +137,8 @@ namespace Umbraco.Core.Persistence.Repositories
                                "DELETE FROM cmsPropertyData WHERE contentNodeId = @Id",
                                "DELETE FROM cmsContentVersion WHERE ContentId = @Id",
                                "DELETE FROM cmsContent WHERE nodeId = @Id",
-                               "DELETE FROM umbracoNode WHERE id = @Id"
+                               "DELETE FROM umbracoNode WHERE id = @Id",
+                               "DELETE FROM umbracoAccess WHERE nodeId = @Id"
                            };
             return list;
         }
@@ -189,7 +178,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 .Where<DocumentDto>(x => x.Newest != true);
             var dto = Database.Fetch<DocumentDto, ContentVersionDto>(sql).FirstOrDefault();
 
-            if(dto == null) return;
+            if (dto == null) return;
 
             using (var transaction = Database.GetTransaction())
             {
@@ -236,13 +225,32 @@ namespace Umbraco.Core.Persistence.Repositories
 
         #region Unit of Work Implementation
 
+        protected override void PersistDeletedItem(IContent entity)
+        {
+            // raise event first else potential FK issues
+            OnRemovedEntity(new EntityChangeEventArgs(this.UnitOfWork, entity));
+
+            //We need to clear out all access rules but we need to do this in a manual way since 
+            // nothing in that table is joined to a content id
+            var subQuery = new Sql()
+                .Select("umbracoAccessRule.accessId")
+                .From<AccessRuleDto>(SqlSyntax)
+                .InnerJoin<AccessDto>(SqlSyntax)
+                .On<AccessRuleDto, AccessDto>(SqlSyntax, left => left.AccessId, right => right.Id)
+                .Where<AccessDto>(dto => dto.NodeId == entity.Id);
+            Database.Execute(SqlSyntax.GetDeleteSubquery("umbracoAccessRule", "accessId", subQuery));
+
+            //now let the normal delete clauses take care of everything else
+            base.PersistDeletedItem(entity);
+        }
+
         protected override void PersistNewItem(IContent entity)
         {
             ((Content)entity).AddingEntity();
 
             //Ensure unique name on the same level
             entity.Name = EnsureUniqueNodeName(entity.ParentId, entity.Name);
-            
+
             //Ensure that strings don't contain characters that are invalid in XML
             entity.SanitizeEntityPropertiesForXmlStorage();
 
@@ -263,7 +271,7 @@ namespace Umbraco.Core.Persistence.Repositories
             nodeDto.Level = short.Parse(level.ToString(CultureInfo.InvariantCulture));
             nodeDto.SortOrder = sortOrder;
             var o = Database.IsNew(nodeDto) ? Convert.ToInt32(Database.Insert(nodeDto)) : Database.Update(nodeDto);
-        
+
             //Update with new correct path
             nodeDto.Path = string.Concat(parent.Path, ",", nodeDto.NodeId);
             Database.Update(nodeDto);
@@ -277,21 +285,21 @@ namespace Umbraco.Core.Persistence.Repositories
 
             //Assign the same permissions to it as the parent node
             // http://issues.umbraco.org/issue/U4-2161     
-            var permissionsRepo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper);
+            var permissionsRepo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper, SqlSyntax);
             var parentPermissions = permissionsRepo.GetPermissionsForEntity(entity.ParentId).ToArray();
             //if there are parent permissions then assign them, otherwise leave null and permissions will become the
             // user's default permissions.
             if (parentPermissions.Any())
             {
                 var userPermissions = (
-                    from perm in parentPermissions 
-                    from p in perm.AssignedPermissions 
+                    from perm in parentPermissions
+                    from p in perm.AssignedPermissions
                     select new EntityPermissionSet.UserPermission(perm.UserId, p)).ToList();
 
                 permissionsRepo.ReplaceEntityPermissions(new EntityPermissionSet(entity.Id, userPermissions));
                 //flag the entity's permissions changed flag so we can track those changes.
                 //Currently only used for the cache refreshers to detect if we should refresh all user permissions cache.
-                ((Content) entity).PermissionsChanged = true;
+                ((Content)entity).PermissionsChanged = true;
             }
 
             //Create the Content specific data - cmsContent
@@ -341,8 +349,8 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override void PersistUpdatedItem(IContent entity)
         {
-            var publishedState = ((Content) entity).PublishedState;
-            
+            var publishedState = ((Content)entity).PublishedState;
+
             //check if we need to make any database changes at all
             if (entity.RequiresSaving(publishedState) == false)
             {
@@ -377,7 +385,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 var maxSortOrder =
                     Database.ExecuteScalar<int>(
                         "SELECT coalesce(max(sortOrder),0) FROM umbracoNode WHERE parentid = @ParentId AND nodeObjectType = @NodeObjectType",
-                        new {ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId});
+                        new { ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId });
                 entity.SortOrder = maxSortOrder + 1;
 
                 //Question: If we move a node, should we update permissions to inherit from the new parent if the parent has permissions assigned?
@@ -409,7 +417,7 @@ namespace Umbraco.Core.Persistence.Repositories
             //If Published state has changed then previous versions should have their publish state reset.
             //If state has been changed to unpublished the previous versions publish state should also be reset.
             //if (((ICanBeDirty)entity).IsPropertyDirty("Published") && (entity.Published || publishedState == PublishedState.Unpublished))
-            if (entity.RequiresClearPublishedFlag(publishedState, requiresNewVersion))            
+            if (entity.RequiresClearPublishedFlag(publishedState, requiresNewVersion))
             {
                 ClearPublishedFlag(entity);
 
@@ -470,7 +478,7 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 foreach (var property in entity.Properties)
                 {
-                    if(keyDictionary.ContainsKey(property.PropertyTypeId) == false) continue;
+                    if (keyDictionary.ContainsKey(property.PropertyTypeId) == false) continue;
 
                     property.Id = keyDictionary[property.PropertyTypeId];
                 }
@@ -490,13 +498,6 @@ namespace Umbraco.Core.Persistence.Repositories
             OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
-        }
-
-        protected override void PersistDeletedItem(IContent entity)
-        {
-            // raise event first else potential FK issues
-            OnRemovedEntity(new EntityChangeEventArgs(this.UnitOfWork, entity));
-            base.PersistDeletedItem(entity);
         }
 
         #endregion
@@ -522,9 +523,9 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 // check cache first, if it exists and is published, use it
                 // it may exist and not be published as the cache has 'latest version used'
-                var cached = TryGetFromCache(dto.NodeId);
-                yield return cached.Success && cached.Result.Published
-                    ? cached.Result
+                var fromCache = RepositoryCache.RuntimeCache.GetCacheItem<IContent>(GetCacheIdKey<IContent>(dto.NodeId));
+                yield return fromCache != null && fromCache.Published
+                    ? fromCache
                     : CreateContentFromDto(dto, dto.VersionId, sql);
             }
         }
@@ -539,7 +540,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
         public void ReplaceContentPermissions(EntityPermissionSet permissionSet)
         {
-            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper);
+            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper, SqlSyntax);
             repo.ReplaceEntityPermissions(permissionSet);
         }
 
@@ -554,21 +555,6 @@ namespace Umbraco.Core.Persistence.Repositories
             }
         }
 
-        public IContent GetByLanguage(int id, string language)
-        {
-            var sql = GetBaseQuery(false);
-            sql.Where(GetBaseWhereClause(), new { Id = id });
-            sql.Where<ContentVersionDto>(x => x.Language == language);
-            sql.OrderByDescending<ContentVersionDto>(x => x.VersionDate);
-
-            var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto>(sql).FirstOrDefault();
-
-            if (dto == null)
-                return null;
-
-            return GetByVersion(dto.ContentVersionDto.VersionId);
-        }
-        
         /// <summary>
         /// Assigns a single permission to the current content item for the specified user ids
         /// </summary>
@@ -577,13 +563,13 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <param name="userIds"></param>        
         public void AssignEntityPermission(IContent entity, char permission, IEnumerable<int> userIds)
         {
-            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper);
+            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper, SqlSyntax);
             repo.AssignEntityPermission(entity, permission, userIds);
         }
 
         public IEnumerable<EntityPermission> GetPermissionsForEntity(int entityId)
         {
-            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper);
+            var repo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper, SqlSyntax);
             return repo.GetPermissionsForEntity(entityId);
         }
 
@@ -607,12 +593,12 @@ namespace Umbraco.Core.Persistence.Repositories
 
             var args = new List<object>();
             var sbWhere = new StringBuilder("AND (cmsDocument.newest = 1)");
-            
+
             if (filter.IsNullOrWhiteSpace() == false)
             {
-                sbWhere.Append(" AND (cmsDocument." + SqlSyntaxContext.SqlSyntaxProvider.GetQuotedColumnName("text") + " LIKE @" + args.Count + ")");
+                sbWhere.Append(" AND (cmsDocument." + SqlSyntax.GetQuotedColumnName("text") + " LIKE @" + args.Count + ")");
                 args.Add("%" + filter + "%");
-            }          
+            }
 
             Func<Tuple<string, object[]>> filterCallback = () => new Tuple<string, object[]>(sbWhere.ToString(), args.ToArray());
 
@@ -727,7 +713,7 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <param name="template"></param>
         /// <param name="propCollection"></param>
         /// <returns></returns>
-        private IContent CreateContentFromDto(DocumentDto dto, 
+        private IContent CreateContentFromDto(DocumentDto dto,
             IContentType contentType,
             ITemplate template,
             Models.PropertyCollection propCollection)
@@ -800,7 +786,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 var results = dtos.OrderBy(x => x.Text, new SimilarNodeNameComparer());
                 foreach (var dto in results)
                 {
-                    if(id != 0 && id == dto.NodeId) continue;
+                    if (id != 0 && id == dto.NodeId) continue;
 
                     if (dto.Text.ToLowerInvariant().Equals(currentName.ToLowerInvariant()))
                     {
@@ -811,6 +797,19 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             return currentName;
+        }
+
+        /// <summary>
+        /// Dispose disposable properties
+        /// </summary>
+        /// <remarks>
+        /// Ensure the unit of work is disposed
+        /// </remarks>
+        protected override void DisposeResources()
+        {
+            _contentTypeRepository.Dispose();
+            _templateRepository.Dispose();
+            _tagRepository.Dispose();
         }
     }
 }

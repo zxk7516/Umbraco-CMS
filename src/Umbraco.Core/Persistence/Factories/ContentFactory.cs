@@ -5,7 +5,7 @@ using Umbraco.Core.Models.Rdbms;
 
 namespace Umbraco.Core.Persistence.Factories
 {
-    internal class ContentFactory : IEntityFactory<IContent, DocumentDto>
+    internal class ContentFactory
     {
         private readonly IContentType _contentType;
         private readonly Guid _nodeObjectTypeId;
@@ -32,13 +32,9 @@ namespace Umbraco.Core.Persistence.Factories
             var content = new Content(dto.Text, dto.ContentVersionDto.ContentDto.NodeDto.ParentId, _contentType)
             {
                 Id = _id,
-                Key =
-                    dto.ContentVersionDto.ContentDto.NodeDto.UniqueId.HasValue
-                        ? dto.ContentVersionDto.ContentDto.NodeDto.UniqueId.Value
-                        : _id.ToGuid(),
+                Key = dto.ContentVersionDto.ContentDto.NodeDto.UniqueId,
                 Name = dto.Text,
                 NodeName = dto.ContentVersionDto.ContentDto.NodeDto.Text,
-                Language = dto.ContentVersionDto.Language,
                 Path = dto.ContentVersionDto.ContentDto.NodeDto.Path,
                 CreatorId = dto.ContentVersionDto.ContentDto.NodeDto.UserId.Value,
                 WriterId = dto.WriterUserId,
@@ -107,7 +103,6 @@ namespace Umbraco.Core.Persistence.Factories
                 NodeId = entity.Id,
                 VersionDate = entity.UpdateDate,
                 VersionId = entity.Version,
-                Language = lang,
                 ContentDto = BuildContentDto(entity)
             };
             return contentVersionDto;

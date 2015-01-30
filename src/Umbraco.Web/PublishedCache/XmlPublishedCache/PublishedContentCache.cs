@@ -9,6 +9,7 @@ using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
 using Umbraco.Web.Routing;
 using System.Linq;
@@ -23,11 +24,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // an ICacheProvider that should be at request-level
         // a RoutesCache - need to cleanup that one
         // a preview token string (or null if not previewing)
-        public PublishedContentCache(XmlStore xmlStore, ICacheProvider cacheProvider, RoutesCache routesCache, string previewToken)
+        public PublishedContentCache(XmlStore xmlStore, IDomainService domainService, ICacheProvider cacheProvider, RoutesCache routesCache, string previewToken)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _cacheProvider = cacheProvider;
             _routesCache = routesCache; // may be null for unit-testing
+            _domainService = domainService;
 
             _xmlStore = xmlStore;
             _xml = _xmlStore.Xml; // capture - because the cache has to remain consistent
@@ -38,6 +40,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private readonly ICacheProvider _cacheProvider;
         private readonly RoutesCache _routesCache;
+        private readonly IDomainService _domainService;
 
         // for unit tests
         internal RoutesCache RoutesCache { get { return _routesCache; } }
@@ -69,7 +72,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (content != null && preview == false && _routesCache != null)
             {
                 var domainRootNodeId = route.StartsWith("/") ? -1 : int.Parse(route.Substring(0, route.IndexOf('/')));
-                var iscanon = DomainHelper.ExistsDomainInPath(DomainHelper.GetAllDomains(false), content.Path, domainRootNodeId) == false;
+                var iscanon = DomainHelper.ExistsDomainInPath(_domainService.GetAll(false), content.Path, domainRootNodeId) == false;
                 // and only if this is the canonical url (the one GetUrl would return)
                 if (iscanon)
                     _routesCache.Store(contentId, route);
@@ -142,11 +145,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (node == null)
                 return null;
 
+            var domainHelper = new DomainHelper(_domainService);
+
             // walk up from that node until we hit a node with a domain,
             // or we reach the content root, collecting urls in the way
             var pathParts = new List<string>();
             var n = node;
-            var hasDomains = DomainHelper.NodeHasDomains(n.Id);
+            var hasDomains = domainHelper.NodeHasDomains(n.Id);
             while (hasDomains == false && n != null) // n is null at root
             {
                 // get the url
@@ -155,7 +160,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 // move to parent node
                 n = n.Parent;
-                hasDomains = n != null && DomainHelper.NodeHasDomains(n.Id);
+                hasDomains = n != null && domainHelper.NodeHasDomains(n.Id);
             }
 
             // no domain, respect HideTopLevelNodeFromPath for legacy purposes

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Moq;
 using NUnit.Framework;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
@@ -26,7 +27,7 @@ namespace Umbraco.Tests.Integration
         {
             ServerRegistrarResolver.Current = new ServerRegistrarResolver(new DistributedCacheTests.TestServerRegistrar()); // localhost-only
             ServerMessengerResolver.Current = new ServerMessengerResolver(new DefaultServerMessenger());
-            CacheRefreshersResolver.Current = new CacheRefreshersResolver(() => new[]
+            CacheRefreshersResolver.Current = new CacheRefreshersResolver(new ActivatorServiceProvider(), Mock.Of<ILogger>(), () => new[]
             {
                 typeof(ContentTypeCacheRefresher),
                 typeof(ContentCacheRefresher),

@@ -20,10 +20,12 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     class PublishedContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
     {
         private readonly IContentService _contentService;
+        private readonly IDomainService _domainService;
 
-        public PublishedContentCache(string previewToken, IContentService contentService)
+        public PublishedContentCache(string previewToken, IDomainService domainService, IContentService contentService)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
+            _domainService = domainService;
             _contentService = contentService;
         }
 
@@ -114,11 +116,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             if (node == null)
                 return null;
 
+            var domainHelper = new DomainHelper(_domainService);
+
             // walk up from that node until we hit a node with a domain,
             // or we reach the content root, collecting urls in the way
             var pathParts = new List<string>();
             var n = node;
-            var hasDomains = DomainHelper.NodeHasDomains(n.Id);
+            var hasDomains = domainHelper.NodeHasDomains(n.Id);
             while (hasDomains == false && n != null) // n is null at root
             {
                 // get the url
@@ -127,7 +131,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
                 // move to parent node
                 n = n.Parent;
-                hasDomains = n != null && DomainHelper.NodeHasDomains(n.Id);
+                hasDomains = n != null && domainHelper.NodeHasDomains(n.Id);
             }
 
             // no domain, respect HideTopLevelNodeFromPath for legacy purposes
