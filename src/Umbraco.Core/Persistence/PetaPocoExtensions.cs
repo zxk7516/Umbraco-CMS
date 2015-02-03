@@ -91,8 +91,8 @@ namespace Umbraco.Core.Persistence
         /// once T1 and T2 have completed. Whereas here, it could contain T1's value.</para>
         /// </remarks>
         internal static RecordPersistenceType InsertOrUpdate<T>(this Database db,
-            T poco, 
-            string updateCommand, 
+            T poco,
+            string updateCommand,
             object updateArgs)
             where T : class
         {
@@ -102,7 +102,7 @@ namespace Umbraco.Core.Persistence
             // try to update
             var rowCount = updateCommand.IsNullOrWhiteSpace()
                     ? db.Update(poco)
-                    : db.Update<T>(updateCommand, updateArgs); 
+                    : db.Update<T>(updateCommand, updateArgs);
             if (rowCount > 0)
                 return RecordPersistenceType.Update;
 
