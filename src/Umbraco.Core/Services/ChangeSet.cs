@@ -4,38 +4,61 @@ using Umbraco.Core.Events;
 
 namespace Umbraco.Core.Services
 {
-    // note: does not support nesting
-    // note: rename to UnitOfChange, ChangeUnit...?
+    // can be nested - commits when outermost is disposed
+    // is NOT thread-safe
+    // rename to UnitOfChange, ChangeUnit...?
 
-    internal class ChangeSet : IDisposable
+    internal class ChangeSet
     {
-        private bool _disposed;
+        private int _refsCount;
         private readonly Dictionary<string, object> _items = new Dictionary<string, object>();
         private const string ContextKey = "Umbraco.Core.Services.AmbientChangeSet";
+
+        public IDictionary<string, object> Items { get { return _items; } }
 
         private ChangeSet()
         { }
 
-        public IDictionary<string, object> Items { get { return _items; } }
+        public class ChangeSetPtr : IDisposable
+        {
+            private readonly ChangeSet _changeSet;
 
-        // must be properly disposed for event to trigger
-        // if finalized without being disposed, event does not trigger
-        // when disposed, event triggers
-        // so it's "autocommit" because service events should trigger ONLY
-        // if the supporting transaction is committed - no need to rollback
+            internal ChangeSetPtr(ChangeSet changeSet)
+            {
+                _changeSet = changeSet;
+                _changeSet.RegisterReference();
+            }
+
+            public void Dispose()
+            {
+                _changeSet.ReleaseReference();
+            }
+        }
+
+        // usage
+        // using (ChangeSet.WithAmbient)
+        // {
+        //   ...
+        // }
+        //
+        // must dispose to commit and for events to trigger
+        // no way to prevent commit & events at the moment (no rollback)
+        //
+        // if (ChangeSet.HasAmbient)
+        //   ChangeSet.Ambient.Items[...] = ...;
+        //
+        // bad idea to use a ChangeSet while handling Committed!
 
         internal static TypedEventHandler<ChangeSet, EventArgs> Committed;
 
-        internal static ChangeSet WithAmbient
+        internal static ChangeSetPtr WithAmbient
         {
             get
             {
                 var cs = (ChangeSet) CurrentContextItems.Get(ContextKey);
                 if (cs == null)
                     CurrentContextItems.Set(ContextKey, cs = new ChangeSet());
-                else
-                    throw new NotSupportedException("Nested ambient change sets are not supported.");
-                return cs;
+                return new ChangeSetPtr(cs);
             }
         }
 
@@ -49,15 +72,27 @@ namespace Umbraco.Core.Services
             get { return CurrentContextItems.Get(ContextKey) != null; }
         }
 
-        public void Dispose()
+        private void RegisterReference()
         {
-            if (_disposed) return;
+            if (_refsCount < 0)
+                throw new Exception("ChangeSet has already been committed.");
+
+            _refsCount++;
+        }
+
+        private void ReleaseReference()
+        {
+            if (_refsCount < 0)
+                throw new Exception("ChangeSet has already been committed.");
+            if (--_refsCount > 0) return;
+
+            // _refsCount == 0, set to -1 to lock the ChangeSet
+            _refsCount = -1;
 
             var handler = Committed;
             if (handler != null) handler(this, EventArgs.Empty);
-            
+
             CurrentContextItems.Clear(ContextKey);
-            _disposed = true;
         }
     }
 }
