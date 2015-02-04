@@ -9,6 +9,7 @@ using umbraco.cms.businesslogic.template;
 
 namespace Umbraco.Tests.Routing
 {
+    [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
 	[TestFixture]
 	public class ContentFinderByNiceUrlTests : BaseRoutingTest
 	{

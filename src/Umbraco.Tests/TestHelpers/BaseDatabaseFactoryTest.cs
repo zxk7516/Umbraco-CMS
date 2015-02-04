@@ -51,9 +51,6 @@ namespace Umbraco.Tests.TestHelpers
         //Used to flag if its the first test in the current fixture
         private bool _isFirstTestInFixture = false;
 
-        // fixme - remove
-        //private ApplicationContext _appContext;
-
         private string _dbPath;
         //used to store (globally) the pre-built db with schema and initial data
         private static Byte[] _dbBytes;
@@ -66,27 +63,10 @@ namespace Umbraco.Tests.TestHelpers
             var path = TestHelper.CurrentAssemblyDirectory;
             AppDomain.CurrentDomain.SetData("DataDirectory", path);
 
-            // fixme - clear all that appContext mess which is already taken care of by parent class!
-            ////disable cache
-            //var cacheHelper = CacheHelper.CreateDisabledCacheHelper();
-
             var dbFactory = new DefaultDatabaseFactory(
                 GetDbConnectionString(),
                 GetDbProviderName(),
                 Logger);
-
-            //var repositoryFactory = new RepositoryFactory(cacheHelper, Logger, SqlSyntax, SettingsForTests.GenerateMockSettings());
-
-            //_appContext = new ApplicationContext(
-            //    //assign the db context
-            //    new DatabaseContext(dbFactory, Logger, SqlSyntax, "System.Data.SqlServerCe.4.0"),
-            //    //assign the service context
-            //    new ServiceContext(repositoryFactory, new PetaPocoUnitOfWorkProvider(dbFactory), new FileUnitOfWorkProvider(), cacheHelper, Logger),
-            //    cacheHelper,
-            //    ProfilingLogger)
-            //{
-            //    IsReady = true
-            //};
 
             base.Initialize();
 
@@ -107,11 +87,6 @@ namespace Umbraco.Tests.TestHelpers
         {
             get { return new SqlCeSyntaxProvider(); }
         }
-
-        //protected override void SetupApplicationContext()
-        //{
-        //    ApplicationContext.Current = _appContext;
-        //}
 
         /// <summary>
         /// The database behavior to use for the test/fixture
