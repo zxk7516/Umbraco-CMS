@@ -16,9 +16,6 @@ namespace Umbraco.Tests.Routing
 	{
         protected override void FreezeResolution()
         {
-            var factory = new PublishedCachesService(ApplicationContext.Services);
-            PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(factory);
-
             SiteDomainHelperResolver.Current = new SiteDomainHelperResolver(new SiteDomainHelper());
             base.FreezeResolution();
         }

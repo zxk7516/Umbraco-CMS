@@ -12,8 +12,6 @@ namespace Umbraco.Tests.Routing
 	[TestFixture]
 	public class ContentFinderByNiceUrlTests : BaseRoutingTest
 	{
-	
-
 		[TestCase("/", 1046)]
 		[TestCase("/default.aspx", 1046)] //this one is actually rather important since this is the path that comes through when we are running in pre-IIS 7 for the root document '/' !
 		[TestCase("/Sub1", 1173)]

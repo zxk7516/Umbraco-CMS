@@ -126,9 +126,9 @@ namespace Umbraco.Tests.Publishing
             }
 
             //ok, all are published except the deepest descendant, we will pass in a flag to not include it to 
-            //be published
-            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(
-                ServiceContext.ContentService.GetDescendants(_homePage).Concat(new[] {_homePage}), null, 0, false);
+            //be published - beware that StrategyPublishWithChildren expects content to be ordered by level
+            var content = new[] {_homePage}.Union(ServiceContext.ContentService.GetDescendants(_homePage));
+            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(content, null, 0, false);
             //all of them will be SuccessAlreadyPublished unless the unpublished one gets included, in that case
             //we'll have a 'Success' result which we don't want.
             Assert.AreEqual(0, result.Count(x => x.Result.StatusType == PublishStatusType.Success));

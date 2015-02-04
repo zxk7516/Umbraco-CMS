@@ -19,6 +19,7 @@ namespace Umbraco.Tests.Services
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
+    [FacadeServiceBehavior(WithEvents = true)]
     public class MemberServiceTests : BaseServiceTest
     {
         [SetUp]

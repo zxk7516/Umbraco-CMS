@@ -37,6 +37,16 @@ namespace Umbraco.Tests.Mvc
     [TestFixture]
     public class UmbracoViewPageTests : BaseUmbracoConfigurationTest
     {
+        private PublishedCachesService _service;
+
+        [TearDown]
+        public override void TearDown()
+        {
+            if (_service == null) return;
+            _service.Dispose();
+            _service = null;
+        }
+
         #region RenderModel To ...
 
         [Test]
@@ -454,17 +464,15 @@ namespace Umbraco.Tests.Mvc
                 CacheHelper.CreateDisabledCacheHelper(),
                 new ProfilingLogger(logger, Mock.Of<IProfiler>())) { IsReady = true };
 
-            // FIXME but soon as we create a store we need CONFIG - HOW?!
-            //var xmlStore = new XmlStore(appCtx.Services, null);
-            var xmlStore = new XmlStore(null, null);
-            var cache = new PublishedContentCache(xmlStore, svcCtx.DomainService, new StaticCacheProvider(), null, null);
+            var cache = new NullCacheProvider();
+            _service = new PublishedCachesService(svcCtx, cache, false); // no events
 
             var http = GetHttpContextFactory(url, routeData).HttpContext;
             var cacheProvider = new StaticCacheProvider();
             var ctx = new UmbracoContext(
                 GetHttpContextFactory(url, routeData).HttpContext,
                 appCtx,
-                new PublishedCaches(cache, new PublishedMediaCache(xmlStore, appCtx, cacheProvider), new PublishedMemberCache(null, cacheProvider, null)),
+                _service.CreatePublishedCaches(null),
                 new WebSecurity(http, appCtx));
 
             //if (setSingleton)

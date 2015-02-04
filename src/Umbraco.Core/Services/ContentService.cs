@@ -924,35 +924,11 @@ namespace Umbraco.Core.Services
                             content.CreatorId = userId;
                         content.WriterId = userId;
 
-                        // fixme - with some state mumbo-jumbo here
+                        // from Published, do Saved, else remain Unpublished
+                        if (content.Published)
+                            content.ChangePublishedState(PublishedState.Saved);
 
                         repository.AddOrUpdate(content);
-                    }
-
-                    // fixme - kill that one
-                    if (containsNew)
-                    {
-                        foreach (var content in asArray)
-                        {
-                            content.WriterId = userId;
-
-                            // fixme - if new, what about .CreatorId - see private Save method!
-                            // fixme - new or not, private Save method does things diff. for State?!
-
-                            //Only change the publish state if the "previous" version was actually published
-                            if (content.Published)
-                                content.ChangePublishedState(PublishedState.Saved); // fixme aha - so "published + changes" = "saved"?
-
-                            repository.AddOrUpdate(content);
-                        }
-                    }
-                    else
-                    {
-                        foreach (var content in asArray)
-                        {
-                            content.WriterId = userId;
-                            repository.AddOrUpdate(content);
-                        }
                     }
 
                     uow.Commit();
@@ -1627,8 +1603,10 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
             using (new WriteLock(Locker))
             {
-                // fail fast
-                var attempt = StrategyCanPublish(content, userId); // register in alreadyChecked below to avoid duplicate checks
+                // fail fast + use in alreadyChecked below to avoid duplicate checks
+                var attempt = EnsurePublishable(content);
+                if (attempt.Success)
+                    attempt = StrategyCanPublish(content, userId);
                 if (attempt.Success == false)
                     return new[] { attempt };
 

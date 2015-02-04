@@ -51,7 +51,8 @@ namespace Umbraco.Tests.TestHelpers
         //Used to flag if its the first test in the current fixture
         private bool _isFirstTestInFixture = false;
 
-        private ApplicationContext _appContext;
+        // fixme - remove
+        //private ApplicationContext _appContext;
 
         private string _dbPath;
         //used to store (globally) the pre-built db with schema and initial data
@@ -65,26 +66,27 @@ namespace Umbraco.Tests.TestHelpers
             var path = TestHelper.CurrentAssemblyDirectory;
             AppDomain.CurrentDomain.SetData("DataDirectory", path);
 
-            //disable cache
-            var cacheHelper = CacheHelper.CreateDisabledCacheHelper();
+            // fixme - clear all that appContext mess which is already taken care of by parent class!
+            ////disable cache
+            //var cacheHelper = CacheHelper.CreateDisabledCacheHelper();
 
             var dbFactory = new DefaultDatabaseFactory(
                 GetDbConnectionString(),
                 GetDbProviderName(),
                 Logger);
 
-            var repositoryFactory = new RepositoryFactory(cacheHelper, Logger, SqlSyntax, SettingsForTests.GenerateMockSettings());
+            //var repositoryFactory = new RepositoryFactory(cacheHelper, Logger, SqlSyntax, SettingsForTests.GenerateMockSettings());
 
-            _appContext = new ApplicationContext(
-                //assign the db context
-                new DatabaseContext(dbFactory, Logger, SqlSyntax, "System.Data.SqlServerCe.4.0"),
-                //assign the service context
-                new ServiceContext(repositoryFactory, new PetaPocoUnitOfWorkProvider(dbFactory), new FileUnitOfWorkProvider(), cacheHelper, Logger),
-                cacheHelper,
-                ProfilingLogger)
-            {
-                IsReady = true
-            };
+            //_appContext = new ApplicationContext(
+            //    //assign the db context
+            //    new DatabaseContext(dbFactory, Logger, SqlSyntax, "System.Data.SqlServerCe.4.0"),
+            //    //assign the service context
+            //    new ServiceContext(repositoryFactory, new PetaPocoUnitOfWorkProvider(dbFactory), new FileUnitOfWorkProvider(), cacheHelper, Logger),
+            //    cacheHelper,
+            //    ProfilingLogger)
+            //{
+            //    IsReady = true
+            //};
 
             base.Initialize();
 
@@ -106,10 +108,10 @@ namespace Umbraco.Tests.TestHelpers
             get { return new SqlCeSyntaxProvider(); }
         }
 
-        protected override void SetupApplicationContext()
-        {
-            ApplicationContext.Current = _appContext;
-        }
+        //protected override void SetupApplicationContext()
+        //{
+        //    ApplicationContext.Current = _appContext;
+        //}
 
         /// <summary>
         /// The database behavior to use for the test/fixture
@@ -218,6 +220,24 @@ namespace Umbraco.Tests.TestHelpers
             if (PublishedContentModelFactoryResolver.HasCurrent == false)
                 PublishedContentModelFactoryResolver.Current = new PublishedContentModelFactoryResolver();
 
+            // ensure we have a PublishedCachesService
+            if (PublishedCachesServiceResolver.HasCurrent == false)
+            {
+                var attr = this.GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
+                var cache = new NullCacheProvider();
+                var service = new PublishedCachesService(ApplicationContext.Services, cache, attr != null && attr.WithEvents);
+
+                // initialize PublishedCacheService content with an Xml source
+                service.XmlStore.GetXmlDocument = () => 
+                {
+                    var doc = new XmlDocument();
+                    doc.LoadXml(GetXmlContent(0));
+                    return doc;
+                };
+
+                PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(service);
+            }
+
             base.FreezeResolution();
         }
 
@@ -273,6 +293,10 @@ namespace Umbraco.Tests.TestHelpers
                 AppDomain.CurrentDomain.SetData("DataDirectory", null);
 
                 SqlSyntaxContext.SqlSyntaxProvider = null;
+
+                // make sure we dispose of the service to unbind events
+                if (PublishedCachesServiceResolver.HasCurrent)
+                    PublishedCachesServiceResolver.Current.Service.Dispose();
             }
 
             base.TearDown();
@@ -351,10 +375,13 @@ namespace Umbraco.Tests.TestHelpers
 
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
-            var svce = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-            if (svce == null)
+            // ensure we have a PublishedCachesService
+            var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (service == null)
                 throw new Exception("Not a proper XmlPublishedCache.PublishedCachesService.");
-            svce.XmlStore.GetXmlDocument = () => 
+
+            // re-initialize PublishedCacheService content with an Xml source with proper template id
+            service.XmlStore.GetXmlDocument = () =>
             {
                 var doc = new XmlDocument();
                 doc.LoadXml(GetXmlContent(templateId));
@@ -365,7 +392,7 @@ namespace Umbraco.Tests.TestHelpers
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                svce.CreatePublishedCaches(null),
+                service.CreatePublishedCaches(null),
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

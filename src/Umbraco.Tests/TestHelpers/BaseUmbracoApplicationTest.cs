@@ -19,6 +19,7 @@ using Umbraco.Core.Services;
 using Umbraco.Web;
 using Umbraco.Web.Models.Mapping;
 using umbraco.BusinessLogic;
+using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using ObjectExtensions = Umbraco.Core.ObjectExtensions;
 
 namespace Umbraco.Tests.TestHelpers
@@ -30,7 +31,6 @@ namespace Umbraco.Tests.TestHelpers
     [TestFixture]
     public abstract class BaseUmbracoApplicationTest : BaseUmbracoConfigurationTest
     {
-
         [TestFixtureSetUp]
         public void InitializeFixture()
         {
@@ -64,12 +64,20 @@ namespace Umbraco.Tests.TestHelpers
         {
             base.TearDown();
 
+            // rather dirty but the xml store does not exist anywhere else really
+            // fixme - in fact we should dispose of the service?
+            if (UmbracoContext.Current != null && UmbracoContext.Current.HasPublishedCaches)
+            {
+                var pcc = UmbracoContext.Current.PublishedCaches.ContentCache as PublishedContentCache;
+                if (pcc != null) pcc.XmlStore.Dispose();
+            }
+
             LoggerResolver.Reset();
             //reset settings
-            SettingsForTests.Reset();
+            SettingsForTests.Reset(); // fixme done by base
             UmbracoContext.Current = null;
             TestHelper.CleanContentDirectories();
-            TestHelper.CleanUmbracoSettingsConfig();
+            TestHelper.CleanUmbracoSettingsConfig(); // fixme should be done by base
             //reset the app context, this should reset most things that require resetting like ALL resolvers
             ObjectExtensions.DisposeIfDisposable(ApplicationContext.Current);
             ApplicationContext.Current = null;

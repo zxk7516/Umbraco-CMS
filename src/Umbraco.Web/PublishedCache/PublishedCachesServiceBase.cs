@@ -10,7 +10,7 @@ namespace Umbraco.Web.PublishedCache
 {
     abstract class PublishedCachesServiceBase : IPublishedCachesService
     {
-        private Func<IPublishedCaches> _getPublishedCachesFunc = () => UmbracoContext.Current.PublishedCaches;
+        private Func<IPublishedCaches> _getPublishedCachesFunc = () => UmbracoContext.Current == null ? null : UmbracoContext.Current.PublishedCaches;
 
         public Func<IPublishedCaches> GetPublishedCachesFunc
         {
@@ -40,6 +40,9 @@ namespace Umbraco.Web.PublishedCache
         public abstract void ExitPreview(string previewToken);
 
         public virtual void Flush()
+        { }
+
+        public virtual void Dispose()
         { }
     }
 }

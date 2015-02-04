@@ -16,6 +16,7 @@ using Umbraco.Core.Dynamics;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
 using Umbraco.Web.Models;
 using UmbracoExamine;
@@ -31,11 +32,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	/// </remarks>
     internal class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
 	{
-	    public PublishedMediaCache(XmlStore xmlStore, ApplicationContext applicationContext, ICacheProvider cacheProvider)
+	    public PublishedMediaCache(XmlStore xmlStore, IMediaService mediaService, ICacheProvider cacheProvider)
 	        : base(false)
-		{			
-            if (applicationContext == null) throw new ArgumentNullException("applicationContext");
-            _applicationContext = applicationContext;
+		{
+            if (mediaService == null) throw new ArgumentNullException("mediaService");
+	        _mediaService = mediaService;
 	        _cacheProvider = cacheProvider;
 	        _xmlStore = xmlStore;
 		}
@@ -43,24 +44,24 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    /// <summary>
 	    /// Generally used for unit testing to use an explicit examine searcher
 	    /// </summary>
-        /// <param name="applicationContext"></param>
+        /// <param name="mediaService"></param>
 	    /// <param name="searchProvider"></param>
 	    /// <param name="indexProvider"></param>
 	    /// <param name="cacheProvider"></param>
-	    internal PublishedMediaCache(ApplicationContext applicationContext, BaseSearchProvider searchProvider, BaseIndexProvider indexProvider, ICacheProvider cacheProvider)
+	    internal PublishedMediaCache(IMediaService mediaService, BaseSearchProvider searchProvider, BaseIndexProvider indexProvider, ICacheProvider cacheProvider)
             : base(false)
 	    {
-            if (applicationContext == null) throw new ArgumentNullException("applicationContext");
+            if (mediaService == null) throw new ArgumentNullException("mediaService");
 	        if (searchProvider == null) throw new ArgumentNullException("searchProvider");
 	        if (indexProvider == null) throw new ArgumentNullException("indexProvider");
 
-            _applicationContext = applicationContext;
+            _mediaService = mediaService;
 	        _searchProvider = searchProvider;
 		    _indexProvider = indexProvider;
 	        _cacheProvider = cacheProvider;
 	    }
 
-        private readonly ApplicationContext _applicationContext;
+        private readonly IMediaService _mediaService;
         
         // by default these are null unless specified by the ctor dedicated to tests
         // when they are null the cache derives them from the ExamineManager, see
@@ -87,7 +88,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		{
             //TODO: We should be able to look these ids first in Examine!
 
-		    var rootMedia = _applicationContext.Services.MediaService.GetRootMedia();
+		    var rootMedia = _mediaService.GetRootMedia();
 		    return rootMedia.Select(m => GetUmbracoMedia(m.Id));
 		}
 

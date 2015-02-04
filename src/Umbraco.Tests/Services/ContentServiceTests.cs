@@ -28,6 +28,7 @@ namespace Umbraco.Tests.Services
     /// </summary>
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
+    [FacadeServiceBehavior(WithEvents = true)]
     public class ContentServiceTests : BaseServiceTest
     {
         [SetUp]
@@ -743,8 +744,6 @@ namespace Umbraco.Tests.Services
         public void Can_UnPublish_Content()
         {
             // Arrange
-            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
-
             var contentService = ServiceContext.ContentService;
             var content = contentService.GetById(NodeDto.NodeIdSeed + 1);
             bool published = contentService.Publish(content, 0);
@@ -803,9 +802,7 @@ namespace Umbraco.Tests.Services
         public void Can_RePublish_All_Content()
         {
             // Arrange
-            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
-
-            var contentService = (ContentService)ServiceContext.ContentService;
+            var contentService = (ContentService) ServiceContext.ContentService;
             var rootContent = contentService.GetRootContent().ToList();
             foreach (var c in rootContent)
             {
@@ -816,14 +813,14 @@ namespace Umbraco.Tests.Services
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
             using (var uow = provider.GetUnitOfWork())
             {
-                uow.Database.TruncateTable("cmsContentXml");    
+                uow.Database.TruncateTable("cmsContentXml");
             }
-            
+
 
             //for this test we are also going to save a revision for a content item that is not published, this is to ensure
             //that it's published version still makes it into the cmsContentXml table!
             contentService.Save(allContent.Last());
-            
+
             // Act
             var published = contentService.RePublishAll(0);
 
@@ -831,7 +828,8 @@ namespace Umbraco.Tests.Services
             Assert.IsTrue(published);
             using (var uow = provider.GetUnitOfWork())
             {
-                Assert.AreEqual(allContent.Count(), uow.Database.ExecuteScalar<int>("select count(*) from cmsContentXml"));    
+                Assert.AreEqual(allContent.Count(),
+                    uow.Database.ExecuteScalar<int>("select count(*) from cmsContentXml"));
             }
         }
 
@@ -839,9 +837,7 @@ namespace Umbraco.Tests.Services
         public void Can_RePublish_All_Content_Of_Type()
         {
             // Arrange
-            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
-
-            var contentService = (ContentService)ServiceContext.ContentService;
+            var contentService = (ContentService) ServiceContext.ContentService;
             var rootContent = contentService.GetRootContent().ToList();
             foreach (var c in rootContent)
             {
@@ -850,7 +846,7 @@ namespace Umbraco.Tests.Services
             var allContent = rootContent.Concat(rootContent.SelectMany(x => x.Descendants())).ToList();
             //for testing we need to clear out the contentXml table so we can see if it worked
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
-            
+
             using (var uow = provider.GetUnitOfWork())
             {
                 uow.Database.TruncateTable("cmsContentXml");
@@ -860,12 +856,13 @@ namespace Umbraco.Tests.Services
             contentService.Save(allContent.Last());
 
             // Act
-            contentService.RePublishAll(new int[]{allContent.Last().ContentTypeId});
+            contentService.RePublishAll(new int[] {allContent.Last().ContentTypeId});
 
             // Assert            
             using (var uow = provider.GetUnitOfWork())
             {
-                Assert.AreEqual(allContent.Count(), uow.Database.ExecuteScalar<int>("select count(*) from cmsContentXml"));
+                Assert.AreEqual(allContent.Count(),
+                    uow.Database.ExecuteScalar<int>("select count(*) from cmsContentXml"));
             }
         }
 

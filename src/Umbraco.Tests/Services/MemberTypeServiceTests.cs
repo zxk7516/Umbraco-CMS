@@ -14,6 +14,7 @@ namespace Umbraco.Tests.Services
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
+    [FacadeServiceBehavior(WithEvents = true)]
     public class MemberTypeServiceTests : BaseServiceTest
     {
         [SetUp]
@@ -113,8 +114,6 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Rebuild_Member_Xml_On_Alias_Change()
         {
-            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
-
             var contentType1 = MockedContentTypes.CreateSimpleMemberType("test1", "Test1");
             var contentType2 = MockedContentTypes.CreateSimpleMemberType("test2", "Test2");
             ServiceContext.MemberTypeService.Save(contentType1);
@@ -129,13 +128,15 @@ namespace Umbraco.Tests.Services
 
             foreach (var c in contentItems1)
             {
-                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id", new { Id = c.Id });
+                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id",
+                    new {Id = c.Id});
                 Assert.IsNotNull(xml);
                 Assert.IsTrue(xml.Xml.StartsWith("<newAlias"));
             }
             foreach (var c in contentItems2)
             {
-                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id", new { Id = c.Id });
+                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id",
+                    new {Id = c.Id});
                 Assert.IsNotNull(xml);
                 Assert.IsTrue(xml.Xml.StartsWith("<test2")); //should remain the same
             }
@@ -144,8 +145,6 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Rebuild_Member_Xml_On_Property_Removal()
         {
-            var xmlStore = new XmlStore(ServiceContext, null); // needed to handle events & cmsContentXml
-
             var standardProps = Constants.Conventions.Member.GetStandardPropertyTypeStubs();
 
             var contentType1 = MockedContentTypes.CreateSimpleMemberType("test1", "Test1");
@@ -155,12 +154,14 @@ namespace Umbraco.Tests.Services
 
             var alias = contentType1.PropertyTypes.First(x => standardProps.ContainsKey(x.Alias) == false).Alias;
             var elementToMatch = "<" + alias + ">";
-            
+
             foreach (var c in contentItems1)
             {
-                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id", new { Id = c.Id });
+                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id",
+                    new {Id = c.Id});
                 Assert.IsNotNull(xml);
-                Assert.IsTrue(xml.Xml.Contains(elementToMatch)); //verify that it is there before we remove the property
+                Assert.IsTrue(xml.Xml.Contains(elementToMatch));
+                    //verify that it is there before we remove the property
             }
 
             //remove a property (NOT ONE OF THE DEFAULTS)            
@@ -172,7 +173,8 @@ namespace Umbraco.Tests.Services
 
             foreach (var c in contentItems1)
             {
-                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id", new { Id = c.Id });
+                var xml = DatabaseContext.Database.FirstOrDefault<ContentXmlDto>("WHERE nodeId = @Id",
+                    new {Id = c.Id});
                 Assert.IsNotNull(xml);
                 Assert.IsFalse(xml.Xml.Contains(elementToMatch)); //verify that it is no longer there
             }

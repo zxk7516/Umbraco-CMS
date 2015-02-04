@@ -18,6 +18,7 @@ using Umbraco.Web.Cache;
 namespace Umbraco.Tests.Integration
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
+    [FacadeServiceBehavior(WithEvents = true)]
     [TestFixture, RequiresSTA]
     public class ContentEventsTests : BaseServiceTest
     {
@@ -45,8 +46,10 @@ namespace Umbraco.Tests.Integration
             ContentRepository.RefreshedEntity += ContentRepositoryRefreshed;
             ContentRepository.RemovedEntity += ContentRepositoryRemoved;
             ContentRepository.RemovedVersion += ContentRepositoryRemovedVersion;
-
             ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
+
+            // ensure there's a current context
+            GetUmbracoContext("http://www.example.com/", 0, null, true);
         }
 
         public override void TearDown()

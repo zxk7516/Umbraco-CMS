@@ -45,6 +45,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // for unit tests
         internal RoutesCache RoutesCache { get { return _routesCache; } }
 
+        // for unit tests
+        internal XmlStore XmlStore { get { return _xmlStore; } }
+
         #region Routes
 
         public virtual IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)

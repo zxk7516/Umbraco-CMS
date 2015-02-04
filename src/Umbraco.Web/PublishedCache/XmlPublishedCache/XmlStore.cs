@@ -33,11 +33,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     /// then passed to all <see cref="PublishedContentCache"/> instances that are created (one per request).</para>
     /// <para>This class should *not* be public.</para>
     /// </remarks>
-    class XmlStore
+    class XmlStore : IDisposable
     {
-        private readonly Func<IContent, XElement> _xmlContentSerializer;
-        private readonly Func<IMember, XElement> _xmlMemberSerializer;
-        private readonly Func<IMedia, XElement> _xmlMediaSerializer;
+        private Func<IContent, XElement> _xmlContentSerializer;
+        private Func<IMember, XElement> _xmlMemberSerializer;
+        private Func<IMedia, XElement> _xmlMediaSerializer;
 
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _svcs;
@@ -56,25 +56,37 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _svcs = svcs;
             _routesCache = routesCache;
 
-            // initialize
-            var exs = new EntityXmlSerializer();            
-            _xmlContentSerializer = c => exs.Serialize(_svcs.ContentService, _svcs.DataTypeService, _svcs.UserService, c);
-            _xmlMemberSerializer = m => exs.Serialize(_svcs.DataTypeService, m);
-            _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
+            InitializeSerializers();
 
             // need to wait for resolution to be frozen
             if (Resolution.IsFrozen)
-                Initialize();
+                InitializeEventsAndContent();
             else
-                Resolution.Frozen += (sender, args) => Initialize();
+                Resolution.Frozen += (sender, args) => InitializeEventsAndContent();
         }
 
-        private void Initialize()
+        private void InitializeSerializers()
+        {
+            var exs = new EntityXmlSerializer();
+            _xmlContentSerializer = c => exs.Serialize(_svcs.ContentService, _svcs.DataTypeService, _svcs.UserService, c);
+            _xmlMemberSerializer = m => exs.Serialize(_svcs.DataTypeService, m);
+            _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
+        }
+
+        private void InitializeEventsAndContent()
+        {
+            InitializeEvents();
+            InitializeContent();
+        }
+
+        // plug events
+        private void InitializeEvents()
         {
             // plug event handlers
             // distributed events
             ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
-            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
+            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated;
+                // same refresher for content, media & member
 
             // plug repository event handlers
             // these trigger within the transaction to ensure consistency
@@ -104,7 +116,35 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             ContentService.ContentTypesChanged += OnContentTypesChanged;
             MediaService.ContentTypesChanged += OnMediaTypesChanged;
             MemberService.MemberTypesChanged += OnMemberTypesChanged;
+        }
 
+        private void ClearEvents()
+        {
+            ContentCacheRefresher.CacheUpdated -= ContentCacheUpdated;
+            ContentTypeCacheRefresher.CacheUpdated -= ContentTypeCacheUpdated; // same refresher for content, media & member
+
+            ContentRepository.RemovedEntity -= OnContentRemovedEntity;
+            ContentRepository.RemovedVersion -= OnContentRemovedVersion;
+            ContentRepository.RefreshedEntity -= OnContentRefreshedEntity;
+            MediaRepository.RemovedEntity -= OnMediaRemovedEntity;
+            MediaRepository.RemovedVersion -= OnMediaRemovedVersion;
+            MediaRepository.RefreshedEntity -= OnMediaRefreshedEntity;
+            MemberRepository.RemovedEntity -= OnMemberRemovedEntity;
+            MemberRepository.RemovedVersion -= OnMemberRemovedVersion;
+            MemberRepository.RefreshedEntity -= OnMemberRefreshedEntity;
+
+            ContentRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
+            MediaRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
+
+            global::umbraco.cms.businesslogic.Content.DeletedContent -= OnDeletedContent;
+
+            ContentService.ContentTypesChanged -= OnContentTypesChanged;
+            MediaService.ContentTypesChanged -= OnMediaTypesChanged;
+            MemberService.MemberTypesChanged -= OnMemberTypesChanged;
+        }
+
+        private void InitializeContent()
+        {
             // and populate the cache
             lock (XmlLock)
             {
@@ -115,26 +155,45 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             }
         }
 
-        // fixme - should we plug event handlers for tests?
+        public void Dispose()
+        {
+            ClearEvents();
+        }
+
+        // internal for unit tests
+        // no file nor db, no config check
+        internal XmlStore(ServiceContext svcs, RoutesCache routesCache, bool withEvents)
+        {
+            _svcs = svcs;
+            _routesCache = routesCache;
+            _xmlFileEnabled = false;
+            if (withEvents == false) return;
+            InitializeSerializers();
+            InitializeEvents();
+        }
 
         // internal for unit tests
         // initialize with an xml document
+        // no events, no file nor db, no config check
         internal XmlStore(XmlDocument xmlDocument)
         {
-            //if (xmlDocument == null)
-            //    throw new ArgumentNullException("xmlDocument");
             _xmlDocument = xmlDocument;
             _xmlFileEnabled = false;
+
+            // do not plug events, we may not have what it takes to handle them
         }
 
         // internal for unit tests
         // initialize with a function returning an xml document
+        // no events, no file nor db, no config check
         internal XmlStore(Func<XmlDocument> getXmlDocument)
         {
             if (getXmlDocument == null)
                 throw new ArgumentNullException("getXmlDocument");
             GetXmlDocument = getXmlDocument;
             _xmlFileEnabled = false;
+
+            // do not plug events, we may not have what it takes to handle them
         }
 
         #endregion
@@ -1485,9 +1544,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 // fixme - shouldn't we just have one row per content in cmsPreviewXml?
                 // change below to write only one row - must also change wherever we're reading, though
-                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = c.Id, version = c.Version.ToString() }) > 0;
                 var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
-                OnRepositoryRefreshed(db, dto1, exists1);
+                OnRepositoryRefreshed(db, dto1);
 
                 if (c.Published == false)
                 {
@@ -1495,6 +1553,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     {
                         // if it's just been unpublished, remove it from the table
                         db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
+                        continue;
                     }
                     else if (((Core.Models.Content) c).IsEntityDirty() && c.HasPublishedVersion())
                     {
@@ -1509,9 +1568,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     }
                 }
 
-                var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id }) > 0;
                 var dto2 = new ContentXmlDto { NodeId = c.Id, Xml = xml };
-                OnRepositoryRefreshed(db, dto2, exists2);
+                OnRepositoryRefreshed(db, dto2);
             }
         }
 
@@ -1528,9 +1586,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 var xml = _xmlMediaSerializer(m).ToString(SaveOptions.None);
 
-                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = m.Id }) > 0;
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
-                OnRepositoryRefreshed(db, dto1, exists1);
+                OnRepositoryRefreshed(db, dto1);
 
                 // kill
                 //// generate preview for blame history?
@@ -1551,9 +1608,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 var xml = _xmlMemberSerializer(m).ToString(SaveOptions.None);
 
-                var exists1 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsContentXml WHERE nodeId=@id", new { id = m.Id }) > 0;
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
-                OnRepositoryRefreshed(db, dto1, exists1);
+                OnRepositoryRefreshed(db, dto1);
 
                 // kill
                 //// generate preview for blame history?
@@ -1566,12 +1622,12 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        private void OnRepositoryRefreshed(UmbracoDatabase db, ContentXmlDto dto, bool exists)
+        private void OnRepositoryRefreshed(UmbracoDatabase db, ContentXmlDto dto)
         {
             db.InsertOrUpdate(dto);
         }
 
-        private void OnRepositoryRefreshed(UmbracoDatabase db, PreviewXmlDto dto, bool exists)
+        private void OnRepositoryRefreshed(UmbracoDatabase db, PreviewXmlDto dto)
         {
             // cannot simply update because of PetaPoco handling of the composite key ;-(
             // read http://stackoverflow.com/questions/11169144/how-to-modify-petapoco-class-to-work-with-composite-key-comprising-of-non-numeri

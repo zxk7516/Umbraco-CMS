@@ -426,6 +426,12 @@ namespace Umbraco.Web
             get { return _publishedCaches.Value; }
         }
 
+        // for unit tests
+        internal bool HasPublishedCaches
+        {
+            get { return _publishedCaches.IsValueCreated; }
+        }
+
         /// <summary>
         /// Gets the published content cache.
         /// </summary>
