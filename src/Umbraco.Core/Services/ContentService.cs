@@ -760,15 +760,23 @@ namespace Umbraco.Core.Services
         /// <returns>True if the Content can be published, otherwise False</returns>
         public bool IsPublishable(IContent content)
         {
-            //If the passed in content has yet to be saved we "fallback" to checking the Parent
-            //because if the Parent is publishable then the current content can be Saved and Published
-            if (content.HasIdentity == false)
-            {
-                IContent parent = GetById(content.ParentId);
-                return IsPublishable(parent, true);
-            }
+            var parent = GetById(content.ParentId);
+            return IsPathPublished(parent);
+        }
 
-            return IsPublishable(content, false);
+        /// <summary>
+        /// Gets a value indicating whether a specified content is path-published, ie whether it is published
+        /// and all its ancestors are published too and none are trashed.
+        /// </summary>
+        /// <param name="content">The content.</param>
+        /// <returns>true if the content is path-published; otherwise, false.</returns>
+        public bool IsPathPublished(IContent content)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var repository = RepositoryFactory.CreateContentRepository(uow))
+            {
+                return repository.IsPathPublished(content);
+            }
         }
 
         /// <summary>
@@ -1807,40 +1815,6 @@ namespace Umbraco.Core.Services
 
                 Audit(AuditType.Save, "Save Content performed by user", userId, content.Id);
             }
-        }
-
-        /// <summary>
-        /// Checks if the passed in <see cref="IContent"/> can be published based on the anscestors publish state.
-        /// </summary>
-        /// <remarks>
-        /// Check current is only used when falling back to checking the Parent of non-saved content, as
-        /// non-saved content doesn't have a valid path yet.
-        /// </remarks>
-        /// <param name="content"><see cref="IContent"/> to check if anscestors are published</param>
-        /// <param name="checkCurrent">Boolean indicating whether the passed in content should also be checked for published versions</param>
-        /// <returns>True if the Content can be published, otherwise False</returns>
-        private bool IsPublishable(IContent content, bool checkCurrent)
-        {
-            var ids = content.Path.Split(',').Select(int.Parse).ToList();
-            foreach (var id in ids)
-            {
-                //If Id equals that of the recycle bin we return false because nothing in the bin can be published
-                if (id == Constants.System.RecycleBinContent)
-                    return false;
-
-                //We don't check the System Root, so just continue
-                if (id == Constants.System.Root) continue;
-
-                //If the current id equals that of the passed in content and if current shouldn't be checked we skip it.
-                if (checkCurrent == false && id == content.Id) continue;
-
-                //Check if the content for the current id is published - escape the loop if we encounter content that isn't published
-                var hasPublishedVersion = HasPublishedVersion(id);
-                if (hasPublishedVersion == false)
-                    return false;
-            }
-
-            return true;
         }
 
         private Attempt<PublishStatus> EnsurePublishable(IContent content)

@@ -64,5 +64,13 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
         IEnumerable<IContent> GetPagedResultsByQuery(IQuery<IContent> query, int pageIndex, int pageSize, out int totalRecords,
             string orderBy, Direction orderDirection, string filter = "");
+
+        /// <summary>
+        /// Gets a value indicating whether a specified content is path-published, ie whether it is published
+        /// and all its ancestors are published too and none are trashed.
+        /// </summary>
+        /// <param name="content">The content.</param>
+        /// <returns>true if the content is path-published; otherwise, false.</returns>
+        bool IsPathPublished(IContent content);
     }
 }

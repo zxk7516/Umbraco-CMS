@@ -404,6 +404,14 @@ namespace Umbraco.Core.Services
         bool IsPublishable(IContent content);
 
         /// <summary>
+        /// Gets a value indicating whether a specified content is path-published, ie whether it is published
+        /// and all its ancestors are published too and none are trashed.
+        /// </summary>
+        /// <param name="content">The content.</param>
+        /// <returns>true if the content is path-published; otherwise, false.</returns>
+        bool IsPathPublished(IContent content);
+
+        /// <summary>
         /// Gets a collection of <see cref="IContent"/> objects, which are ancestors of the current content.
         /// </summary>
         /// <param name="id">Id of the <see cref="IContent"/> to retrieve ancestors for</param>
