@@ -62,7 +62,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 .Where<DocumentDto>(x => x.Newest)
                 .OrderByDescending<ContentVersionDto>(x => x.VersionDate);
 
-            var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto>(sql).FirstOrDefault();
+            var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto, DocumentPublishedReadOnlyDto>(sql).FirstOrDefault();
 
             if (dto == null)
                 return null;
@@ -104,6 +104,12 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override Sql GetBaseQuery(bool isCount)
         {
+            var sqlx = string.Format("LEFT OUTER JOIN {0} {1} ON ({1}.{2}={0}.{2} AND {1}.{3}=@published)",
+                SqlSyntax.GetQuotedTableName("cmsDocument"),
+                SqlSyntax.GetQuotedTableName("cmsDocument2"),
+                SqlSyntax.GetQuotedColumnName("nodeId"),
+                SqlSyntax.GetQuotedColumnName("published"));
+
             var sql = new Sql();
             sql.Select(isCount ? "COUNT(*)" : "*")
                 .From<DocumentDto>()
@@ -113,6 +119,13 @@ namespace Umbraco.Core.Persistence.Repositories
                 .On<ContentVersionDto, ContentDto>(left => left.NodeId, right => right.NodeId)
                 .InnerJoin<NodeDto>()
                 .On<ContentDto, NodeDto>(left => left.NodeId, right => right.NodeId)
+
+                // cannot do this because PetaPoco does not know how to alias the table
+                //.LeftOuterJoin<DocumentPublishedReadOnlyDto>()
+                //.On<DocumentDto, DocumentPublishedReadOnlyDto>(left => left.NodeId, right => right.NodeId)
+                // so have to rely on writing our own SQL
+                .Append(sqlx, new { @published = true })
+
                 .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId);
             return sql;
         }
@@ -158,7 +171,7 @@ namespace Umbraco.Core.Persistence.Repositories
             sql.Where("cmsContentVersion.VersionId = @VersionId", new { VersionId = versionId });
             sql.OrderByDescending<ContentVersionDto>(x => x.VersionDate);
 
-            var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto>(sql).FirstOrDefault();
+            var dto = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto, DocumentPublishedReadOnlyDto>(sql).FirstOrDefault();
 
             if (dto == null)
                 return null;
@@ -282,7 +295,6 @@ namespace Umbraco.Core.Persistence.Repositories
             entity.SortOrder = sortOrder;
             entity.Level = level;
 
-
             //Assign the same permissions to it as the parent node
             // http://issues.umbraco.org/issue/U4-2161     
             var permissionsRepo = new PermissionRepository<IContent>(UnitOfWork, _cacheHelper, SqlSyntax);
@@ -340,6 +352,19 @@ namespace Umbraco.Core.Persistence.Repositories
             if (entity.Published)
             {
                 UpdatePropertyTags(entity, _tagRepository);
+            }
+
+            // published => update published version infos, else leave it blank
+            if (entity.Published)
+            {
+                dto.DocumentPublishedReadOnlyDto = new DocumentPublishedReadOnlyDto
+                {
+                    VersionId = dto.VersionId,
+                    Newest = true,
+                    NodeId = dto.NodeId,
+                    Published = true
+                };
+                ((Content)entity).PublishedVersionGuid = dto.VersionId;
             }
 
             OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
@@ -495,6 +520,31 @@ namespace Umbraco.Core.Persistence.Repositories
                 ClearEntityTags(entity, _tagRepository);
             }
 
+            // published => update published version infos,
+            // else if unpublished then clear published version infos
+            if (entity.Published)
+            {
+                dto.DocumentPublishedReadOnlyDto = new DocumentPublishedReadOnlyDto
+                {
+                    VersionId = dto.VersionId,
+                    Newest = true,
+                    NodeId = dto.NodeId,
+                    Published = true
+                };
+                ((Content)entity).PublishedVersionGuid = dto.VersionId;
+            }
+            else if (publishedStateChanged)
+            {
+                dto.DocumentPublishedReadOnlyDto = new DocumentPublishedReadOnlyDto
+                {
+                    VersionId = default(Guid),
+                    Newest = false,
+                    NodeId = dto.NodeId,
+                    Published = false
+                };
+                ((Content)entity).PublishedVersionGuid = default(Guid);
+            }
+
             OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
@@ -517,7 +567,7 @@ namespace Umbraco.Core.Persistence.Repositories
                                 .OrderBy<NodeDto>(x => x.SortOrder);
 
             //NOTE: This doesn't allow properties to be part of the query
-            var dtos = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto>(sql);
+            var dtos = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto, DocumentPublishedReadOnlyDto>(sql);
 
             foreach (var dto in dtos)
             {
