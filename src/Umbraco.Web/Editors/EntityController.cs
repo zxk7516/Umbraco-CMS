@@ -649,6 +649,9 @@ namespace Umbraco.Web.Editors
                     .Select(Mapper.Map<EntityBasic>);
 
                 // entities are in "some" order, put them back in order
+                // (join preserves the order of idsArray & only elements that match are included)
+                //var result = keysArray.Join(entities, id => id, entity => entity.Id, (id, entity) => entity);
+                // this is less elegant but marginally faster
                 var xref = entities.ToDictionary(x => x.Id);
                 var result = keysArray.Select(x => xref.ContainsKey(x) ? xref[x] : null).Where(x => x != null);
 
@@ -681,6 +684,9 @@ namespace Umbraco.Web.Editors
                     .Select(Mapper.Map<EntityBasic>);
 
                 // entities are in "some" order, put them back in order
+                // (join preserves the order of idsArray & only elements that match are included)
+                //var result = idsArray.Join(entities, id => id, entity => entity.Id, (id, entity) => entity);
+                // this is less elegant but marginally faster
                 var xref = entities.ToDictionary(x => x.Id);
                 var result = idsArray.Select(x => xref.ContainsKey(x) ? xref[x] : null).Where(x => x != null);
 
