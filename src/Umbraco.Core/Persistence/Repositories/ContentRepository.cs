@@ -691,16 +691,21 @@ namespace Umbraco.Core.Persistence.Repositories
             if (content.Path.StartsWith("-1,-20,"))
                 return false;
 
+            var syntaxUmbracoNode = SqlSyntax.GetQuotedTableName("umbracoNode");
+            var syntaxPath = SqlSyntax.GetQuotedColumnName("path");
+
+            var syntaxConcat = SqlSyntax.GetConcat(syntaxUmbracoNode + "." + syntaxPath, "',%'");
+
             var sql = string.Format(@"SELECT COUNT({0}.{1})
 FROM {0}
 JOIN {2} ON ({0}.{1}={2}.{3} AND {2}.{4}=@published)
-WHERE (@path LIKE concat({0}.{5}, ',%'))",
-                SqlSyntax.GetQuotedTableName("umbracoNode"),
+WHERE (@path LIKE {5})",
+                syntaxUmbracoNode,
                 SqlSyntax.GetQuotedColumnName("id"),
                 SqlSyntax.GetQuotedTableName("cmsDocument"),
                 SqlSyntax.GetQuotedColumnName("nodeId"),
                 SqlSyntax.GetQuotedColumnName("published"),
-                SqlSyntax.GetQuotedColumnName("path"));
+                syntaxConcat);
 
             var count = Database.ExecuteScalar<int>(sql, new { @published=true, @path=content.Path });
             return count == content.Level;

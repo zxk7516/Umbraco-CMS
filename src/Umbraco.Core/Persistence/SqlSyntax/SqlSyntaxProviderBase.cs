@@ -160,6 +160,11 @@ namespace Umbraco.Core.Persistence.SqlSyntax
             return string.Format("upper({0}) LIKE '{1}'", column, value.ToUpper());
         }
 
+        public virtual string GetConcat(params string[] args)
+        {
+            return "concat(" + string.Join(",", args) + ")";
+        }
+
         public virtual string GetQuotedTableName(string tableName)
         {
             return string.Format("\"{0}\"", tableName);
