@@ -1,28 +1,45 @@
 ﻿namespace Umbraco.Core.Models
 {
+    /// <summary>
+    /// The <c>IContent</c> states of a content version.
+    /// </summary>
     public enum PublishedState
     {
         // when a content version is loaded, its state is one of those two:
 
-        // content version is published
-        // or has been published
+        /// <summary>
+        /// The version is published.
+        /// </summary>
         Published,
 
-        // content version is not published
-        // or has been unpublished
+        /// <summary>
+        /// The version is not published.
+        /// </summary>
+        /// <remarks>Also: the version is being saved, in order to register changes made to an
+        /// unpublished version of the content.</remarks>
         Unpublished,
 
-        // in addition, once it's been saved, its state can also be:
+        /// <summary>
+        /// The version is being saved, in order to register changes to a published content.
+        /// </summary>
+        /// <remarks>The <value>Saving</value> state is transitional. Once the version is saved,
+        /// its state changes to <value>Unpublished</value>.</remarks>
+        Saving,
 
-        // content version has been saved
-        Saved
+        /// <summary>
+        /// The version is being saved, in order to publish the content.
+        /// </summary>
+        /// <remarks>The <value>Publishing</value> state is transitional. Once the version is saved,
+        /// its state changes to <value>Published</value>. The content is published, and all 
+        /// other versions are unpublished.</remarks>
+        Publishing,
 
-        // but soon as it will be reloaded, it will be back to Unpublished
-        //
-        // so .Saved is a transitional state really - this is because .Unpublished
-        // is used to indicate that the content (as a whole, not a specific version)
-        // has been unpublished - and so if we load a .Published version, apply some
-        // changes and save, it cannot be .Unpublished (or that would unpublish the
-        // whole content) and has to be .Saved
+        /// <summary>
+        /// The version is being saved, in order to unpublish the content.
+        /// </summary>
+        /// <remarks>The <value>Unpublishing</value> state is transitional. Once the version is saved,
+        /// its state changes to <value>Unpublished</value>. The content and all other versions are
+        /// unpublished.</remarks>
+        Unpublishing
     }
 }

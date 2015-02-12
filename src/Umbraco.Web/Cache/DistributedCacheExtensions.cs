@@ -8,7 +8,6 @@ using Umbraco.Core.Models;
 using umbraco;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core.Services;
-using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Cache
 {
@@ -232,7 +231,7 @@ namespace Umbraco.Web.Cache
         /// <param name="dc"></param>
         public static void RefreshAllPublishedContentCache(this DistributedCache dc)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentChangeTypes.RefreshAllPublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentService.ChangeEventTypes.RefreshAllPublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -244,7 +243,7 @@ namespace Umbraco.Web.Cache
         /// <param name="contentId"></param>
         public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentChangeTypes.RefreshPublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RefreshPublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -259,7 +258,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RefreshPublished));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshPublished));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -271,7 +270,7 @@ namespace Umbraco.Web.Cache
         /// <param name="contentId"></param>
         public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentChangeTypes.RemovePublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RemovePublished) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -285,7 +284,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RemovePublished));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RemovePublished));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -301,7 +300,7 @@ namespace Umbraco.Web.Cache
         }
 
         /// <summary>
-        /// Refreshes newest (published or unpublished) content.
+        /// Refreshes unpublished content.
         /// </summary>
         /// <param name="dc"></param>
         /// <param name="content"></param>
@@ -310,7 +309,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentChangeTypes.RefreshNewest));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.Refresh));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -325,8 +324,7 @@ namespace Umbraco.Web.Cache
             if (contentIds.Length == 0) return;
 
             var payloads = contentIds
-                .Select(x => new ContentCacheRefresher.JsonPayload(x,
-                    ContentChangeTypes.RemoveNewest | ContentChangeTypes.RemovePublished));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x, ContentService.ChangeEventTypes.Remove));
 
             dc.RefreshContentCacheByJson(payloads);
         }

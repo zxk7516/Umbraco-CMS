@@ -9,10 +9,10 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 using UmbracoExamine;
-using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.Search
 {
@@ -352,51 +352,40 @@ namespace Umbraco.Web.Search
             if (args.MessageType != MessageType.RefreshByJson)
                 throw new NotSupportedException();
 
-	        var csvc = ApplicationContext.Current.Services.ContentService;
+	        var contentService = ApplicationContext.Current.Services.ContentService;
 
 	        foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
 	        {
-	            IContent content = null;
+	            // ExamineEvents does not support RefreshAllPublished, RefreshAll
 
-                // ExamineEvents does not support RefreshAllNewest nor RefreshAllPublished
-
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshNewest))
+	            if (payload.Action.HasType(ContentService.ChangeEventTypes.Remove))
 	            {
-                    // re-index newest version for indexes that support unpublished content
-                    content = csvc.GetById(payload.Id);
-                    if (content != null) ReIndexForContent(content, true); // true = only supporting unpublished content
-	            }
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished))
-                {
-                    // re-index published version for indexes that support only published content
-                    // and NOT the others because maybe it's a content that has changes, was below an unpublished parent,
-                    // and that parent has been published again - but the unpublished changed version is still there
-                    content = (content != null && content.Published) ? content : csvc.GetPublishedVersion(payload.Id);
-                    if (content != null) ReIndexForContent(content, false); // false = not supporting unpublished content
-                }
-
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemoveNewest | ContentChangeTypes.RemovePublished))
-	            {
-                    // permanently delete all versions from all indexes
-                    DeleteIndexForEntity(payload.Id, false);
+                    // deleting content entirely
+                    DeleteIndexForEntity(payload.Id, false); // false: delete from all indexes
 	            }
 	            else
 	            {
-                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemoveNewest))
+                    // don't try to be too clever - refresh entirely
+                    //   (we could receive an out-of-sync RemovePublished while the content has been re-published,
+                    //    so cannot trust the ChangeEvent type really, so better figure out what to do here)
+                    // there has to be race conds in there ;-(
+
+	                var content = contentService.GetById(payload.Id);
+	                if (content == null) continue;
+                    if (content.HasPublishedVersion && contentService.IsPathPublished(content))
                     {
-                        // should never happen, cannot remove newest but not published
-                        throw new NotSupportedException();
+                        var published = contentService.GetPublishedVersion(content);
+                        //var draft = content.Version == published.Version ? null : content;
+                        if (published != null)
+                            ReIndexForContent(published, false); // false: refresh indexes that only support published content
                     }
-                    if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemovePublished))
+                    else
                     {
-                        // delete from indexes that support only published content
-                        DeleteIndexForEntity(payload.Id, true);
-                        // then re-index newest version for those indexes
-                        content = csvc.GetById(payload.Id);
-                        if (content != null) ReIndexForContent(content, true); // true = only supporting unpublished content
+                        DeleteIndexForEntity(payload.Id, true); // true: delete from indexes that only support published content
                     }
+                    ReIndexForContent(content, true); // true: refresh indexes that support draft content
                 }
-            }
+	        }
 	    }
 
         private static void ReIndexForMember(IMember member)

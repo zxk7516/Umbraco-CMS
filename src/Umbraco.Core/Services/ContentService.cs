@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
-using System.Web.Configuration;
-using System.Xml.Linq;
-using Umbraco.Core.Auditing;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
@@ -28,8 +25,8 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class ContentService : RepositoryService, IContentService
     {
-        private readonly IDataTypeService _dataTypeService; // fixme - initialized but not used?
-        private readonly IUserService _userService; // fixme - initialized but not used?
+        //private readonly IDataTypeService _dataTypeService;
+        //private readonly IUserService _userService;
 
         //Support recursive locks because some of the methods that require locking call other methods that require locking. 
         //for example, the Move method needs to be locked but this calls the Save method which also needs to be locked.
@@ -54,8 +51,8 @@ namespace Umbraco.Core.Services
         public ContentService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory)
             : base(provider, repositoryFactory, LoggerResolver.Current.Logger)
         {
-            _dataTypeService = new DataTypeService(UowProvider, RepositoryFactory);
-            _userService = new UserService(UowProvider, RepositoryFactory);
+            //_dataTypeService = new DataTypeService(UowProvider, RepositoryFactory);
+            //_userService = new UserService(UowProvider, RepositoryFactory);
         }
 
         public ContentService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IDataTypeService dataTypeService, IUserService userService)
@@ -63,8 +60,8 @@ namespace Umbraco.Core.Services
         {
             if (dataTypeService == null) throw new ArgumentNullException("dataTypeService");
             if (userService == null) throw new ArgumentNullException("userService");
-            _dataTypeService = dataTypeService;
-            _userService = userService;
+            //_dataTypeService = dataTypeService;
+            //_userService = userService;
         }
 
         public int CountPublished(string contentTypeAlias = null)
@@ -264,7 +261,7 @@ namespace Umbraco.Core.Services
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentTypeAlias, parentId), this);
-            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
+            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ContentService.ChangeEventTypes.Refresh)), this);
 
             Audit(AuditType.New, string.Format("Content '{0}' was created with Id {1}", name, content.Id), content.CreatorId, content.Id);
 
@@ -314,7 +311,7 @@ namespace Umbraco.Core.Services
 
             Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, contentTypeAlias, parent), this);
-            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
+            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ContentService.ChangeEventTypes.Refresh)), this);
 
             Audit(AuditType.New, string.Format("Content '{0}' was created with Id {1}", name, content.Id), content.CreatorId, content.Id);
 
@@ -933,21 +930,19 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
             using (new WriteLock(Locker))
             {
-                var containsNew = asArray.Any(x => x.HasIdentity == false);
-
                 var uow = UowProvider.GetUnitOfWork();
                 using (var repository = RepositoryFactory.CreateContentRepository(uow))
                 {
-                    // fixme - this is what we should do
                     foreach (var content in asArray)
                     {
                         if (content.HasIdentity == false)
                             content.CreatorId = userId;
                         content.WriterId = userId;
 
-                        // from Published, do Saved, else remain Unpublished
+                        // saving the Published version => indicate we are .Saving
+                        // saving the Unpublished version => remains .Unpublished
                         if (content.Published)
-                            content.ChangePublishedState(PublishedState.Saved);
+                            content.ChangePublishedState(PublishedState.Saving);
 
                         repository.AddOrUpdate(content);
                     }
@@ -958,7 +953,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(asArray, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(asArray.Select(x => new ChangeEventArgs.Change(x, ChangeEventArgs.ChangeTypes.RefreshNewest))), this);
+                Changed.RaiseEvent(new ChangeEventArgs(asArray.Select(x => new ChangeEventArgs.Change(x, ContentService.ChangeEventTypes.Refresh))), this);
 
                 Audit(AuditType.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
             }
@@ -1120,6 +1115,7 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the User deleting the Content</param>
         public void MoveToRecycleBin(IContent content, int userId = 0)
         {
+            using (ChangeSet.WithAmbient) 
             using (new WriteLock(Locker))
             {
                 var originalPath = content.Path;
@@ -1188,6 +1184,7 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the User moving the Content</param>
         public void Move(IContent content, int parentId, int userId = 0)
         {
+            using (ChangeSet.WithAmbient)
             using (new WriteLock(Locker))
             {
                 //This ensures that the correct method is called if this method is used to Move to recycle bin.
@@ -1273,8 +1270,8 @@ namespace Umbraco.Core.Services
                 var copy = content.DeepCloneWithResetIdentities();
                 copy.ParentId = parentId;
 
-                // A copy should never be set to published automatically even if the original was.
-                copy.ChangePublishedState(PublishedState.Unpublished);
+                // a copy is .Saving and will be .Unpublished
+                copy.ChangePublishedState(PublishedState.Saving);
 
                 if (Copying.IsRaisedEventCancelled(new CopyEventArgs<IContent>(content, copy, parentId), this))
                     return null;
@@ -1318,7 +1315,6 @@ namespace Umbraco.Core.Services
                 return copy;
             }
         }
-
 
         /// <summary>
         /// Sends an <see cref="IContent"/> to Publication, which executes handlers and events for the 'Send to Publication' action.
@@ -1367,7 +1363,8 @@ namespace Umbraco.Core.Services
             {
                 content.WriterId = userId;
                 content.CreatorId = userId;
-                content.ChangePublishedState(PublishedState.Unpublished);
+                // a rolled back version is .Saving and will be .Unpublished
+                content.ChangePublishedState(PublishedState.Saving);
                 repository.AddOrUpdate(content);
                 uow.Commit();
             }
@@ -1394,6 +1391,7 @@ namespace Umbraco.Core.Services
         public bool Sort(IEnumerable<IContent> items, int userId = 0, bool raiseEvents = true)
         {
             var itemsA = items.ToArray();
+            if (itemsA.Length == 0) return true;
 
             // fixme - bad - we're not going to save them all, so Saving without Saved... bad
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(itemsA), this))
@@ -1401,7 +1399,6 @@ namespace Umbraco.Core.Services
 
             var published = new List<IContent>();
             var saved = new List<IContent>();
-            var changed = new List<IContent>();
 
             using (new WriteLock(Locker))
             {
@@ -1430,7 +1427,7 @@ namespace Umbraco.Core.Services
 
                         // save
                         saved.Add(content);
-                        repository.AddOrUpdate(content); // fixme we need to rebuild content & preview XML - HOW?
+                        repository.AddOrUpdate(content);
                     }
 
                     uow.Commit();
@@ -1445,10 +1442,11 @@ namespace Umbraco.Core.Services
                 Published.RaiseEvent(new PublishEventArgs<IContent>(published, false, false), this);
 
             var changes = new List<ChangeEventArgs.Change>();
+            var notMasked = itemsA[0].Level == 1 || IsPathPublished(itemsA[0].Parent());
             changes.AddRange(saved.Select(x =>
             {
-                var change = ChangeEventArgs.ChangeTypes.RefreshNewest;
-                if (x.HasPublishedVersion()) change |= ChangeEventArgs.ChangeTypes.RefreshPublished;
+                var change = ChangeEventTypes.Refresh; // has been updated
+                if (x.HasPublishedVersion && notMasked) change |= ChangeEventTypes.RefreshPublished; // impacts published version
                 return new ChangeEventArgs.Change(x, change);
             }));
             Changed.RaiseEvent(new ChangeEventArgs(changes), this);
@@ -1549,64 +1547,82 @@ namespace Umbraco.Core.Services
             }
         }
 
+        // MUST be called from within WriteLock
         private void PerformMove(IContent content, int parentId, int userId, ICollection<MoveEventInfo<IContent>> moveInfo)
         {
-            //add a tracking item to use in the Moved event
-            moveInfo.Add(new MoveEventInfo<IContent>(content, content.Path, parentId));
-
             content.WriterId = userId;
-            if (parentId == Constants.System.Root)
-            {
-                content.Path = string.Concat(Constants.System.Root, ",", content.Id);
-                content.Level = 1;
-            }
-            else
-            {
-                var parent = GetById(parentId);
-                content.Path = string.Concat(parent.Path, ",", content.Id);
-                content.Level = parent.Level + 1;
-            }
+            var parent = GetById(parentId);
+            var levelDelta = parentId == Constants.System.Root
+                ? 1 - content.Level
+                : parent.Level + 1 - content.Level;
 
-            // if Content is being moved away from Recycle Bin, its state should be un-trashed
+            // fixme
+            // if content is being moved away from Recycle Bin, its state should be un-trashed
             // else just update the parent id
             if (content.Trashed && parentId != Constants.System.RecycleBinContent)
                 content.ChangeTrashedState(false, parentId);
             else
                 content.ParentId = parentId;
 
-            //If Content is published, it should be (re)published from its new location
-            if (content.Published)
+            var changes = new List<ChangeEventArgs.Change>();
+            var moved = new List<IContent>(); // for the Moved event
+            var uow = UowProvider.GetUnitOfWork();
+            using (var repository = RepositoryFactory.CreateContentRepository(uow))
             {
-                //If Content is Publishable its saved and published
-                //otherwise we save the content without changing the publish state, and generate new xml because the Path, Level and Parent has changed.
-                if (IsPublishable(content))
+                var paths = new Dictionary<int, string>();
+                var unpub = IsPathPublished(parent) == false ? null : new List<int>();
+                //paths[content.Id] = content.Path;
+                //content.SortOrder = ((ContentRepository) repository).NextChildSortOrder(parentId);
+                //content.Level += levelDelta;
+                PerformMoveContent(repository, content, userId, moved, unpub, changes);
+                paths[content.Id] = content.Path; // path, level and sortOrder updated by repo
+
+                var descendants = GetDescendants(content);
+                foreach (var descendant in descendants)
                 {
-                    //TODO: This is raising events, probably not desirable as this costs performance for event listeners like Examine
-                    SaveAndPublish(content, userId);
+                    // update path and level since we do not update parentId
+                    descendant.Path = paths[descendant.Id] = paths[descendant.ParentId] + "," + descendant.Id;
+                    descendant.Level += levelDelta;
+                    PerformMoveContent(repository, descendant, userId, moved, unpub, changes);
                 }
-                else
-                {
-                    //TODO: This is raising events, probably not desirable as this costs performance for event listeners like Examine
-                    Save(content, false, userId);
-                }
+
+                uow.Commit();
+            }
+
+            foreach (var m in moved)
+                moveInfo.Add(new MoveEventInfo<IContent>(m, m.Path, m.ParentId));
+
+            Changed.RaiseEvent(new ChangeEventArgs(changes), this);
+        }
+
+        private void PerformMoveContent(IContentRepository repository, IContent content, int userId,
+            ICollection<IContent> moved, ICollection<int> unpub, ICollection<ChangeEventArgs.Change> changes)
+        {
+            content.WriterId = userId;
+            repository.AddOrUpdate(content);
+            moved.Add(content);
+
+            var change = ChangeEventTypes.Refresh; // moved, so it has to be refreshed
+            if (unpub == null)
+            {
+                if (content.HasPublishedVersion)
+                    change |= ChangeEventTypes.RemovePublished; // everything is masked
             }
             else
             {
-                //TODO: This is raising events, probably not desirable as this costs performance for event listeners like Examine
-                Save(content, userId);
-            }
-
-            //Ensure that Path and Level is updated on children
-            var children = GetChildren(content.Id).ToArray();
-            if (children.Any())
-            {
-                foreach (var child in children)
+                if (unpub.Contains(content.ParentId) || content.HasPublishedVersion == false)
                 {
-                    PerformMove(child, content.Id, userId, moveInfo);
+                    unpub.Add(content.Id);
+                    if (content.HasPublishedVersion)
+                        change |= ChangeEventTypes.RemovePublished; // now masked
                 }
+                else
+                    change |= ChangeEventTypes.RefreshPublished; // published
             }
+            changes.Add(new ChangeEventArgs.Change(content, change));
         }
 
+        /// <summary>
         /// Publishes a <see cref="IContent"/> object and all its children
         /// </summary>
         /// <param name="content">The <see cref="IContent"/> to publish along with its children</param>
@@ -1661,9 +1677,9 @@ namespace Umbraco.Core.Services
                     .Select(x => x.Result)
                     .Select(x =>
                     {
-                        var types = ChangeEventArgs.ChangeTypes.RefreshPublished; // must refresh the published one (why?) FIXME
-                        if (x.StatusType != PublishStatusType.SuccessAlreadyPublished) // and the newest if actually published
-                            types |= ChangeEventArgs.ChangeTypes.RefreshNewest;
+                        var types = ChangeEventTypes.RefreshPublished; // have been published
+                        if (x.StatusType != PublishStatusType.SuccessAlreadyPublished)
+                            types |= ChangeEventTypes.Refresh; // for anything that was not already published
                         return new ChangeEventArgs.Change(x.ContentItem, types);
                     })), this);
 
@@ -1686,7 +1702,7 @@ namespace Umbraco.Core.Services
                 var newest = GetById(content.Id); // ensure we have the newest version
                 if (content.Version != newest.Version) // but use the original object if it's already the newest version
                     content = newest;
-                if (content.Published == false && content.HasPublishedVersion() == false)
+                if (content.Published == false && content.HasPublishedVersion == false)
                     return false; // already unpublished
 
                 // strategy
@@ -1751,8 +1767,8 @@ namespace Umbraco.Core.Services
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
                 var changes = new List<ChangeEventArgs.Change>();
-                var changeTypes = ChangeEventArgs.ChangeTypes.RefreshNewest;
-                if (status.Success) changeTypes |= ChangeEventArgs.ChangeTypes.RefreshPublished;
+                var changeTypes = ChangeEventTypes.Refresh;
+                if (status.Success) changeTypes |= ChangeEventTypes.RefreshPublished; // because status.Success
                 changes.Add(new ChangeEventArgs.Change(content, changeTypes));
 
                 if (status.Success)
@@ -1766,7 +1782,7 @@ namespace Umbraco.Core.Services
                     {
                         var descendants = GetPublishedDescendants(content).ToArray();
                         Published.RaiseEvent(new PublishEventArgs<IContent>(descendants, false, false), this);
-                        changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventArgs.ChangeTypes.RefreshPublished)));
+                        changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshPublished)));
                     }
                 }
 
@@ -1797,12 +1813,10 @@ namespace Umbraco.Core.Services
                         content.CreatorId = userId;
                     content.WriterId = userId;
 
-                    // if changeState is false, the state is left unchanged (can be published...)
-                    // if changeState is true, and state in 'Unpublished', switch to 'Saved' to indicate we're saving
-
-                    //Only change the publish state if the "previous" version was actually published or marked as unpublished
-                    if (changeState && (content.Published || ((Content) content).PublishedState == PublishedState.Unpublished))
-                        content.ChangePublishedState(PublishedState.Saved);
+                    // saving the Published version => indicate we are .Saving
+                    // saving the Unpublished version => remains .Unpublished
+                    if (changeState && content.Published)
+                        content.ChangePublishedState(PublishedState.Saving);
 
                     repository.AddOrUpdate(content);
                     uow.Commit();
@@ -1811,7 +1825,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventArgs.ChangeTypes.RefreshNewest)), this);
+                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.Refresh)), this);
 
                 Audit(AuditType.Save, "Save Content performed by user", userId, content.Id);
             }
@@ -1853,19 +1867,10 @@ namespace Umbraco.Core.Services
             using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
             {
                 var query = Query<IContentType>.Builder.Where(x => x.Alias == contentTypeAlias);
-                var types = repository.GetByQuery(query);
-
-                if (types.Any() == false)
-                    throw new Exception(
-                        string.Format("No ContentType matching the passed in Alias: '{0}' was found",
-                                      contentTypeAlias));
-
-                var contentType = types.First();
-
+                var contentType = repository.GetByQuery(query).FirstOrDefault();
                 if (contentType == null)
-                    throw new Exception(string.Format("ContentType matching the passed in Alias: '{0}' was null",
-                                                      contentTypeAlias));
-
+                    throw new Exception(
+                        string.Format("No ContentType matching the passed in Alias: '{0}' was found", contentTypeAlias));
                 return contentType;
             }
         }
@@ -2013,29 +2018,41 @@ namespace Umbraco.Core.Services
 
             public struct Change
             {
-                public Change(IContent changedContent, ChangeTypes changeTypes)
+                public Change(IContent changedContent, ChangeEventTypes changeTypes)
                 {
                     ChangedContent = changedContent;
                     ChangeTypes = changeTypes;
                 }
 
                 public IContent ChangedContent;
-                public ChangeTypes ChangeTypes;
-            }
-
-            [Flags]
-            public enum ChangeTypes : byte
-            {
-                None = 0,
-                RefreshPublished = 1,
-                RefreshAllPublished = 2,
-                RemovePublished = 4,
-                RefreshNewest = 8,
-                RefreshAllNewest = 16,
-                RemoveNewest = 32
+                public ChangeEventTypes ChangeTypes;
             }
 
             public IEnumerable<Change> Changes { get; private set; }
+        }
+
+        [Flags]
+        internal enum ChangeEventTypes : byte
+        {
+            None = 0,
+
+            // the published version has been refreshed (publishing...)
+            RefreshPublished = 1,
+
+            // all published versions have been refreshed (publishing...)
+            RefreshAllPublished = 2,
+
+            // the published version has been removed (unpublishing...)
+            RemovePublished = 4,
+
+            // the content has been refreshed (saving... data changed)
+            Refresh = 8,
+
+            // all content have been refreshed (?)
+            RefreshAll = 16,
+
+            // the content has been removed (as in, completely deleted)
+            Remove = 32
         }
 
         /// <summary>
@@ -2104,7 +2121,8 @@ namespace Umbraco.Core.Services
             if (attempt.Success == false)
                 return attempt;
 
-            content.ChangePublishedState(PublishedState.Published);
+            // change state to publishing
+            content.ChangePublishedState(PublishedState.Publishing);
 
             LogHelper.Info<ContentService>(
                 string.Format("Content '{0}' with Id '{1}' has been published.", content.Name, content.Id));
@@ -2170,7 +2188,7 @@ namespace Umbraco.Core.Services
                     continue;
                 }
 
-                if (content.HasPublishedVersion())
+                if (content.HasPublishedVersion)
                 {
                     // newest is not published, but another version is - publish newest
                     var r = StrategyPublish(content, alreadyCheckedA.Contains(content), userId);
@@ -2231,9 +2249,9 @@ namespace Umbraco.Core.Services
                     string.Format("Content '{0}' with Id '{1}' had its release date removed, because it was unpublished.", content.Name, content.Id));
             }
 
-            // change state to unpublished
-            // maybe 'unpublished' already but will register the change nevertheless
-            content.ChangePublishedState(PublishedState.Unpublished);
+            // version is published or unpublished, but content is published
+            // change state to unpublishing
+            content.ChangePublishedState(PublishedState.Unpublishing);
 
             LogHelper.Info<ContentService>(
                 string.Format("Content '{0}' with Id '{1}' has been unpublished.", content.Name, content.Id));

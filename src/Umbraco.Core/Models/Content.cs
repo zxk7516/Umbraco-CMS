@@ -23,6 +23,7 @@ namespace Umbraco.Core.Models
         private int _writer;
         private string _nodeName;//NOTE Once localization is introduced this will be the non-localized Node Name.
         private bool _permissionsChanged;
+
         /// <summary>
         /// Constructor for creating a Content object
         /// </summary>
@@ -307,15 +308,18 @@ namespace Umbraco.Core.Models
         }
 
         /// <summary>
-        /// Changes the Published state of the content object
+        /// Changes the Published state of the content object.
         /// </summary>
         public void ChangePublishedState(PublishedState state)
         {
-            Published = state == PublishedState.Published;
+            if (state == PublishedState.Published || state == PublishedState.Unpublished)
+                throw new ArgumentException("Invalid state.");
+            Published = state == PublishedState.Publishing;
             PublishedState = state;
         }
 
         // note: set is used only in ContentFactory - and here in Content right above - and nowhere else
+        // should be private, xcept ContentFactory needs it - should always use ChangePublishedState!
         [DataMember]
         internal PublishedState PublishedState { get; set; }
 
@@ -341,9 +345,10 @@ namespace Umbraco.Core.Models
             ParentId = parentId;
 
             //If the content is trashed and is published it should be marked as unpublished
+            // fixme - but it should be unpublished anyways?!
             if (isTrashed && Published)
             {
-                ChangePublishedState(PublishedState.Unpublished);
+                ChangePublishedState(PublishedState.Unpublishing);
             }
         }
 
@@ -418,8 +423,17 @@ namespace Umbraco.Core.Models
         {
             base.ResetDirtyProperties(rememberPreviouslyChangedProperties);
 
-            // clear the .Saved PublishedState
-            PublishedState = Published ? PublishedState.Published : PublishedState.Unpublished;
+            // take care of the published state
+            switch (PublishedState)
+            {
+                case PublishedState.Saving:
+                case PublishedState.Unpublishing:
+                    PublishedState = PublishedState.Unpublished;
+                    break;
+                case PublishedState.Publishing:
+                    PublishedState = PublishedState.Published;
+                    break;
+            }
         }
 
         /// <summary>

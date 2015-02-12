@@ -23,7 +23,6 @@ using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 using Umbraco.Web.Scheduling;
-using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -952,7 +951,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 throw new NotSupportedException();
 
             var payloads = ContentCacheRefresher.Deserialize((string) args.MessageObject);
-            if (payloads.Any(x => ContentCacheRefresher.HasFlagAny(x.Action, ContentChangeTypes.RefreshAllPublished)))
+            if (payloads.Any(x => x.Action.HasType(ContentService.ChangeEventTypes.RefreshAllPublished)))
             {
                 ReloadXmlFromDatabase();
             }
@@ -964,13 +963,13 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 // XmlStore does not support RefreshAllNewest
                 // XmlStore does not support RefreshNewest nor RemoveNewest because proper -Published events should trigger
 
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished))
+                if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshPublished))
                 {
                     var content = _svcs.ContentService.GetPublishedVersion(payload.Id);
                     if (content != null) Refresh(content);
                 }
 
-                if (ContentCacheRefresher.HasFlagAny(payload.Action, ContentChangeTypes.RemovePublished))
+                if (payload.Action.HasType(ContentService.ChangeEventTypes.RemovePublished))
                 {
                     Remove(payload.Id);
                 }
@@ -1601,13 +1600,15 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 if (c.Published == false)
                 {
+                    // FIXME - REFACTOR & DOCUMENT - SEE TESTS
+
                     if (c.IsPropertyDirty("Published") && ((Core.Models.Content) c).PublishedState == PublishedState.Unpublished)
                     {
                         // if it's just been unpublished, remove it from the table
                         db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
                         continue;
                     }
-                    else if (((Core.Models.Content) c).IsEntityDirty() && c.HasPublishedVersion())
+                    else if (((Core.Models.Content) c).IsEntityDirty() && c.HasPublishedVersion)
                     {
                         // if it's dirty + published version, refresh published xml
                         var v = sender.GetAllVersions(c.Id).FirstOrDefault(y => y.Published);

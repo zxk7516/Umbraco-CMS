@@ -61,53 +61,17 @@ namespace Umbraco.Core.Models
         {
             // note: publishedState is always the entity's PublishedState except for tests
 
-            // FIXME
-            // the only situation where we don't want to SAVE is if we are SAVING
-            // and nothing has changed - whatever the rest
+            // the only situation where we don't want to *save* is if we are "saving" a content
+            // and nothing has changed - so return true if we are not "saving" but doing something
+            // else, or if anything has changed.
 
             var content = (Content)entity;
-            //var contentPropertyChanged = content2.IsEntityDirty();
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
+            //var contentPropertyChanged = content.IsEntityDirty();
             var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
 
-            return publishedState != PublishedState.Saved || userPropertyChanged || contentPropertyChangedExceptPublished;
-            
-            /*
-            // figure out whether .Published has changed, and why
-            var hasPublishedChanged = entity.IsPropertyDirty("Published");
-            //var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
-            var publishedStateSaved = publishedState == PublishedState.Saved;
-            //var publishedStatePublished = publishedState == PublishedState.Published;
-
-            // so if .Published has changed, because of other than .Saved, must save
-            if (hasPublishedChanged && publishedStateSaved == false)
-                return true;
-
-            // else either .Published has not changed, or changed because of .Saved,
-            // ie went from Published to !Published to save a published version,
-            // then no need to save if no property has changed
-
-            // FIXME but if it has NOT changed Published-to-Published, OK to NOT save (or, update the date?)
-            // FIXME but if it has NOT changed Unpublished-to-Unpublished because the published version is another one
-            // FIXME then we have an issue because we SHOULD save
-            // FIXME in fact we should ALWAYS save, just to bump the UpdateDate ?!
-
-            // if a user property is dirty, must save
-            var content = (Content)entity;
-            var userPropertyChanged = content.IsAnyUserPropertyDirty();
-            if (userPropertyChanged)
-                return true;
-
-            // if a content property is dirty, other than .Published, must save
-            var dirtyProps = content.GetDirtyProperties();
-            var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
-            if (contentPropertyChangedExceptPublished)
-                return true;
-
-            // else no need to save
-            return false;
-            */
+            return publishedState != PublishedState.Saving || userPropertyChanged || contentPropertyChangedExceptPublished;            
         }
 
         /// <summary>
@@ -154,52 +118,40 @@ namespace Umbraco.Core.Models
             if (hasLanguageChanged)
                 return true; // language change => new version
 
-            // figure out whether .Published has changed, and why
-            var hasPublishedChanged = entity.IsPropertyDirty("Published");
-            //var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
-            //var publishedStateSaved = publishedState == PublishedState.Saved;
-            //var publishedStatePublished = publishedState == PublishedState.Published;
-
             var content = (Content)entity;
             //var contentPropertyChanged = content2.IsEntityDirty();
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
             var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
-            if (hasPublishedChanged)
+
+            switch (publishedState)
             {
-                switch (publishedState)
-                {
-                    case PublishedState.Published:
-                        // from Unpublished to Published, publishing
-                        //// always require a new version
-                        //return true;
-                        // require a new version only if anything has changed
-                        // else can publish the current version
-                        return contentPropertyChangedExceptPublished || userPropertyChanged;
-                    case PublishedState.Saved:
-                        // has changed => was .Published
-                        // from Published to Saved, saving
-                        // require a new version only if anything has changed
-                        // else we have nothing to save, really
-                        return contentPropertyChangedExceptPublished || userPropertyChanged;
-                    case PublishedState.Unpublished:
-                        // from Published to Unpublished, unpublishing
-                        // always require a new version
-                        // because later on that new version will be modified by saves
-                        // and we want to preserve the version that was published
-                        return true;
-                }
+                case PublishedState.Publishing:
+                    // changed,
+                    // publishing: requires a new version if anything has changed, else we can
+                    //   (re)publish the current version
+                    return contentPropertyChangedExceptPublished || userPropertyChanged;
+                case PublishedState.Unpublishing:
+                case PublishedState.Saving:
+                    // changed,
+                    // unpublishing: requires a new version because we want to preserve what was
+                    //   published, and saving will modify that new version
+                    // saving: requires a new version because we're creating a draft
+                    return true;
+                case PublishedState.Published:
+                    // unchanged,
+                    // published: edits made to the published version (??)
+                    //   wtf?? better create a new version
+                    return true;
+                case PublishedState.Unpublished:
+                    // unchanged,
+                    // unpublished: edits made to an unpublished version
+                    //   don't create new versions for user property changes
+                    //   create new versions for content property changes
+                    return contentPropertyChangedExceptPublished;
+                default:
+                    throw new NotSupportedException();
             }
-
-            // has not changed
-            // require a new version except if Saved (has not changed => was .Unpublished)
-            // and a user property changed - we don't want a new version each time we save
-            if (contentPropertyChangedExceptPublished)  // published hasn't changed anyway
-                return true;
-            if (publishedState != PublishedState.Saved && userPropertyChanged)
-                return true;
-
-            return false;
         }
 
         /// <summary>
@@ -236,19 +188,10 @@ namespace Umbraco.Core.Models
             if (isNewVersion && entity.Published)
                 return true;
 
-            // figure out whether .Published has changed, and why
-            var hasPublishedChanged = entity.IsPropertyDirty("Published");
-            var publishedStateUnpublished = publishedState == PublishedState.Unpublished;
-            //var publishedStateSaved = publishedState == PublishedState.Saved;
-            var publishedStatePublished = publishedState == PublishedState.Published;
-
-            // if it has changed, because the version we are saving has been published
-            // or unpublished (not just saved) then clear - if it's not changed then no
-            // need to clear, and if it's changed because the version has been saved,
-            // then it's now false for that version, but does not change anything for the
-            // content itself, so no need to clear either.
-
-            return hasPublishedChanged && (publishedStateUnpublished || publishedStatePublished);
+            // clear whenever we are publishing or unpublishing
+            // publishing: because there might be a previously published version
+            // unpublishing: same - we might be a saved version, not the published one
+            return publishedState == PublishedState.Publishing || publishedState == PublishedState.Unpublishing;
         }
 
         /// <summary>

@@ -5,7 +5,8 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
-using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
+using Umbraco.Core.Services;
+using ChangeEventTypes = Umbraco.Core.Services.ContentService.ChangeEventTypes;
 
 namespace Umbraco.Web.Cache
 {
@@ -49,21 +50,16 @@ namespace Umbraco.Web.Cache
         // - IContent cache should clear the content
         // - PublishedContent cache should clear the preview content
 
-        internal static bool HasFlagAny(ContentChangeTypes action, ContentChangeTypes actions)
-        {
-            return (action & actions) != ContentChangeTypes.None;
-        }
-
         internal class JsonPayload
         {
-            public JsonPayload(int id, ContentChangeTypes action)
+            public JsonPayload(int id, ContentService.ChangeEventTypes action)
             {
                 Id = id;
                 Action = action;
             }
 
             public int Id { get; private set; }
-            public ContentChangeTypes Action { get; private set; }
+            public ContentService.ChangeEventTypes Action { get; private set; }
         }
 
         internal static string Serialize(IEnumerable<JsonPayload> payloads)
@@ -103,7 +99,7 @@ namespace Umbraco.Web.Cache
         {
             foreach (var payload in Deserialize(json))
             {
-                if (HasFlagAny(payload.Action, ContentChangeTypes.RefreshPublished | ContentChangeTypes.RemovePublished | ContentChangeTypes.RefreshAllPublished))
+                if (payload.Action.HasTypesAny(ChangeEventTypes.RefreshAllPublished | ChangeEventTypes.RefreshPublished | ChangeEventTypes.RemovePublished))
                 {
                     // from PageCacheRefresher
                     ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
@@ -112,7 +108,7 @@ namespace Umbraco.Web.Cache
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
                 }
 
-                if (HasFlagAny(payload.Action, ContentChangeTypes.RefreshNewest | ContentChangeTypes.RemoveNewest | ContentChangeTypes.RefreshAllNewest))
+                if (payload.Action.HasTypesAny(ChangeEventTypes.RefreshAll | ChangeEventTypes.Refresh | ChangeEventTypes.Remove))
                 {
                     // from UnpublishedPageCacheRefresher
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();

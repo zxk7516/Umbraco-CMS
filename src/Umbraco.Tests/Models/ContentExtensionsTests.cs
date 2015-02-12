@@ -35,7 +35,7 @@ namespace Umbraco.Tests.Models
             content.ChangePublishedState(PublishedState.Published); // is published
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresSaving());
         }
 
@@ -50,7 +50,7 @@ namespace Umbraco.Tests.Models
 
             content.Properties.First().Value = "hello world"; // change data
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
@@ -65,7 +65,7 @@ namespace Umbraco.Tests.Models
 
             content.ReleaseDate = DateTime.Now; // change data
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
@@ -125,7 +125,7 @@ namespace Umbraco.Tests.Models
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresSaving());
         }
 
@@ -139,7 +139,7 @@ namespace Umbraco.Tests.Models
 
             content.Properties.First().Value = "hello world"; // change data
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
@@ -153,7 +153,7 @@ namespace Umbraco.Tests.Models
 
             content.ReleaseDate = DateTime.Now; // change data
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
@@ -254,7 +254,7 @@ namespace Umbraco.Tests.Models
             content.ChangePublishedState(PublishedState.Published); // is published
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
@@ -269,7 +269,7 @@ namespace Umbraco.Tests.Models
 
             content.Properties.First().Value = "hello world"; // change data
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
@@ -283,7 +283,7 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.ReleaseDate = DateTime.Now; // change content property
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
@@ -363,7 +363,7 @@ namespace Umbraco.Tests.Models
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
@@ -376,7 +376,7 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.Properties.First().Value = "hello world"; // change user property
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
@@ -389,7 +389,7 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.ReleaseDate = DateTime.Now; // change content property
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
@@ -497,7 +497,7 @@ namespace Umbraco.Tests.Models
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresClearPublishedFlag());
         }
 
@@ -510,7 +510,7 @@ namespace Umbraco.Tests.Models
             content.ChangePublishedState(PublishedState.Published); // published
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saved); // saving
+            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresClearPublishedFlag());
         }
 
@@ -564,7 +564,7 @@ namespace Umbraco.Tests.Models
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Saved); // saved
+            content.ChangePublishedState(PublishedState.Saving); // saved
             content.ResetDirtyProperties(false); // reset to .Unpublished
             Assert.AreEqual(PublishedState.Unpublished, content.PublishedState);
         }

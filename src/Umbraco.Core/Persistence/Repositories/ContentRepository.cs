@@ -407,11 +407,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { ParentId = entity.ParentId });
                 entity.Path = string.Concat(parent.Path, ",", entity.Id);
                 entity.Level = parent.Level + 1;
-                var maxSortOrder =
-                    Database.ExecuteScalar<int>(
-                        "SELECT coalesce(max(sortOrder),0) FROM umbracoNode WHERE parentid = @ParentId AND nodeObjectType = @NodeObjectType",
-                        new { ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId });
-                entity.SortOrder = maxSortOrder + 1;
+                entity.SortOrder = NextChildSortOrder(entity.ParentId);
 
                 //Question: If we move a node, should we update permissions to inherit from the new parent if the parent has permissions assigned?
                 // if we do that, then we'd need to propogate permissions all the way downward which might not be ideal for many people.
@@ -509,6 +505,8 @@ namespace Umbraco.Core.Persistence.Repositories
                 }
             }
 
+            // fixme - that state thing is bogus, can be unpublished and have a published version?
+
             //lastly, check if we are a newly published version and then update the tags table
             if (publishedStateChanged && entity.Published)
             {
@@ -522,6 +520,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             // published => update published version infos,
             // else if unpublished then clear published version infos
+            // else leave unchanged
             if (entity.Published)
             {
                 dto.DocumentPublishedReadOnlyDto = new DocumentPublishedReadOnlyDto
@@ -548,6 +547,15 @@ namespace Umbraco.Core.Persistence.Repositories
             OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             entity.ResetDirtyProperties();
+        }
+
+        private int NextChildSortOrder(int parentId)
+        {
+            var maxSortOrder =
+                Database.ExecuteScalar<int>(
+                    "SELECT coalesce(max(sortOrder),0) FROM umbracoNode WHERE parentid = @ParentId AND nodeObjectType = @NodeObjectType",
+                    new { ParentId = parentId, NodeObjectType = NodeObjectTypeId });
+            return maxSortOrder + 1;
         }
 
         #endregion
@@ -690,6 +698,9 @@ namespace Umbraco.Core.Persistence.Repositories
             // fail fast
             if (content.Path.StartsWith("-1,-20,"))
                 return false;
+            // succeed fast
+            if (content.ParentId == -1)
+                return content.HasPublishedVersion;
 
             var syntaxUmbracoNode = SqlSyntax.GetQuotedTableName("umbracoNode");
             var syntaxPath = SqlSyntax.GetQuotedColumnName("path");
@@ -708,6 +719,7 @@ WHERE (@path LIKE {5})",
                 syntaxConcat);
 
             var count = Database.ExecuteScalar<int>(sql, new { @published=true, @path=content.Path });
+            count += 1; // because content does not count
             return count == content.Level;
         }
 
