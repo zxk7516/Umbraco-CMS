@@ -1570,12 +1570,17 @@ namespace Umbraco.Core.Services
             using (var repository = RepositoryFactory.CreateContentRepository(uow))
             {
                 var paths = new Dictionary<int, string>();
-                var unpub = IsPathPublished(parent) == false ? null : new List<int>();
-                //paths[content.Id] = content.Path;
+                var unpub = (parent != null && IsPathPublished(parent) == false) ? null : new List<int>();
+                // these will be updated by the repo because we changed parentId
+                //content.Path = (parent == null ? "-1" : parent.Path) + "," + content.Id;
                 //content.SortOrder = ((ContentRepository) repository).NextChildSortOrder(parentId);
                 //content.Level += levelDelta;
                 PerformMoveContent(repository, content, userId, moved, unpub, changes);
-                paths[content.Id] = content.Path; // path, level and sortOrder updated by repo
+                
+                // BUT content.Path will be updated only when the UOW commits, and
+                //  because we want it now, we have to calculate it by ourselves
+                //paths[content.Id] = content.Path;
+                paths[content.Id] = (parent == null ? "-1" : parent.Path) + "," + content.Id;
 
                 var descendants = GetDescendants(content);
                 foreach (var descendant in descendants)

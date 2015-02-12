@@ -849,7 +849,7 @@ namespace Umbraco.Tests.Integration
             Assert.AreEqual(2, _events.Count);
             var i = 0;
             var m = 0;
-            Assert.AreEqual("{0:000}: ContentRepository/Refresh/up-{1}".FormatWith(m, content.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m, content.Id), _events[i++].ToString());
             m++;
             Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content.Id), _events[i].ToString());
         }
@@ -1306,9 +1306,55 @@ namespace Umbraco.Tests.Integration
         { }
 
         [Test]
-        [Ignore("Not implemented.")]
         public void MoveContentBranchUnderPublished()
-        { }
+        {
+            var content1 = CreateBranch();
+            Assert.IsNotNull(content1);
+
+            var content2 = CreateContent();
+            Assert.IsNotNull(content2);
+            ServiceContext.ContentService.SaveAndPublishWithStatus(content2);
+
+            ResetEvents();
+            ServiceContext.ContentService.Move(content1, content2.Id);
+
+            Assert.AreEqual(14, _msgCount);
+            Assert.AreEqual(26, _events.Count);
+            var i = 0;
+            var m = 0;
+            var content1C = content1.Children().ToArray();
+            var content2C = content1C[0].Children().ToArray();
+            var content3C = content1C[1].Children().ToArray();
+            var content4C = content1C[2].Children().ToArray();
+            var content5C = content1C[3].Children().ToArray();
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pp-{1}".FormatWith(m++, content1.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pp-{1}".FormatWith(m++, content1C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content1C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/up-{1}".FormatWith(m++, content1C[2].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content1C[3].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pp-{1}".FormatWith(m++, content2C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content3C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pp-{1}".FormatWith(m++, content4C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/pm-{1}".FormatWith(m++, content5C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content2C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content3C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m++, content4C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentRepository/Refresh/uu-{1}".FormatWith(m, content5C[1].Id), _events[i++].ToString());
+            m++;
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,Refresh/{1}".FormatWith(m, content1.Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,Refresh/{1}".FormatWith(m, content1C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content1C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,Refresh/{1}".FormatWith(m, content1C[2].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content1C[3].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,Refresh/{1}".FormatWith(m, content2C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content3C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RefreshPublished,Refresh/{1}".FormatWith(m, content4C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/RemovePublished,Refresh/{1}".FormatWith(m, content5C[0].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content2C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content3C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content4C[1].Id), _events[i++].ToString());
+            Assert.AreEqual("{0:000}: ContentCacheRefresher/Refresh/{1}".FormatWith(m, content5C[1].Id), _events[i++].ToString());
+        }
 
         [Test]
         [Ignore("Not implemented.")]
