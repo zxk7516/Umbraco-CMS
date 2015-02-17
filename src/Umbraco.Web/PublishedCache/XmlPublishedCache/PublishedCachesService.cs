@@ -16,20 +16,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly ICacheProvider _requestCache;
 
         public PublishedCachesService(ServiceContext serviceContext, ICacheProvider requestCache)
-        {
-            _routesCache = new RoutesCache();
-            _xmlStore = new XmlStore(serviceContext, _routesCache);
-            _domainService = serviceContext.DomainService;
-            _memberService = serviceContext.MemberService;
-            _mediaService = serviceContext.MediaService;
-            _requestCache = requestCache;
-        }
+            : this(serviceContext, requestCache, false)
+        { }
 
         // for testing
-        internal PublishedCachesService(ServiceContext serviceContext, ICacheProvider requestCache, bool withEvents)
+        internal PublishedCachesService(ServiceContext serviceContext, ICacheProvider requestCache, bool testing)
         {
             _routesCache = new RoutesCache();
-            _xmlStore = new XmlStore(serviceContext, _routesCache, withEvents);
+            _xmlStore = new XmlStore(serviceContext, _routesCache, testing);
             _domainService = serviceContext.DomainService;
             _memberService = serviceContext.MemberService;
             _mediaService = serviceContext.MediaService;

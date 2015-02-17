@@ -200,9 +200,9 @@ namespace Umbraco.Web.Cache
 
         const string ContentCacheBufferKey = "DistributedCache.ContentCacheBuffer";
 
-        public static void FlushContentCacheBuffer(this DistributedCache dc)
+        public static void FlushChangeSet(this DistributedCache dc, ChangeSet changeSet)
         {
-            var changeSet = ChangeSet.Ambient;
+            //var changeSet = ChangeSet.Ambient;
             if (changeSet == null || changeSet.Items.ContainsKey(ContentCacheBufferKey) == false) return;
 
             var buffer = (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[ContentCacheBufferKey];

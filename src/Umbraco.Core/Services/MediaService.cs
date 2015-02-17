@@ -747,12 +747,14 @@ namespace Umbraco.Core.Services
 
                     files = ((MediaRepository)repository).GetFilesInRecycleBinForUploadField();
 
-                    if (EmptyingRecycleBin.IsRaisedEventCancelled(new RecycleBinEventArgs(nodeObjectType, entities, files), this))
+                    // fixme - refactor this, see ContentService
+                    if (EmptyingRecycleBin.IsRaisedEventCancelled(new RecycleBinEventArgs(nodeObjectType), this))
                         return;
 
                     success = repository.EmptyRecycleBin();
 
-                    EmptiedRecycleBin.RaiseEvent(new RecycleBinEventArgs(nodeObjectType, entities, files, success), this);
+                    // fixme - refactor this, see ContentService
+                    EmptiedRecycleBin.RaiseEvent(new RecycleBinEventArgs(nodeObjectType, success), this);
 
                     if (success)
                         repository.DeleteFiles(files);

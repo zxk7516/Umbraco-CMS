@@ -97,8 +97,25 @@ namespace Umbraco.Web.Cache
 
         public override void Refresh(string json)
         {
+            var payloads = Deserialize(json);
+            var published = payloads.Any(x => x.Action.HasTypesAny(ChangeEventTypes.None));
+            var draft = payloads.Any(x => x.Action.HasTypesAny(ChangeEventTypes.None));
+            if (published)
+            { }
+            if (draft)
+            { }
+
             foreach (var payload in Deserialize(json))
             {
+                // fixme
+                var id = payload.Id;
+                var c = ApplicationContext.Current.Services.ContentService.GetById(id);
+                var p = c.Published ? c : (c.HasPublishedVersion ? ApplicationContext.Current.Services.ContentService.GetPublishedVersion(id) : null);
+                var dc = c.UpdateDate; // version date
+                var dp = p == null ? DateTime.MinValue : p.UpdateDate; // version date
+                // can we use these dates to figure out WHAT has REALLY changed? do we have enough granularity?
+                // also it means we know the dates of what we're caching - Examine does not - must refresh all the time?
+
                 if (payload.Action.HasTypesAny(ChangeEventTypes.RefreshAllPublished | ChangeEventTypes.RefreshPublished | ChangeEventTypes.RemovePublished))
                 {
                     // from PageCacheRefresher

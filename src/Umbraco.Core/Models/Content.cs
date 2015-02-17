@@ -346,6 +346,7 @@ namespace Umbraco.Core.Models
 
             //If the content is trashed and is published it should be marked as unpublished
             // fixme - but it should be unpublished anyways?!
+            // fixme + precisely NOT we want to remember that it was published! it's just "masked"
             if (isTrashed && Published)
             {
                 ChangePublishedState(PublishedState.Unpublishing);

@@ -34,12 +34,12 @@ namespace Umbraco.Web.PropertyEditors
 
             MediaService.Deleted += (sender, args) =>
                 args.MediaFilesToDelete.AddRange(ServiceDeleted(args.DeletedEntities.Cast<ContentBase>()));
-            MediaService.EmptiedRecycleBin += (sender, args) =>
-                args.Files.AddRange(ServiceEmptiedRecycleBin(args.AllPropertyData));
+            //MediaService.EmptiedRecycleBin += (sender, args) =>
+            //    args.Files.AddRange(ServiceEmptiedRecycleBin(args.AllPropertyData));
             ContentService.Deleted += (sender, args) =>
                 args.MediaFilesToDelete.AddRange(ServiceDeleted(args.DeletedEntities.Cast<ContentBase>()));
-            ContentService.EmptiedRecycleBin += (sender, args) =>
-                args.Files.AddRange(ServiceEmptiedRecycleBin(args.AllPropertyData));
+            //ContentService.EmptiedRecycleBin += (sender, args) =>
+            //    args.Files.AddRange(ServiceEmptiedRecycleBin(args.AllPropertyData));
         }
 
         /// <summary>

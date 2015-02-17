@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
+using ICSharpCode.SharpZipLib.Zip;
 using umbraco.cms.businesslogic;
 using umbraco.cms.businesslogic.web;
 using Umbraco.Core;
@@ -53,21 +54,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
         public XmlStore(ServiceContext svcs, RoutesCache routesCache)
-        {
-            EnsureConfigurationIsValid();
-
-            _svcs = svcs;
-            _routesCache = routesCache;
-
-            InitializeSerializers();
-            InitializeFilePersister();
-
-            // need to wait for resolution to be frozen
-            if (Resolution.IsFrozen)
-                InitializeEventsAndContent();
-            else
-                Resolution.Frozen += (sender, args) => InitializeEventsAndContent();
-        }
+            : this(svcs, routesCache, false)
+        { }
 
         private void InitializeSerializers()
         {
@@ -182,14 +170,28 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         // internal for unit tests
         // no file nor db, no config check
-        internal XmlStore(ServiceContext svcs, RoutesCache routesCache, bool withEvents)
+        internal XmlStore(ServiceContext svcs, RoutesCache routesCache, bool testing)
         {
+            if (testing == false)
+                EnsureConfigurationIsValid();
+
             _svcs = svcs;
             _routesCache = routesCache;
-            _xmlFileEnabled = false;
-            if (withEvents == false) return;
+
+            if (testing)
+            {
+                _xmlFileEnabled = false;
+                return;
+            }
+
             InitializeSerializers();
-            InitializeEvents();
+            InitializeFilePersister();
+
+            // need to wait for resolution to be frozen
+            if (Resolution.IsFrozen)
+                InitializeEventsAndContent();
+            else
+                Resolution.Frozen += (sender, args) => InitializeEventsAndContent();
         }
 
         // internal for unit tests

@@ -20,7 +20,7 @@
         Unpublished,
 
         /// <summary>
-        /// The version is being saved, in order to register changes to a published content.
+        /// The version is being saved, in order to register changes made to a published content.
         /// </summary>
         /// <remarks>The <value>Saving</value> state is transitional. Once the version is saved,
         /// its state changes to <value>Unpublished</value>.</remarks>

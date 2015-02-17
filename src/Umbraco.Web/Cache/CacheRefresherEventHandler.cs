@@ -110,17 +110,19 @@ namespace Umbraco.Web.Cache
 
             //Bind to content events - this is for unpublished content syncing across servers (primarily for examine)
             
-            ContentService.Saved += ContentServiceSaved;
-            ContentService.Deleted += ContentServiceDeleted;
-            ContentService.Copied += ContentServiceCopied;
-            //TODO: The Move method of the content service fires Saved/Published events during its execution so we don't need to listen to moved
-            //ContentService.Moved += ContentServiceMoved;
-            ContentService.Trashed += ContentServiceTrashed;
-            ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin;
-            ContentService.RolledBack += ContentServiceRolledBack;
-            ContentService.UnPublished += ContentServiceUnPublished;
-            ContentService.Changed += ContentServiceChanged;
+            // FIXME most of these should be using the ChangeSet thing and only the ChangeSet thing!!
+            ContentService.Saved += ContentServiceSaved; // used for permissions
+            //ContentService.Deleted += ContentServiceDeleted; // handled by Changed
+            ContentService.Copied += ContentServiceCopied; // used for permissions fixme remove the content cache code
+            //ContentService.Moved += ContentServiceMoved; // handled by Changed
+            ContentService.Trashed += ContentServiceTrashed; // fixme remove
+            ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin; // fixme remove
+            ContentService.RolledBack += ContentServiceRolledBack; // fixme remove
+            ContentService.Changed += ContentServiceChanged; // handles all content changes
 
+            // ContentService.Changed will queue things in a ChangeSet, and when that
+            // ChangeSet is committed we need to send all the events to the distributed
+            // cache as one message (that will be processed sort-of atomically)
             ChangeSet.Committed += ChangeSetCommitted;
 
             //public access events
@@ -196,7 +198,6 @@ namespace Umbraco.Web.Cache
             ContentService.Trashed -= ContentServiceTrashed;
             ContentService.EmptiedRecycleBin -= ContentServiceEmptiedRecycleBin;
             ContentService.RolledBack -= ContentServiceRolledBack;
-            ContentService.UnPublished -= ContentServiceUnPublished;
             ContentService.Changed -= ContentServiceChanged;
 
             ChangeSet.Committed -= ChangeSetCommitted;
@@ -204,9 +205,9 @@ namespace Umbraco.Web.Cache
             PublicAccessService.Saved -= PublicAccessService_Saved;
         }
 
-        private void ChangeSetCommitted(ChangeSet sender, EventArgs args)
+        private static void ChangeSetCommitted(ChangeSet sender, EventArgs args)
         {
-            DistributedCache.Instance.FlushContentCacheBuffer();
+            DistributedCache.Instance.FlushChangeSet(sender);
         }
 
         #region Public access event handlers
@@ -222,10 +223,11 @@ namespace Umbraco.Web.Cache
 
         static void ContentServiceEmptiedRecycleBin(IContentService sender, RecycleBinEventArgs e)
         {
-            if (e.RecycleBinEmptiedSuccessfully && e.IsContentRecycleBin)
-            {
-                DistributedCache.Instance.RemoveContentCache(e.Ids.ToArray());
-            }
+            // fixme - no - managed with proper DELETE now
+            //if (e.RecycleBinEmptiedSuccessfully && e.IsContentRecycleBin)
+            //{
+            //    DistributedCache.Instance.RemoveContentCache(e.Ids.ToArray());
+            //}
         }
         
         /// <summary>
@@ -261,6 +263,7 @@ namespace Umbraco.Web.Cache
             }
 
             //run the un-published cache refresher since copied content is not published
+            // FIXME dont need that one, copied should trigger change events!!!!
             DistributedCache.Instance.RefreshContentCache(e.Copy);
         }
 
@@ -271,6 +274,7 @@ namespace Umbraco.Web.Cache
         /// <param name="e"></param>
         static void ContentServiceDeleted(IContentService sender, DeleteEventArgs<IContent> e)
         {
+            // fixme not needed, done via changes?!
             DistributedCache.Instance.RemoveContentCache(e.DeletedEntities.Select(x => x.Id).ToArray());
         }
 
@@ -314,22 +318,6 @@ namespace Umbraco.Web.Cache
             // fixme should be a change
             // rolled back entity changes unpublished (not published)
             DistributedCache.Instance.RefreshContentCache(args.Entity);
-        }
-
-        private void ContentServiceUnPublished(IContentService sender, PublishEventArgs<IContent> e)
-        {
-            //foreach (var content in e.PublishedEntities)
-            //{
-            //    DistributedCache.Instance.RefreshUnpublishedPageCache(content);
-            //    DistributedCache.Instance.RemovePageCache(content);
-            //}
-
-            // fixme should it be a change?
-
-            // assuming order is not important here...
-            var entities = e.PublishedEntities.ToArray();
-            DistributedCache.Instance.RefreshContentCache(entities);
-            DistributedCache.Instance.RemovePublishedContentCache(entities);
         }
 
         private void ContentServiceChanged(IContentService sender, ContentService.ChangeEventArgs args)
@@ -631,10 +619,11 @@ namespace Umbraco.Web.Cache
 
         static void MediaServiceEmptiedRecycleBin(IMediaService sender, RecycleBinEventArgs e)
         {
-            if (e.RecycleBinEmptiedSuccessfully && e.IsMediaRecycleBin)
-            {
-                DistributedCache.Instance.RemoveMediaCachePermanently(e.Ids.ToArray());
-            }
+            // fixme - no - should be managed with proper delete
+            //if (e.RecycleBinEmptiedSuccessfully && e.IsMediaRecycleBin)
+            //{
+            //    DistributedCache.Instance.RemoveMediaCachePermanently(e.Ids.ToArray());
+            //}
         }
 
         static void MediaServiceTrashed(IMediaService sender, MoveEventArgs<IMedia> e)
