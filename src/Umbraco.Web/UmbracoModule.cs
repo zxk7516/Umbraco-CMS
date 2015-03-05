@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Principal;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
@@ -530,6 +531,7 @@ namespace Umbraco.Web
             urlRouting.PostResolveRequestCache(context);
         }
 
+       
         /// <summary>
         /// Any object that is in the HttpContext.Items collection that is IDisposable will get disposed on the end of the request
         /// </summary>
@@ -596,9 +598,6 @@ namespace Umbraco.Web
 					var httpContext = ((HttpApplication)sender).Context;
 					ProcessRequest(new HttpContextWrapper(httpContext));
 				};
-
-			// used to check if the xml cache file needs to be updated/persisted
-			app.PostRequestHandlerExecute += (sender, e) => PublishedCachesServiceResolver.Current.Service.Flush();
 
 			app.EndRequest += (sender, args) =>
 				{
