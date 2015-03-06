@@ -65,7 +65,7 @@ namespace Umbraco.Web.Install.InstallSteps
                 try
                 {
                     // xml cache will persist file, other caches may do something else
-                    svc.Flush();
+                    svc.XmlStore.SaveXmlToFile();
                 }
                 catch (Exception ee)
                 {

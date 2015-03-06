@@ -34,13 +34,9 @@ namespace Umbraco.Web.PublishedCache
             return caches;
         }
 
-
         public abstract string EnterPreview(IUser user, int contentId);
         public abstract void RefreshPreview(string previewToken, int contentId);
         public abstract void ExitPreview(string previewToken);
-
-        public virtual void Flush()
-        { }
 
         public virtual void Dispose()
         { }

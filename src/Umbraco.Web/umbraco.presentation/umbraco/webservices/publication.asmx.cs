@@ -81,10 +81,12 @@ namespace umbraco.webservices
             if (!AuthorizeRequest(DefaultApps.content.ToString()))
                 return;
 
-            // xml cache will persist file, other caches may do something else
-            PublishedCachesServiceResolver.Current.Service.Flush();
-        }
+            // makes sense for xml cache only
+            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (svc == null) return;
 
-		
+            // xml cache will persist file, other caches may do something else
+            svc.XmlStore.SaveXmlToFile();
+        }
 	}
 }

@@ -87,29 +87,5 @@ namespace Umbraco.Web.PublishedCache
         /// <para>Does not handle the preview token storage (cookie, etc) that must be handled separately.</para>
         /// </remarks>
         void ExitPreview(string previewToken);
-
-        /* Maintain the cache...
-         * 
-         * The service should subscribe to the proper events in order to maintain the cache content
-         * consistent with what is in the database, accross all LB servers. So there is no need to
-         * tell the service that a content has changed, etc. However,
-         * 
-         * - the service may defer or buffer or queue some actions such as writing data to disk,
-         *   and it should then be up to the service to ensure that these actions are eventually
-         *   executed - however some implementations eg the legacy Xml cache may not be able to
-         *   do so in a proper way, or we may want to ensure that these actions are synchronously
-         *   executed at some point - so services have to provide a Flush() method which will be
-         *   called by UmbracoModule at the end of each request - what that method does exactly
-         *   is not specified
-         * 
-         * - the service may need to be resetted - (not working on that one yet)
-         *
-         */
-
-        /// <summary>
-        /// Signals the service that it should flush.
-        /// </summary>
-        /// <remarks>What this means exactly depends on the cache implementation.</remarks>
-        void Flush();
     }
 }

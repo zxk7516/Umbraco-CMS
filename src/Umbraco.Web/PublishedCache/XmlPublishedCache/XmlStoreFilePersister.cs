@@ -1,11 +1,6 @@
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
-using umbraco;
-using Umbraco.Core;
 using Umbraco.Core.Logging;
 using Umbraco.Web.Scheduling;
 
@@ -20,12 +15,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     /// if multiple threads are performing publishing tasks that the file will be persisted in accordance with the final resulting
     /// xml structure since the file writes are queued.
     /// </remarks>
-    internal class XmlCacheFilePersister : ILatchedBackgroundTask
+    internal class XmlStoreFilePersister : ILatchedBackgroundTask
     {
-        private readonly IBackgroundTaskRunner<XmlCacheFilePersister> _runner;
-        private readonly string _xmlFileName;
+        private readonly IBackgroundTaskRunner<XmlStoreFilePersister> _runner;
         private readonly ProfilingLogger _logger;
-        private readonly content _content;
+        private readonly XmlStore _store;
         private readonly ManualResetEventSlim _latch = new ManualResetEventSlim(false);
         private readonly object _locko = new object();
         private bool _released;
@@ -38,46 +32,45 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // save the cache when the app goes down
         public bool RunsOnShutdown { get { return true; } }
 
-        public XmlCacheFilePersister(IBackgroundTaskRunner<XmlCacheFilePersister> runner, content content, string xmlFileName, ProfilingLogger logger, bool touched = false)
+        public XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ProfilingLogger logger, bool touched = false)
         {
             _runner = runner;
-            _content = content;
-            _xmlFileName = xmlFileName;
+            _store = store;
             _logger = logger;
 
             if (touched == false) return;
 
-            LogHelper.Debug<XmlCacheFilePersister>("Create new touched, start.");
+            LogHelper.Debug<XmlStoreFilePersister>("Create new touched, start.");
 
             _initialTouch = DateTime.Now;
             _timer = new Timer(_ => Release());
 
-            LogHelper.Debug<XmlCacheFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+            LogHelper.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
             _timer.Change(WaitMilliseconds, 0);
         }
 
-        public XmlCacheFilePersister Touch()
+        public XmlStoreFilePersister Touch()
         {
             lock (_locko)
             {
                 if (_released)
                 {
-                    LogHelper.Debug<XmlCacheFilePersister>("Touched, was released, create new.");
+                    LogHelper.Debug<XmlStoreFilePersister>("Touched, was released, create new.");
 
                     // released, has run or is running, too late, add & return a new task
-                    var persister = new XmlCacheFilePersister(_runner, _content, _xmlFileName, _logger, true);
+                    var persister = new XmlStoreFilePersister(_runner, _store, _logger, true);
                     _runner.Add(persister);
                     return persister;
                 }
 
                 if (_timer == null)
                 {
-                    LogHelper.Debug<XmlCacheFilePersister>("Touched, was idle, start.");
+                    LogHelper.Debug<XmlStoreFilePersister>("Touched, was idle, start.");
 
                     // not started yet, start
                     _initialTouch = DateTime.Now;
                     _timer = new Timer(_ => Release());
-                    LogHelper.Debug<XmlCacheFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+                    LogHelper.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
                     _timer.Change(WaitMilliseconds, 0);
                     return this;
                 }
@@ -87,13 +80,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 if (DateTime.Now - _initialTouch < TimeSpan.FromMilliseconds(MaxWaitMilliseconds))
                 {
-                    LogHelper.Debug<XmlCacheFilePersister>("Touched, was waiting, wait.", () => WaitMilliseconds);
-                    LogHelper.Debug<XmlCacheFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+                    LogHelper.Debug<XmlStoreFilePersister>("Touched, was waiting, wait.", () => WaitMilliseconds);
+                    LogHelper.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
                     _timer.Change(WaitMilliseconds, 0);
                 }
                 else
                 {
-                    LogHelper.Debug<XmlCacheFilePersister>("Save now, release.");
+                    LogHelper.Debug<XmlStoreFilePersister>("Save now, release.");
                     ReleaseLocked();
                 }
 
@@ -111,7 +104,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private void ReleaseLocked()
         {
-            LogHelper.Debug<XmlCacheFilePersister>("Timer: save now, release.");
+            LogHelper.Debug<XmlStoreFilePersister>("Timer: save now, release.");
             if (_timer != null)
                 _timer.Dispose();
             _timer = null;
@@ -131,63 +124,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public async Task RunAsync(CancellationToken token)
         {
-            LogHelper.Debug<XmlCacheFilePersister>("Run now.");
-            var doc = _content.XmlContentInternal;
-            await PersistXmlToFileAsync(doc);
+            LogHelper.Debug<XmlStoreFilePersister>("Run now.");
+            await _store.SaveXmlToFileAsync();
         }
 
         public bool IsAsync
         {
             get { return true; }
-        }
-
-        /// <summary>
-        /// Persist a XmlDocument to the Disk Cache
-        /// </summary>
-        /// <param name="xmlDoc"></param>
-        internal async Task PersistXmlToFileAsync(XmlDocument xmlDoc)
-        {
-            if (xmlDoc != null)
-            {
-                using (_logger.DebugDuration<XmlCacheFilePersister>(
-                    string.Format("Saving content to disk on thread '{0}' (Threadpool? {1})", Thread.CurrentThread.Name, Thread.CurrentThread.IsThreadPoolThread),
-                    string.Format("Saved content to disk on thread '{0}' (Threadpool? {1})", Thread.CurrentThread.Name, Thread.CurrentThread.IsThreadPoolThread)))
-                {
-                    try
-                    {
-                        // Try to create directory for cache path if it doesn't yet exist
-                        var directoryName = Path.GetDirectoryName(_xmlFileName);
-                        // create dir if it is not there, if it's there, this will proceed as normal
-                        Directory.CreateDirectory(directoryName);
-
-                        await xmlDoc.SaveAsync(_xmlFileName);
-                    }
-                    catch (Exception ee)
-                    {
-                        // If for whatever reason something goes wrong here, invalidate disk cache
-                        DeleteXmlCache();
-
-                        LogHelper.Error<XmlCacheFilePersister>("Error saving content to disk", ee);
-                    }
-                }
-
-                
-            }
-        }
-
-        private void DeleteXmlCache()
-        {
-            if (File.Exists(_xmlFileName) == false) return;
-
-            // Reset file attributes, to make sure we can delete file
-            try
-            {
-                File.SetAttributes(_xmlFileName, FileAttributes.Normal);
-            }
-            finally
-            {
-                File.Delete(_xmlFileName);
-            }
         }
 
         public void Dispose()

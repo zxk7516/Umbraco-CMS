@@ -18,9 +18,11 @@ using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
+using Umbraco.Core.Profiling;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
+using Umbraco.Web.Scheduling;
 using ContentChangeTypes = Umbraco.Core.Services.ContentService.ChangeEventArgs.ChangeTypes;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
@@ -38,6 +40,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private Func<IContent, XElement> _xmlContentSerializer;
         private Func<IMember, XElement> _xmlMemberSerializer;
         private Func<IMedia, XElement> _xmlMediaSerializer;
+        private XmlStoreFilePersister _persisterTask;
+        private BackgroundTaskRunner<XmlStoreFilePersister> _filePersisterRunner;
 
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _svcs;
@@ -57,6 +61,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _routesCache = routesCache;
 
             InitializeSerializers();
+            InitializeFilePersister();
 
             // need to wait for resolution to be frozen
             if (Resolution.IsFrozen)
@@ -71,6 +76,22 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xmlContentSerializer = c => exs.Serialize(_svcs.ContentService, _svcs.DataTypeService, _svcs.UserService, c);
             _xmlMemberSerializer = m => exs.Serialize(_svcs.DataTypeService, m);
             _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
+        }
+
+        private void InitializeFilePersister()
+        {
+            if (SyncToXmlFile == false) return;
+
+            _filePersisterRunner = new BackgroundTaskRunner<XmlStoreFilePersister>(new BackgroundTaskRunnerOptions
+            {
+                LongRunning = true,
+                KeepAlive = true
+            });
+
+            _persisterTask = new XmlStoreFilePersister(_filePersisterRunner, this,
+                new ProfilingLogger(LoggerResolver.Current.Logger, ProfilerResolver.Current.Profiler));
+
+            _filePersisterRunner.Add(_persisterTask);
         }
 
         private void InitializeEventsAndContent()
@@ -146,7 +167,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private void InitializeContent()
         {
             // and populate the cache
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 bool registerXmlChange;
                 _xml = LoadXmlLocked(out registerXmlChange);
@@ -274,7 +295,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private readonly XmlDocument _xmlDocument; // supplied xml document (for tests)
         private volatile XmlDocument _xml; // master xml document
-        private static readonly object XmlLock = new object(); // protects _xml
+        private readonly object _xmlLock = new object(); // protects _xml
         private DateTime _lastXmlChange; // last time Xml was reported as changed
 
         // XmlLock is to be used to ensure that only 1 thread at a time is editing
@@ -528,7 +549,7 @@ AND (umbracoNode.id=@id)";
 
         #region File
 
-        private static readonly object XmlFileLock = new object(); // protects the file
+        private readonly AsyncLock _xmlFileLock = new AsyncLock(); // protects the file
         private readonly string _xmlFileName = IOHelper.MapPath(SystemFiles.ContentCacheXml);
         private DateTime _lastFileRead; // last time the file was read
         private DateTime _nextFileCheck; // last time we checked whether the file was changed
@@ -568,16 +589,19 @@ AND (umbracoNode.id=@id)";
             if (syncNow)
             {
                 // make sure we save an immutable xml document
+                // fixme - or lock the file?
                 SaveXmlToFile(XmlIsImmutable ? _xml : Clone(_xml));
                 return;
             }
 
             _lastXmlChange = DateTime.UtcNow;
+            _persisterTask.Touch(); // _persisterTask != null because SyncToXmlFile == true
         }
 
-        // internal - used by content.PersistXmlToFile()
         internal void SaveXmlToFile()
         {
+            // make sure we save an immutable xml document
+            // fixme - or lock the file?
             SaveXmlToFile(XmlIsImmutable ? _xml : Clone(_xml));
         }
 
@@ -585,7 +609,7 @@ AND (umbracoNode.id=@id)";
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
 
-            lock (XmlFileLock)
+            using (_xmlFileLock.Lock())
             {
                 try
                 {
@@ -614,11 +638,48 @@ AND (umbracoNode.id=@id)";
             }
         }
 
+        internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
+        {
+            LogHelper.Info<XmlStore>("Save Xml to file...");
+
+            // make sure we save an immutable xml document
+            // fixme - unless we lock all access to XMl while we save?
+            var xml = XmlIsImmutable ? _xml : Clone(_xml);
+
+            using (await _xmlFileLock.LockAsync())
+            { 
+                try
+                {
+                    // delete existing file, if any
+                    DeleteXmlFileLocked();
+
+                    // ensure cache directory exists
+                    var directoryName = Path.GetDirectoryName(_xmlFileName);
+                    if (directoryName == null)
+                        throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
+                    if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                        Directory.CreateDirectory(directoryName);
+
+                    // save
+                    await xml.SaveAsync(_xmlFileName);
+
+                    LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                }
+                catch (Exception e)
+                {
+                    // if something goes wrong remove the file
+                    DeleteXmlFileLocked();
+
+                    LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
+                }
+            }
+        }
+
         private XmlDocument LoadXmlFromFile()
         {
             LogHelper.Info<XmlStore>("Load Xml from file...");
             var xml = new XmlDocument();
-            lock (XmlFileLock)
+            lock (_xmlFileLock)
             {
                 try
                 {
@@ -652,15 +713,6 @@ AND (umbracoNode.id=@id)";
             System.IO.File.Delete(_xmlFileName);
         }
 
-        // internal - used by PublishedCachesService
-        internal void Flush()
-        {
-            if (_lastXmlChange <= XmlFileLastWriteTime) return;
-
-            // make sure we save an immutable xml document
-            SaveXmlToFile(XmlIsImmutable ? _xml : Clone(_xml));
-        }
-
         private void ReloadXmlFromFileIfChanged()
         {
             if (SyncFromXmlFile == false) return;
@@ -675,7 +727,7 @@ AND (umbracoNode.id=@id)";
             LogHelper.Debug<XmlStore>("Xml file change detected, reloading.");
 
             // time to read
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 // set _xml and not Xml because we don't want to trigger a file write
                 // if content has just been loaded from the file - only if loading from database.
@@ -879,7 +931,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         {
             // event - cancel
 
-            lock (XmlLock) // nobody should work on the Xml while we load
+            lock (_xmlLock) // nobody should work on the Xml while we load
             {
                 // setting Xml registers an Xml change
                 XmlInternal = LoadXmlFromDatabase();
@@ -1122,7 +1174,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // lock the xml cache so no other thread can write to it at the same time
             // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 SafeExecute(xml => Refresh(xml, c));
                 ResyncCurrentPublishedCaches();
@@ -1142,7 +1194,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // lock the xml cache so no other thread can write to it at the same time
             // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 SafeExecute(xml => Refresh(xml, content));
                 ResyncCurrentPublishedCaches();
@@ -1153,7 +1205,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         {
             // lock the xml cache so no other thread can write to it at the same time
             // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 SafeExecute(xml =>
                 {
@@ -1244,7 +1296,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // lock the xml cache so no other thread can write to it at the same time
             // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
+            lock (_xmlLock)
             {
                 SafeExecute(xml =>
                 {

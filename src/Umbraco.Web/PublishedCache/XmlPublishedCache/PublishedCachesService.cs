@@ -86,12 +86,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             previewContent.ClearPreviewSet();
         }
 
-        public override void Flush()
-        {
-            XmlStore.Flush();
-            base.Flush();
-        }
-
         public bool VerifyContentAndPreviewXml()
         {
             return XmlStore.VerifyContentAndPreviewXml();
