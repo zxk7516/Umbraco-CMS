@@ -1,16 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Globalization;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Net.Http.Headers;
 using System.Text;
-using System.Xml.Linq;
-using Umbraco.Core.Configuration;
-using Umbraco.Core.Dynamics;
-using Umbraco.Core.Events;
-using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
@@ -23,7 +15,6 @@ using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
-using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Persistence.Repositories
 {
@@ -241,7 +232,7 @@ namespace Umbraco.Core.Persistence.Repositories
         protected override void PersistDeletedItem(IContent entity)
         {
             // raise event first else potential FK issues
-            OnRemovedEntity(new EntityChangeEventArgs(this.UnitOfWork, entity));
+            OnRemovedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 
             //We need to clear out all access rules but we need to do this in a manual way since 
             // nothing in that table is joined to a content id
@@ -272,18 +263,21 @@ namespace Umbraco.Core.Persistence.Repositories
 
             //NOTE Should the logic below have some kind of fallback for empty parent ids ?
             //Logic for setting Path, Level and SortOrder
-            var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { ParentId = entity.ParentId });
-            int level = parent.Level + 1;
-            int sortOrder =
+            var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { /*ParentId =*/ entity.ParentId });
+            var level = parent.Level + 1;
+            var sortOrder =
                 Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoNode WHERE parentID = @ParentId AND nodeObjectType = @NodeObjectType",
-                                                      new { ParentId = entity.ParentId, NodeObjectType = NodeObjectTypeId });
+                                                      new { /*ParentId =*/ entity.ParentId, NodeObjectType = NodeObjectTypeId });
 
             //Create the (base) node data - umbracoNode
             var nodeDto = dto.ContentVersionDto.ContentDto.NodeDto;
             nodeDto.Path = parent.Path;
             nodeDto.Level = short.Parse(level.ToString(CultureInfo.InvariantCulture));
             nodeDto.SortOrder = sortOrder;
-            var o = Database.IsNew(nodeDto) ? Convert.ToInt32(Database.Insert(nodeDto)) : Database.Update(nodeDto);
+            if (Database.IsNew(nodeDto))
+                Database.Insert(nodeDto);
+            else
+                Database.Update(nodeDto);
 
             //Update with new correct path
             nodeDto.Path = string.Concat(parent.Path, ",", nodeDto.NodeId);
@@ -404,7 +398,7 @@ namespace Umbraco.Core.Persistence.Repositories
             //Look up parent to get and set the correct Path and update SortOrder if ParentId has changed
             if (entity.IsPropertyDirty("ParentId"))
             {
-                var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { ParentId = entity.ParentId });
+                var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { /*ParentId =*/ entity.ParentId });
                 entity.Path = string.Concat(parent.Path, ",", entity.Id);
                 entity.Level = parent.Level + 1;
                 entity.SortOrder = NextChildSortOrder(entity.ParentId);
@@ -416,13 +410,13 @@ namespace Umbraco.Core.Persistence.Repositories
 
             var factory = new ContentFactory(NodeObjectTypeId, entity.Id);
             //Look up Content entry to get Primary for updating the DTO
-            var contentDto = Database.SingleOrDefault<ContentDto>("WHERE nodeId = @Id", new { Id = entity.Id });
+            var contentDto = Database.SingleOrDefault<ContentDto>("WHERE nodeId = @Id", new { /*Id =*/ entity.Id });
             factory.SetPrimaryKey(contentDto.PrimaryKey);
             var dto = factory.BuildDto(entity);
 
             //Updates the (base) node data - umbracoNode
             var nodeDto = dto.ContentVersionDto.ContentDto.NodeDto;
-            var o = Database.Update(nodeDto);
+            Database.Update(nodeDto);
 
             //Only update this DTO if the contentType has actually changed
             if (contentDto.ContentTypeId != entity.ContentTypeId)
@@ -447,7 +441,7 @@ namespace Umbraco.Core.Persistence.Repositories
             }
 
             //Look up (newest) entries by id in cmsDocument table to set newest = false
-            var documentDtos = Database.Fetch<DocumentDto>("WHERE nodeId = @Id AND newest = @IsNewest", new { Id = entity.Id, IsNewest = true });
+            var documentDtos = Database.Fetch<DocumentDto>("WHERE nodeId = @Id AND newest = @IsNewest", new { /*Id =*/ entity.Id, IsNewest = true });
             foreach (var documentDto in documentDtos)
             {
                 var docDto = documentDto;
@@ -468,7 +462,7 @@ namespace Umbraco.Core.Persistence.Repositories
             else
             {
                 //In order to update the ContentVersion we need to retrieve its primary key id
-                var contentVerDto = Database.SingleOrDefault<ContentVersionDto>("WHERE VersionId = @Version", new { Version = entity.Version });
+                var contentVerDto = Database.SingleOrDefault<ContentVersionDto>("WHERE VersionId = @Version", new { /*Version =*/ entity.Version });
                 contentVersionDto.Id = contentVerDto.Id;
 
                 Database.Update(contentVersionDto);
@@ -505,7 +499,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 }
             }
 
-            // fixme - that state thing is bogus, can be unpublished and have a published version?
+            //TODO: code below does NOT clear tags for masked content - is that OK?
 
             //lastly, check if we are a newly published version and then update the tags table
             if (publishedStateChanged && entity.Published)
@@ -577,15 +571,16 @@ namespace Umbraco.Core.Persistence.Repositories
             //NOTE: This doesn't allow properties to be part of the query
             var dtos = Database.Fetch<DocumentDto, ContentVersionDto, ContentDto, NodeDto, DocumentPublishedReadOnlyDto>(sql);
 
-            foreach (var dto in dtos)
+            return dtos.Select(dto =>
             {
                 // check cache first, if it exists and is published, use it
                 // it may exist and not be published as the cache has 'latest version used'
                 var fromCache = RepositoryCache.RuntimeCache.GetCacheItem<IContent>(GetCacheIdKey<IContent>(dto.NodeId));
-                yield return fromCache != null && fromCache.Published
+
+                return fromCache != null && fromCache.Published
                     ? fromCache
                     : CreateContentFromDto(dto, dto.VersionId, sql);
-            }
+            });
         }
 
         public int CountPublished()
@@ -766,6 +761,7 @@ WHERE (@path LIKE {5})",
             var templates = _templateRepository.GetAll(
                 dtos
                     .Where(dto => dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
+                    // ReSharper disable once PossibleInvalidOperationException
                     .Select(x => x.TemplateId.Value).ToArray())
                 .ToArray();
 
@@ -796,7 +792,7 @@ WHERE (@path LIKE {5})",
         /// <summary>
         /// Private method to create a content object from a DocumentDto, which is used by Get and GetByVersion.
         /// </summary>
-        /// <param name="d"></param>
+        /// <param name="dto"></param>
         /// <param name="contentType"></param>
         /// <param name="template"></param>
         /// <param name="propCollection"></param>
@@ -826,7 +822,7 @@ WHERE (@path LIKE {5})",
         /// <summary>
         /// Private method to create a content object from a DocumentDto, which is used by Get and GetByVersion.
         /// </summary>
-        /// <param name="d"></param>
+        /// <param name="dto"></param>
         /// <param name="versionId"></param>
         /// <param name="docSql"></param>
         /// <returns></returns>

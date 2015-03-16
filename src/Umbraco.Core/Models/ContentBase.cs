@@ -118,6 +118,12 @@ namespace Umbraco.Core.Models
             }
         }
 
+        internal protected void SetLazyParentId(Lazy<int> parentId)
+        {
+            _parentId = parentId;
+            OnPropertyChanged(ParentIdSelector);
+        }
+
         /// <summary>
         /// Gets or sets the name of the entity
         /// </summary>

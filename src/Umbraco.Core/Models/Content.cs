@@ -486,6 +486,8 @@ namespace Umbraco.Core.Models
                 property.Version = clone.Version;
             }
 
+            clone.PublishedVersionGuid = Guid.Empty;
+
             return clone;
         }
 

@@ -36,16 +36,22 @@ namespace Umbraco.Core
             return _releaser;
         }
 
-        public struct Releaser : IDisposable
+        // note - before making that class a struct, read 
+        // about "impure methods" and mutating readonly structs...
+
+        public class Releaser : IDisposable
         {
-            private readonly AsyncLock _mToRelease;
+            private AsyncLock _mToRelease;
 
             internal Releaser(AsyncLock toRelease) { _mToRelease = toRelease; }
 
             public void Dispose()
             {
-                if (_mToRelease != null)
-                    _mToRelease._semaphore.Release();
+                if (_mToRelease == null)
+                    return;
+
+                _mToRelease._semaphore.Release();
+                _mToRelease = null;
             }
         }
     }

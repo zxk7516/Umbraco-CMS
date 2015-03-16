@@ -23,5 +23,10 @@ namespace Umbraco.Core
         {
             return (change & types) != ContentService.ChangeEventTypes.None;
         }
+
+        public static bool HasTypesNone(this ContentService.ChangeEventTypes change, ContentService.ChangeEventTypes types)
+        {
+            return (change & types) == ContentService.ChangeEventTypes.None;
+        }
     }
 }

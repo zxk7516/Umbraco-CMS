@@ -8,7 +8,6 @@ using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
-using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
 
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
@@ -773,6 +772,80 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
+        /// Saves a single <see cref="IContent"/> object
+        /// </summary>
+        /// <param name="content">The <see cref="IContent"/> to save</param>
+        /// <param name="userId">Optional Id of the User saving the Content</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
+        public void Save(IContent content, int userId = 0, bool raiseEvents = true)
+        {
+            Save(content, true, userId, raiseEvents);
+        }
+
+        /// <summary>
+        /// Saves a collection of <see cref="IContent"/> objects.
+        /// </summary>
+        /// <remarks>
+        /// If the collection of content contains new objects that references eachother by Id or ParentId,
+        /// then use the overload Save method with a collection of Lazy <see cref="IContent"/>.
+        /// </remarks>
+        /// <param name="contents">Collection of <see cref="IContent"/> to save</param>
+        /// <param name="userId">Optional Id of the User saving the Content</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
+        public void Save(IEnumerable<IContent> contents, int userId = 0, bool raiseEvents = true)
+        {
+            var contentsA = contents.ToArray();
+
+            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(contentsA), this))
+                return;
+
+            using (ChangeSet.WithAmbient)
+            using (new WriteLock(Locker))
+            {
+                var uow = UowProvider.GetUnitOfWork();
+                using (var repository = RepositoryFactory.CreateContentRepository(uow))
+                {
+                    foreach (var content in contentsA)
+                    {
+                        if (content.HasIdentity == false)
+                            content.CreatorId = userId;
+                        content.WriterId = userId;
+
+                        // saving the Published version => indicate we are .Saving
+                        // saving the Unpublished version => remains .Unpublished
+                        if (content.Published)
+                            content.ChangePublishedState(PublishedState.Saving);
+
+                        repository.AddOrUpdate(content);
+                    }
+
+                    uow.Commit();
+                }
+
+                if (raiseEvents)
+                    Saved.RaiseEvent(new SaveEventArgs<IContent>(contentsA, false), this);
+
+                Changed.RaiseEvent(new ChangeEventArgs(contentsA.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode))), this);
+
+                Audit(AuditType.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
+            }
+        }
+
+        /// <summary>
+        /// Saves and Publishes a single <see cref="IContent"/> object
+        /// </summary>
+        /// <param name="content">The <see cref="IContent"/> to save and publish</param>
+        /// <param name="userId">Optional Id of the User issueing the publishing</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise save events.</param>
+        /// <returns>True if publishing succeeded, otherwise False</returns>
+        [Obsolete("Use SaveAndPublishWithStatus instead, that method will provide more detailed information on the outcome")]
+        public bool SaveAndPublish(IContent content, int userId = 0, bool raiseEvents = true)
+        {
+            var result = SaveAndPublishDo(content, userId, raiseEvents);
+            return result.Success;
+        }
+
+        /// <summary>
         /// Publishes a single <see cref="IContent"/> object
         /// </summary>
         /// <param name="content">The <see cref="IContent"/> to publish</param>
@@ -783,6 +856,29 @@ namespace Umbraco.Core.Services
             var result = SaveAndPublishDo(content, userId);
             Logger.Info<ContentService>("Call was made to ContentService.Publish, use PublishWithStatus instead since that method will provide more detailed information on the outcome");
             return result.Success;
+        }
+
+        /// <summary>
+        /// Unpublishes a single <see cref="IContent"/> object.
+        /// </summary>
+        /// <param name="content">The <see cref="IContent"/> to publish.</param>
+        /// <param name="userId">Optional unique identifier of the User issueing the unpublishing.</param>
+        /// <returns>True if unpublishing succeeded, otherwise False.</returns>
+        public bool UnPublish(IContent content, int userId = 0)
+        {
+            return UnPublishDo(content, userId);
+        }
+
+        /// <summary>
+        /// Saves and Publishes a single <see cref="IContent"/> object
+        /// </summary>
+        /// <param name="content">The <see cref="IContent"/> to save and publish</param>
+        /// <param name="userId">Optional Id of the User issueing the publishing</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise save events.</param>
+        /// <returns>True if publishing succeeded, otherwise False</returns>
+        public Attempt<PublishStatus> SaveAndPublishWithStatus(IContent content, int userId = 0, bool raiseEvents = true)
+        {
+            return SaveAndPublishDo(content, userId, raiseEvents);
         }
 
         /// <summary>
@@ -828,103 +924,6 @@ namespace Umbraco.Core.Services
         public IEnumerable<Attempt<PublishStatus>> PublishWithChildrenWithStatus(IContent content, int userId = 0, bool includeUnpublished = false)
         {
             return PublishWithChildrenDo(content, userId, includeUnpublished);
-        }
-
-        /// <summary>
-        /// Unpublishes a single <see cref="IContent"/> object.
-        /// </summary>
-        /// <param name="content">The <see cref="IContent"/> to publish.</param>
-        /// <param name="userId">Optional unique identifier of the User issueing the unpublishing.</param>
-        /// <returns>True if unpublishing succeeded, otherwise False.</returns>
-        public bool UnPublish(IContent content, int userId = 0)
-        {
-            return UnPublishDo(content, userId);
-        }
-
-        /// <summary>
-        /// Saves and Publishes a single <see cref="IContent"/> object
-        /// </summary>
-        /// <param name="content">The <see cref="IContent"/> to save and publish</param>
-        /// <param name="userId">Optional Id of the User issueing the publishing</param>
-        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise save events.</param>
-        /// <returns>True if publishing succeeded, otherwise False</returns>
-        [Obsolete("Use SaveAndPublishWithStatus instead, that method will provide more detailed information on the outcome")]
-        public bool SaveAndPublish(IContent content, int userId = 0, bool raiseEvents = true)
-        {
-            var result = SaveAndPublishDo(content, userId, raiseEvents);
-            return result.Success;
-        }
-
-        /// <summary>
-        /// Saves and Publishes a single <see cref="IContent"/> object
-        /// </summary>
-        /// <param name="content">The <see cref="IContent"/> to save and publish</param>
-        /// <param name="userId">Optional Id of the User issueing the publishing</param>
-        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise save events.</param>
-        /// <returns>True if publishing succeeded, otherwise False</returns>
-        public Attempt<PublishStatus> SaveAndPublishWithStatus(IContent content, int userId = 0, bool raiseEvents = true)
-        {
-            return SaveAndPublishDo(content, userId, raiseEvents);
-        }
-
-        /// <summary>
-        /// Saves a single <see cref="IContent"/> object
-        /// </summary>
-        /// <param name="content">The <see cref="IContent"/> to save</param>
-        /// <param name="userId">Optional Id of the User saving the Content</param>
-        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
-        public void Save(IContent content, int userId = 0, bool raiseEvents = true)
-        {
-            Save(content, true, userId, raiseEvents);
-        }
-
-        /// <summary>
-        /// Saves a collection of <see cref="IContent"/> objects.
-        /// </summary>
-        /// <remarks>
-        /// If the collection of content contains new objects that references eachother by Id or ParentId,
-        /// then use the overload Save method with a collection of Lazy <see cref="IContent"/>.
-        /// </remarks>
-        /// <param name="contents">Collection of <see cref="IContent"/> to save</param>
-        /// <param name="userId">Optional Id of the User saving the Content</param>
-        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
-        public void Save(IEnumerable<IContent> contents, int userId = 0, bool raiseEvents = true)
-        {
-            var asArray = contents.ToArray();
-
-            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(asArray), this))
-                return;
-
-            using (ChangeSet.WithAmbient)
-            using (new WriteLock(Locker))
-            {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateContentRepository(uow))
-                {
-                    foreach (var content in asArray)
-                    {
-                        if (content.HasIdentity == false)
-                            content.CreatorId = userId;
-                        content.WriterId = userId;
-
-                        // saving the Published version => indicate we are .Saving
-                        // saving the Unpublished version => remains .Unpublished
-                        if (content.Published)
-                            content.ChangePublishedState(PublishedState.Saving);
-
-                        repository.AddOrUpdate(content);
-                    }
-
-                    uow.Commit();
-                }
-
-                if (raiseEvents)
-                    Saved.RaiseEvent(new SaveEventArgs<IContent>(asArray, false), this);
-
-                Changed.RaiseEvent(new ChangeEventArgs(asArray.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode))), this);
-
-                Audit(AuditType.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
-            }
         }
 
         #region Delete
@@ -979,7 +978,7 @@ namespace Umbraco.Core.Services
 
                         // delete content
                         // triggers the deleted event (and handles the files)
-                        DeleteLocked(content, userId, repository);
+                        DeleteLocked(content, repository);
                         changes.Add(new ChangeEventArgs.Change(content, ChangeEventTypes.Remove));
                     }
 
@@ -1025,7 +1024,7 @@ namespace Umbraco.Core.Services
                     if (content.Trashed == false && content.HasPublishedVersion)
                         UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
 
-                    DeleteLocked(content, 0, repository);
+                    DeleteLocked(content, repository);
                     uow.Commit();
                 }
 
@@ -1034,7 +1033,7 @@ namespace Umbraco.Core.Services
             }
         }
 
-        private void DeleteLocked(IContent content, int userId, IContentRepository repository)
+        private void DeleteLocked(IContent content, IContentRepository repository)
         {
             // then recursively delete descendants, bottom-up
             // just repository.Delete + an event
@@ -1062,6 +1061,12 @@ namespace Umbraco.Core.Services
             }
         }
 
+        //TODO:
+        // both DeleteVersions methods below have an issue. Sort of. They do NOT take care of files the way
+        // Delete does - for a good reason: the file may be referenced by other, non-deleted, versions. BUT,
+        // if that's not the case, then the file will never be deleted, because when we delete the content,
+        // the version referencing the file will not be there anymore. SO, we can leak files.
+
         /// <summary>
         /// Permanently deletes versions from an <see cref="IContent"/> object prior to a specific date.
         /// This method will never delete the latest version of a content item.
@@ -1082,7 +1087,7 @@ namespace Umbraco.Core.Services
             }
 
             DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, dateToRetain: versionDate), this);
-            // fixme - not handling the files?!
+
             Audit(AuditType.Delete, "Delete Content by version date performed by user", userId, Constants.System.Root);
         }
 
@@ -1098,7 +1103,7 @@ namespace Umbraco.Core.Services
         {
             using (new WriteLock(Locker))
             {
-                if (DeletingVersions.IsRaisedEventCancelled(new DeleteRevisionsEventArgs(id, specificVersion: versionId), this))
+                if (DeletingVersions.IsRaisedEventCancelled(new DeleteRevisionsEventArgs(id, /*specificVersion:*/ versionId), this))
                     return;
 
                 if (deletePriorVersions)
@@ -1114,8 +1119,8 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, specificVersion: versionId), this);
-                // fixme - not handling the files?!
+                DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, /*specificVersion:*/ versionId), this);
+
                 Audit(AuditType.Delete, "Delete Content by version performed by user", userId, Constants.System.Root);
             }
         }
@@ -1339,7 +1344,7 @@ namespace Umbraco.Core.Services
                     var contents = repository.GetByQuery(query).ToArray();
                     foreach (var content in contents)
                     {
-                        DeleteLocked(content, 0, repository);
+                        DeleteLocked(content, repository);
                         deleted.Add(content);
                     }
 
@@ -1366,16 +1371,13 @@ namespace Umbraco.Core.Services
         /// <returns>The newly created <see cref="IContent"/> object</returns>
         public IContent Copy(IContent content, int parentId, bool relateToOriginal, int userId = 0)
         {
-            //TODO: This all needs to be managed correctly so that the logic is submitted in one
-            // transaction, the CRUD needs to be moved to the repo
+            if (parentId == Constants.System.RecycleBinContent)
+                throw new InvalidOperationException("Cannot create a copy in trash.");
 
             using (new WriteLock(Locker))
             {
                 var copy = content.DeepCloneWithResetIdentities();
                 copy.ParentId = parentId;
-
-                // a copy is .Saving and will be .Unpublished
-                copy.ChangePublishedState(PublishedState.Saving);
 
                 if (Copying.IsRaisedEventCancelled(new CopyEventArgs<IContent>(content, copy, parentId), this))
                     return null;
@@ -1383,36 +1385,44 @@ namespace Umbraco.Core.Services
                 var uow = UowProvider.GetUnitOfWork();
                 using (var repository = RepositoryFactory.CreateContentRepository(uow))
                 {
-                    // Update the create author and last edit author
+                    // a copy is .Saving and will be .Unpublished
+                    if (copy.Published)
+                        copy.ChangePublishedState(PublishedState.Saving);
+
+                    // update the create author and last edit author
                     copy.CreatorId = userId;
                     copy.WriterId = userId;
+
+                    // save
                     repository.AddOrUpdate(copy);
-                    uow.Commit();
 
-
-                    //Special case for the associated tags
-                    //TODO: Move this to the repository layer in a single transaction!
-                    //don't copy tags data in tags table if the item is in the recycle bin
-                    if (parentId != Constants.System.RecycleBinContent)
+                    // process descendants
+                    var copyIds = new Dictionary<int, IContent>();
+                    copyIds[content.Id] = copy;
+                    foreach (var descendant in GetDescendants(content))
                     {
+                        var dcopy = descendant.DeepCloneWithResetIdentities();
+                        //dcopy.ParentId = copyIds[descendant.ParentId];
+                        var descendantParentId = descendant.ParentId;
+                        ((Content)dcopy).SetLazyParentId(new Lazy<int>(() => copyIds[descendantParentId].Id));
+                        if (dcopy.Published)
+                            dcopy.ChangePublishedState(PublishedState.Saving);
+                        dcopy.CreatorId = userId;
+                        dcopy.WriterId = userId;
+                        repository.AddOrUpdate(dcopy);
 
-                        var tags = uow.Database.Fetch<TagRelationshipDto>("WHERE nodeId = @Id", new { Id = content.Id });
-                        foreach (var tag in tags)
-                        {
-                            uow.Database.Insert(new TagRelationshipDto { NodeId = copy.Id, TagId = tag.TagId, PropertyTypeId = tag.PropertyTypeId });
-                        }
+                        copyIds[descendant.Id] = dcopy;
                     }
+
+                    // note: here was some code handling tags - which has been removed
+                    // - tags should be handled by the content repository
+                    // - a copy is unpublished and therefore has no impact on tags in DB
+
+                    // done
+                    uow.Commit();
                 }
 
-                //Look for children and copy those as well
-                var children = GetChildren(content.Id);
-                foreach (var child in children)
-                {
-                    //TODO: This shouldn't recurse back to this method, it should be done in a private method
-                    // that doesn't have a nested lock and so we can perform the entire operation in one commit.
-                    Copy(child, copy.Id, relateToOriginal, userId);
-                }
-
+                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(copy, ChangeEventTypes.RefreshBranch)), this);
                 Copied.RaiseEvent(new CopyEventArgs<IContent>(content, copy, false, parentId, relateToOriginal), this);
 
                 Audit(AuditType.Copy, "Copy Content performed by user", content.WriterId, content.Id);
@@ -1465,15 +1475,24 @@ namespace Umbraco.Core.Services
             var uow = UowProvider.GetUnitOfWork();
             using (var repository = RepositoryFactory.CreateContentRepository(uow))
             {
-                content.WriterId = userId;
                 content.CreatorId = userId;
+                //content.WriterId = userId;
+
+                // need to make sure that the repository is going to save a new version
+                // but if we're not changing anything, the repository would not save anything
+                // so - make sure the property IS dirty, doing a flip-flop with an impossible value
+                content.WriterId = -1;
+                content.WriterId = userId;
+
                 // a rolled back version is .Saving and will be .Unpublished
                 content.ChangePublishedState(PublishedState.Saving);
+
                 repository.AddOrUpdate(content);
                 uow.Commit();
             }
 
             RolledBack.RaiseEvent(new RollbackEventArgs<IContent>(content, false), this);
+            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshNode)), this);
 
             Audit(AuditType.RollBack, "Content rollback performed by user", content.WriterId, content.Id);
 
@@ -1497,7 +1516,12 @@ namespace Umbraco.Core.Services
             var itemsA = items.ToArray();
             if (itemsA.Length == 0) return true;
 
-            // fixme - bad - we're not going to save them all, so Saving without Saved... bad
+            //TODO:
+            // firing Saving for all the items, but we're not going to save those that are already
+            // correctly ordered, so we're not going to fire Saved for all the items, and that's not
+            // really consistent - but the only way to be consistent would be to first check which
+            // items we're going to save, then trigger the events... within the UOW transaction...
+            // which is not something we want to do, so what?
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(itemsA), this))
                 return false;
 
@@ -1528,6 +1552,8 @@ namespace Umbraco.Core.Services
                         // since we're not really publishing it and it cannot be cancelled etc
                         if (content.Published)
                             published.Add(content);
+                        else if (content.HasPublishedVersion)
+                            published.Add(GetByVersion(content.PublishedVersionGuid));
 
                         // save
                         saved.Add(content);
@@ -1541,8 +1567,7 @@ namespace Umbraco.Core.Services
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IContent>(saved, false), this);
 
-            // fixme - what about those that have a published version?
-            if (published.Any())
+            if (raiseEvents && published.Any())
                 Published.RaiseEvent(new PublishEventArgs<IContent>(published, false, false), this);
 
             var changes = new List<ChangeEventArgs.Change>();
@@ -1795,23 +1820,25 @@ namespace Umbraco.Core.Services
                 //if (status.Success) changeTypes |= ChangeEventTypes.RefreshPublished; // because status.Success
                 //changes.Add(new ChangeEventArgs.Change(content, changeTypes));
 
-                if (status.Success)
-                {
-                    Published.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
+                if (status.Success == false)
+                    return status;
 
-                    // if was not published and now is... descendants that were 'published' (but 
-                    // had an unpublished ancestor) are 're-published' ie not explicitely published
-                    // but back as 'published' nevertheless
-                    if (previouslyPublished == false && HasChildren(content.Id))
-                    {
-                        var descendants = GetPublishedDescendants(content).ToArray();
-                        Published.RaiseEvent(new PublishEventArgs<IContent>(descendants, false, false), this);
-                        //changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshPublished)));
-                    }
+                Published.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
+
+                // if was not published and now is... descendants that were 'published' (but 
+                // had an unpublished ancestor) are 're-published' ie not explicitely published
+                // but back as 'published' nevertheless
+                var cet = ChangeEventTypes.RefreshNode; // just that node, by default
+                if (previouslyPublished == false && HasChildren(content.Id))
+                {
+                    var descendants = GetPublishedDescendants(content).ToArray();
+                    Published.RaiseEvent(new PublishEventArgs<IContent>(descendants, false, false), this);
+                    //changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshPublished)));
+                    cet = ChangeEventTypes.RefreshBranch; // whole branch
                 }
 
                 // invalidate the branch
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch)), this);
+                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, cet)), this);
                 //Changed.RaiseEvent(new ChangeEventArgs(changes), this);
                 Audit(AuditType.Publish, "Save and Publish performed by user", userId, content.Id);
                 return status;

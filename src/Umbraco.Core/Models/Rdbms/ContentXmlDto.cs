@@ -17,5 +17,8 @@ namespace Umbraco.Core.Models.Rdbms
         [Column("xml")]
         [SpecialDbType(SpecialDbTypes.NTEXT)]
         public string Xml { get; set; }
+
+        [Column("rv")]
+        public long Rv { get; set; }
     }
 }
