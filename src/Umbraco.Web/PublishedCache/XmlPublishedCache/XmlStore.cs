@@ -1119,15 +1119,9 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         var currentRv = current == null ? -1 : int.Parse(current.Attributes["rv"].Value);
                         if (current == null || currentRv != currentDto.Rv)
                         {
-                            var refreshBranch = current == null || payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch);
-
-                            if (refreshBranch == false) // then current != null
-                            {
-                                // FIXME but we don't event have PATH in the XML 
-                                var xxx = current.Attributes["path"].Value;
-                                var yyy = currentDto.Path;
-                                if (xxx != yyy) refreshBranch = true; // moving implies branch refresh
-                            }
+                            var refreshBranch = current == null 
+                                || payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch)
+                                || current.Attributes["path"].Value != currentDto.Path;  // moving implies branch refresh
 
                             if (refreshBranch)
                             {
@@ -1469,17 +1463,19 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private static XmlNode ImportContent(XmlDocument xml, XmlDto dto)
         {
-            //var doc = new XmlDocument();
-            //doc.LoadXml(dto.Xml);
-            //var node = doc.DocumentElement;
             var node = xml.ReadNode(XmlReader.Create(new StringReader(dto.Xml)));
+
             if (node == null) throw new Exception("oops");
-            //var attr = doc.CreateAttribute("rv");
+            if (node.Attributes == null) throw new Exception("oops");
+            
             var attr = xml.CreateAttribute("rv");
             attr.Value = dto.Rv.ToString(CultureInfo.InvariantCulture);
-            if (node.Attributes == null) throw new Exception("oops");
             node.Attributes.Append(attr);
-            //return xml.ImportNode(node, true);
+
+            attr = xml.CreateAttribute("path");
+            attr.Value = dto.Path;
+            node.Attributes.Append(attr);
+
             return node;
         }
 
