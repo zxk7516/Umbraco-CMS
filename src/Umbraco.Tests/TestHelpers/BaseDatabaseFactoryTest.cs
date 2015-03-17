@@ -200,7 +200,7 @@ namespace Umbraco.Tests.TestHelpers
             {
                 var attr = this.GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
                 var cache = new NullCacheProvider();
-                var service = new PublishedCachesService(ApplicationContext.Services, cache, attr != null && attr.WithEvents);
+                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, attr != null && attr.WithEvents);
 
                 // initialize PublishedCacheService content with an Xml source
                 service.XmlStore.GetXmlDocument = () => 

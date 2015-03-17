@@ -44,7 +44,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private bool _withEvents;
 
         private readonly RoutesCache _routesCache;
-        private readonly ServiceContext _svcs;
+        private readonly ServiceContext _serviceContext;
+        private readonly DatabaseContext _databaseContext;
 
         #region Constructors
 
@@ -53,16 +54,16 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// </summary>
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
-        public XmlStore(ServiceContext svcs, RoutesCache routesCache)
-            : this(svcs, routesCache, false)
+        public XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache)
+            : this(serviceContext, databaseContext, routesCache, false)
         { }
 
         private void InitializeSerializers()
         {
             var exs = new EntityXmlSerializer();
-            _xmlContentSerializer = c => exs.Serialize(_svcs.ContentService, _svcs.DataTypeService, _svcs.UserService, c);
-            _xmlMemberSerializer = m => exs.Serialize(_svcs.DataTypeService, m);
-            _xmlMediaSerializer = m => exs.Serialize(_svcs.MediaService, _svcs.DataTypeService, _svcs.UserService, m);
+            _xmlContentSerializer = c => exs.Serialize(_serviceContext.ContentService, _serviceContext.DataTypeService, _serviceContext.UserService, c);
+            _xmlMemberSerializer = m => exs.Serialize(_serviceContext.DataTypeService, m);
+            _xmlMediaSerializer = m => exs.Serialize(_serviceContext.MediaService, _serviceContext.DataTypeService, _serviceContext.UserService, m);
         }
 
         private void InitializeFilePersister()
@@ -173,12 +174,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         // internal for unit tests
         // no file nor db, no config check
-        internal XmlStore(ServiceContext svcs, RoutesCache routesCache, bool testing)
+        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, bool testing)
         {
             if (testing == false)
                 EnsureConfigurationIsValid();
 
-            _svcs = svcs;
+            _serviceContext = serviceContext;
+            _databaseContext = databaseContext;
             _routesCache = routesCache;
 
             if (testing)
@@ -450,7 +452,7 @@ JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType
 AND (umbracoNode.id=@id)";
 
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(sql,
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Media),
@@ -475,7 +477,7 @@ JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType
 AND (umbracoNode.id=@id)";
 
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(sql,
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Member),
@@ -499,7 +501,7 @@ JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
 AND (umbracoNode.id=@id)";
 
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(sql,
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
@@ -537,7 +539,7 @@ AND (umbracoNode.id=@id)";
 
         public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
-            var content = _svcs.ContentService.GetById(contentId);
+            var content = _serviceContext.ContentService.GetById(contentId);
 
             var doc = (XmlDocument)Xml.Clone();
             if (content == null) return doc;
@@ -545,7 +547,7 @@ AND (umbracoNode.id=@id)";
             var sql = ReadCmsPreviewXmlSql1;
             if (includeSubs) sql += " OR umbracoNode.path LIKE concat(@path, ',%')";
             sql += ReadCmsPreviewXmlSql2;
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(sql, // fixme inject
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(sql,
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
@@ -891,7 +893,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             try
             {
                 // get xml
-                var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlSql,
+                var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadCmsContentXmlSql,
                     new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document) });
 
                 foreach (var xmlDto in xmlDtos)
@@ -950,7 +952,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 // we don't have to import them into a new XmlDocument
 
                 // Initialise the document ready for the final composition of content
-                InitializeXml(xmlDoc, _svcs.ContentTypeService.GetDtd());
+                InitializeXml(xmlDoc, _serviceContext.ContentTypeService.GetDtd());
 
                 // Start building the content tree recursively from the root (-1) node
                 PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
@@ -971,7 +973,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         private IEnumerable<XmlDto> LoadXmlBranchFromDatabaseLocked(XmlDocument xmlDoc, int id, string path)
         {
             // get xml
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadBranchCmsContentXmlSql,
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadBranchCmsContentXmlSql,
                 new
                 {
                     @nodeObjectType = new Guid(Constants.ObjectTypes.Document),
@@ -996,7 +998,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             var xmlDoc = new XmlDocument();
 
             // get xml
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadMoreCmsContentXmlSql,
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadMoreCmsContentXmlSql,
                 new { /*@nodeObjectType =*/ nodeObjectType });
 
             foreach (var xmlDto in xmlDtos)
@@ -1088,7 +1090,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         continue;
                     }
 
-                    var content = _svcs.ContentService.GetById(payload.Id);
+                    var content = _serviceContext.ContentService.GetById(payload.Id);
                     //var draft = content.Published ? null : content;
                     //var published = content.Published 
                     //    ? content 
@@ -1121,6 +1123,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                             if (refreshBranch == false) // then current != null
                             {
+                                // FIXME but we don't event have PATH in the XML 
                                 var xxx = current.Attributes["path"].Value;
                                 var yyy = currentDto.Path;
                                 if (xxx != yyy) refreshBranch = true; // moving implies branch refresh
@@ -1150,7 +1153,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                                     // dtos are ordered by sortOrder already
                                     var dto = dtos.Current;
                                     var p = safeXml.Xml.GetElementById(dto.ParentId.ToInvariantString());
-                                    if (p == null) continue;
+                                    if (p == null) continue; // takes care of out-of-sync & masked
                                     p.AppendChild(dto.XmlNode);
                                 }
                             }
@@ -1199,15 +1202,15 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
                 case MessageType.RefreshById:
                     var refreshedId = (int)args.MessageObject;
-                    contentType = _svcs.ContentTypeService.GetContentType(refreshedId);
+                    contentType = _serviceContext.ContentTypeService.GetContentType(refreshedId);
                     if (contentType != null) RefreshContentTypes(new[] { refreshedId });
                     else
                     {
-                        mediaType = _svcs.ContentTypeService.GetMediaType(refreshedId);
+                        mediaType = _serviceContext.ContentTypeService.GetMediaType(refreshedId);
                         if (mediaType != null) RefreshMediaTypes(new[] { refreshedId });
                         else
                         {
-                            memberType = _svcs.MemberTypeService.Get(refreshedId);
+                            memberType = _serviceContext.MemberTypeService.Get(refreshedId);
                             if (memberType != null) RefreshMemberTypes(new[] { refreshedId });
                         }
                     }
@@ -1294,7 +1297,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // oh and it should be an enum of content types (due to dependencies & such)
 
             // get xml
-            var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlForContentTypesSql,
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadCmsContentXmlForContentTypesSql,
                 new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document), /*@ids =*/ ids });
 
             // fixme - still, missing plenty of locks here
@@ -1593,7 +1596,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     // saving the non-published version, but there is a published version
                     // check whether we have changes that impact the published version (move...)
                     if (c.HasPublishedVersion && HasChangesImpactingAllVersions(c))
-                        pc = _svcs.ContentService.GetByVersion(c.PublishedVersionGuid);
+                        pc = _serviceContext.ContentService.GetByVersion(c.PublishedVersionGuid);
                 }
 
                 if (pc == null)
@@ -1744,7 +1747,7 @@ WHERE cmsContentXml.nodeId IN (
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            var svc = _svcs.ContentService as ContentService;
+            var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetContentRepository() as ContentRepository;
             if (repo == null) throw new Exception("oops");
@@ -1818,7 +1821,7 @@ WHERE cmsContentXml.nodeId IN (
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            var svc = _svcs.ContentService as ContentService;
+            var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetContentRepository() as ContentRepository;
             if (repo == null) throw new Exception("oops");
@@ -1896,7 +1899,7 @@ WHERE cmsPreviewXml.nodeId IN (
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
 
-            var svc = _svcs.MediaService as MediaService;
+            var svc = _serviceContext.MediaService as MediaService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetMediaRepository() as MediaRepository;
             if (repo == null) throw new Exception("oops");
@@ -1964,7 +1967,7 @@ WHERE cmsContentXml.nodeId IN (
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
             var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
-            var svc = _svcs.MemberService as MemberService;
+            var svc = _serviceContext.MemberService as MemberService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetMemberRepository() as MemberRepository;
             if (repo == null) throw new Exception("oops");
@@ -2034,7 +2037,7 @@ WHERE cmsContentXml.nodeId IN (
 
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
 
-            var svc = _svcs.ContentService as ContentService;
+            var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetContentRepository() as ContentRepository;
             if (repo == null) throw new Exception("oops");
@@ -2066,7 +2069,7 @@ AND cmsPreviewXml.nodeId IS NULL
 
             var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
 
-            var svc = _svcs.MediaService as MediaService;
+            var svc = _serviceContext.MediaService as MediaService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetMediaRepository() as MediaRepository;
             if (repo == null) throw new Exception("oops");
@@ -2089,7 +2092,7 @@ AND cmsContentXml.nodeId IS NULL
 
             var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
-            var svc = _svcs.MemberService as MemberService;
+            var svc = _serviceContext.MemberService as MemberService;
             if (svc == null) throw new Exception("oops");
             var repo = svc.GetMemberRepository() as MemberRepository;
             if (repo == null) throw new Exception("oops");
