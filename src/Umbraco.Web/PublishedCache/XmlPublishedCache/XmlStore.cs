@@ -1052,23 +1052,22 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         // it's the cache that subscribes to events and manages itself
         // except for requests for cache reset
 
-        public IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        public void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
+            draftChanged = publishedChanged = false;
+
             if (_withEvents == false)
-                return Enumerable.Empty<Dang>();
+                return;
 
             // process all changes on one xml clone
             using (var safeXml = GetSafeXmlWriter(false)) // not auto-commit
             {
-                var dangs = new List<Dang>();
-                var changed = false;
-
                 foreach (var payload in payloads)
                 {
                     if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
                     {
                         safeXml.Xml = LoadXmlTreeFromDatabase(); // fixme - locked? should we lock the DB?
-                        changed = true;
+                        publishedChanged = true;
                         continue;
                     }
 
@@ -1079,7 +1078,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         {
                             if (toRemove.ParentNode == null) throw new Exception("oops");
                             toRemove.ParentNode.RemoveChild(toRemove);
-                            changed = true;
+                            publishedChanged = true;
                         }
                         continue;
                     }
@@ -1099,12 +1098,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     //        : null);
 
                     var current = safeXml.Xml.GetElementById(payload.Id.ToInvariantString());
-
-                    var dang = new Dang(payload.Id);
-                    //dangs.Add(dang);
-                    //dang.DraftVersion = draft;
-                    //dang.DraftChanged = true; // can't tell - assume it's changed
-                    //dang.PublishedVersion = published;
 
                     // that query is yielding results so will not load what's not needed
                     var dtoQuery = LoadXmlBranchFromDatabaseLocked(safeXml.Xml, content.Id, content.Path);
@@ -1157,8 +1150,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                                 AddOrUpdateXmlNode(safeXml.Xml, currentDto.Id, currentDto.Level, currentDto.ParentId, currentDto.XmlNode);
                             }
 
-                            changed = true;
-                            dang.PublishedChanged = true;
+                            publishedChanged = true;
                         }
                     }
 
@@ -1169,17 +1161,14 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     // else remove
                     if (current.ParentNode == null) throw new Exception("oops");
                     current.ParentNode.RemoveChild(current);
-                    changed = true;
-                    dang.PublishedChanged = true;
+                    publishedChanged = true;
                 }
 
-                if (changed)
+                if (publishedChanged)
                 {
                     safeXml.Commit(); // not auto!
                     ResyncCurrentPublishedCaches();
                 }
-
-                return dangs;
             }
         }
 

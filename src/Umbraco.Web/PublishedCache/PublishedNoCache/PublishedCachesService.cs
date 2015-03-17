@@ -46,9 +46,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             // nothing
         }
 
-        public override IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        public override void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            throw new NotImplementedException();
+            draftChanged = publishedChanged = true;
         }
     }
 }

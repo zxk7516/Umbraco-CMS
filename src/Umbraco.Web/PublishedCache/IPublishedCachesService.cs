@@ -90,21 +90,12 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         void ExitPreview(string previewToken);
 
-        // fixme
-        IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads);
-    }
-
-    public class Dang
-    {
-        public Dang(int id)
-        {
-            Id = id;
-        }
-
-        public int Id { get; private set; }
-        public IContent PublishedVersion { get; set; }
-        public IContent DraftVersion { get; set; }
-        public bool PublishedChanged { get; set; }
-        public bool DraftChanged { get; set; }
+        /// <summary>
+        /// Notifies of content cache refresher changes.
+        /// </summary>
+        /// <param name="payloads">The changes.</param>
+        /// <param name="draftChanged">A value indicating whether draft contents have been changed in the cache.</param>
+        /// <param name="publishedChanged">A value indicating whether published contents have been changed in the cache.</param>
+        void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged);
     }
 }

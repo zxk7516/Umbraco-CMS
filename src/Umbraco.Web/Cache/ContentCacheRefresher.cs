@@ -100,10 +100,11 @@ namespace Umbraco.Web.Cache
         {
             var payloads = Deserialize(json);
             var svce = PublishedCachesServiceResolver.Current.Service;
-            var resA = svce.NotifyChanges(payloads).ToArray();
+            bool draftChanged, publishedChanged;
+            svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
 
             if (payloads.Any(x => x.Action.HasType(ChangeEventTypes.RefreshAll)) 
-                || resA.Any(x => x.PublishedChanged))
+                || publishedChanged)
             {
                 // from PageCacheRefresher - when a public version changes
                 ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();

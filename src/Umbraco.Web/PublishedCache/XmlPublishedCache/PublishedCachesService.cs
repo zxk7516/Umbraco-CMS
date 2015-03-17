@@ -112,9 +112,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             XmlStore.RebuildMemberXml();
         }
 
-        public override IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        public override void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            return _xmlStore.NotifyChanges(payloads);
+            _xmlStore.NotifyChanges(payloads, out draftChanged, out publishedChanged);
         }
     }
 }

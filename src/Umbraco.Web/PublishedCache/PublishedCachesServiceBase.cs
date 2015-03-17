@@ -35,7 +35,7 @@ namespace Umbraco.Web.PublishedCache
         public abstract string EnterPreview(IUser user, int contentId);
         public abstract void RefreshPreview(string previewToken, int contentId);
         public abstract void ExitPreview(string previewToken);
-        public abstract IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads);
+        public abstract void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged);
 
         public virtual void Dispose()
         { }
