@@ -768,14 +768,6 @@ AND (umbracoNode.id=@id)";
             return xml;
         }
 
-        //private void DeleteXmlFile()
-        //{
-        //    lock (XmlFileLock)
-        //    {
-        //        DeleteXmlFileLocked();
-        //    }
-        //}
-
         // assumes lock (XmlFileLock)
         private void DeleteXmlFileLocked()
         {
@@ -1186,111 +1178,14 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 }
 
                 if (changed)
+                {
                     safeXml.Commit(); // not auto!
+                    ResyncCurrentPublishedCaches();
+                }
 
                 return dangs;
             }
         }
-
-        /*
-        private void ContentCacheUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            if (args.MessageType != MessageType.RefreshByJson)
-                throw new NotSupportedException();
-
-            var payloads = ContentCacheRefresher.Deserialize((string) args.MessageObject);
-            if (payloads.Any(x => x.Action.HasType(ContentService.ChangeEventTypes.RefreshAllPublished)))
-            {
-                ReloadXmlFromDatabase();
-            }
-
-            // F*XME as soon as we are cloning then we should run all events on a single clone!
-
-            foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
-            {
-                // XmlStore does not support RefreshAllNewest
-                // XmlStore does not support RefreshNewest nor RemoveNewest because proper -Published events should trigger
-
-                if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshPublished))
-                {
-                    var content = _svcs.ContentService.GetPublishedVersion(payload.Id);
-                    if (content != null) Refresh(content);
-                }
-
-                if (payload.Action.HasType(ContentService.ChangeEventTypes.RemovePublished))
-                {
-                    Remove(payload.Id);
-                }
-            }
-        }
-        */
-
-        /*
-        private void UnpublishedPageCacheUpdated(UnpublishedPageCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshAll:
-                    // ignore
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    var content = _svcs.ContentService.GetById(refreshedId);
-                    if (content != null)
-                        RefreshSortOrder(content);
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IContent)args.MessageObject;
-                    RefreshSortOrder(refreshedInstance);
-                    break;
-                case MessageType.RefreshByJson:
-                    var json = (string)args.MessageObject;
-                    foreach (var c in UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
-                        .Where(x => x.Operation != UnpublishedPageCacheRefresher.OperationType.Deleted)
-                        .Select(x => _svcs.ContentService.GetById(x.Id))
-                        .Where(x => x != null))
-                    {
-                        RefreshSortOrder(c);
-                    }
-                    break;
-                case MessageType.RemoveById:
-                    // ignore
-                    break;
-                case MessageType.RemoveByInstance:
-                    // ignore
-                    break;
-            }
-        }
-
-        private void PageCacheUpdated(PageCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshAll:
-                    ReloadXmlFromDatabase();
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    Refresh(_svcs.ContentService.GetPublishedVersion(refreshedId));
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IContent)args.MessageObject;
-                    Refresh(refreshedInstance);
-                    break;
-                case MessageType.RefreshByJson:
-                    // not implemented - not a JSON cache refresher
-                    break;
-                case MessageType.RemoveById:
-                    var removedId = (int)args.MessageObject;
-                    Remove(removedId);
-                    break;
-                case MessageType.RemoveByInstance:
-                    var removedInstance = (IContent)args.MessageObject;
-                    Remove(removedInstance.Id);
-                    break;
-            }
-        }
-        */
 
         private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
         {
@@ -1391,79 +1286,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 caches.Resync();
         }
 
-        //public void Refresh(Document d) // f*xme - does it need to be a document vs a IContent
-        //{
-        //    // mapping to document and back to content
-        //    // but not enabled by default?
-
-        //    DocumentCacheEventArgs e = null;
-
-        //    // event - cancel
-
-        //    var c = _svcs.ContentService.GetPublishedVersion(d.Id);
-
-        //    // lock the xml cache so no other thread can write to it at the same time
-        //    // note that some threads could read from it while we hold the lock, though
-        //    lock (_xmlLock)
-        //    {
-        //        SafeExecute(xml => Refresh(xml, c));
-        //        ResyncCurrentPublishedCaches();
-        //    }
-
-        //    // f*xme - should NOT be done here
-        //    var cachedFieldKeyStart = string.Format("{0}{1}_", CacheKeys.ContentItemCacheKey, d.Id);
-        //    ApplicationContext.Current.ApplicationCache.ClearCacheByKeySearch(cachedFieldKeyStart);
-
-        //    // event - updated
-        //}
-
-        //private void Refresh(IContent content)
-        //{
-        //    // ensure it is published
-        //    if (content.Published == false) return;
-
-        //    using (var safeXml = GetSafeXml())
-        //    {
-        //        Refresh(safeXml.Xml, content);
-        //        safeXml.Commit(); // apply changes
-        //        ResyncCurrentPublishedCaches();
-        //    }
-        //}
-
-        //public void Refresh(IEnumerable<IContent> contents)
-        //{
-        //    // lock the xml cache so no other thread can write to it at the same time
-        //    // note that some threads could read from it while we hold the lock, though
-        //    lock (_xmlLock)
-        //    {
-        //        SafeExecute(xml =>
-        //        {
-        //            foreach (var content in contents.Where(x => x.Published))
-        //                Refresh(xml, content);
-        //        });
-
-        //        ResyncCurrentPublishedCaches();
-        //    }
-        //}
-
-        //private void Refresh(XmlDocument xml, IContent content)
-        //{
-        //    // ensure it is published
-        //    if (content.Published == false) return;
-
-        //    var parentId = content.ParentId; // -1 if no parent
-        //    var node = ImportContent(xml, content);
-
-        //    // fix sortOrder - see note in UpdateSortOrder
-        //    /*
-        //    var attr = ((XmlElement)node).GetAttributeNode("sortOrder");
-        //    if (attr == null) throw new Exception("oops");
-        //    attr.Value = content.SortOrder.ToInvariantString();
-        //    */
-
-        //    AppendDocumentXml(xml, content.Id, content.Level, parentId, node);
-        //}
-
         private void RefreshContentTypes(IEnumerable<int> ids)
         {
             // for single-refresh of one content we just re-serialize it instead of hitting the DB
@@ -1513,104 +1335,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         {
             // nothing to do, we have no cache
         }
-
-        //private void Remove(int contentId)
-        //{
-        //    // event - cancel
-
-        //    // content.ClearDocumentCache used to also do
-        //    // doc.XmlRemoveFromDB to remove the node from cmsContentXml
-        //    // fail to see the point - not doing it anymore
-
-        //    // lock the xml cache so no other thread can write to it at the same time
-        //    // note that some threads could read from it while we hold the lock, though
-        //    lock (_xmlLock)
-        //    {
-        //        using (var safeXml = GetSafeXml(false)) // not auto!
-        //        {
-        //            var node = safeXml.Xml.GetElementById(contentId.ToInvariantString());
-        //            if (node == null) return; // no changes
-        //            if (node.ParentNode == null) throw new Exception("oops");
-        //            node.ParentNode.RemoveChild(node);
-        //            safeXml.Commit(); // apply changes
-        //            ResyncCurrentPublishedCaches();
-        //        }
-        //    }
-
-        //    // event - cleared
-        //}
-
-        /*
-        private void RefreshSortOrder(IContent c)
-        {
-            if (c == null) throw new ArgumentNullException("c");
-
-            // the XML in database is updated only when content is published, and then
-            // it contains the sortOrder value at the time the XML was generated. when
-            // a document with unpublished changes is sorted, then it is simply saved
-            // (see ContentService) and so the sortOrder has changed but the XML has
-            // not been updated accordingly.
-
-            // this updates the published cache to take care of the situation
-            // without ContentService having to ... what exactly?
-
-            // no need to do it if the content is published without unpublished changes,
-            // though, because in that case the XML will get re-generated with the
-            // correct sort order.
-            if (c.Published) return;
-
-            // lock the xml cache so no other thread can write to it at the same time
-            // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
-            {
-                SafeExecute(xml =>
-                {
-                    var node = xml.GetElementById(c.Id.ToInvariantString());
-                    if (node == null) return false;
-                    var attr = node.GetAttributeNode("sortOrder");
-                    if (attr == null) throw new Exception("oops");
-                    var sortOrder = c.SortOrder.ToInvariantString();
-
-                    // only if node was actually modified
-                    if (attr.Value == sortOrder) return false;
-                    attr.Value = sortOrder;
-                    return true;
-                });
-            }
-        }
-        */
-
-        /*
-        public void SortChildren(int parentId)
-        {
-            var childNodesXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
-                ? "./node"
-                : "./* [@id]";
-
-            // lock the xml cache so no other thread can write to it at the same time
-            // note that some threads could read from it while we hold the lock, though
-            lock (XmlLock)
-            {
-                SafeExecute(xml =>
-                {
-                    var parentNode = parentId == -1
-                        ? xml.DocumentElement
-                        : xml.GetElementById(parentId.ToInvariantString());
-
-                    if (parentNode == null) return false;
-
-                    var sorted = XmlHelper.SortNodesIfNeeded(
-                        parentNode,
-                        childNodesXPath,
-                        x => x.AttributeValue<int>("sortOrder"));
-
-                    return sorted;
-                });
-
-                ResyncCurrentPublishedCaches();
-            }
-        }
-        */
 
         // adds or updates a node (docNode) into a cache (xml)
         private static void AddOrUpdateXmlNode(XmlDocument xml, int id, int level, int parentId, XmlNode docNode)
@@ -1740,13 +1464,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 publishedNode.AppendChild(imported);
             }
         }
-
-        //private XmlNode ImportContent(XmlDocument xml, IContent content)
-        //{
-        //    var xelt = _xmlContentSerializer(content);
-        //    var node = xelt.GetXmlNode();
-        //    return xml.ImportNode(node, true);
-        //}
 
         private static XmlNode ImportContent(XmlDocument xml, XmlDto dto)
         {
@@ -1905,15 +1622,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
                 OnRepositoryRefreshed(db, dto1);
-
-                // kill
-                //// generate preview for blame history?
-                //if (GlobalPreviewStorageEnabled == false) continue;
-
-                //var now = DateTime.Now;
-                //var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
-                //var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
-                //OnRepositoryRefreshed(db, dto2, exists2);
             }
         }
 
@@ -1927,15 +1635,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 var dto1 = new ContentXmlDto { NodeId = m.Id, Xml = xml };
                 OnRepositoryRefreshed(db, dto1);
-
-                // kill
-                //// generate preview for blame history?
-                //if (GlobalPreviewStorageEnabled == false) continue;
-
-                //var now = DateTime.Now;
-                //var exists2 = db.ExecuteScalar<int>("SELECT COUNT(*) FROM cmsPreviewXml WHERE nodeId=@id AND versionId=@version", new { id = m.Id, version = m.Version.ToString() }) > 0;
-                //var dto2 = new PreviewXmlDto { NodeId = m.Id, Timestamp = now, VersionId = m.Version, Xml = xml };
-                //OnRepositoryRefreshed(db, dto2, exists2);
             }
         }
 
