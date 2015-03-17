@@ -41,17 +41,13 @@ namespace Umbraco.Core
 
         public class Releaser : IDisposable
         {
-            private AsyncLock _mToRelease;
+            private readonly AsyncLock _mToRelease;
 
             internal Releaser(AsyncLock toRelease) { _mToRelease = toRelease; }
 
             public void Dispose()
             {
-                if (_mToRelease == null)
-                    return;
-
                 _mToRelease._semaphore.Release();
-                _mToRelease = null;
             }
         }
     }
