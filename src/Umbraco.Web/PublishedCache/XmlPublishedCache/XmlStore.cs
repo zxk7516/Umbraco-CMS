@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
@@ -496,7 +495,7 @@ AND (umbracoNode.id=@id)";
 cmsPreviewXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
-JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
 AND (umbracoNode.id=@id)";
 
@@ -1296,7 +1295,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // get xml
             var xmlDtos = ApplicationContext.Current.DatabaseContext.Database.Query<XmlDto>(ReadCmsContentXmlForContentTypesSql,
-                new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document), @ids = ids });
+                new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document), /*@ids =*/ ids });
 
             // fixme - still, missing plenty of locks here
             // fixme - should we run the events as we do above?
@@ -1533,12 +1532,12 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
         }
 
-        private void OnRemovedVersion(UmbracoDatabase db, IEnumerable<System.Tuple<int, Guid>> items)
+        private void OnRemovedVersion(UmbracoDatabase db, IEnumerable<Tuple<int, Guid>> items)
         {
             foreach (var item in items)
             {
-                var parms = new { id = item.Item1, versionId = item.Item2 };
-                db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@id and versionId=@versionId", parms);
+                var parms = new { id = item.Item1 /*, versionId = item.Item2*/ };
+                db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@id", parms);
             }
 
             // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
@@ -1548,7 +1547,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private static bool HasChangesImpactingAllVersions(IContent icontent)
         {
-            var content = (Core.Models.Content) icontent;
+            var content = (Content) icontent;
 
             // UpdateDate will be dirty
             // Published may be dirty if saving a Published entity
@@ -1562,20 +1561,19 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
-            var now = DateTime.Now;
+            //var now = DateTime.Now;
 
             foreach (var c in args.Entities)
             {
                 var xml = _xmlContentSerializer(c).ToString(SaveOptions.None);
 
-                // fixme - shouldn't we just have one row per content in cmsPreviewXml?
-                // change below to write only one row - must also change wherever we're reading, though
-                var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
+                // change below to write only one row - not one per version
+                var dto1 = new PreviewXmlDto { NodeId = c.Id, /*Timestamp = now, VersionId = c.Version,*/ Xml = xml };
                 OnRepositoryRefreshed(db, dto1);
 
                 // if unpublishing, remove from table
 
-                if (((Core.Models.Content) c).PublishedState == PublishedState.Unpublishing)
+                if (((Content) c).PublishedState == PublishedState.Unpublishing)
                 {
                     db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
                     continue;
@@ -1658,18 +1656,19 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // read http://stackoverflow.com/questions/11169144/how-to-modify-petapoco-class-to-work-with-composite-key-comprising-of-non-numeri
             // it works in https://github.com/schotime/PetaPoco and then https://github.com/schotime/NPoco but not here
             //
+            // not important anymore as we don't manage version anymore,
+            // but:
+            //
             // also
             // use a custom SQL to update row version on each update
             //db.InsertOrUpdate(dto);
 
             db.InsertOrUpdate(dto, 
-                "SET xml=@xml, rv=rv+1, timestamp=@timestamp WHERE nodeId=@id AND versionId=@versionId",
+                "SET xml=@xml, rv=rv+1 WHERE nodeId=@id",
                 new
                 {
                     xml = dto.Xml,
-                    timestamp = dto.Timestamp,
                     id = dto.NodeId,
-                    versionId = dto.VersionId
                 });
         }
 
@@ -1870,20 +1869,19 @@ WHERE cmsPreviewXml.nodeId IN (
                 var pageIndex = 0;
                 var processed = 0;
                 int total;
-                var now = DateTime.Now;
+                //var now = DateTime.Now;
                 do
                 {
-                    // FIXME - we should re-generate for each versions, OR stop having XML for each version!
-
                     // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
                     // is what we want for preview (ie latest version of a content, published or not)
                     var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
                     var items = descendants.Select(c => new PreviewXmlDto
                     {
                         NodeId = c.Id,
-                        Xml = _xmlContentSerializer(c).ToString(SaveOptions.None),
-                        Timestamp = now, // unused?!
-                        VersionId = c.Version // fixme - though what's the point of a version?
+                        Xml = _xmlContentSerializer(c).ToString(SaveOptions.None)
+                        // not used anymore
+                        //Timestamp = now,
+                        //VersionId = c.Version
                     }).ToArray();
                     db.BulkInsertRecords(items, tr);
                     processed += items.Length;
