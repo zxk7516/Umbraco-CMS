@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
@@ -206,147 +207,6 @@ namespace Umbraco.Web.Search
             }
         }
 
-        /*
-        /// <summary>
-        /// Handles index management for all published content events - basically handling published/unpublished
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        /// <remarks>
-        /// This will execute on all servers taking part in load balancing
-        /// </remarks>
-        static void PublishedPageCacheRefresherCacheUpdated(PageCacheRefresher sender, CacheRefresherEventArgs e)
-        {
-            switch (e.MessageType)
-            {
-                case MessageType.RefreshById:
-                    var c1 = ApplicationContext.Current.Services.ContentService.GetById((int)e.MessageObject);
-                    if (c1 != null)
-                    {
-                        ReIndexForContent(c1, true);
-                    }
-                    break;
-                case MessageType.RemoveById:
-                    
-                    //This is triggered when the item has been unpublished or trashed (which also performs an unpublish).                    
-
-                    var c2 = ApplicationContext.Current.Services.ContentService.GetById((int)e.MessageObject);
-                    if (c2 != null)
-                    {
-                        // So we need to delete the index from all indexes not supporting unpublished content.
-
-                        DeleteIndexForEntity(c2.Id, true);
-
-                        // We then need to re-index this item for all indexes supporting unpublished content
-
-                        ReIndexForContent(c2, false);
-                    }
-                    break;
-                case MessageType.RefreshByInstance:
-                    var c3 = e.MessageObject as IContent;
-                    if (c3 != null)
-                    {
-                        ReIndexForContent(c3, true);
-                    }
-                    break;
-                case MessageType.RemoveByInstance:
-
-                    //This is triggered when the item has been unpublished or trashed (which also performs an unpublish).
-
-                    var c4 = e.MessageObject as IContent;
-                    if (c4 != null)
-                    {
-                        // So we need to delete the index from all indexes not supporting unpublished content.
-
-                        DeleteIndexForEntity(c4.Id, true);
-
-                        // We then need to re-index this item for all indexes supporting unpublished content
-
-                        ReIndexForContent(c4, false);
-                    }
-                    break;
-                case MessageType.RefreshAll:
-                case MessageType.RefreshByJson:
-                default:
-                    //We don't support these for examine indexing
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Handles index management for all unpublished content events - basically handling saving/copying/deleting
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        /// <remarks>
-        /// This will execute on all servers taking part in load balancing
-        /// </remarks>
-	    static void UnpublishedPageCacheRefresherCacheUpdated(UnpublishedPageCacheRefresher sender, CacheRefresherEventArgs e)
-        {
-            switch (e.MessageType)
-            {
-                case MessageType.RefreshById:
-                    var c1 = ApplicationContext.Current.Services.ContentService.GetById((int) e.MessageObject);
-                    if (c1 != null)
-                    {
-                        ReIndexForContent(c1, false);
-                    }
-                    break;
-                case MessageType.RemoveById:
-                    
-                    // This is triggered when the item is permanently deleted
-                    
-                    DeleteIndexForEntity((int)e.MessageObject, false);
-                    break;
-                case MessageType.RefreshByInstance:
-                    var c3 = e.MessageObject as IContent;
-                    if (c3 != null)
-                    {
-                        ReIndexForContent(c3, false);
-                    }
-                    break;
-                case MessageType.RemoveByInstance:
-
-                    // This is triggered when the item is permanently deleted
-
-                    var c4 = e.MessageObject as IContent;
-                    if (c4 != null)
-                    {
-                        DeleteIndexForEntity(c4.Id, false);
-                    }
-                    break;                
-                case MessageType.RefreshByJson:
-
-                    var jsonPayloads = UnpublishedPageCacheRefresher.DeserializeFromJsonPayload((string)e.MessageObject);
-                    if (jsonPayloads.Any())
-                    {
-                        foreach (var payload in jsonPayloads)
-                        {
-                            switch (payload.Operation)
-                            {
-                                case UnpublishedPageCacheRefresher.OperationType.Deleted:                                   
-
-                                    //permanently remove from all indexes
-                                    
-                                    DeleteIndexForEntity(payload.Id, false);
-
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }                            
-                        }                        
-                    }
-
-                    break;
-
-                case MessageType.RefreshAll:                
-                default:
-                    //We don't support these, these message types will not fire for unpublished content
-                    break;
-            }
-        }
-        */
-
 	    static void ContentCacheRefresherUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
 	    {
             if (args.MessageType != MessageType.RefreshByJson)
@@ -354,39 +214,104 @@ namespace Umbraco.Web.Search
 
 	        var contentService = ApplicationContext.Current.Services.ContentService;
 
+            // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
 	        foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
 	        {
-	            // ExamineEvents does not support RefreshAllPublished, RefreshAll
-
 	            if (payload.Action.HasType(ContentService.ChangeEventTypes.Remove))
 	            {
-                    // deleting content entirely
-                    DeleteIndexForEntity(payload.Id, false); // false: delete from all indexes
+                    // delete content entirely
+                    //  false: remove entirely from all indexes
+                    DeleteIndexForEntity(payload.Id, false);
 	            }
-	            else
-	            {
-                    // don't try to be too clever - refresh entirely
-                    //   (we could receive an out-of-sync RemovePublished while the content has been re-published,
-                    //    so cannot trust the ChangeEvent type really, so better figure out what to do here)
+                else if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
+                {
+                    // ExamineEvents does not support RefreshAll
+                    // just ignore that payload
+                    // so what?!
+                }
+                else // RefreshNode or RefreshBranch
+                {
+    	            // don't try to be too clever - refresh entirely
                     // there has to be race conds in there ;-(
 
 	                var content = contentService.GetById(payload.Id);
-	                if (content == null) continue;
+                    if (content == null)
+                    {
+                        // gone fishing, remove entirely from all indexes
+                        DeleteIndexForEntity(payload.Id, false);
+                        continue;
+                    }
+
+                    IContent published = null;
                     if (content.HasPublishedVersion && contentService.IsPathPublished(content))
                     {
-                        var published = contentService.GetPublishedVersion(content);
-                        //var draft = content.Version == published.Version ? null : content;
-                        if (published != null)
-                            ReIndexForContent(published, false); // false: refresh indexes that only support published content
+                        published = content.Published
+                            ? content
+                            : contentService.GetByVersion(content.PublishedVersionGuid);
                     }
-                    else
+
+                    // just that content
+                    ReIndexForContent(content, published);
+
+                    // branch
+                    if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch))
                     {
-                        DeleteIndexForEntity(payload.Id, true); // true: delete from indexes that only support published content
+                        var masked = published == null ? null : new List<int>();
+                        var descendants = contentService.GetDescendants(content);
+                        foreach (var descendant in descendants)
+                        {
+                            published = null;
+                            if (masked != null) // else everything is masked
+                            {
+                                if (masked.Contains(descendant.ParentId) || descendant.HasPublishedVersion == false)
+                                {
+                                    masked.Add(descendant.Id);
+                                }
+                                else
+                                {
+                                    published = descendant.Published
+                                        ? descendant
+                                        : contentService.GetByVersion(descendant.PublishedVersionGuid);
+                                }
+                            }
+
+                            ReIndexForContent(descendant, published);
+                        }
                     }
-                    ReIndexForContent(content, true); // true: refresh indexes that support draft content
                 }
+
+                // NOTE
+                //
+                // DeleteIndexForEntity is handled by UmbracoContentIndexer.DeleteFromIndex() which takes
+                //  care of also deleting the descendants
+                //
+                // ReIndexForContent is NOT taking care of descendants so we have to reload everything
+                //  again in order to process the branch - we COULD improve that by just reloading the
+                //  XML from database instead of reloading content & re-serializing!
 	        }
 	    }
+
+	    private static void ReIndexForContent(IContent content, IContent published)
+	    {
+            if (published != null && content.Version == published.Version)
+            {
+                ReIndexForContent(content); // same = both
+            }
+            else
+            {
+                if (published == null)
+                {
+                    // remove 'published' - keep 'draft'
+                    DeleteIndexForEntity(content.Id, true); 
+                }
+                else
+                {
+                    // index 'published' - don't overwrite 'draft'
+                    ReIndexForContent(published, false);
+                }
+                ReIndexForContent(content, true); // index 'draft'
+            }
+        }
 
         private static void ReIndexForMember(IMember member)
 		{
@@ -458,14 +383,7 @@ namespace Umbraco.Web.Search
 	                .Where(x => x.EnableDefaultEventHandler));
 	    }
 
-	    /// <summary>
-	    /// Re-indexes a content item whether published or not but only indexes them for indexes supporting unpublished content
-	    /// </summary>
-	    /// <param name="sender"></param>
-	    /// <param name="supportUnpublished">
-	    /// Value indicating whether the item is published or not
-	    /// </param>
-	    private static void ReIndexForContent(IContent sender, bool supportUnpublished)
+	    private static void ReIndexForContent(IContent sender, bool? supportUnpublished = null)
 	    {
             var xml = sender.ToXml();
             //add an icon attribute to get indexed
@@ -476,9 +394,8 @@ namespace Umbraco.Web.Search
 	            ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
                     
                     // only for the specified indexers
-                    // if we want both then this method will be invoked twice
-	                .Where(x => supportUnpublished == x.SupportUnpublishedContent)
+	                .Where(x => supportUnpublished.HasValue == false || supportUnpublished.Value == x.SupportUnpublishedContent)
 	                .Where(x => x.EnableDefaultEventHandler));
 	    }
-	}
+    }
 }
