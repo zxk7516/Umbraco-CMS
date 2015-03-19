@@ -13,6 +13,7 @@ using umbraco.cms.businesslogic.web;
 using umbraco.interfaces;
 using Umbraco.Core.IO;
 using umbraco.NodeFactory;
+using Umbraco.Core;
 
 namespace umbraco {
 
