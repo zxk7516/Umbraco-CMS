@@ -242,13 +242,22 @@ namespace Umbraco.Core.Persistence
                 // ensure we have the proper isolation level, as levels can leak in pools
                 // read http://stackoverflow.com/questions/9851415/sql-server-isolation-level-leaks-across-pooled-connections
                 // and http://stackoverflow.com/questions/641120/what-exec-sp-reset-connection-shown-in-sql-profiler-means
+                //
                 // NPoco has that code in OpenSharedConnectionImp (commented out?)
-                using (var cmd = _sharedConnection.CreateCommand())
-			    {
-                    cmd.CommandText = GetSqlForTransactionLevel(_isolationLevel);
-                    cmd.CommandTimeout = CommandTimeout;
-                    cmd.ExecuteNonQuery();
-                }
+                //using (var cmd = _sharedConnection.CreateCommand())
+                //{
+                //    cmd.CommandText = GetSqlForTransactionLevel(_isolationLevel);
+                //    cmd.CommandTimeout = CommandTimeout;
+                //    cmd.ExecuteNonQuery();
+                //}
+                //
+                // although MSDN documentation for SQL CE clearly states that the above method
+                // should work, it fails & reports an error parsing the query on 'TRANSACTION',
+                // and Google is no help (others have faced the same issue... no solution). So,
+                // switching to another method that does work on all databases.
+			    var tr = _sharedConnection.BeginTransaction(_isolationLevel);
+                tr.Commit();
+			    tr.Dispose();
                 
 				_sharedConnection = OnConnectionOpened(_sharedConnection);
 
@@ -358,17 +367,17 @@ namespace Umbraco.Core.Persistence
             switch (isolationLevel)
             {
                 case IsolationLevel.ReadCommitted:
-                    return "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;";
+                    return "SET TRANSACTION ISOLATION LEVEL READ COMMITTED";
                 case IsolationLevel.ReadUncommitted:
-                    return "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;";
+                    return "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED";
                 case IsolationLevel.RepeatableRead:
-                    return "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;";
+                    return "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ";
                 case IsolationLevel.Serializable:
-                    return "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;";
+                    return "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE";
                 case IsolationLevel.Snapshot:
-                    return "SET TRANSACTION ISOLATION LEVEL SNAPSHOT;";
+                    return "SET TRANSACTION ISOLATION LEVEL SNAPSHOT";
                 default:
-                    return "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;";
+                    return "SET TRANSACTION ISOLATION LEVEL READ COMMITTED";
             }
         }
 
