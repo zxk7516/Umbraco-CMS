@@ -1837,7 +1837,7 @@ namespace Umbraco.Core.Services
                     cet = ChangeEventTypes.RefreshBranch; // whole branch
                 }
 
-                // invalidate the branch
+                // invalidate the node/branch
                 Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, cet)), this);
                 //Changed.RaiseEvent(new ChangeEventArgs(changes), this);
                 Audit(AuditType.Publish, "Save and Publish performed by user", userId, content.Id);

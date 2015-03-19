@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
@@ -46,6 +48,69 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _serviceContext;
         private readonly DatabaseContext _databaseContext;
+
+        // NOTES
+        //
+        // LOCKS
+        //
+        //  we make use of various locking strategies in XmlStore:
+        //
+        //  _xmlLock is an AsyncLock that is used to protect _xml ie the master xml document
+        //    from concurrent accesses. It is an AsyncLock because saving xml to file can be
+        //    an async operation. It is never used directly but only through GetSafeXmlReader
+        //    and GetSafeXmlWriter which provide safe, locked, clean access to _xml.
+        //
+        // there is no lock around the xml file specifically, because all accesses to that
+        //    file happen while holding the _xmlLock lock.
+        //
+        // there is not lock around writes to cmsContentXml and cmsPreviewXml as these are
+        //    supposed to happen in the context of the original ContentRepository transaction
+        //    and therefore concurrency is already taken care of.
+        //
+        // there is no lock around the database, because writes are already protected (see
+        //    above) and reads are atomic (only 1 query).
+        //
+        // FIXME
+        //    when 'rebuilding all' we should somehow ensure that content does not change
+        //    while rebuilding - but that's a ContentService-level lock? How can we do it?
+        //    in addition at one point in time, we're going to remove all XML and then
+        //    recreate it, we should ensure that NO other thread, even in a distributed
+        //    environment, can read the XML tables at that time - so we should have a
+        //    global, distributed lock on everything...
+        //
+        // get a RepeatableRead transaction & update root node = takes a write-lock
+        // and prevents other transaction (whatever their isolation level) from reading it
+        // take care of resetting the isolation level to default on the connection though
+        // by begin/commit an empty transaction on that same connection
+        //
+        // FIXME BEWARE! creating a uow does NOT create a transaction, the transaction
+        // must be explicitely created, else the uow will create it ONLY when it commits
+        // must check ContentService for patterns here!!!
+
+        /*
+         * var uow = UowProvider.GetUnitOfWork();
+         * using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+         * using (var repository = RepositoryFactory.CreateContentRepository(uow))
+         * {
+         *   // aquire a write-lock on the whole content tree
+         *   ContentRepository.AquireContentTreeExclusiveLock(uow.Database);
+         *   
+         *   // do whatever we have to do...
+         *   
+         *   // ...and complete
+         *   transaction.Complete();
+         * }
+         */
+
+        private void AquireContentTreeExclusiveLock(Database database)
+        {
+            if (database.CurrentTransactionIsolationLevel < IsolationLevel.RepeatableRead)
+                throw new InvalidOperationException("A transaction with minimum RepeatableRead isolation level is required.");
+            database.Execute("UPDATE umbracoNode SET sortOrder = (CASE WHEN (sortOrder=1) THEN -1 ELSE 1 END) WHERE id=-1");
+        }
+
+        // and we'd also need
+        // ContentRepository.EnsureContentTreeSharedAccess(...);
 
         #region Constructors
 
@@ -110,17 +175,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RemovedVersion += OnMemberRemovedVersion;
             MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
 
-            // plug event handlers
-            // these trigger within the transaction to ensure consistency
-            // and are used to maintain the central, database-level XML cache
-            // fixme - shouldn't we just make sure we clear XML when trashing?
+            // mostly to be sure - each node should have been deleted beforehand
             ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
 
             // temp - until we get rid of Content
             global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
 
-            // plug event handlers
             // used to maintain the central, database-level XML cache - NOT distributed
             ContentService.ContentTypesChanged += OnContentTypesChanged;
             MediaService.ContentTypesChanged += OnMediaTypesChanged;
@@ -162,7 +223,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             using (var safeXml = GetSafeXmlWriter(false))
             {
                 bool registerXmlChange;
-                safeXml.Xml = LoadXmlLocked(out registerXmlChange);
+                LoadXmlLocked(safeXml, out registerXmlChange);
                 safeXml.Commit(registerXmlChange);
             }
         }
@@ -421,24 +482,20 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         // try to load from file, otherwise database
         // not locking anything - assumes correct locking
-        private XmlDocument LoadXmlLocked(out bool registerXmlChange)
+        private void LoadXmlLocked(SafeXmlWriter safeXml, out bool registerXmlChange)
         {
             LogHelper.Debug<XmlStore>("Loading Xml...");
 
-            XmlDocument xml;
-
             // try to get it from the file
-            if (XmlFileEnabled && XmlFileExists && (xml = LoadXmlFromFile()) != null)
+            if (XmlFileEnabled && XmlFileExists && (safeXml.Xml = LoadXmlFromFileLocked()) != null)
             {
                 registerXmlChange = false;
-                return xml;
+                return;
             }
 
             // get it from the database, and register
-            xml = LoadXmlTreeFromDatabase();
-
+            LoadXmlTreeFromDatabaseLocked(safeXml);
             registerXmlChange = true;
-            return xml;
         }
 
         public XmlNode GetMediaXmlNode(int mediaId)
@@ -648,6 +705,26 @@ AND (umbracoNode.id=@id)";
             }
         }
 
+        private static string ChildNodesXPath
+        {
+            get
+            {
+                return UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
+                    ? "./node"
+                    : "./* [@id]";
+            }
+        }
+
+        private static string DataNodesXPath
+        {
+            get
+            {
+                return UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
+                    ? "./data"
+                    : "./* [not(@id)]";
+            }
+        }
+
         #endregion
 
         #region File
@@ -700,7 +777,8 @@ AND (umbracoNode.id=@id)";
                     Directory.CreateDirectory(directoryName);
 
                 // save
-                xml.Save(_xmlFileName);
+                //xml.Save(_xmlFileName);
+                System.IO.File.WriteAllText(_xmlFileName, SaveXmlToString(xml));
 
                 LogHelper.Debug<XmlStore>("Saved Xml to file.");
             }
@@ -733,7 +811,12 @@ AND (umbracoNode.id=@id)";
                         Directory.CreateDirectory(directoryName);
 
                     // save
-                    await safeXml.Xml.SaveAsync(_xmlFileName);
+                    //await safeXml.Xml.SaveAsync(_xmlFileName);
+                    using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
+                    {
+                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(safeXml.Xml));
+                        await fs.WriteAsync(bytes, 0, bytes.Length);
+                    }                  
 
                     LogHelper.Debug<XmlStore>("Saved Xml to file.");
                 }
@@ -747,8 +830,36 @@ AND (umbracoNode.id=@id)";
             }
         }
 
+        private string SaveXmlToString(XmlDocument xml)
+        {
+            // using that one method because we want to have proper indent
+            // and in addition, writing async is never fully async because
+            // althouth the writer is async, xml.WriteTo() will not async
+
+            // that one almost works but... "The elements are indented as long as the element 
+            // does not contain mixed content. Once the WriteString or WriteWhitespace method
+            // is called to write out a mixed element content, the XmlWriter stops indenting. 
+            // The indenting resumes once the mixed content element is closed." - says MSDN
+            // about XmlWriterSettings.Indent
+
+            // so ImportContent must also make sure of ignoring whitespaces!
+
+            var sb = new StringBuilder();
+            using (var xmlWriter = XmlWriter.Create(sb, new XmlWriterSettings
+            {
+                Indent = true,
+                Encoding = Encoding.UTF8,
+                //OmitXmlDeclaration = true
+            }))
+            {
+                //xmlWriter.WriteProcessingInstruction("xml", "version=\"1.0\" encoding=\"utf-8\"");
+                xml.WriteTo(xmlWriter); // already contains the xml declaration
+            }
+            return sb.ToString();
+        }
+
         // not locking anything - assumes correct locking
-        private XmlDocument LoadXmlFromFile()
+        private XmlDocument LoadXmlFromFileLocked()
         {
             LogHelper.Info<XmlStore>("Load Xml from file...");
             var xml = new XmlDocument();
@@ -769,7 +880,7 @@ AND (umbracoNode.id=@id)";
             return xml;
         }
 
-        // assumes lock (XmlFileLock)
+        // assumes lock
         private void DeleteXmlFileLocked()
         {
             if (System.IO.File.Exists(_xmlFileName) == false) return;
@@ -795,7 +906,7 @@ AND (umbracoNode.id=@id)";
             using (var safeXml = GetSafeXmlWriter(false))
             {
                 bool registerXmlChange;
-                safeXml.Xml = LoadXmlLocked(out registerXmlChange); // updates _lastFileRead
+                LoadXmlLocked(safeXml, out registerXmlChange); // updates _lastFileRead
                 safeXml.Commit(registerXmlChange);
             }
         }
@@ -804,9 +915,7 @@ AND (umbracoNode.id=@id)";
 
         #region Database
 
-        private static readonly object DbLock = new object(); // ensure no concurrency on db
-
-        const string ReadCmsContentXmlSql = @"SELECT
+        const string ReadTreeCmsContentXmlSql = @"SELECT
     umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.level, umbracoNode.path,
     cmsContentXml.xml, cmsContentXml.rv, cmsDocument.published
 FROM umbracoNode 
@@ -873,104 +982,55 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // ReSharper restore UnusedAutoPropertyAccessor.Local
         }
 
-        private XmlDocument LoadXmlTreeFromDatabase()
+        private void LoadXmlTreeFromDatabaseLocked(SafeXmlWriter safeXml)
         {
-            lock (DbLock) // fixme - only 1 at a time BUT should be protected by LoadXml anyway?!
+            // initialise the document ready for the composition of content
+            var xml = new XmlDocument();
+            InitializeXml(xml, _serviceContext.ContentTypeService.GetDtd());
+
+            var parents = new Dictionary<int, XmlNode>();
+
+            var dtoQuery = LoadXmlTreeDtoFromDatabaseLocked(xml);
+            foreach (var dto in dtoQuery)
             {
-                return LoadXmlFromDatabaseLocked();
-            }
-        }
-
-        // fixme refactor that one same as the one below
-        private XmlDocument LoadXmlFromDatabaseLocked()
-        {
-            LogHelper.Info<XmlStore>("Load Xml from database...");
-
-            var hierarchy = new Dictionary<int, List<int>>();
-            var nodeIndex = new Dictionary<int, XmlNode>();
-            var xmlDoc = new XmlDocument();
-
-            try
-            {
-                // get xml
-                var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadCmsContentXmlSql,
-                    new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document) });
-
-                foreach (var xmlDto in xmlDtos)
+                XmlNode parent;
+                if (parents.TryGetValue(dto.ParentId, out parent) == false)
                 {
-                    // fix sortOrder - see notes in UpdateSortOrder
-                    /*
-                    var tmp = new XmlDocument();
-                    tmp.LoadXml(xmlDto.Xml);
-                    if (tmp.DocumentElement == null) throw new Exception("oops");
-                    var attr = tmp.DocumentElement.GetAttributeNode("sortOrder");
-                    if (attr == null) throw new Exception("oops");
-                    attr.Value = xmlDto.SortOrder.ToInvariantString();
-                    xmlDto.Xml = tmp.InnerXml;
-                    */
+                    parent = dto.ParentId == -1
+                        ? xml.DocumentElement
+                        : xml.GetElementById(dto.ParentId.ToInvariantString());
 
-                    // event - allow modification of the string + cancel?
+                    if (parent == null)
+                        continue;
 
-                    // parse into a DOM node
-                    xmlDoc.LoadXml(xmlDto.Xml);
-                    var node = xmlDoc.FirstChild;
-
-                    // event - allow modification of the node + cancel?
-
-                    nodeIndex.Add(xmlDto.Id, node);
-
-                    // verify if either of the handlers canceled the children to load
-                    // ?? both events could also indicate to cancel children - continue
-
-                    // Build the content hierarchy
-                    List<int> children;
-                    if (hierarchy.TryGetValue(xmlDto.ParentId, out children) == false)
-                    {
-                        // No children for this parent, so add one
-                        children = new List<int>();
-                        hierarchy.Add(xmlDto.ParentId, children);
-                    }
-                    children.Add(xmlDto.Id);
+                    parents[dto.ParentId] = parent;
                 }
 
-                LogHelper.Debug<XmlStore>("Loaded data from database, now preparing Xml...");
-            }
-            catch (Exception e)
-            {
-                LogHelper.Error<XmlStore>(string.Format("Failed to load Xml from database ({0} parents, {1} nodes).", hierarchy.Count, nodeIndex.Count), e);
-
-                // An error of some sort must have stopped us from successfully generating
-                // the content tree, so lets return null signifying there is no content available
-                return null;
+                parent.AppendChild(dto.XmlNode);
             }
 
-            try
-            {
-                // If we got to here we must have successfully retrieved the content from the DB so
-                // we can safely initialise and compose the final content DOM. 
-                // Note: We are reusing the XmlDocument used to create the xml nodes above so 
-                // we don't have to import them into a new XmlDocument
-
-                // Initialise the document ready for the final composition of content
-                InitializeXml(xmlDoc, _serviceContext.ContentTypeService.GetDtd());
-
-                // Start building the content tree recursively from the root (-1) node
-                PopulateXml(hierarchy, nodeIndex, -1, xmlDoc.DocumentElement);
-            }
-            catch (Exception e)
-            {
-                LogHelper.Error<XmlStore>("Failed to prepare Xml from database.", e);
-
-                // An error of some sort must have stopped us from successfully generating
-                // the content tree, so lets return null signifying there is no content available
-                return null;
-            }
-
-            LogHelper.Debug<XmlStore>("Successfully loaded Xml from database.");
-            return xmlDoc;
+            safeXml.Xml = xml;
         }
 
-        private IEnumerable<XmlDto> LoadXmlBranchFromDatabaseLocked(XmlDocument xmlDoc, int id, string path)
+        private IEnumerable<XmlDto> LoadXmlTreeDtoFromDatabaseLocked(XmlDocument xmlDoc)
+        {
+            // get xml
+            var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadTreeCmsContentXmlSql,
+                new
+                {
+                    @nodeObjectType = new Guid(Constants.ObjectTypes.Document)
+                });
+
+            // create nodes
+            return xmlDtos.Select(x =>
+            {
+                // parse into a DOM node
+                x.XmlNode = ImportContent(xmlDoc, x);
+                return x;
+            });
+        }
+
+        private IEnumerable<XmlDto> LoadXmlBranchDtoFromDatabaseLocked(XmlDocument xmlDoc, int id, string path)
         {
             // get xml
             var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadBranchCmsContentXmlSql,
@@ -1040,7 +1100,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // nobody should work on the Xml while we load
             using (var safeXml = GetSafeXmlWriter())
             {
-                safeXml.Xml = LoadXmlTreeFromDatabase();
+                LoadXmlTreeFromDatabaseLocked(safeXml);
             }
         }
 
@@ -1054,7 +1114,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         public void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            draftChanged = publishedChanged = false;
+            draftChanged = true; // by default - we don't track drafts
+            publishedChanged = false;
 
             if (_withEvents == false)
                 return;
@@ -1066,7 +1127,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 {
                     if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
                     {
-                        safeXml.Xml = LoadXmlTreeFromDatabase(); // fixme - locked? should we lock the DB?
+                        LoadXmlTreeFromDatabaseLocked(safeXml);
                         publishedChanged = true;
                         continue;
                     }
@@ -1090,77 +1151,106 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     }
 
                     var content = _serviceContext.ContentService.GetById(payload.Id);
-                    //var draft = content.Published ? null : content;
-                    //var published = content.Published 
-                    //    ? content 
-                    //    : (content.HasPublishedVersion 
-                    //        ? _svcs.ContentService.GetByVersion(content.PublishedVersionGuid) 
-                    //        : null);
-
                     var current = safeXml.Xml.GetElementById(payload.Id.ToInvariantString());
 
-                    // that query is yielding results so will not load what's not needed
-                    var dtoQuery = LoadXmlBranchFromDatabaseLocked(safeXml.Xml, content.Id, content.Path);
-                    var dtos = dtoQuery.GetEnumerator();
-                    if (dtos.MoveNext() == false || dtos.Current.Id != content.Id)
-                        throw new Exception("oops"); // first one should be 'current'
-                    var currentDto = dtos.Current;
-
-                    if (content.HasPublishedVersion)
+                    if (content.HasPublishedVersion == false)
                     {
+                        // no published version
+                        if (current != null)
+                        {
+                            // remove from xml if exists
+                            if (current.ParentNode == null) throw new Exception("oops");
+                            current.ParentNode.RemoveChild(current);
+                            publishedChanged = true;
+                        }
+
+                        continue;
+                    }
+
+                    // else we have a published version
+
+                    // that query is yielding results so will only load what's needed
+                    //
+                    // 'using' the enumerator ensures that the enumeration is properly terminated even if abandonned
+                    // otherwise, it would leak an open reader & an un-released database connection
+                    // see PetaPoco.Query<TRet>(Type[] types, Delegate cb, string sql, params object[] args)
+                    // and read http://blogs.msdn.com/b/oldnewthing/archive/2008/08/14/8862242.aspx
+                    var dtoQuery = LoadXmlBranchDtoFromDatabaseLocked(safeXml.Xml, content.Id, content.Path);
+                    using (var dtos = dtoQuery.GetEnumerator())
+                    {
+                        if (dtos.MoveNext() == false)
+                        {
+                            // gone fishing, remove (possible race condition)
+                            if (current != null)
+                            {
+                                // remove from xml if exists
+                                if (current.ParentNode == null) throw new Exception("oops");
+                                current.ParentNode.RemoveChild(current);
+                                publishedChanged = true;
+                            }
+                            continue;
+                        }
+
+                        if (dtos.Current.Id != content.Id)
+                            throw new Exception("oops"); // first one should be 'current'
+                        var currentDto = dtos.Current;
+
                         // note: if anything eg parentId or path or level has changed, then rv has changed too
                         var currentRv = current == null ? -1 : int.Parse(current.Attributes["rv"].Value);
-                        if (current == null || currentRv != currentDto.Rv)
+
+                        // if exists and unchanged and not refreshing the branch, skip entirely
+                        if (current != null
+                            && currentRv == currentDto.Rv
+                            && payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch) == false)
+                            continue;
+
+                        // note: Examine would not be able to do the path trick below, and we cannot help for
+                        // unpublished content, so it *is* possible that Examine is inconsistent for a while,
+                        // though events should get it consistent eventually.
+
+                        // note: if path has changed we must do a branch refresh, even if the event is not requiring
+                        // it, otherwise we would update the local node and not its children, who would then have
+                        // inconsistent level (and path) attributes.
+
+                        var refreshBranch = current == null
+                            || payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch)
+                            || current.Attributes["path"].Value != currentDto.Path;
+
+                        if (refreshBranch)
                         {
-                            var refreshBranch = current == null 
-                                || payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch)
-                                || current.Attributes["path"].Value != currentDto.Path;  // moving implies branch refresh
-
-                            if (refreshBranch)
+                            // remove node if exists
+                            if (current != null)
                             {
-                                // remove node if exists
-                                if (current != null)
-                                {
-                                    if (current.ParentNode == null) throw new Exception("oops");
-                                    current.ParentNode.RemoveChild(current);
-                                }
-
-                                // insert node
-                                var newParent = safeXml.Xml.GetElementById(currentDto.ParentId.ToInvariantString());
-                                if (newParent == null) continue;
-                                newParent.AppendChild(currentDto.XmlNode);
-                                var childNodesXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
-                                    ? "./node"
-                                    : "./* [@id]";
-                                XmlHelper.SortNode(newParent, childNodesXPath, currentDto.XmlNode, x => x.AttributeValue<int>("sortOrder"));
-
-                                // add branch (don't try to be clever)
-                                while (dtos.MoveNext())
-                                {
-                                    // dtos are ordered by sortOrder already
-                                    var dto = dtos.Current;
-                                    var p = safeXml.Xml.GetElementById(dto.ParentId.ToInvariantString());
-                                    if (p == null) continue; // takes care of out-of-sync & masked
-                                    p.AppendChild(dto.XmlNode);
-                                }
-                            }
-                            else
-                            {
-                                // in-place
-                                AddOrUpdateXmlNode(safeXml.Xml, currentDto.Id, currentDto.Level, currentDto.ParentId, currentDto.XmlNode);
+                                if (current.ParentNode == null) throw new Exception("oops");
+                                current.ParentNode.RemoveChild(current);
                             }
 
-                            publishedChanged = true;
+                            // insert node
+                            var newParent = currentDto.ParentId == -1
+                                ? safeXml.Xml.DocumentElement
+                                : safeXml.Xml.GetElementById(currentDto.ParentId.ToInvariantString());
+                            if (newParent == null) continue;
+                            newParent.AppendChild(currentDto.XmlNode);
+                            XmlHelper.SortNode(newParent, ChildNodesXPath, currentDto.XmlNode,
+                                x => x.AttributeValue<int>("sortOrder"));
+
+                            // add branch (don't try to be clever)
+                            while (dtos.MoveNext())
+                            {
+                                // dtos are ordered by sortOrder already
+                                var dto = dtos.Current;
+                                var p = safeXml.Xml.GetElementById(dto.ParentId.ToInvariantString()); // branch, so parentId > 0
+                                if (p == null) continue; // takes care of out-of-sync & masked
+                                p.AppendChild(dto.XmlNode);
+                            }
+                        }
+                        else
+                        {
+                            // in-place
+                            AddOrUpdateXmlNode(safeXml.Xml, currentDto.Id, currentDto.Level, currentDto.ParentId, currentDto.XmlNode);
                         }
                     }
 
-                    // no published version
-                    // if nothing in xml, fine
-                    if (current == null) continue;
-
-                    // else remove
-                    if (current.ParentNode == null) throw new Exception("oops");
-                    current.ParentNode.RemoveChild(current);
                     publishedChanged = true;
                 }
 
@@ -1347,11 +1437,6 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             if (parentNode == null)
                 return;
 
-            // define xpath for getting the children nodes (not properties) of a node
-            var childNodesXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema
-                ? "./node"
-                : "./* [@id]";
-
             // insert/move the node under the parent
             if (currentNode == null)
             {
@@ -1385,7 +1470,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 {
                     // name has changed, must use docNode (with new name)
                     // move children nodes from currentNode to docNode (already has properties)
-                    var children = currentNode.SelectNodes(childNodesXPath);
+                    var children = currentNode.SelectNodes(ChildNodesXPath);
                     if (children == null) throw new Exception("oops");
                     foreach (XmlNode child in children)
                         docNode.AppendChild(child); // remove then append to docNode
@@ -1417,19 +1502,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // if we assume that nodes are always correctly sorted
             // then we just need to ensure that currentNode is at the right position.
             // should be faster that moving all the nodes around.
-            XmlHelper.SortNode(parentNode, childNodesXPath, currentNode, x => x.AttributeValue<int>("sortOrder"));
+            XmlHelper.SortNode(parentNode, ChildNodesXPath, currentNode, x => x.AttributeValue<int>("sortOrder"));
         }
 
         private static void TransferValuesFromDocumentXmlToPublishedXml(XmlNode documentNode, XmlNode publishedNode)
         {
-            var xpath = UseLegacySchema ? "./data" : "./* [not(@id)]";
-
             // remove all attributes from the published node
             if (publishedNode.Attributes == null) throw new Exception("oops");
             publishedNode.Attributes.RemoveAll();
 
             // remove all data nodes from the published node
-            var dataNodes = publishedNode.SelectNodes(xpath);
+            var dataNodes = publishedNode.SelectNodes(DataNodesXPath);
             if (dataNodes == null) throw new Exception("oops");
             foreach (XmlNode n in dataNodes)
                 publishedNode.RemoveChild(n);
@@ -1439,20 +1522,31 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             foreach (XmlAttribute att in documentNode.Attributes)
                 ((XmlElement)publishedNode).SetAttribute(att.Name, att.Value);
 
+            // find the first child node, if any
+            var childNodes = publishedNode.SelectNodes(ChildNodesXPath);
+            if (childNodes == null) throw new Exception("oops");
+            var firstChildNode = childNodes.Count == 0 ? null : childNodes[0];
+
             // append all data nodes from the document node to the published node
-            dataNodes = documentNode.SelectNodes(xpath);
+            dataNodes = documentNode.SelectNodes(DataNodesXPath);
             if (dataNodes == null) throw new Exception("oops");
             foreach (XmlNode n in dataNodes)
             {
                 if (publishedNode.OwnerDocument == null) throw new Exception("oops");
                 var imported = publishedNode.OwnerDocument.ImportNode(n, true);
-                publishedNode.AppendChild(imported);
+                if (firstChildNode == null)
+                    publishedNode.AppendChild(imported);
+                else
+                    publishedNode.InsertBefore(imported, firstChildNode);
             }
         }
 
         private static XmlNode ImportContent(XmlDocument xml, XmlDto dto)
         {
-            var node = xml.ReadNode(XmlReader.Create(new StringReader(dto.Xml)));
+            var node = xml.ReadNode(XmlReader.Create(new StringReader(dto.Xml), new XmlReaderSettings
+            {
+                IgnoreWhitespace = true
+            }));
 
             if (node == null) throw new Exception("oops");
             if (node.Attributes == null) throw new Exception("oops");
@@ -1581,7 +1675,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     // saving the non-published version, but there is a published version
                     // check whether we have changes that impact the published version (move...)
                     if (c.HasPublishedVersion && HasChangesImpactingAllVersions(c))
-                        pc = _serviceContext.ContentService.GetByVersion(c.PublishedVersionGuid);
+                        pc = sender.GetByVersion(c.PublishedVersionGuid);
                 }
 
                 if (pc == null)
@@ -1670,6 +1764,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
 
+        // mostly to be sure - each node should have been deleted beforehand
         private void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
         {
             // could use
@@ -1716,9 +1811,6 @@ WHERE cmsContentXml.nodeId IN (
         #endregion
 
         #region Rebuild Database Xml
-
-        // fixme - locks when rebuilding all?!
-        // want to lock all content & content type & what else?!
 
         public void RebuildContentAndPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
