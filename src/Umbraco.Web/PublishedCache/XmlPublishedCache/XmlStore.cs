@@ -23,6 +23,7 @@ using Umbraco.Core.Profiling;
 using Umbraco.Core.Services;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
+using Umbraco.Web.Routing;
 using Umbraco.Web.Scheduling;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
@@ -92,7 +93,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             // plug event handlers
             // distributed events
-            ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
+            //ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
             ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated;
                 // same refresher for content, media & member
 
@@ -128,7 +129,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private void ClearEvents()
         {
-            ContentCacheRefresher.CacheUpdated -= ContentCacheUpdated;
+            //ContentCacheRefresher.CacheUpdated -= ContentCacheUpdated;
             ContentTypeCacheRefresher.CacheUpdated -= ContentTypeCacheUpdated; // same refresher for content, media & member
 
             ContentRepository.RemovedEntity -= OnContentRemovedEntity;
@@ -746,28 +747,51 @@ AND (umbracoNode.id=@id)";
 
         private static readonly object DbLock = new object(); // ensure no concurrency on db
 
-        const string ReadCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, cmsDocument.published
+        const string ReadCmsContentXmlSql = @"SELECT
+    umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+    cmsContentVersion.versionId, cmsContentVersion.Rv AS versionRv,
+    cmsContentXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
+JOIN cmsContentVersion ON (cmsDocument.versionId=cmsContentVersion.versionId)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadCmsContentXmlForContentTypesSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, cmsDocument.published
+        const string ReadBranchCmsContentXmlSql = @"SELECT
+    umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+    cmsContentVersion.versionId, cmsContentVersion.Rv AS versionRv,
+    cmsContentXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
+JOIN cmsContentVersion ON (cmsDocument.versionId=cmsContentVersion.versionId)
+WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1 AND umbracoNode.path LIKE @path
+ORDER BY umbracoNode.level, umbracoNode.sortOrder";
+
+        const string ReadCmsContentXmlForContentTypesSql = @"SELECT
+    umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+    cmsContentVersion.versionId, cmsContentVersion.Rv AS versionRv,
+    cmsContentXml.xml, cmsDocument.published
+FROM umbracoNode 
+JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
+JOIN cmsContentVersion ON (cmsDocument.versionId=cmsContentVersion.versionId)
 JOIN cmsContent ON (cmsDocument.nodeId=cmsContent.nodeId)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.published=1 AND cmsContent.contentType IN (@ids)
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadMoreCmsContentXmlSql = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsContentXml.xml, 1 AS published
+        const string ReadMoreCmsContentXmlSql = @"SELECT
+    umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+    cmsContentXml.xml, 1 AS published
 FROM umbracoNode 
 JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadCmsPreviewXmlSql1 = @"SELECT umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level, cmsPreviewXml.xml, cmsDocument.published
+        const string ReadCmsPreviewXmlSql1 = @"SELECT
+    umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.Level,
+    cmsPreviewXml.xml, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
@@ -786,6 +810,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             public int Level { get; set; }
             public string Xml { get; set; }
             public bool Published { get; set; }
+            public Guid VersionId { get; set; }
+            public long VersionRv { get; set; }
             // ReSharper restore UnusedAutoPropertyAccessor.Local
         }
 
@@ -947,6 +973,74 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         // it's the cache that subscribes to events and manages itself
         // except for requests for cache reset
 
+        public IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        {
+            // fixme - we should run all changes on a unique xml clone
+            // fixme - dangs for RefreshAll and Remove?
+
+            var dangs = new List<Dang>();
+            foreach (var payload in payloads)
+            {
+                if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
+                {
+                    ReloadXmlFromDatabase();
+                    continue;
+                }
+
+                if (payload.Action.HasType(ContentService.ChangeEventTypes.Remove))
+                {
+                    Remove(payload.Id);
+                    continue;
+                }
+
+                var content = _svcs.ContentService.GetById(payload.Id);
+                var draft = content.Published ? null : content;
+                var published = content.Published 
+                    ? content 
+                    : (content.HasPublishedVersion 
+                        ? _svcs.ContentService.GetByVersion(content.PublishedVersionGuid) 
+                        : null);
+
+                var current = XmlInternal.GetElementById(payload.Id.ToInvariantString());
+                var currentVersionId = current == null ? Guid.Empty : Guid.Parse(current.Attributes["vid"].Value);
+                var currentVersionRv = current == null ? -1 : int.Parse(current.Attributes["rv"].Value);
+
+                var dang = new Dang(payload.Id);
+                dangs.Add(dang);
+                dang.DraftVersion = draft;
+                dang.DraftChanged = true; // can't tell - assume it's changed
+                dang.PublishedVersion = published;
+
+                // if there's no published version anymore, remove from xml if exists
+                // if there's a published version, compare with xml and refresh if needed
+
+                // fixme - how should we process RefreshNode vs RefreshBranch?
+                // fixme - should these even exist at all?!
+
+                // fixme - in fact we want to load the published xml, and check its Rv
+
+                if (published == null)
+                {
+                    if (current != null)
+                    {
+                        Remove(payload.Id);
+                        dang.PublishedChanged = true;
+                    }
+                }
+                else
+                {
+                    if (current == null || currentVersionId != published.Version || currentVersionRv != ((Core.Models.Content) published).VersionRv)
+                    {
+                        Refresh(published);
+                        dang.PublishedChanged = true;
+                    }
+                }
+            }
+
+            return dangs;
+        }
+
+        /*
         private void ContentCacheUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
         {
             if (args.MessageType != MessageType.RefreshByJson)
@@ -977,6 +1071,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 }
             }
         }
+        */
 
         /*
         private void UnpublishedPageCacheUpdated(UnpublishedPageCacheRefresher sender, CacheRefresherEventArgs args)
@@ -1162,33 +1257,33 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 XmlInternal = wip;
         }
 
-        public void Refresh(Document d) // fixme - does it need to be a document vs a IContent
-        {
-            // mapping to document and back to content
-            // but not enabled by default?
+        //public void Refresh(Document d) // fixme - does it need to be a document vs a IContent
+        //{
+        //    // mapping to document and back to content
+        //    // but not enabled by default?
 
-            DocumentCacheEventArgs e = null;
+        //    DocumentCacheEventArgs e = null;
 
-            // event - cancel
+        //    // event - cancel
 
-            var c = _svcs.ContentService.GetPublishedVersion(d.Id);
+        //    var c = _svcs.ContentService.GetPublishedVersion(d.Id);
 
-            // lock the xml cache so no other thread can write to it at the same time
-            // note that some threads could read from it while we hold the lock, though
-            lock (_xmlLock)
-            {
-                SafeExecute(xml => Refresh(xml, c));
-                ResyncCurrentPublishedCaches();
-            }
+        //    // lock the xml cache so no other thread can write to it at the same time
+        //    // note that some threads could read from it while we hold the lock, though
+        //    lock (_xmlLock)
+        //    {
+        //        SafeExecute(xml => Refresh(xml, c));
+        //        ResyncCurrentPublishedCaches();
+        //    }
 
-            // fixme - should NOT be done here
-            var cachedFieldKeyStart = string.Format("{0}{1}_", CacheKeys.ContentItemCacheKey, d.Id);
-            ApplicationContext.Current.ApplicationCache.ClearCacheByKeySearch(cachedFieldKeyStart);
+        //    // fixme - should NOT be done here
+        //    var cachedFieldKeyStart = string.Format("{0}{1}_", CacheKeys.ContentItemCacheKey, d.Id);
+        //    ApplicationContext.Current.ApplicationCache.ClearCacheByKeySearch(cachedFieldKeyStart);
 
-            // event - updated
-        }
+        //    // event - updated
+        //}
 
-        public void Refresh(IContent content)
+        private void Refresh(IContent content)
         {
             // ensure it is published
             if (content.Published == false) return;
@@ -1202,23 +1297,23 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        public void Refresh(IEnumerable<IContent> contents)
-        {
-            // lock the xml cache so no other thread can write to it at the same time
-            // note that some threads could read from it while we hold the lock, though
-            lock (_xmlLock)
-            {
-                SafeExecute(xml =>
-                {
-                    foreach (var content in contents.Where(x => x.Published))
-                        Refresh(xml, content);
-                });
+        //public void Refresh(IEnumerable<IContent> contents)
+        //{
+        //    // lock the xml cache so no other thread can write to it at the same time
+        //    // note that some threads could read from it while we hold the lock, though
+        //    lock (_xmlLock)
+        //    {
+        //        SafeExecute(xml =>
+        //        {
+        //            foreach (var content in contents.Where(x => x.Published))
+        //                Refresh(xml, content);
+        //        });
 
-                ResyncCurrentPublishedCaches();
-            }
-        }
+        //        ResyncCurrentPublishedCaches();
+        //    }
+        //}
 
-        public void Refresh(XmlDocument xml, IContent content)
+        private void Refresh(XmlDocument xml, IContent content)
         {
             // ensure it is published
             if (content.Published == false) return;
@@ -1236,7 +1331,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             AppendDocumentXml(xml, content.Id, content.Level, parentId, node);
         }
 
-        public void RefreshContentTypes(IEnumerable<int> ids)
+        private void RefreshContentTypes(IEnumerable<int> ids)
         {
             // for single-refresh of one content we just re-serialize it instead of hitting the DB
             // but for mass-refresh, we want to reload what's been serialized in the DB = faster
@@ -1274,17 +1369,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             });
         }
 
-        public void RefreshMediaTypes(IEnumerable<int> ids)
+        private void RefreshMediaTypes(IEnumerable<int> ids)
         {
             // nothing to do, we have no cache
         }
 
-        public void RefreshMemberTypes(IEnumerable<int> ids)
+        private void RefreshMemberTypes(IEnumerable<int> ids)
         {
             // nothing to do, we have no cache
         }
 
-        public void Remove(int contentId)
+        private void Remove(int contentId)
         {
             DocumentCacheEventArgs e = null;
             Document d = null;
@@ -1586,6 +1681,21 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
         }
 
+        private static readonly string[] PropertiesImpactingAllVersions = { "SortOrder", "ParentId", "Level", "Path", "Trashed" };
+
+        private static bool HasChangesImpactingAllVersions(IContent icontent)
+        {
+            var content = (Core.Models.Content) icontent;
+
+            // UpdateDate will be dirty
+            // Published may be dirty if saving a Published entity
+            // so cannot do this (would always be true):
+            //return content.IsEntityDirty();
+
+            // have to be more precise & specify properties
+            return PropertiesImpactingAllVersions.Any(content.IsPropertyDirty);
+        }
+
         private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
@@ -1600,29 +1710,35 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 var dto1 = new PreviewXmlDto { NodeId = c.Id, Timestamp = now, VersionId = c.Version, Xml = xml };
                 OnRepositoryRefreshed(db, dto1);
 
-                if (c.Published == false)
-                {
-                    // FIXME - REFACTOR & DOCUMENT - SEE TESTS
+                // if unpublishing, remove from table
 
-                    if (c.IsPropertyDirty("Published") && ((Core.Models.Content) c).PublishedState == PublishedState.Unpublished)
-                    {
-                        // if it's just been unpublished, remove it from the table
-                        db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
-                        continue;
-                    }
-                    else if (((Core.Models.Content) c).IsEntityDirty() && c.HasPublishedVersion)
-                    {
-                        // if it's dirty + published version, refresh published xml
-                        var v = sender.GetAllVersions(c.Id).FirstOrDefault(y => y.Published);
-                        xml = _xmlContentSerializer(v).ToString(SaveOptions.None);
-                    }
-                    else
-                    {
-                        // published xml is fine
-                        continue;
-                    }
+                if (((Core.Models.Content) c).PublishedState == PublishedState.Unpublishing)
+                {
+                    db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
+                    continue;
                 }
 
+                // need to update the published xml if we're saving the published version,
+                // or having an impact on that version - we update the published xml even when masked
+
+                IContent pc = null;
+                if (c.Published)
+                {
+                    // saving the published version = update xml
+                    pc = c;
+                }
+                else
+                {
+                    // saving the non-published version, but there is a published version
+                    // check whether we have changes that impact the published version (move...)
+                    if (c.HasPublishedVersion && HasChangesImpactingAllVersions(c))
+                        pc = _svcs.ContentService.GetByVersion(c.PublishedVersionGuid);
+                }
+
+                if (pc == null)
+                    continue;
+
+                xml = _xmlContentSerializer(pc).ToString(SaveOptions.None);
                 var dto2 = new ContentXmlDto { NodeId = c.Id, Xml = xml };
                 OnRepositoryRefreshed(db, dto2);
             }

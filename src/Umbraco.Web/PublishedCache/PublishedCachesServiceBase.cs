@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.Models.Membership;
+using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache
 {
@@ -37,6 +35,7 @@ namespace Umbraco.Web.PublishedCache
         public abstract string EnterPreview(IUser user, int contentId);
         public abstract void RefreshPreview(string previewToken, int contentId);
         public abstract void ExitPreview(string previewToken);
+        public abstract IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads);
 
         public virtual void Dispose()
         { }

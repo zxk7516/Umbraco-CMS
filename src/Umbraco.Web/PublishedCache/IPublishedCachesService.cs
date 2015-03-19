@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
+using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache
 {
@@ -87,5 +89,22 @@ namespace Umbraco.Web.PublishedCache
         /// <para>Does not handle the preview token storage (cookie, etc) that must be handled separately.</para>
         /// </remarks>
         void ExitPreview(string previewToken);
+
+        // fixme
+        IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads);
+    }
+
+    public class Dang
+    {
+        public Dang(int id)
+        {
+            Id = id;
+        }
+
+        public int Id { get; private set; }
+        public IContent PublishedVersion { get; set; }
+        public IContent DraftVersion { get; set; }
+        public bool PublishedChanged { get; set; }
+        public bool DraftChanged { get; set; }
     }
 }

@@ -41,6 +41,9 @@ namespace Umbraco.Core.Services
             xml.Add(new XAttribute("template", content.Template == null ? "0" : content.Template.Id.ToString(CultureInfo.InvariantCulture)));
             xml.Add(new XAttribute("nodeTypeAlias", content.ContentType.Alias));
 
+            xml.Add(new XAttribute("vid", content.Version));
+            xml.Add(new XAttribute("rv", ((Content)content).VersionRv));
+
             if (deep)
             {
                 var descendants = contentService.GetDescendants(content).ToArray();

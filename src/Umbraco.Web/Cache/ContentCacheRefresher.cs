@@ -6,6 +6,7 @@ using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
+using Umbraco.Web.PublishedCache;
 using ChangeEventTypes = Umbraco.Core.Services.ContentService.ChangeEventTypes;
 
 namespace Umbraco.Web.Cache
@@ -98,40 +99,25 @@ namespace Umbraco.Web.Cache
         public override void Refresh(string json)
         {
             var payloads = Deserialize(json);
-            var published = payloads.Any(x => x.Action.HasTypesAny(ChangeEventTypes.None));
-            var draft = payloads.Any(x => x.Action.HasTypesAny(ChangeEventTypes.None));
-            if (published)
-            { }
-            if (draft)
-            { }
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            var resA = svce.NotifyChanges(payloads).ToArray();
 
-            foreach (var payload in Deserialize(json))
+            if (payloads.Any(x => x.Action.HasType(ChangeEventTypes.RefreshAll)) 
+                || resA.Any(x => x.PublishedChanged))
             {
-                // fixme
-                var id = payload.Id;
-                var c = ApplicationContext.Current.Services.ContentService.GetById(id);
-                var p = c.Published ? c : (c.HasPublishedVersion ? ApplicationContext.Current.Services.ContentService.GetPublishedVersion(id) : null);
-                var dc = c.UpdateDate; // version date
-                var dp = p == null ? DateTime.MinValue : p.UpdateDate; // version date
-                // can we use these dates to figure out WHAT has REALLY changed? do we have enough granularity?
-                // also it means we know the dates of what we're caching - Examine does not - must refresh all the time?
-
-                if (payload.Action.HasTypesAny(ChangeEventTypes.RefreshAllPublished | ChangeEventTypes.RefreshPublished | ChangeEventTypes.RemovePublished))
-                {
-                    // from PageCacheRefresher
-                    ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-                    DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
-                    DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
-                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
-                }
-
-                if (payload.Action.HasTypesAny(ChangeEventTypes.RefreshAll | ChangeEventTypes.Refresh | ChangeEventTypes.Remove))
-                {
-                    // from UnpublishedPageCacheRefresher
-                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
-                    ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheItem(RepositoryBase.GetCacheIdKey<IContent>(payload.Id));
-                }
+                // from PageCacheRefresher - when a public version changes
+                ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
+                DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
+                DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
             }
+
+            // from UnpublishedPageCacheRefresher
+            var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
+            runtimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
+            foreach (var payload in payloads)
+                runtimeCache.ClearCacheItem(RepositoryBase.GetCacheIdKey<IContent>(payload.Id));
+
+            // fixme - and we want to notify Examine, etc?
 
             base.Refresh(json);
         }

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using Umbraco.Core;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.Services;
+using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
@@ -42,6 +44,11 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         public override void ExitPreview(string previewToken)
         {
             // nothing
+        }
+
+        public override IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        {
+            throw new NotImplementedException();
         }
     }
 }

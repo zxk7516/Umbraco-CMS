@@ -231,63 +231,66 @@ namespace Umbraco.Web.Cache
         /// <param name="dc"></param>
         public static void RefreshAllPublishedContentCache(this DistributedCache dc)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentService.ChangeEventTypes.RefreshAllPublished) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentService.ChangeEventTypes.RefreshAll) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
 
-        /// <summary>
-        /// Refreshes published content.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="contentId"></param>
-        public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
-        {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RefreshPublished) };
+        ///// <summary>
+        ///// Refreshes published content.
+        ///// </summary>
+        ///// <param name="dc"></param>
+        ///// <param name="contentId"></param>
+        //public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
+        //{
+        //    var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RefreshPublished) };
 
-            dc.RefreshContentCacheByJson(payloads);
-        }
+        //    dc.RefreshContentCacheByJson(payloads);
+        //}
 
-        /// <summary>
-        /// Refreshes published content.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshPublishedContentCache(this DistributedCache dc, params IContent[] content)
-        {
-            if (content.Length == 0) return;
+        ///// <summary>
+        ///// Refreshes published content.
+        ///// </summary>
+        ///// <param name="dc"></param>
+        ///// <param name="content"></param>
+        //public static void RefreshPublishedContentCache(this DistributedCache dc, params IContent[] content)
+        //{
+        //    if (content.Length == 0) return;
 
-            var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshPublished));
+        //    var payloads = content
+        //        .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshPublished));
 
-            dc.RefreshContentCacheByJson(payloads);
-        }
+        //    dc.RefreshContentCacheByJson(payloads);
+        //}
 
-        /// <summary>
-        /// Removes published content.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="contentId"></param>
-        public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
-        {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RemovePublished) };
+        ///// <summary>
+        ///// Removes published content.
+        ///// </summary>
+        ///// <param name="dc"></param>
+        ///// <param name="contentId"></param>
+        //public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
+        //{
+        //    var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RemovePublished) };
 
-            dc.RefreshContentCacheByJson(payloads);
-        }
-        /// <summary>
-        /// Removes published content.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RemovePublishedContentCache(this DistributedCache dc, params IContent[] content)
-        {
-            if (content.Length == 0) return;
+        //    dc.RefreshContentCacheByJson(payloads);
+        //}
 
-            var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RemovePublished));
+        ///// <summary>
+        ///// Removes published content.
+        ///// </summary>
+        ///// <param name="dc"></param>
+        ///// <param name="content"></param>
+        //public static void RemovePublishedContentCache(this DistributedCache dc, params IContent[] content)
+        //{
+        //    if (content.Length == 0) return;
 
-            dc.RefreshContentCacheByJson(payloads);
-        }
+        //    var payloads = content
+        //        .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RemovePublished));
+
+        //    dc.RefreshContentCacheByJson(payloads);
+        //}
+
+        // fixme - get rid of these two...
 
         public static void RefreshContentCache(this DistributedCache dc, ContentService.ChangeEventArgs.Change[] changes)
         {
@@ -309,7 +312,7 @@ namespace Umbraco.Web.Cache
             if (content.Length == 0) return;
 
             var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.Refresh));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshBranch));
 
             dc.RefreshContentCacheByJson(payloads);
         }

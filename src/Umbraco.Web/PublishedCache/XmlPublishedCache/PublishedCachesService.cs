@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Services;
+using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -108,6 +110,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         public void RebuildMemberXml()
         {
             XmlStore.RebuildMemberXml();
+        }
+
+        public override IEnumerable<Dang> NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads)
+        {
+            return _xmlStore.NotifyChanges(payloads);
         }
     }
 }
