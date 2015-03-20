@@ -306,7 +306,7 @@ namespace Umbraco.Tests.Persistence.Repositories
                 unitOfWork.Commit();
                 foreach (var content in result)
                 {
-                    content.ChangePublishedState(PublishedState.Published);
+                    content.ChangePublishedState(PublishedState.Publishing);
                     repository.AddOrUpdate(content);
                 }
                 unitOfWork.Commit();

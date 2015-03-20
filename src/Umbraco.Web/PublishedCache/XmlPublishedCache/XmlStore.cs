@@ -120,7 +120,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
         public XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache)
-            : this(serviceContext, databaseContext, routesCache, false)
+            : this(serviceContext, databaseContext, routesCache, true)
         { }
 
         private void InitializeSerializers()
@@ -235,8 +235,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         // internal for unit tests
         // no file nor db, no config check
-        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, bool testing)
+        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, bool withEvents)
         {
+            var testing = withEvents == false;
+
             if (testing == false)
                 EnsureConfigurationIsValid();
 
@@ -1643,14 +1645,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
-            //var now = DateTime.Now;
 
             foreach (var c in args.Entities)
             {
                 var xml = _xmlContentSerializer(c).ToString(SaveOptions.None);
 
                 // change below to write only one row - not one per version
-                var dto1 = new PreviewXmlDto { NodeId = c.Id, /*Timestamp = now, VersionId = c.Version,*/ Xml = xml };
+                var dto1 = new PreviewXmlDto
+                {
+                    NodeId = c.Id,
+                    Xml = xml
+                };
                 OnRepositoryRefreshed(db, dto1);
 
                 // if unpublishing, remove from table
@@ -1949,7 +1954,6 @@ WHERE cmsPreviewXml.nodeId IN (
                 var pageIndex = 0;
                 var processed = 0;
                 int total;
-                //var now = DateTime.Now;
                 do
                 {
                     // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
@@ -1959,9 +1963,6 @@ WHERE cmsPreviewXml.nodeId IN (
                     {
                         NodeId = c.Id,
                         Xml = _xmlContentSerializer(c).ToString(SaveOptions.None)
-                        // not used anymore
-                        //Timestamp = now,
-                        //VersionId = c.Version
                     }).ToArray();
                     db.BulkInsertRecords(items, tr);
                     processed += items.Length;

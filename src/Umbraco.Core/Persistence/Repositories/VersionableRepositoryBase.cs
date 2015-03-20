@@ -225,6 +225,11 @@ namespace Umbraco.Core.Persistence.Repositories
             }
         }
 
+        protected bool HasTagProperty(IContentBase entity)
+        {
+            return entity.Properties.Any(x => x.TagSupport.Enable);
+        }
+
         private Sql GetFilteredSqlForPagedResults(Sql sql, Func<Tuple<string, object[]>> defaultFilter = null)
         {
             //copy to var so that the original isn't changed

@@ -20,7 +20,6 @@ using Umbraco.Web.Cache;
 namespace Umbraco.Tests.Integration
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
-    [FacadeServiceBehavior(WithEvents = true)]
     [TestFixture, RequiresSTA]
     public class ContentEventsTests : BaseServiceTest
     {

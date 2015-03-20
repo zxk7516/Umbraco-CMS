@@ -10,16 +10,9 @@ namespace Umbraco.Core.Models.Rdbms
     internal class PreviewXmlDto
     {
         [Column("nodeId")]
-        [PrimaryKeyColumn(AutoIncrement = false, Name = "PK_cmsContentPreviewXml", OnColumns = "nodeId, versionId")]
+        [PrimaryKeyColumn(AutoIncrement = false)]
         [ForeignKey(typeof(ContentDto), Column = "nodeId")]
         public int NodeId { get; set; }
-
-        [Column("versionId")]
-        [ForeignKey(typeof(ContentVersionDto), Column = "VersionId")]
-        public Guid VersionId { get; set; }
-
-        [Column("timestamp")]
-        public DateTime Timestamp { get; set; }
 
         [Column("xml")]
         [SpecialDbType(SpecialDbTypes.NTEXT)]

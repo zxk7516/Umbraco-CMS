@@ -131,7 +131,8 @@ namespace Umbraco.Tests.Publishing
             var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(content, null, 0, false);
             //all of them will be SuccessAlreadyPublished unless the unpublished one gets included, in that case
             //we'll have a 'Success' result which we don't want.
-            Assert.AreEqual(0, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
+            // NOTE - not true, we'll have Success for _homePage because we DO want to publish it
+            Assert.AreEqual(1, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
         }
 
         [Test]
@@ -158,12 +159,16 @@ namespace Umbraco.Tests.Publishing
             //means the result will be 1 'SuccessAlreadyPublished' and 3 'Success' because the Homepage is
             //inserted in the list and since that item has the status of already being Published it will be the one item
             //with 'SuccessAlreadyPublished'
+            //
+            // NOTE - this is WRONG, the first one (_homepage) we really want to publish!
+            // not sure this test makes sense at all...
 
-            var descendants = ServiceContext.ContentService.GetDescendants(_homePage).Concat(new[] {_homePage});
-            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(descendants, null, 0, true);
+            var contents = new[] {_homePage} // top-level MUST be the first one here
+                .Concat(ServiceContext.ContentService.GetDescendants(_homePage));
+            var result = ((ContentService)ServiceContext.ContentService).StrategyPublishWithChildren(contents, null, 0, true);
             
-            Assert.AreEqual(3, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
-            Assert.AreEqual(1, result.Count(x => x.Result.StatusType == PublishStatusType.SuccessAlreadyPublished));
+            Assert.AreEqual(4, result.Count(x => x.Result.StatusType == PublishStatusType.Success));
+            Assert.AreEqual(0, result.Count(x => x.Result.StatusType == PublishStatusType.SuccessAlreadyPublished));
             Assert.IsTrue(result.First(x => x.Result.StatusType == PublishStatusType.Success).Success);
             Assert.IsTrue(result.First(x => x.Result.StatusType == PublishStatusType.Success).Result.ContentItem.Published);
         }

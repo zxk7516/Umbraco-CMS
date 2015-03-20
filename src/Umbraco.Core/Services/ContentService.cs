@@ -1146,7 +1146,7 @@ namespace Umbraco.Core.Services
                     return;
 
                 // if it's published we may want to force-unpublish it - that would be backward-compatible... but...
-                // making a radical decision here: trashing iss equivalent to moving under an unpublished node so
+                // making a radical decision here: trashing is equivalent to moving under an unpublished node so
                 // it's NOT unpublishing, only the content is now masked - allowing us to restore it if wanted
                 //if (content.HasPublishedVersion)
                 //{ }
@@ -1241,7 +1241,7 @@ namespace Umbraco.Core.Services
 
             // get the level delta (old pos to new pos)
             var levelDelta = parent == null
-                ? 1 - content.Level
+                ? 1 - content.Level + (parentId == Constants.System.RecycleBinContent ? 1 : 0)
                 : parent.Level + 1 - content.Level;
 
             var uow = UowProvider.GetUnitOfWork(); // do it ALL in one UOW
@@ -1263,7 +1263,7 @@ namespace Umbraco.Core.Services
                 // BUT content.Path will be updated only when the UOW commits, and
                 //  because we want it now, we have to calculate it by ourselves
                 //paths[content.Id] = content.Path;
-                paths[content.Id] = (parent == null ? "-1" : parent.Path) + "," + content.Id;
+                paths[content.Id] = (parent == null ? (parentId == Constants.System.RecycleBinContent ? "-1,-20" : "-1") : parent.Path) + "," + content.Id;
 
                 var descendants = GetDescendants(content);
                 foreach (var descendant in descendants)
@@ -1281,44 +1281,11 @@ namespace Umbraco.Core.Services
         }
 
         private static void PerformMoveContent(IContentRepository repository, IContent content, int userId,
-            //ICollection<int> masked, 
-            //ICollection<ChangeEventArgs.Change> changes,
             bool? trash)
         {
             if (trash.HasValue) ((Content) content).Trashed = trash.Value;
             content.WriterId = userId;
             repository.AddOrUpdate(content);
-
-            /*
-            // cannot use content.HasPublishedVersion here, because .AddOrUpdate() above will execute
-            // only when the UOW commits, so at the time this method runs, published version infos have
-            // not been updated yet (ie HasPublishedVersion can be true though we're unpublishing)
-            //
-            // that can happen when moving a "published, masked because trashed" content back to the
-            // tree, so it goes under a published parent, but it goes there unpublished
-            //
-            var hasPublishedVersion = content.HasPublishedVersion 
-                && ((Content) content).PublishedState != PublishedState.Unpublishing;
-
-            var change = ChangeEventTypes.Refresh; // moved, so it has to be refreshed
-            if (masked == null)
-            {
-                if (hasPublishedVersion)
-                    change |= ChangeEventTypes.RemovePublished; // everything is masked
-            }
-            else
-            {
-                if (masked.Contains(content.ParentId) || hasPublishedVersion == false)
-                {
-                    masked.Add(content.Id);
-                    if (hasPublishedVersion)
-                        change |= ChangeEventTypes.RemovePublished; // now masked
-                }
-                else
-                    change |= ChangeEventTypes.RefreshPublished; // published
-            }
-            changes.Add(new ChangeEventArgs.Change(content, change));
-            */
         }
 
         /// <summary>
@@ -2230,7 +2197,7 @@ namespace Umbraco.Core.Services
                     continue;
                 }
 
-                if (content.Published)
+                if (content.Published && content.Level > topLevel) // topLevel we DO want to (re)publish
                 {
                     // newest is published already
                     statuses.Add(Attempt.Succeed(new PublishStatus(content, PublishStatusType.SuccessAlreadyPublished)));
@@ -2239,6 +2206,7 @@ namespace Umbraco.Core.Services
 
                 if (content.HasPublishedVersion)
                 {
+                    // newest is published already but we are topLevel, or
                     // newest is not published, but another version is - publish newest
                     var r = StrategyPublish(content, alreadyCheckedA.Contains(content), userId);
                     if (r.Success == false)

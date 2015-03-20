@@ -14,123 +14,105 @@ namespace Umbraco.Tests.Models
 
         // when Published...
 
-        [Test] // debatable
-        public void RequireSaving_When_PublishedAndNothingChanged_Should()
+        [Test]
+        public void RequireSaving_PublishedAndThatsAll_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_PublishedAndSavingNothingChanged_ShouldNot()
+        public void RequireSaving_PublishedAndSavingAndNothingChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.ChangePublishedState(PublishedState.Saving); // saving
+
             Assert.IsFalse(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_PublishedAndSavingUserPropertyChanged_Should()
+        public void RequireSaving_PublishedAndSavingAndUserPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.Properties.First().Value = "hello world"; // change data
-
             content.ChangePublishedState(PublishedState.Saving); // saving
+
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_PublishedAndSavingContentPropertyChanged_Should()
+        public void RequireSaving_PublishedAndSavingAndContentPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.ReleaseDate = DateTime.Now; // change data
-
             content.ChangePublishedState(PublishedState.Saving); // saving
+
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_PublishedAndUnpublishing_Should()
+        public void RequireSaving_PublishedAndUnpublishing_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing
+
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_PublishedAndPublishingNothingChanged_Should()
+        public void RequireSaving_PublishedAndPublishingAndNothingChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
-            // just change to Unpublished will not be registered as a change,
-            // have to change to something else then change again - that should
-            // not really happen IRL - just documenting what would happen
-
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            Assert.IsTrue(content.RequiresSaving());
-        }
-
-        // when NotPublished...
-
-        [Test]
-        public void RequireSaving_When_UnpublishedAndNothingChanged_Should()
-        {
-            // that one is important: when unpublishing a content with changes,
-            // the newest version is already Unpublished and nothing changes, BUT
-            // we want it saved to register the date change etc.
-
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing); // publishing
 
             Assert.IsTrue(content.RequiresSaving());
         }
 
+        // when Unpublished...
+
         [Test]
-        public void RequireSaving_When_UnpublishedAndSavingNothingChanged_ShouldNot()
+        public void RequireSaving_UnpublishedAndSavingAndNothingChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_UnpublishedAndSavingUserPropertyChanged_Should()
+        public void RequireSaving_UnpublishedAndSavingAndUserPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -139,12 +121,11 @@ namespace Umbraco.Tests.Models
 
             content.Properties.First().Value = "hello world"; // change data
 
-            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_UnpublishedAndSavingContentPropertyChanged_Should()
+        public void RequireSaving_UnpublishedAndSavingAndContentPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -153,36 +134,32 @@ namespace Umbraco.Tests.Models
 
             content.ReleaseDate = DateTime.Now; // change data
 
-            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_UnpublishedAndPublishing_Should()
+        public void RequireSaving_UnpublishedAndPublishing_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Published); // publishing
+            content.ChangePublishedState(PublishedState.Publishing); // publishing
+
             Assert.IsTrue(content.RequiresSaving());
         }
 
         [Test]
-        public void RequireSaving_When_UnpublishedAndUnpublishingNothingChanged_Should()
+        public void RequireSaving_When_UnpublishedAndUnpublishingAndNothingChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            // just change to Unpublished will not be registered as a change,
-            // have to change to something else then change again - that should
-            // not really happen IRL - just documenting what would happen
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing
 
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
             Assert.IsTrue(content.RequiresSaving());
         }
 
@@ -193,7 +170,7 @@ namespace Umbraco.Tests.Models
         // when language...
 
         [Test]
-        public void RequireNewVersion_When_LanguageChanged_Should()
+        public void RequireNewVersion_LanguageChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -207,132 +184,134 @@ namespace Umbraco.Tests.Models
         // when Published...
 
         [Test]
-        public void RequireNewVersion_When_PublishedAndNothingChanged_ShouldNot()
+        public void RequireNewVersion_PublishedAndThatsAll_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_PublishedAndUserPropertyChanged_Should()
+        public void RequireNewVersion_PublishedAndPublishingAndNothingChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
-            content.Properties.First().Value = "hello world"; // change data
+            content.ChangePublishedState(PublishedState.Publishing);
 
-            Assert.IsTrue(content.RequiresNewVersion());
-        }
-
-        [Test]
-        public void RequireNewVersion_When_PublishedAndContentPropertyChanged_Should()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
-
-            content.ReleaseDate = DateTime.Now; // change content property
-            Assert.IsTrue(content.RequiresNewVersion());
-        }
-
-        [Test]
-        public void RequireNewVersion_When_PublishedAndSavingNothingChanged_ShouldNot()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
-
-            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_PublishedAndSavingUserPropertyChanged_Should()
+        public void RequireNewVersion_PublishedAndPublishdingAndUserPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.Properties.First().Value = "hello world"; // change data
+            content.ChangePublishedState(PublishedState.Publishing);
 
-            content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_PublishedAndSavingContentPropertyChanged_Should()
+        public void RequireNewVersion_PublishedAndPublishdingAndContentPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
+
+            content.ReleaseDate = DateTime.Now; // change content property
+            content.ChangePublishedState(PublishedState.Publishing);
+
+            Assert.IsTrue(content.RequiresNewVersion());
+        }
+
+        [Test]
+        public void RequireNewVersion_PublishedAndSavingAndNothingChanged_ShouldNot()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
+
+            content.ChangePublishedState(PublishedState.Saving); // saving
+
+            Assert.IsFalse(content.RequiresNewVersion());
+        }
+
+        [Test]
+        public void RequireNewVersion_PublishedAndSavingAndUserPropertyChanged_Should()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
+
+            content.Properties.First().Value = "hello world"; // change data
+            content.ChangePublishedState(PublishedState.Saving); // saving
+
+            Assert.IsTrue(content.RequiresNewVersion());
+        }
+
+        [Test]
+        public void RequireNewVersion_PublishedAndSavingAndContentPropertyChanged_Should()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.ReleaseDate = DateTime.Now; // change content property
             content.ChangePublishedState(PublishedState.Saving); // saving
+
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_PublishedAndUnpublishing_Should()
+        public void RequireNewVersion_PublishedAndUnpublishing_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // is published
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
+
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing
+
+            Assert.IsTrue(content.RequiresNewVersion());
+        }
+
+        // when Unpublished...
+
+        [Test]
+        public void RequireNewVersion_UnpublishedAndSavingAndNothingChanged_ShouldNot()
+        {
+            var contentType = MockedContentTypes.CreateTextpageContentType();
+            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
-            Assert.IsTrue(content.RequiresNewVersion());
+            Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test] // debatable
-        public void RequireNewVersion_When_PublishedAndPublishingNothingChanged_ShouldNot()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ChangePublishedState(PublishedState.Published); // is published
-            content.ResetDirtyProperties(false);
-
-            // just change to Unpublished will not be registered as a change,
-            // have to change to something else then change again - that should
-            // not really happen IRL - just documenting what would happen
-
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            Assert.IsFalse(content.RequiresNewVersion());
-        }
-
-        // when NotPublished...
-
-        [Test]
-        public void RequireNewVersion_When_NotPublishedAndNothingChanged_ShouldNot()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
-
-            Assert.IsFalse(content.RequiresNewVersion());
-        }
-
-        [Test] // debatable
-        public void RequireNewVersion_When_NotPublishedAndUserPropertyChanged_Should()
+        public void RequireNewVersion_UnpublishedAndSavingAndUserPropertyChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -340,11 +319,12 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.Properties.First().Value = "hello world"; // change user property
-            Assert.IsTrue(content.RequiresNewVersion());
+
+            Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_NotPublishedAndContentPropertyChanged_Should()
+        public void RequireNewVersion_UnpublishedAndSavingAndContentPropertyChanged_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -352,23 +332,25 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.ReleaseDate = DateTime.Now; // change content property
+
             Assert.IsTrue(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_NotPublishedAndSavingNothingChanged_ShouldNot()
+        public void RequireNewVersion_UnpublishedAndPublishingAndNothingChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Saving); // saving
+            content.ChangePublishedState(PublishedState.Publishing);
+
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_NotPublishedAndSavingUserPropertyChanged_ShouldNot()
+        public void RequireNewVersion_UnpublishedAndPublishingAndUserPropertyChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -376,12 +358,13 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.Properties.First().Value = "hello world"; // change user property
-            content.ChangePublishedState(PublishedState.Saving); // saving
+            content.ChangePublishedState(PublishedState.Publishing); // publishing
+
             Assert.IsFalse(content.RequiresNewVersion());
         }
 
         [Test]
-        public void RequireNewVersion_When_NotPublishedAndSavingContentPropertyChanged_Should()
+        public void RequireNewVersion_UnpublishedAndPublishingAndContentPropertyChanged_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -389,63 +372,22 @@ namespace Umbraco.Tests.Models
             content.ResetDirtyProperties(false);
 
             content.ReleaseDate = DateTime.Now; // change content property
-            content.ChangePublishedState(PublishedState.Saving); // saving
-            Assert.IsTrue(content.RequiresNewVersion());
-        }
+            content.ChangePublishedState(PublishedState.Publishing); // publishing
 
-        [Test]
-        public void RequireNewVersion_When_NotPublishedAndPublishing_ShouldNot()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
-
-            content.ChangePublishedState(PublishedState.Published); // publishing
             Assert.IsFalse(content.RequiresNewVersion());
-        }
-
-        [Test]
-        public void RequireNewVersion_When_NotPublishedAndPublishingUserPropertyChanged_Should()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
-
-            content.Properties.First().Value = "hello world"; // change user property
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            Assert.IsTrue(content.RequiresNewVersion());
-        }
-
-        [Test]
-        public void RequireNewVersion_When_NotPublishedAndPublishingContentPropertyChanged_Should()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
-
-            content.ReleaseDate = DateTime.Now; // change content property
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            Assert.IsTrue(content.RequiresNewVersion());
         }
         
-        [Test] // debatable
-        public void RequireNewVersion_When_NotPublishedAndUnpublishingNothingChanged_Should()
+        [Test]
+        public void RequireNewVersion_UnpublishedAndUnpublishing_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            // just change to Unpublished will not be registered as a change,
-            // have to change to something else then change again - that should
-            // not really happen IRL - just documenting what would happen
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing
 
-            content.ChangePublishedState(PublishedState.Published); // publishing
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
-            Assert.IsTrue(content.RequiresNewVersion());
+            Assert.IsFalse(content.RequiresNewVersion());
         }
 
         #endregion
@@ -453,44 +395,31 @@ namespace Umbraco.Tests.Models
         #region ClearPublishedFlag
 
         [Test]
-        public void ClearPublishedFlag_When_UnpublishedAndPublishing_Should()
+        public void ClearPublishedFlag_UnpublishedAndPublishing_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Published); // publishing
+            content.ChangePublishedState(PublishedState.Publishing); // publishing
             Assert.IsTrue(content.RequiresClearPublishedFlag());
         }
 
         [Test]
-        public void ClearPublishedFlag_When_UnpublishedAndUnpublishing_ShouldNot()
+        public void ClearPublishedFlag_UnpublishedAndUnpublishing_Should()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
             content.ResetDirtyProperties(false);
 
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing - does not "change it"
-            Assert.IsFalse(content.RequiresClearPublishedFlag());
-        }
-
-        [Test]
-        public void ClearPublishedFlag_When_UnpublishedAndForceUnpublishing_Should()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ResetDirtyProperties(false);
-
-            content.ChangePublishedState(PublishedState.Published);
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing - does "change it"
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing - does not "change it"
             Assert.IsTrue(content.RequiresClearPublishedFlag());
         }
 
         [Test]
-        public void ClearPublishedFlag_When_UnpublishedAndSaving_ShouldNot()
+        public void ClearPublishedFlag_UnpublishedAndSaving_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
@@ -502,55 +431,41 @@ namespace Umbraco.Tests.Models
         }
 
         [Test]
-        public void ClearPublishedFlag_When_PublishedAndSaving_ShouldNot()
+        public void ClearPublishedFlag_PublishedAndSaving_ShouldNot()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
             content.ChangePublishedState(PublishedState.Saving); // saving
             Assert.IsFalse(content.RequiresClearPublishedFlag());
         }
 
         [Test]
-        public void ClearPublishedFlag_When_PublishedAndUnpublishing_Should()
+        public void ClearPublishedFlag_PublishedAndUnpublishing_Not()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
-            content.ChangePublishedState(PublishedState.Unpublished); // unpublishing
+            content.ChangePublishedState(PublishedState.Unpublishing); // unpublishing
             Assert.IsTrue(content.RequiresClearPublishedFlag());
         }
 
         [Test]
-        public void ClearPublishedFlag_When_PublishedAndPublishing_ShouldNot()
+        public void ClearPublishedFlag_When_PublishedAndPublishing_Not()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
 
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
 
-            content.ChangePublishedState(PublishedState.Published); // publishing - does not "change it"
-            Assert.IsFalse(content.RequiresClearPublishedFlag());
-        }
-
-        [Test]
-        public void ClearPublishedFlag_When_PublishedAndForcePublishing_Should()
-        {
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            content.ChangePublishedState(PublishedState.Published); // published
-            content.ResetDirtyProperties(false);
-
-            content.ChangePublishedState(PublishedState.Unpublished);
-            content.ChangePublishedState(PublishedState.Published); // publishing - does "change it"
+            content.ChangePublishedState(PublishedState.Publishing); // publishing - does not "change it"
             Assert.IsTrue(content.RequiresClearPublishedFlag());
         }
 

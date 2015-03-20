@@ -366,7 +366,13 @@ namespace Umbraco.Core.Persistence.Repositories
                 }
             }
 
-            UpdatePropertyTags(entity, _tagRepository);
+            if (HasTagProperty(entity))
+            {
+                if (entity.Trashed)
+                    ClearEntityTags(entity, _tagRepository);
+                else
+                    UpdatePropertyTags(entity, _tagRepository);
+            }
 
             OnRefreshedEntity(new EntityChangeEventArgs(UnitOfWork, entity));
 

@@ -17,6 +17,7 @@ namespace Umbraco.Core.Models
         private IContentType _contentType;
         private ITemplate _template;
         private bool _published;
+        private bool? _publishedOriginal;
         private string _language;
         private DateTime? _releaseDate;
         private DateTime? _expireDate;
@@ -32,8 +33,7 @@ namespace Umbraco.Core.Models
         /// <param name="contentType">ContentType for the current Content object</param>
         public Content(string name, IContent parent, IContentType contentType)
 			: this(name, parent, contentType, new PropertyCollection())
-		{			
-		}
+		{ }
 
         /// <summary>
         /// Constructor for creating a Content object
@@ -48,6 +48,7 @@ namespace Umbraco.Core.Models
 			Mandate.ParameterNotNull(contentType, "contentType");
 
 			_contentType = contentType;
+            PublishedState = PublishedState.Unpublished;
 		}
 
         /// <summary>
@@ -58,8 +59,7 @@ namespace Umbraco.Core.Models
         /// <param name="contentType">ContentType for the current Content object</param>
         public Content(string name, int parentId, IContentType contentType)
             : this(name, parentId, contentType, new PropertyCollection())
-        {
-        }
+        { }
 
         /// <summary>
         /// Constructor for creating a Content object
@@ -74,6 +74,7 @@ namespace Umbraco.Core.Models
             Mandate.ParameterNotNull(contentType, "contentType");
 
             _contentType = contentType;
+            PublishedState = PublishedState.Unpublished;
         }
 
         private static readonly PropertyInfo TemplateSelector = ExpressionHelper.GetPropertyInfo<Content, ITemplate>(x => x.Template);
@@ -153,9 +154,17 @@ namespace Umbraco.Core.Models
                 SetPropertyValueAndDetectChanges(o =>
                 {
                     _published = value;
+                    _publishedOriginal = _publishedOriginal ?? _published;
+                    PublishedState = _published ? PublishedState.Published : PublishedState.Unpublished;
                     return _published;
                 }, _published, PublishedSelector);
             }
+        }
+
+        [IgnoreDataMember]
+        public bool PublishedOriginal
+        {
+            get { return _publishedOriginal ?? false; }
         }
 
         /// <summary>
@@ -318,10 +327,8 @@ namespace Umbraco.Core.Models
             PublishedState = state;
         }
 
-        // note: set is used only in ContentFactory - and here in Content right above - and nowhere else
-        // should be private, xcept ContentFactory needs it - should always use ChangePublishedState!
         [DataMember]
-        internal PublishedState PublishedState { get; set; }
+        internal PublishedState PublishedState { get; private set; }
 
         /// <summary>
         /// Gets or sets the unique identifier of the published version, if any.
@@ -435,6 +442,8 @@ namespace Umbraco.Core.Models
                     PublishedState = PublishedState.Published;
                     break;
             }
+
+            _publishedOriginal = _published;
         }
 
         /// <summary>

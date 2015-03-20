@@ -61,17 +61,20 @@ namespace Umbraco.Core.Models
         {
             // note: publishedState is always the entity's PublishedState except for tests
 
-            // the only situation where we don't want to *save* is if we are "saving" a content
-            // and nothing has changed - so return true if we are not "saving" but doing something
-            // else, or if anything has changed.
-
             var content = (Content)entity;
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
             //var contentPropertyChanged = content.IsEntityDirty();
             var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
 
-            return publishedState != PublishedState.Saving || userPropertyChanged || contentPropertyChangedExceptPublished;            
+            // we don't want to save (write to DB) if we are "saving" either a published content
+            // (.Saving) or an unpublished content (.Unpublished) and strictly nothing has changed
+
+            var noSave = (publishedState == PublishedState.Saving || publishedState == PublishedState.Unpublished)
+                && userPropertyChanged == false
+                && contentPropertyChangedExceptPublished == false;
+
+            return noSave == false;
         }
 
         /// <summary>
@@ -105,9 +108,9 @@ namespace Umbraco.Core.Models
             // note: publishedState is always the entity's PublishedState except for tests
 
             // read
-            // http://issues.umbraco.org/issue/U4-2589
-            // http://issues.umbraco.org/issue/U4-3404
-            // http://issues.umbraco.org/issue/U4-5510
+            // http://issues.umbraco.org/issue/U4-2589 (save & publish & creating new versions)
+            // http://issues.umbraco.org/issue/U4-3404 (pressing preview does save then preview)
+            // http://issues.umbraco.org/issue/U4-5510 (previewing & creating new versions)
             //
             // slightly modifying the rules to make more sense (marked with CHANGE)
             // but should respect the result of the discussions in those issues
@@ -123,32 +126,45 @@ namespace Umbraco.Core.Models
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
             var contentPropertyChangedExceptPublished = dirtyProps.Any(x => x != "Published");
+            var wasPublished = content.PublishedOriginal;
 
             switch (publishedState)
             {
                 case PublishedState.Publishing:
-                    // changed,
-                    // publishing: requires a new version if anything has changed, else we can
-                    //   (re)publish the current version
-                    return contentPropertyChangedExceptPublished || userPropertyChanged;
+                    // changed state, publishing either a published or an unpublished version:
+                    // DO create a new (published) version IF it was published already AND
+                    // anything has changed, else can reuse the current version
+                    return (contentPropertyChangedExceptPublished || userPropertyChanged) && wasPublished;
+
                 case PublishedState.Unpublishing:
+                    // changed state, unpublishing a published version:
+                    // DO create a new (draft) version and preserve the (formerly) published
+                    // version for rollback purposes IF the version that's being saved is the
+                    // published version, else it's a draft that we can reuse
+                    return wasPublished;
+
                 case PublishedState.Saving:
-                    // changed,
-                    // unpublishing: requires a new version because we want to preserve what was
-                    //   published, and saving will modify that new version
-                    // saving: requires a new version because we're creating a draft
-                    return true;
+                    // changed state, saving a published version:
+                    // DO create a new (draft) version and preserve the published version IF
+                    // anything has changed, else do NOT create a new version (pointless)
+                    return contentPropertyChangedExceptPublished || userPropertyChanged;
+
                 case PublishedState.Published:
-                    // unchanged,
-                    // published: edits made to the published version (??)
-                    //   wtf?? better create a new version
-                    return true;
+                    // unchanged state, saving a published version:
+                    // (can happen eg when moving content, never otherwise)
+                    // do NOT create a new version as we're just saving after operations (eg
+                    // move) that cannot be rolled back anyway - ensure that's really it
+                    if (userPropertyChanged)
+                        throw new InvalidOperationException("Invalid PublishedState \"Published\" with user property changes.");
+                    return false;
+
                 case PublishedState.Unpublished:
-                    // unchanged,
-                    // unpublished: edits made to an unpublished version
-                    //   don't create new versions for user property changes
-                    //   create new versions for content property changes
+                    // unchanged state, saving an unpublished version:
+                    // do NOT create a new version for user property changes,
+                    // BUT create a new version in case of content property changes, for
+                    // rollback purposes
                     return contentPropertyChangedExceptPublished;
+
                 default:
                     throw new NotSupportedException();
             }
@@ -188,9 +204,16 @@ namespace Umbraco.Core.Models
             if (isNewVersion && entity.Published)
                 return true;
 
+            // if that entity was published then that entity has the flag and
+            // it does not need to be cleared for other versions
+            // NOT TRUE when unpublishing we create a NEW version
+            //var wasPublished = ((Content)entity).PublishedOriginal;
+            //if (wasPublished)
+            //    return false;
+
             // clear whenever we are publishing or unpublishing
-            // publishing: because there might be a previously published version
-            // unpublishing: same - we might be a saved version, not the published one
+            //  publishing: because there might be a previously published version, which needs to be cleared
+            //  unpublishing: same - we might be a saved version, not the published one, which needs to be cleared
             return publishedState == PublishedState.Publishing || publishedState == PublishedState.Unpublishing;
         }
 

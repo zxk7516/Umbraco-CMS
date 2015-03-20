@@ -370,7 +370,7 @@ namespace Umbraco.Web
                         ApplicationContext.Current.Services,
                         ApplicationContext.Current.DatabaseContext, 
                         ApplicationContext.Current.ApplicationCache.RequestCache,
-                        _isForTesting);
+                        _isForTesting == false);
                 // use the NoCache
                 //new PublishedCache.PublishedNoCache.PublishedCachesService(
                 //    () => ApplicationContext.Current.Services);

@@ -35,6 +35,7 @@ namespace Umbraco.Tests.Services
         public override void Initialize()
         {
 	        base.Initialize();
+            _taggedContentType = null;
         }
 		
 		[TearDown]
@@ -123,186 +124,6 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
-        public void Tags_For_Entity_Are_Not_Exposed_Via_Tag_Api_When_Content_Is_Recycled()
-        {
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var tagService = ServiceContext.TagService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-
-            var content1 = MockedContent.CreateSimpleContent(contentType, "Tagged content 1", -1);
-            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content1);
-
-            var content2 = MockedContent.CreateSimpleContent(contentType, "Tagged content 2", -1);
-            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content2);
-
-            // Act            
-            contentService.MoveToRecycleBin(content1);
-
-            // Assert
-
-            //there should be no tags for this entity
-            var tags = tagService.GetTagsForEntity(content1.Id);            
-            Assert.AreEqual(0, tags.Count());
-
-            //these tags should still be returned since they still have actively published content assigned
-            var allTags = tagService.GetAllContentTags();
-            Assert.AreEqual(4, allTags.Count());
-        }
-
-        [Test]
-        public void All_Tags_Are_Not_Exposed_Via_Tag_Api_When_Content_Is_Recycled()
-        {
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var tagService = ServiceContext.TagService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-
-            var content1 = MockedContent.CreateSimpleContent(contentType, "Tagged content 1", -1);
-            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content1);
-
-            var content2 = MockedContent.CreateSimpleContent(contentType, "Tagged content 2", -1);
-            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content2);
-
-            // Act            
-            contentService.MoveToRecycleBin(content1);
-            contentService.MoveToRecycleBin(content2);
-
-            // Assert
-            
-            //there should be no exposed content tags now that nothing is published.
-            var allTags = tagService.GetAllContentTags();
-            Assert.AreEqual(0, allTags.Count());
-        }
-
-        [Test]
-        public void All_Tags_Are_Not_Exposed_Via_Tag_Api_When_Content_Is_Un_Published()
-        {
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var tagService = ServiceContext.TagService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-
-            var content1 = MockedContent.CreateSimpleContent(contentType, "Tagged content 1", -1);
-            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content1);
-
-            var content2 = MockedContent.CreateSimpleContent(contentType, "Tagged content 2", -1);
-            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content2);
-
-            // Act            
-            contentService.UnPublish(content1);
-            contentService.UnPublish(content2);
-
-            // Assert
-
-            //there should be no exposed content tags now that nothing is published.
-            var allTags = tagService.GetAllContentTags();
-            Assert.AreEqual(0, allTags.Count());
-        }
-
-        [Test]
-        public void Tags_Are_Not_Exposed_Via_Tag_Api_When_Content_Is_Re_Published()
-        {
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var tagService = ServiceContext.TagService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-
-            var content1 = MockedContent.CreateSimpleContent(contentType, "Tagged content 1", -1);
-            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content1);
-
-            var content2 = MockedContent.CreateSimpleContent(contentType, "Tagged content 2", -1);
-            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content2);
-
-            contentService.UnPublish(content1);
-            contentService.UnPublish(content2);
-
-            // Act            
-            contentService.Publish(content1);
-
-            // Assert
-
-            var tags = tagService.GetTagsForEntity(content1.Id);
-            Assert.AreEqual(4, tags.Count());
-            var allTags = tagService.GetAllContentTags();
-            Assert.AreEqual(4, allTags.Count());
-        }
-
-        [Test]
-        public void Tags_Are_Not_Exposed_Via_Tag_Api_When_Content_Is_Restored()
-        {
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var tagService = ServiceContext.TagService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-
-            var content1 = MockedContent.CreateSimpleContent(contentType, "Tagged content 1", -1);
-            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content1);
-
-            var content2 = MockedContent.CreateSimpleContent(contentType, "Tagged content 2", -1);
-            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content2);
-
-            contentService.MoveToRecycleBin(content1);
-            contentService.MoveToRecycleBin(content2);
-
-            // Act            
-            contentService.Move(content1, -1);
-            contentService.Publish(content1);
-
-            // Assert
-
-            var tags = tagService.GetTagsForEntity(content1.Id);
-            Assert.AreEqual(4, tags.Count());
-            var allTags = tagService.GetAllContentTags();
-            Assert.AreEqual(4, allTags.Count());
-        }
-
-        [Test]
         public void PublishWithStatus()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
@@ -328,30 +149,660 @@ namespace Umbraco.Tests.Services
             Assert.AreEqual("changed", c.Properties.First().Value);
         }
 
-        [Test]
-        public void Create_Tag_Data_Bulk_Publish_Operation()
+        #region Tags
+
+        private IContentType _taggedContentType;
+
+        private IContent CreateTaggedContent(string name)
         {
-            //Arrange
+            if (_taggedContentType == null)
+            {
+                var contentTypeService = ServiceContext.ContentTypeService;
+                _taggedContentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
+                _taggedContentType.PropertyGroups.First().PropertyTypes.Add(
+                    new PropertyType("test", DataTypeDatabaseType.Ntext)
+                    {
+                        Alias = "tags",
+                        DataTypeDefinitionId = 1041
+                    });
+                contentTypeService.Save(_taggedContentType);
+            }
+            return MockedContent.CreateSimpleContent(_taggedContentType, name);
+        }
+
+        // NOTES
+        //
+        // ContentRepository.PersistNewItem calls UpdatePropertyTags if
+        //  the content is published
+        // ContentRepository.PersistUpdatedItem calls UpdatePropertyTags if
+        //  the content is newly published and ClearEntityTags if the
+        //  content has just been trashed or unpublished
+        // FIXED: remove tags ONLY if explicitely unpublished else not
+        //  and TagQuery takes care of false positives (see below)
+        //
+        // Database contains
+        //  cmsTags (id, tag, group, parent)
+        //  cmsTagRelationship (nodeId, tagId, propertyTypeId)
+        //
+        // ClearEntityTags calls TagRepository.ClearTagsFromEntity which
+        //  clears cmsTagRelationship entirely for that entity but does
+        //  not touch cmsTags
+        // UpdatePropertyTags updates ??? depending on the property's
+        //  PropertyTagBehavior which has been set when updating the tags,
+        //  and indicate whether we want to remove, replace or merge tags.
+        //  remove = TagRepository.RemoveTagsFromProperty
+        //   clears cmsTagRelationship for the specified tags
+        //  replace or merge = TagRepository.AssignTagsToProperty
+        //   inserts missing tags in cmsTags
+        //   inserts missing relationships in cmsTagRelationship
+        //
+        // all this is done with zany queries but they seem to work
+        //
+        // GetTagsForEntity will use cmsTagRelationship to find what
+        //  tags are associated with the entity, regardless of whether
+        //  it is published, or draft, or anything - just the entity
+        // GetTaggedEntitiesByTag will use cmsTagRelationship to find
+        //  entities with a given tag - just returning the entity ID
+        //
+        // TagQuery.GetContentByTag uses GetTaggedEntitiesByTag and then
+        //  TypedContent(...) and then exclude nulls so it's checking that
+        //  the content is actually published
+        //
+        // in which case we decide that
+        // - we clear tags when an entity is explicitely unpublished
+        // - we clear tags when it's masked (or trashed)
+        // - we update tags anytime it's published
+        //
+        // Questions
+        // - is there any place where we delete from cmsTags?
+        // - not sure of what happens when a property with tags is deleted
+        //
+        // for medias & members, we only have to manage Trashed (see repos)
+
+        [Test]
+        public void Tags_When_EntityIsCreated_Nothing()
+        {
             var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Save(content);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have not been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_EntityIsPublished_CreateTagsAndRelations()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have been created
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(4, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsSaved_Nothing()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+
+            content.SetTags("tags", new[] { "another", "world" }, false);
+            contentService.Save(content);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(5, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(4, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsUnpublished_ClearRelations1()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+            contentService.UnPublish(content);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsUnpublished_ClearRelations2()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content2);
+
+            contentService.UnPublish(content1);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have (not) been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(0, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(4, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsUnpublished_ClearRelations3()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content2);
+
+            contentService.UnPublish(content1);
+            contentService.UnPublish(content2);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(0, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsTrashed_ClearRelations1()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+            contentService.MoveToRecycleBin(content); // because it unpublishes!
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsTrashed_ClearRelations2()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+
+            var content2 = CreateTaggedContent("test");
+            content2.SetTags("tags", new[] { "hello", "world" }, true);
+            contentService.Publish(content2);
+
+            contentService.MoveToRecycleBin(content); // because it unpublishes!
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(2, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsTrashed_ClearRelations3()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content);
+
+            var content2 = CreateTaggedContent("test");
+            content2.SetTags("tags", new[] { "hello", "world" }, true);
+            contentService.Publish(content2);
+
+            contentService.MoveToRecycleBin(content);
+            contentService.MoveToRecycleBin(content2);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsUpdatedAndPublished_UpdateTagsAndRelations1()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.PublishWithStatus(content);
+
+            content.SetTags("tags", new[] { "another", "world" }, false);
+            contentService.PublishWithStatus(content);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(5, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have been updated
+            Assert.AreEqual(5, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(5, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(5, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(5, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishedEntityIsUpdatedAndPublished_UpdateTagsAndRelations2()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.PublishWithStatus(content);
+
+            content.RemoveTags("tags", new[] { "some", "world" });
+            contentService.PublishWithStatus(content);
+
+            var content2 = CreateTaggedContent("test2");
+            content2.SetTags("tags", new[] { "hello", "foo", "bar" }, true);
+            contentService.PublishWithStatus(content2);
+
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(2, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(6, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(2, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(2, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_MovingMaskingEntity_ClearRelations()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content2);
+
+            contentService.UnPublish(content2);
+            contentService.Move(content1, content2.Id);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(0, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_MovingUnmaskingEntity_UpdateRelations()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content2);
+
+            contentService.UnPublish(content2);
+            contentService.Move(content1, content2.Id);
+            contentService.Move(content1, -1);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(4, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_TrashingBranch_ClearRelations()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content2);
+
+            contentService.Move(content1, content2.Id);
+            contentService.MoveToRecycleBin(content2);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have not been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have been updated
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(0, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(0, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_EntityIsUnpublishedAndRepublished_ClearAndUpdateTagsAndRelations()
+        {
+            var contentService = ServiceContext.ContentService;
+
+            var content1 = CreateTaggedContent("Tagged content 1");
+            content1.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
+            contentService.Publish(content1);
+
+            var content2 = CreateTaggedContent("Tagged content 2");
+            content2.SetTags("tags", new[] { "hello", "world", "some", "things" }, true);
+            contentService.Publish(content2);
+
+            contentService.UnPublish(content1);
+            contentService.UnPublish(content2);
+
+            contentService.Publish(content1);
+
+            var propertyTypeId = content1.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+
+            // the property has (not) been updated
+            Assert.AreEqual(4, content1.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+            Assert.AreEqual(4, content2.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have (not) been updated
+            Assert.AreEqual(5, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have (not) been updated
+            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content1.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = content2.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content1.Id);
+            Assert.AreEqual(4, tags.Count());
+            tags = tagService.GetTagsForEntity(content2.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(4, allTags.Count());
+        }
+
+        [Test]
+        public void Tags_When_PublishingBranch()
+        {
+            var contentService = ServiceContext.ContentService;
+
             var contentTypeService = ServiceContext.ContentTypeService;
             var dataTypeService = ServiceContext.DataTypeService;
-            //set the pre-values
+
             dataTypeService.SavePreValues(1041, new Dictionary<string, PreValue>
             {
                 {"group", new PreValue("test")},
                 {"storageType", new PreValue("Csv")}
             });
+
             var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
             contentType.PropertyGroups.First().PropertyTypes.Add(
                 new PropertyType("test", DataTypeDatabaseType.Ntext)
                 {
                     Alias = "tags",
                     DataTypeDefinitionId = 1041
-                });            
-            contentTypeService.Save(contentType);
+                });
+            //contentTypeService.Save(contentType);
             contentType.AllowedContentTypes = new[] { new ContentTypeSort(new Lazy<int>(() => contentType.Id), 0, contentType.Alias) };
+            contentTypeService.Save(contentType);
 
-            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content", -1);
+            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content");
             content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
             contentService.Save(content);
 
@@ -362,147 +813,66 @@ namespace Umbraco.Tests.Services
             var child2 = MockedContent.CreateSimpleContent(contentType, "child 2 content", content.Id);
             child2.SetTags("tags", new[] { "hello2", "world2" }, true);
             contentService.Save(child2);
-            
-            // Act
+
             contentService.PublishWithChildrenWithStatus(content, includeUnpublished: true);
 
-            // Assert
             var propertyTypeId = contentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
 
+            // the relationships have been updated
             Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
                 "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
                 new { nodeId = content.Id, propTypeId = propertyTypeId }));
-
             Assert.AreEqual(3, DatabaseContext.Database.ExecuteScalar<int>(
                 "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
                 new { nodeId = child1.Id, propTypeId = propertyTypeId }));
-
             Assert.AreEqual(2, DatabaseContext.Database.ExecuteScalar<int>(
                 "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
                 new { nodeId = child2.Id, propTypeId = propertyTypeId }));
+
+            // the tags have been updated
+            Assert.AreEqual(9, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
         }
 
         [Test]
-        public void Does_Not_Create_Tag_Data_For_Non_Published_Version()
+        public void Tags_When_EntityIsCopied_Nothing()
         {
-            //Arrange
             var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content", -1);
-            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content);
 
-            // Act
-            content.SetTags("tags", new[] { "another", "world" }, false);
-            contentService.Save(content);
-
-            // Assert
-
-            //the value will have changed but the tags db table will not have
-            Assert.AreEqual(5, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
-            var propertyTypeId = contentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
-            Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
-                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
-                new { nodeId = content.Id, propTypeId = propertyTypeId }));
-        }
-
-	    [Test]
-	    public void Can_Replace_Tag_Data_To_Published_Content()
-	    {
-            //Arrange
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                    {
-                        Alias = "tags", 
-                        DataTypeDefinitionId = 1041
-                    });            
-            contentTypeService.Save(contentType);
-
-            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content", -1);
-	        
-            
-            // Act
-            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.Publish(content);
-
-            // Assert
-            Assert.AreEqual(4, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
-	        var propertyTypeId = contentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
-	        Assert.AreEqual(4, DatabaseContext.Database.ExecuteScalar<int>(
-	            "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
-	            new {nodeId = content.Id, propTypeId = propertyTypeId}));
-	    }
-
-        [Test]
-        public void Can_Append_Tag_Data_To_Published_Content()
-        {
-            //Arrange
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content", -1);
-            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.PublishWithStatus(content);
-            
-            // Act
-            content.SetTags("tags", new[] { "another", "world" }, false);
+            var content = CreateTaggedContent("test");
+            content.SetTags("tags", new[] { "hello", "world" }, true);
             contentService.PublishWithStatus(content);
 
-            // Assert
-            Assert.AreEqual(5, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
-            var propertyTypeId = contentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
-            Assert.AreEqual(5, DatabaseContext.Database.ExecuteScalar<int>(
-                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
-                new { nodeId = content.Id, propTypeId = propertyTypeId }));
-        }
+            var copy = contentService.Copy(content, content.ParentId, false);
 
-        [Test]
-        public void Can_Remove_Tag_Data_To_Published_Content()
-        {
-            //Arrange
-            var contentService = ServiceContext.ContentService;
-            var contentTypeService = ServiceContext.ContentTypeService;
-            var contentType = MockedContentTypes.CreateSimpleContentType("umbMandatory", "Mandatory Doc Type", true);
-            contentType.PropertyGroups.First().PropertyTypes.Add(
-                new PropertyType("test", DataTypeDatabaseType.Ntext)
-                {
-                    Alias = "tags",
-                    DataTypeDefinitionId = 1041
-                });
-            contentTypeService.Save(contentType);
-            var content = MockedContent.CreateSimpleContent(contentType, "Tagged content", -1);
-            content.SetTags("tags", new[] { "hello", "world", "some", "tags" }, true);
-            contentService.PublishWithStatus(content);
+            var propertyTypeId = content.ContentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
 
-            // Act
-            content.RemoveTags("tags", new[] { "some", "world" });
-            contentService.PublishWithStatus(content);
-
-            // Assert
+            // the property has (not) been updated
             Assert.AreEqual(2, content.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
-            var propertyTypeId = contentType.PropertyTypes.Single(x => x.Alias == "tags").Id;
+            Assert.AreEqual(2, copy.Properties["tags"].Value.ToString().Split(',').Distinct().Count());
+
+            // the tags have (not) been updated
+            Assert.AreEqual(2, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTags"));
+
+            // the relationships have (not) been updated
             Assert.AreEqual(2, DatabaseContext.Database.ExecuteScalar<int>(
                 "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
                 new { nodeId = content.Id, propTypeId = propertyTypeId }));
+            Assert.AreEqual(0, DatabaseContext.Database.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM cmsTagRelationship WHERE nodeId=@nodeId AND propertyTypeId=@propTypeId",
+                new { nodeId = copy.Id, propTypeId = propertyTypeId }));
+
+            var tagService = ServiceContext.TagService;
+            var tags = tagService.GetTagsForEntity(content.Id);
+            Assert.AreEqual(2, tags.Count());
+            tags = tagService.GetTagsForEntity(copy.Id);
+            Assert.AreEqual(0, tags.Count());
+            var allTags = tagService.GetAllContentTags(); // all that have a relation
+            Assert.AreEqual(2, allTags.Count());
         }
+
+        #endregion
 
 	    [Test]
 	    public void Can_Remove_Property_Type()
@@ -656,19 +1026,23 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Can_Get_All_Versions_Of_Content()
         {
-            // Arrange
             var contentService = ServiceContext.ContentService;
-            var parent = ServiceContext.ContentService.GetById(NodeDto.NodeIdSeed + 1);
-            ServiceContext.ContentService.Publish(parent);//Publishing root, so Text Page 2 can be updated.
+
+            var parent = contentService.GetById(NodeDto.NodeIdSeed + 1);
+            contentService.Publish(parent); // publishing root, so Text Page 2 can be updated.
             var subpage2 = contentService.GetById(NodeDto.NodeIdSeed + 3);
             subpage2.Name = "Text Page 2 Updated";
             subpage2.SetValue("author", "Jane Doe");
-            contentService.SaveAndPublishWithStatus(subpage2, 0);//NOTE New versions are only added between publish-state-changed, so publishing to ensure addition version.
 
-            // Act
+            // publishing an unpublished content does not create a new version
+            contentService.SaveAndPublishWithStatus(subpage2);
+
+            // publishing *again* does create a new version
+            subpage2.SetValue("author", "Jane Dox");
+            contentService.SaveAndPublishWithStatus(subpage2);
+
             var versions = contentService.GetVersions(NodeDto.NodeIdSeed + 3).ToList();
 
-            // Assert
             Assert.That(versions.Any(), Is.True);
             Assert.That(versions.Count(), Is.GreaterThanOrEqualTo(2));
         }
@@ -1239,27 +1613,6 @@ namespace Umbraco.Tests.Services
             //Assert.AreNotEqual(content.Name, copy.Name);
         }
 
-        [Test]
-        public void Can_Copy_Content_With_Tags()
-        {
-            // Arrange
-            var contentService = ServiceContext.ContentService;
-            var contentType = ServiceContext.ContentTypeService.GetContentType("umbTextpage");
-            var temp = MockedContent.CreateSimpleContent(contentType, "Simple Text Page", -1);
-            var prop = temp.Properties.First();
-            temp.SetTags(prop.Alias, new[] {"hello", "world"}, true);
-            var status = contentService.PublishWithStatus(temp);
-
-            // Act
-            var copy = contentService.Copy(temp, temp.ParentId, false, 0);
-
-            // Assert
-            var copiedTags = ServiceContext.TagService.GetTagsForEntity(copy.Id).ToArray();
-            Assert.AreEqual(2, copiedTags.Count());
-            Assert.AreEqual("hello", copiedTags[0].Text);
-            Assert.AreEqual("world", copiedTags[1].Text);
-        }
-
         [Test, NUnit.Framework.Ignore]
         public void Can_Send_To_Publication()
         { }
@@ -1267,25 +1620,33 @@ namespace Umbraco.Tests.Services
         [Test]
         public void Can_Rollback_Version_On_Content()
         {
-            // Arrange
             var contentService = ServiceContext.ContentService;
-            var parent = ServiceContext.ContentService.GetById(NodeDto.NodeIdSeed + 1);
-            ServiceContext.ContentService.Publish(parent);//Publishing root, so Text Page 2 can be updated.
+
+            var parent = contentService.GetById(NodeDto.NodeIdSeed + 1);
+            contentService.Publish(parent); // publishing root, so Text Page 2 can be updated.
+
             var subpage2 = contentService.GetById(NodeDto.NodeIdSeed + 3);
             var version = subpage2.Version;
-            var nameBeforeRollback = subpage2.Name;
-            subpage2.Name = "Text Page 2 Updated";
+
+            // publishing an unpublished content does not create a new version
+            subpage2.Name = "test 1";
             subpage2.SetValue("author", "Jane Doe");
-            contentService.SaveAndPublishWithStatus(subpage2, 0);//Saving and publishing, so a new version is created
+            contentService.SaveAndPublishWithStatus(subpage2);
 
-            // Act
-            var rollback = contentService.Rollback(NodeDto.NodeIdSeed + 3, version, 0);
+            // publishing *again* does create a new version
+            subpage2.Name = "test 2";
+            subpage2.SetValue("author", "Jane Dox");
+            contentService.SaveAndPublishWithStatus(subpage2);
 
-            // Assert
-            Assert.That(rollback, Is.Not.Null);
+            var rollback = contentService.Rollback(NodeDto.NodeIdSeed + 3, version);
+
+            Assert.IsNotNull(rollback);
             Assert.AreNotEqual(rollback.Version, subpage2.Version);
-            Assert.That(rollback.GetValue<string>("author"), Is.Not.EqualTo("Jane Doe"));
-            Assert.AreEqual(nameBeforeRollback, rollback.Name);
+            Assert.AreEqual("Jane Doe", rollback.GetValue<string>("author"));
+            Assert.IsFalse(rollback.Published);
+            Assert.IsTrue(rollback.HasPublishedVersion);
+            Assert.AreEqual(rollback.PublishedVersionGuid, subpage2.Version);
+            Assert.AreEqual("test 1", rollback.Name);
         }
 
         [Test]
@@ -1433,7 +1794,7 @@ namespace Umbraco.Tests.Services
             
             using (var uow = provider.GetUnitOfWork())
             {
-                Assert.IsTrue(uow.Database.SingleOrDefault<PreviewXmlDto>("WHERE nodeId=@nodeId AND versionId = @versionId", new{nodeId = content.Id, versionId = content.Version}) != null);
+                Assert.IsTrue(uow.Database.SingleOrDefault<PreviewXmlDto>("WHERE nodeId=@nodeId", new{nodeId = content.Id}) != null);
             }
         }
 

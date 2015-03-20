@@ -249,6 +249,13 @@ namespace Umbraco.Tests.Models
             var contentType = MockedContentTypes.CreateTextpageContentType();
             contentType.Id = 99;
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
+
+            // should not try to clone something that's not Published or Unpublished
+            // (and in fact it will not work)
+            // but we cannot directly set the state to Published - hence this trick
+            content.ChangePublishedState(PublishedState.Publishing);
+            content.ResetDirtyProperties(false); // => .Published
+
             var i = 200;
             foreach (var property in content.Properties)
             {
@@ -263,7 +270,6 @@ namespace Umbraco.Tests.Models
             content.Level = 3;
             content.Path = "-1,4,10";
             content.ReleaseDate = DateTime.Now;
-            content.ChangePublishedState(PublishedState.Published);
             content.SortOrder = 5;
             content.Template = new Template("-1,2,3,4", "Test Template", "testTemplate")
             {
@@ -366,7 +372,7 @@ namespace Umbraco.Tests.Models
             content.Level = 3;
             content.Path = "-1,4,10";
             content.ReleaseDate = DateTime.Now;
-            content.ChangePublishedState(PublishedState.Published);
+            content.ChangePublishedState(PublishedState.Publishing);
             content.SortOrder = 5;
             content.Template = new Template("-1,2,3,4", "Test Template", "testTemplate")
             {
@@ -644,7 +650,7 @@ namespace Umbraco.Tests.Models
 
             // Act
             content.ResetDirtyProperties();
-            content.ChangePublishedState(PublishedState.Published);
+            content.ChangePublishedState(PublishedState.Publishing);
 
             // Assert
             Assert.That(content.IsPropertyDirty("Published"), Is.True);

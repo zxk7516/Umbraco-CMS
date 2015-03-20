@@ -21,6 +21,7 @@ using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Mappers;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Profiling;
 using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
@@ -200,7 +201,22 @@ namespace Umbraco.Tests.TestHelpers
             {
                 var attr = this.GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
                 var cache = new NullCacheProvider();
-                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, attr != null && attr.WithEvents);
+
+                var withEvents = attr != null && attr.WithEvents;
+                if (withEvents && LoggerResolver.HasCurrent == false)
+                {
+                    // XmlStore wants one if events
+                    LoggerResolver.Current = new LoggerResolver(Mock.Of<ILogger>())
+                    {
+                        CanResolveBeforeFrozen = true
+                    };
+                    ProfilerResolver.Current = new ProfilerResolver(new LogProfiler(Mock.Of<ILogger>()))
+                    {
+                        CanResolveBeforeFrozen = true
+                    };
+                }
+
+                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, withEvents);
 
                 // initialize PublishedCacheService content with an Xml source
                 service.XmlStore.GetXmlDocument = () => 
