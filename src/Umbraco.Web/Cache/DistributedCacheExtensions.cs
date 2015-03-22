@@ -196,19 +196,27 @@ namespace Umbraco.Web.Cache
 
         #endregion
 
-        #region Content cache
+        #region Content+Media cache
 
         const string ContentCacheBufferKey = "DistributedCache.ContentCacheBuffer";
+        const string MediaCacheBufferKey = "DistributedCache.MediaCacheBuffer";
 
         public static void FlushChangeSet(this DistributedCache dc, ChangeSet changeSet)
         {
-            //var changeSet = ChangeSet.Ambient;
             if (changeSet == null || changeSet.Items.ContainsKey(ContentCacheBufferKey) == false) return;
 
-            var buffer = (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[ContentCacheBufferKey];
-            dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(buffer));
+            var contentBuffer = (List<ContentCacheRefresher.JsonPayload>)changeSet.Items[ContentCacheBufferKey];
+            dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(contentBuffer));
             changeSet.Items.Remove(ContentCacheBufferKey);
+
+            var mediaBuffer = (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey];
+            dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(mediaBuffer));
+            changeSet.Items.Remove(MediaCacheBufferKey);
         }
+
+        #endregion
+
+        #region Content cache
 
         private static void RefreshContentCacheByJson(this DistributedCache dc, IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
         {
@@ -231,103 +239,17 @@ namespace Umbraco.Web.Cache
         /// <param name="dc"></param>
         public static void RefreshAllPublishedContentCache(this DistributedCache dc)
         {
-            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, ContentService.ChangeEventTypes.RefreshAll) };
+            var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
             dc.RefreshContentCacheByJson(payloads);
         }
 
-        ///// <summary>
-        ///// Refreshes published content.
-        ///// </summary>
-        ///// <param name="dc"></param>
-        ///// <param name="contentId"></param>
-        //public static void RefreshPublishedContentCache(this DistributedCache dc, int contentId)
-        //{
-        //    var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RefreshPublished) };
-
-        //    dc.RefreshContentCacheByJson(payloads);
-        //}
-
-        ///// <summary>
-        ///// Refreshes published content.
-        ///// </summary>
-        ///// <param name="dc"></param>
-        ///// <param name="content"></param>
-        //public static void RefreshPublishedContentCache(this DistributedCache dc, params IContent[] content)
-        //{
-        //    if (content.Length == 0) return;
-
-        //    var payloads = content
-        //        .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshPublished));
-
-        //    dc.RefreshContentCacheByJson(payloads);
-        //}
-
-        ///// <summary>
-        ///// Removes published content.
-        ///// </summary>
-        ///// <param name="dc"></param>
-        ///// <param name="contentId"></param>
-        //public static void RemovePublishedContentCache(this DistributedCache dc, int contentId)
-        //{
-        //    var payloads = new[] { new ContentCacheRefresher.JsonPayload(contentId, ContentService.ChangeEventTypes.RemovePublished) };
-
-        //    dc.RefreshContentCacheByJson(payloads);
-        //}
-
-        ///// <summary>
-        ///// Removes published content.
-        ///// </summary>
-        ///// <param name="dc"></param>
-        ///// <param name="content"></param>
-        //public static void RemovePublishedContentCache(this DistributedCache dc, params IContent[] content)
-        //{
-        //    if (content.Length == 0) return;
-
-        //    var payloads = content
-        //        .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RemovePublished));
-
-        //    dc.RefreshContentCacheByJson(payloads);
-        //}
-
-        // fixme - get rid of these two...
-
-        public static void RefreshContentCache(this DistributedCache dc, ContentService.ChangeEventArgs.Change[] changes)
+        public static void RefreshContentCache(this DistributedCache dc, TreeChange<IContent>[] changes)
         {
             if (changes.Length == 0) return;
 
             var payloads = changes
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.ChangedContent.Id, x.ChangeTypes));
-
-            dc.RefreshContentCacheByJson(payloads);
-        }
-
-        /// <summary>
-        /// Refreshes unpublished content.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="content"></param>
-        public static void RefreshContentCache(this DistributedCache dc, params IContent[] content)
-        {
-            if (content.Length == 0) return;
-
-            var payloads = content
-                .Select(x => new ContentCacheRefresher.JsonPayload(x.Id, ContentService.ChangeEventTypes.RefreshBranch));
-
-            dc.RefreshContentCacheByJson(payloads);
-        }
-
-        /// <summary>
-        /// Removes content completely.
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="contentIds"></param>
-        public static void RemoveContentCache(this DistributedCache dc, params int[] contentIds)
-        {
-            if (contentIds.Length == 0) return;
-
-            var payloads = contentIds
-                .Select(x => new ContentCacheRefresher.JsonPayload(x, ContentService.ChangeEventTypes.Remove));
+                .Select(x => new ContentCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
             dc.RefreshContentCacheByJson(payloads);
         }
@@ -404,67 +326,30 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region Media Cache
-        
-        /// <summary>
-        /// Refreshes the cache amongst servers for media items
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="media"></param>
-        public static void RefreshMediaCache(this DistributedCache dc, params IMedia[] media)
+
+        private static void RefreshMediaCacheByJson(this DistributedCache dc, IEnumerable<MediaCacheRefresher.JsonPayload> payloads)
         {
-            dc.RefreshByJson(new Guid(DistributedCache.MediaCacheRefresherId), 
-                MediaCacheRefresher.SerializeToJsonPayload(MediaCacheRefresher.OperationType.Saved, media));
+            var changeSet = ChangeSet.Ambient;
+            if (changeSet == null)
+            {
+                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(payloads));
+            }
+            else
+            {
+                var buffer = changeSet.Items.ContainsKey(MediaCacheBufferKey) ? (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey] : null;
+                if (buffer == null) changeSet.Items[MediaCacheBufferKey] = buffer = new List<MediaCacheRefresher.JsonPayload>();
+                buffer.AddRange(payloads);
+            }
         }
 
-        /// <summary>
-        /// Refreshes the cache amongst servers for a media item after it's been moved
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="media"></param>
-        public static void RefreshMediaCacheAfterMoving(this DistributedCache dc, params MoveEventInfo<IMedia>[] media)
+        public static void RefreshMediaCache(this DistributedCache dc, TreeChange<IMedia>[] changes)
         {
-            dc.RefreshByJson(new Guid(DistributedCache.MediaCacheRefresherId),
-                MediaCacheRefresher.SerializeToJsonPayloadForMoving(
-                    MediaCacheRefresher.OperationType.Saved, media));
-        }
+            if (changes.Length == 0) return;
 
-        /// <summary>
-        /// Removes the cache amongst servers for a media item
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="mediaId"></param>
-        /// <remarks>
-        /// Clearing by Id will never work for load balanced scenarios for media since we require a Path
-        /// to clear all of the cache but the media item will be removed before the other servers can
-        /// look it up. Only here for legacy purposes.
-        /// </remarks>
-        [Obsolete("Ensure to clear with other RemoveMediaCache overload")]
-        public static void RemoveMediaCache(this DistributedCache dc, int mediaId)
-        {
-            dc.Remove(new Guid(DistributedCache.MediaCacheRefresherId), mediaId);
-        }
+            var payloads = changes
+                .Select(x => new MediaCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-        /// <summary>
-        /// Removes the cache among servers for media items when they are recycled
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="media"></param>
-        public static void RemoveMediaCacheAfterRecycling(this DistributedCache dc, params MoveEventInfo<IMedia>[] media)
-        {
-            dc.RefreshByJson(new Guid(DistributedCache.MediaCacheRefresherId),
-                MediaCacheRefresher.SerializeToJsonPayloadForMoving(
-                    MediaCacheRefresher.OperationType.Trashed, media));
-        }
-
-        /// <summary>
-        /// Removes the cache among servers for media items when they are permanently deleted
-        /// </summary>
-        /// <param name="dc"></param>
-        /// <param name="mediaIds"></param>
-        public static void RemoveMediaCachePermanently(this DistributedCache dc, params int[] mediaIds)
-        {
-            dc.RefreshByJson(new Guid(DistributedCache.MediaCacheRefresherId),
-                MediaCacheRefresher.SerializeToJsonPayloadForPermanentDeletion(mediaIds));
+            dc.RefreshMediaCacheByJson(payloads);
         }
 
         #endregion

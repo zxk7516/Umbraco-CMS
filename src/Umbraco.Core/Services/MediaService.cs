@@ -203,7 +203,7 @@ namespace Umbraco.Core.Services
                 }
 
                 Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false), this);
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(media, ChangeEventTypes.RefreshNode)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
             }
 
             Created.RaiseEvent(new NewEventArgs<IMedia>(media, false, media.ContentType.Alias, parent), this);
@@ -601,7 +601,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(media, ChangeEventTypes.RefreshNode)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
 
                 Audit(AuditType.Save, "Save Media performed by user", userId, media.Id);
             }
@@ -638,7 +638,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IMedia>(mediasA, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(mediasA.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode))), this);
+                TreeChanged.RaiseEvent(mediasA.Select(x => new TreeChange<IMedia>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
 
                 Audit(AuditType.Save, "Save Media items performed by user", userId, -1);
             }
@@ -656,7 +656,7 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional id of the user deleting the media</param>
         public void DeleteMediaOfType(int mediaTypeId, int userId = 0)
         {
-            var changes = new List<ChangeEventArgs.Change>();
+            var changes = new List<TreeChange<IMedia>>();
             var moves = new List<Tuple<IMedia, string>>();
 
             using (ChangeSet.WithAmbient)
@@ -687,13 +687,13 @@ namespace Umbraco.Core.Services
                         {
                             // see MoveToRecycleBin
                             PerformMove(child, Constants.System.RecycleBinMedia, null, userId, moves, true);
-                            changes.Add(new ChangeEventArgs.Change(media, ChangeEventTypes.RefreshBranch));
+                            changes.Add(new TreeChange<IMedia>(media, TreeChangeTypes.RefreshBranch));
                         }
 
                         // delete media
                         // triggers the deleted event (and handles the files)
                         DeleteLocked(media, repository);
-                        changes.Add(new ChangeEventArgs.Change(media, ChangeEventTypes.Remove));
+                        changes.Add(new TreeChange<IMedia>(media, TreeChangeTypes.Remove));
                     }
 
                     uow.Commit();
@@ -704,7 +704,7 @@ namespace Umbraco.Core.Services
                     //.Select(x => new MoveEventInfo<IMedia>(x.ChangedMedia, x.ChangedMedia.Path, x.ChangedMedia.ParentId))
                     .Select(x => new MoveEventInfo<IMedia>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray()), this);
-                Changed.RaiseEvent(new ChangeEventArgs(changes), this);
+                TreeChanged.RaiseEvent(changes.ToEventArgs(), this);
 
                 Audit(AuditType.Delete,
                     string.Format("Delete Media of Type {0} performed by user", mediaTypeId),
@@ -736,7 +736,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(media, ChangeEventTypes.Remove)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.Remove).ToEventArgs(), this);
                 Audit(AuditType.Delete, "Delete Media performed by user", userId, media.Id);
             }
         }
@@ -859,7 +859,7 @@ namespace Umbraco.Core.Services
                     .Select(x => new MoveEventInfo<IMedia>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray();
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(media, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 Trashed.RaiseEvent(new MoveEventArgs<IMedia>(false, moveInfo), this);
                 Audit(AuditType.Move, "Move Media to Recycle Bin performed by user", userId, media.Id);
             }
@@ -903,7 +903,7 @@ namespace Umbraco.Core.Services
                     .Select(x => new MoveEventInfo<IMedia>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray();
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(media, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 Moved.RaiseEvent(new MoveEventArgs<IMedia>(false, moveInfo), this);
                 Audit(AuditType.Move, "Move Media performed by user", userId, media.Id);
             }
@@ -993,7 +993,7 @@ namespace Umbraco.Core.Services
                 }
 
                 EmptiedRecycleBin.RaiseEvent(new RecycleBinEventArgs(nodeObjectType, true), this);
-                Changed.RaiseEvent(new ChangeEventArgs(deleted.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.Remove))), this);
+                TreeChanged.RaiseEvent(deleted.Select(x => new TreeChange<IMedia>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
             }
 
             Audit(AuditType.Delete, "Empty Media Recycle Bin performed by user", 0, Constants.System.RecycleBinMedia);
@@ -1058,9 +1058,7 @@ namespace Umbraco.Core.Services
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IMedia>(itemsA, false), this);
 
-            var changes = new List<ChangeEventArgs.Change>();
-            changes.AddRange(saved.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode)));
-            Changed.RaiseEvent(new ChangeEventArgs(changes), this);
+            TreeChanged.RaiseEvent(saved.Select(x => new TreeChange<IMedia>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
 
             Audit(AuditType.Sort, "Sorting Media performed by user", userId, 0);
 
@@ -1175,58 +1173,11 @@ namespace Umbraco.Core.Services
         /// </summary>
         public static event TypedEventHandler<IMediaService, RecycleBinEventArgs> EmptiedRecycleBin;
 
-        internal class ChangeEventArgs : EventArgs
-        {
-            public ChangeEventArgs(IEnumerable<Change> changes)
-            {
-                Changes = changes;
-            }
-
-            public ChangeEventArgs(Change change)
-            {
-                Changes = new[] { change };
-            }
-
-            public struct Change
-            {
-                public Change(IMedia changedMedia, ChangeEventTypes changeTypes)
-                {
-                    ChangedMedia = changedMedia;
-                    ChangeTypes = changeTypes;
-                }
-
-                public IMedia ChangedMedia;
-                public ChangeEventTypes ChangeTypes;
-            }
-
-            public IEnumerable<Change> Changes { get; private set; }
-        }
-
-        [Flags]
-        internal enum ChangeEventTypes : byte
-        {
-            None = 0,
-
-            // all media has been refreshed
-            RefreshAll = 1,
-
-            // a media node has been refreshed
-            // with only local impact
-            RefreshNode = 2,
-
-            // a media node has been refreshed
-            // with branch impact
-            RefreshBranch = 4,
-
-            // a media node has been removed
-            Remove = 8,
-        }
-
         /// <summary>
         /// Occurs after change.
         /// </summary>
-        internal static event TypedEventHandler<IMediaService, ChangeEventArgs> Changed;
-        
+        internal static event TypedEventHandler<IMediaService, TreeChange<IMedia>.EventArgs> TreeChanged;
+
         #endregion
 
         #region Refactoring

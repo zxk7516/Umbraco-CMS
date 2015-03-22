@@ -267,7 +267,7 @@ namespace Umbraco.Core.Services
                 }
 
                 Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshNode)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
             }
 
             Created.RaiseEvent(new NewEventArgs<IContent>(content, false, content.ContentType.Alias, parent), this);
@@ -826,7 +826,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(contentsA, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(contentsA.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode))), this);
+                TreeChanged.RaiseEvent(contentsA.Select(x => new TreeChange<IContent>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
 
                 Audit(AuditType.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
             }
@@ -939,7 +939,7 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the user issueing the delete operation</param>
         public void DeleteContentOfType(int contentTypeId, int userId = 0)
         {
-            var changes = new List<ChangeEventArgs.Change>();
+            var changes = new List<TreeChange<IContent>>();
             var moves = new List<Tuple<IContent, string>>();
 
             using (ChangeSet.WithAmbient)
@@ -976,13 +976,13 @@ namespace Umbraco.Core.Services
                         {
                             // see MoveToRecycleBin
                             PerformMove(child, Constants.System.RecycleBinContent, null, userId, moves, true);
-                            changes.Add(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch));
+                            changes.Add(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch));
                         }
 
                         // delete content
                         // triggers the deleted event (and handles the files)
                         DeleteLocked(content, repository);
-                        changes.Add(new ChangeEventArgs.Change(content, ChangeEventTypes.Remove));
+                        changes.Add(new TreeChange<IContent>(content, TreeChangeTypes.Remove));
                     }
 
                     uow.Commit();
@@ -993,7 +993,7 @@ namespace Umbraco.Core.Services
                     //.Select(x => new MoveEventInfo<IContent>(x.ChangedContent, x.ChangedContent.Path, x.ChangedContent.ParentId))
                     .Select(x => new MoveEventInfo<IContent>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray()), this);
-                Changed.RaiseEvent(new ChangeEventArgs(changes), this);
+                TreeChanged.RaiseEvent(changes.ToEventArgs(), this);
 
                 Audit(AuditType.Delete,
                           string.Format("Delete Content of Type {0} performed by user", contentTypeId),
@@ -1031,7 +1031,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.Remove)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.Remove).ToEventArgs(), this);
                 Audit(AuditType.Delete, "Delete Content performed by user", userId, content.Id);
             }
         }
@@ -1161,7 +1161,7 @@ namespace Umbraco.Core.Services
                     .Select(x => new MoveEventInfo<IContent>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray();
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 Trashed.RaiseEvent(new MoveEventArgs<IContent>(false, moveInfo), this);
                 Audit(AuditType.Move, "Move Content to Recycle Bin performed by user", userId, content.Id);
             }
@@ -1220,7 +1220,7 @@ namespace Umbraco.Core.Services
                     .Select(x => new MoveEventInfo<IContent>(x.Item1, x.Item2, x.Item1.ParentId))
                     .ToArray();
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 Moved.RaiseEvent(new MoveEventArgs<IContent>(false, moveInfo), this);
                 Audit(AuditType.Move, "Move Content performed by user", userId, content.Id);
             }
@@ -1312,7 +1312,7 @@ namespace Umbraco.Core.Services
                 }
 
                 EmptiedRecycleBin.RaiseEvent(new RecycleBinEventArgs(nodeObjectType, true), this);
-                Changed.RaiseEvent(new ChangeEventArgs(deleted.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.Remove))), this);
+                TreeChanged.RaiseEvent(deleted.Select(x => new TreeChange<IContent>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
             }
 
             Audit(AuditType.Delete, "Empty Content Recycle Bin performed by user", 0, Constants.System.RecycleBinContent);
@@ -1384,7 +1384,7 @@ namespace Umbraco.Core.Services
                     uow.Commit();
                 }
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(copy, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(copy, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 Copied.RaiseEvent(new CopyEventArgs<IContent>(content, copy, false, parentId, relateToOriginal), this);
 
                 Audit(AuditType.Copy, "Copy Content performed by user", content.WriterId, content.Id);
@@ -1454,7 +1454,7 @@ namespace Umbraco.Core.Services
             }
 
             RolledBack.RaiseEvent(new RollbackEventArgs<IContent>(content, false), this);
-            Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshNode)), this);
+            TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
 
             Audit(AuditType.RollBack, "Content rollback performed by user", content.WriterId, content.Id);
 
@@ -1532,9 +1532,7 @@ namespace Umbraco.Core.Services
             if (raiseEvents && published.Any())
                 Published.RaiseEvent(new PublishEventArgs<IContent>(published, false, false), this);
 
-            var changes = new List<ChangeEventArgs.Change>();
-            changes.AddRange(saved.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshNode)));
-            Changed.RaiseEvent(new ChangeEventArgs(changes), this);
+            TreeChanged.RaiseEvent(saved.Select(x => new TreeChange<IContent>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
 
             Audit(AuditType.Sort, "Sorting content performed by user", userId, 0);
 
@@ -1687,12 +1685,7 @@ namespace Umbraco.Core.Services
 
                 Published.RaiseEvent(new PublishEventArgs<IContent>(publishedItems, false, false), this);
 
-                // invalidate the whole branch
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch)), this);
-                //Changed.RaiseEvent(new ChangeEventArgs(attempts
-                //    .Where(x => x.Success)
-                //    .Select(x => x.Result)
-                //    .Select(x => new ChangeEventArgs.Change(x.ContentItem, ChangeEventTypes.RefreshBranch))), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
 
                 Audit(AuditType.Publish, "Publish with Children performed by user", userId, content.Id);
                 return attempts;
@@ -1729,7 +1722,7 @@ namespace Umbraco.Core.Services
                 }
 
                 UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshBranch)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
 
                 Audit(AuditType.UnPublish, "UnPublish performed by user", userId, content.Id);
                 return true;
@@ -1791,17 +1784,17 @@ namespace Umbraco.Core.Services
                 // if was not published and now is... descendants that were 'published' (but 
                 // had an unpublished ancestor) are 're-published' ie not explicitely published
                 // but back as 'published' nevertheless
-                var cet = ChangeEventTypes.RefreshNode; // just that node, by default
+                var ct = TreeChangeTypes.RefreshNode; // just that node, by default
                 if (previouslyPublished == false && HasChildren(content.Id))
                 {
                     var descendants = GetPublishedDescendants(content).ToArray();
                     Published.RaiseEvent(new PublishEventArgs<IContent>(descendants, false, false), this);
                     //changes.AddRange(descendants.Select(x => new ChangeEventArgs.Change(x, ChangeEventTypes.RefreshPublished)));
-                    cet = ChangeEventTypes.RefreshBranch; // whole branch
+                    ct = TreeChangeTypes.RefreshBranch; // whole branch
                 }
 
                 // invalidate the node/branch
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, cet)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, ct).ToEventArgs(), this);
                 //Changed.RaiseEvent(new ChangeEventArgs(changes), this);
                 Audit(AuditType.Publish, "Save and Publish performed by user", userId, content.Id);
                 return status;
@@ -1841,7 +1834,7 @@ namespace Umbraco.Core.Services
                 if (raiseEvents)
                     Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
 
-                Changed.RaiseEvent(new ChangeEventArgs(new ChangeEventArgs.Change(content, ChangeEventTypes.RefreshNode)), this);
+                TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
 
                 Audit(AuditType.Save, "Save Content performed by user", userId, content.Id);
             }
@@ -2021,57 +2014,10 @@ namespace Umbraco.Core.Services
         /// </summary>
         public static event TypedEventHandler<IContentService, PublishEventArgs<IContent>> UnPublished;
 
-        internal class ChangeEventArgs : EventArgs
-        {
-            public ChangeEventArgs(IEnumerable<Change> changes)
-            {
-                Changes = changes;
-            }
-
-            public ChangeEventArgs(Change change)
-            {
-                Changes = new[] { change };
-            }
-
-            public struct Change
-            {
-                public Change(IContent changedContent, ChangeEventTypes changeTypes)
-                {
-                    ChangedContent = changedContent;
-                    ChangeTypes = changeTypes;
-                }
-
-                public IContent ChangedContent;
-                public ChangeEventTypes ChangeTypes;
-            }
-
-            public IEnumerable<Change> Changes { get; private set; }
-        }
-
-        [Flags]
-        internal enum ChangeEventTypes : byte
-        {
-            None = 0,
-
-            // all content has been refreshed
-            RefreshAll = 1,
-
-            // a content node has been refreshed
-            // with only local impact
-            RefreshNode = 2,
-
-            // a content node has been refreshed
-            // with branch impact
-            RefreshBranch = 4,
-
-            // a content node has been removed
-            Remove = 8,
-        }
-
         /// <summary>
         /// Occurs after change.
         /// </summary>
-        internal static event TypedEventHandler<IContentService, ChangeEventArgs> Changed; 
+        internal static event TypedEventHandler<IContentService, TreeChange<IContent>.EventArgs> TreeChanged; 
 
         #endregion
 

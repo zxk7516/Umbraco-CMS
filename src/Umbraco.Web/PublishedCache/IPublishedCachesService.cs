@@ -97,5 +97,12 @@ namespace Umbraco.Web.PublishedCache
         /// <param name="draftChanged">A value indicating whether draft contents have been changed in the cache.</param>
         /// <param name="publishedChanged">A value indicating whether published contents have been changed in the cache.</param>
         void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged);
+
+        /// <summary>
+        /// Notifies of media cache refresher changes.
+        /// </summary>
+        /// <param name="payloads">The changes.</param>
+        /// <param name="anythingChanged">A value indicating whether medias have been changed in the cache.</param>
+        void NotifyChanges(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged);
     }
 }

@@ -294,7 +294,6 @@
     <Compile Include="Dictionary\ICultureDictionaryFactory.cs" />
     <Compile Include="Dynamics\DynamicInstanceHelper.cs" />
     <Compile Include="Dynamics\DynamicXmlConverter.cs" />
-    <Compile Include="EnumExtensions.cs" />
     <Compile Include="Events\CancellableEventArgs.cs" />
     <Compile Include="Events\ContentCacheEventArgs.cs" />
     <Compile Include="Events\CopyEventArgs.cs" />
@@ -393,6 +392,7 @@
     <Compile Include="Logging\ProfilingLogger.cs" />
     <Compile Include="Persistence\Migrations\Upgrades\TargetVersionSevenThreeZero\MigrateStylesheetDataToFile.cs" />
     <Compile Include="Services\AuditService.cs" />
+    <Compile Include="Services\TreeChange.cs" />
     <Compile Include="Services\DomainService.cs" />
     <Compile Include="Services\IAuditService.cs" />
     <Compile Include="Services\IDomainService.cs" />

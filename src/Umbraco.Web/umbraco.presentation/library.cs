@@ -497,7 +497,7 @@ namespace umbraco
                         string.Format(
                             "{0}_{1}_{2}", CacheKeys.MediaCacheKey, MediaId, Deep),
                         TimeSpan.FromSeconds(UmbracoConfig.For.UmbracoSettings().Content.UmbracoLibraryCacheDuration),
-                        () => GetMediaDo(MediaId, Deep));
+                        () => GetMediaDo(MediaId, Deep)).Item1;
 
                     if (xml != null)
                     {                   
@@ -508,7 +508,7 @@ namespace umbraco
                 }
                 else
                 {
-                    var xml = GetMediaDo(MediaId, Deep);
+                    var xml = GetMediaDo(MediaId, Deep).Item1;
                     
                     //returning the root element of the Media item fixes the problem
                     return xml.CreateNavigator().Select("/");
@@ -525,7 +525,7 @@ namespace umbraco
             return errorXml.CreateNavigator().Select("/");
         }
 
-        private static XElement GetMediaDo(int mediaId, bool deep)
+        private static System.Tuple<XElement, string> GetMediaDo(int mediaId, bool deep)
         {
             var media = ApplicationContext.Current.Services.MediaService.GetById(mediaId);
             if (media == null) return null;
@@ -536,7 +536,7 @@ namespace umbraco
                 ApplicationContext.Current.Services.UserService,                
                 media, 
                 deep);
-            return serialized;
+            return Tuple.Create(serialized, media.Path);
         }
 
         /// <summary>
@@ -1782,18 +1782,6 @@ namespace umbraco
         public static Relation[] GetRelatedNodes(int NodeId)
         {
             return new CMSNode(NodeId).Relations;
-        }
-
-        [Obsolete("Use DistributedCache.Instance.RemoveMediaCache instead")]
-        public static void ClearLibraryCacheForMedia(int mediaId)
-        {
-            DistributedCache.Instance.RemoveMediaCache(mediaId);      
-        }
-
-        [Obsolete("Use DistributedCache.Instance.RemoveMediaCache instead")]
-        public static void ClearLibraryCacheForMediaDo(int mediaId)
-        {
-            DistributedCache.Instance.RemoveMediaCache(mediaId);
         }
 
         [Obsolete("Use DistributedCache.Instance.RefreshMemberCache instead")]

@@ -102,11 +102,12 @@ namespace Umbraco.Web.Cache
 
             //Bind to media events
 
-            MediaService.Saved += MediaServiceSaved;            
-            MediaService.Deleted += MediaServiceDeleted;
-            MediaService.Moved += MediaServiceMoved;
-            MediaService.Trashed += MediaServiceTrashed;
-            MediaService.EmptiedRecycleBin += MediaServiceEmptiedRecycleBin;
+            //MediaService.Saved += MediaServiceSaved;            
+            //MediaService.Deleted += MediaServiceDeleted;
+            //MediaService.Moved += MediaServiceMoved;
+            //MediaService.Trashed += MediaServiceTrashed;
+            //MediaService.EmptiedRecycleBin += MediaServiceEmptiedRecycleBin;
+            MediaService.TreeChanged += MediaServiceChanged; // handles all media changes
 
             //Bind to content events - this is for unpublished content syncing across servers (primarily for examine)
             
@@ -117,7 +118,7 @@ namespace Umbraco.Web.Cache
             //ContentService.Trashed += ContentServiceTrashed; // handled by Changed
             //ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin; // handled by Changed
             //ContentService.RolledBack += ContentServiceRolledBack; // handled by Changed
-            ContentService.Changed += ContentServiceChanged; // handles all content changes
+            ContentService.TreeChanged += ContentServiceChanged; // handles all content changes
 
             // ContentService.Changed will queue things in a ChangeSet, and when that
             // ChangeSet is committed we need to send all the events to the distributed
@@ -184,11 +185,12 @@ namespace Umbraco.Web.Cache
             MemberGroupService.Saved -= MemberGroupService_Saved;
             MemberGroupService.Deleted -= MemberGroupService_Deleted;
 
-            MediaService.Saved -= MediaServiceSaved;
-            MediaService.Deleted -= MediaServiceDeleted;
-            MediaService.Moved -= MediaServiceMoved;
-            MediaService.Trashed -= MediaServiceTrashed;
-            MediaService.EmptiedRecycleBin -= MediaServiceEmptiedRecycleBin;
+            //MediaService.Saved -= MediaServiceSaved;
+            //MediaService.Deleted -= MediaServiceDeleted;
+            //MediaService.Moved -= MediaServiceMoved;
+            //MediaService.Trashed -= MediaServiceTrashed;
+            //MediaService.EmptiedRecycleBin -= MediaServiceEmptiedRecycleBin;
+            MediaService.TreeChanged -= MediaServiceChanged;
 
             ContentService.Saved -= ContentServiceSaved;
             //ContentService.Deleted -= ContentServiceDeleted;
@@ -197,7 +199,7 @@ namespace Umbraco.Web.Cache
             //ContentService.Trashed -= ContentServiceTrashed;
             //ContentService.EmptiedRecycleBin -= ContentServiceEmptiedRecycleBin;
             //ContentService.RolledBack -= ContentServiceRolledBack;
-            ContentService.Changed -= ContentServiceChanged;
+            ContentService.TreeChanged -= ContentServiceChanged;
 
             ChangeSet.Committed -= ChangeSetCommitted;
 
@@ -274,7 +276,7 @@ namespace Umbraco.Web.Cache
             }
         }
 
-        private void ContentServiceChanged(IContentService sender, ContentService.ChangeEventArgs args)
+        private static void ContentServiceChanged(IContentService sender, TreeChange<IContent>.EventArgs args)
         {
             DistributedCache.Instance.RefreshContentCache(args.Changes.ToArray());
         }
@@ -571,34 +573,11 @@ namespace Umbraco.Web.Cache
 
         #region Media event handlers
 
-        static void MediaServiceEmptiedRecycleBin(IMediaService sender, RecycleBinEventArgs e)
+        private static void MediaServiceChanged(IMediaService sender, TreeChange<IMedia>.EventArgs args)
         {
-            // fixme - no - should be managed with proper delete
-            //if (e.RecycleBinEmptiedSuccessfully && e.IsMediaRecycleBin)
-            //{
-            //    DistributedCache.Instance.RemoveMediaCachePermanently(e.Ids.ToArray());
-            //}
+            DistributedCache.Instance.RefreshMediaCache(args.Changes.ToArray());
         }
 
-        static void MediaServiceTrashed(IMediaService sender, MoveEventArgs<IMedia> e)
-        {
-            DistributedCache.Instance.RemoveMediaCacheAfterRecycling(e.MoveInfoCollection.ToArray());
-        }
-
-        static void MediaServiceMoved(IMediaService sender, MoveEventArgs<IMedia> e)
-        {
-            DistributedCache.Instance.RefreshMediaCacheAfterMoving(e.MoveInfoCollection.ToArray());
-        }
-
-        static void MediaServiceDeleted(IMediaService sender, DeleteEventArgs<IMedia> e)
-        {
-            DistributedCache.Instance.RemoveMediaCachePermanently(e.DeletedEntities.Select(x => x.Id).ToArray());
-        }
-
-        static void MediaServiceSaved(IMediaService sender, SaveEventArgs<IMedia> e)
-        {
-            DistributedCache.Instance.RefreshMediaCache(e.SavedEntities.ToArray());
-        } 
         #endregion
 
         #region Member event handlers

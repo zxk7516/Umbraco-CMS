@@ -127,84 +127,52 @@ namespace Umbraco.Web.Search
         /// Handles index management for all media events - basically handling saving/copying/trashing/deleting
         /// </summary>
         /// <param name="sender"></param>
-        /// <param name="e"></param>
-	    static void MediaCacheRefresherCacheUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs e)
+        /// <param name="args"></param>
+	    static void MediaCacheRefresherCacheUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs args)
         {
-            switch (e.MessageType)
-            {
-                case MessageType.RefreshById:
-                    var c1 = ApplicationContext.Current.Services.MediaService.GetById((int)e.MessageObject);
-                    if (c1 != null)
+            if (args.MessageType != MessageType.RefreshByJson)
+                throw new NotSupportedException();
+
+            var mediaService = ApplicationContext.Current.Services.MediaService;
+
+            // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
+	        foreach (var payload in MediaCacheRefresher.Deserialize((string) args.MessageObject))
+	        {
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
+	            {
+                    // remove from *all* indexes
+	                DeleteIndexForEntity(payload.Id, false);
+	            }
+                else if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
+                {
+                    // ExamineEvents does not support RefreshAll
+                    // just ignore that payload
+                    // so what?!
+                }
+                else // RefreshNode or RefreshBranch (maybe trashed)
+                {
+	                var media = mediaService.GetById(payload.Id);
+                    if (media == null || media.Trashed)
                     {
-                        ReIndexForMedia(c1, c1.Trashed == false);
+                        // gone fishing, remove entirely
+                        DeleteIndexForEntity(payload.Id, false);
+                        continue;
                     }
-                    break;
-                case MessageType.RemoveById:
-                    var c2 = ApplicationContext.Current.Services.MediaService.GetById((int)e.MessageObject);
-                    if (c2 != null)
+
+                    // just that media
+                    ReIndexForMedia(media);
+
+                    // branch
+                    if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
-                        //This is triggered when the item has trashed.
-                        // So we need to delete the index from all indexes not supporting unpublished content.
-
-                        DeleteIndexForEntity(c2.Id, true);
-
-                        //We then need to re-index this item for all indexes supporting unpublished content
-
-                        ReIndexForMedia(c2, false);
-                    }
-                    break;
-                case MessageType.RefreshByJson:
-
-                    var jsonPayloads = MediaCacheRefresher.DeserializeFromJsonPayload((string)e.MessageObject);
-                    if (jsonPayloads.Any())
-                    {
-                        foreach (var payload in jsonPayloads)
+                        var descendants = mediaService.GetDescendants(media);
+                        foreach (var descendant in descendants)
                         {
-                            switch (payload.Operation)
-                            {
-                                case MediaCacheRefresher.OperationType.Saved:
-                                    var media1 = ApplicationContext.Current.Services.MediaService.GetById(payload.Id);
-                                    if (media1 != null)
-                                    {
-                                        ReIndexForMedia(media1, media1.Trashed == false);
-                                    }                                    
-                                    break;
-                                case MediaCacheRefresher.OperationType.Trashed:
-                                    
-                                    //keep if trashed for indexes supporting unpublished
-                                    //(delete the index from all indexes not supporting unpublished content)
-                                    
-                                    DeleteIndexForEntity(payload.Id, true);
-
-                                    //We then need to re-index this item for all indexes supporting unpublished content
-                                    var media2 = ApplicationContext.Current.Services.MediaService.GetById(payload.Id);
-                                    if (media2 != null)
-                                    {
-                                        ReIndexForMedia(media2, false);
-                                    }
-
-                                    break;
-                                case MediaCacheRefresher.OperationType.Deleted:
-
-                                    //permanently remove from all indexes
-                                    
-                                    DeleteIndexForEntity(payload.Id, false);
-
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }                            
-                        }                        
+                            ReIndexForMedia(descendant);
+                        }
                     }
-
-                    break;
-                case MessageType.RefreshByInstance:                    
-                case MessageType.RemoveByInstance:                    
-                case MessageType.RefreshAll:                
-                default:
-                    //We don't support these, these message types will not fire for media
-                    break;
-            }
+                }
+	        }
         }
 
 	    static void ContentCacheRefresherUpdated(ContentCacheRefresher sender, CacheRefresherEventArgs args)
@@ -217,27 +185,27 @@ namespace Umbraco.Web.Search
             // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
 	        foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
 	        {
-	            if (payload.Action.HasType(ContentService.ChangeEventTypes.Remove))
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
 	            {
-                    // delete content entirely
+                    // delete content entirely (with descendants)
                     //  false: remove entirely from all indexes
                     DeleteIndexForEntity(payload.Id, false);
 	            }
-                else if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
+                else if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                 {
                     // ExamineEvents does not support RefreshAll
                     // just ignore that payload
                     // so what?!
                 }
-                else // RefreshNode or RefreshBranch
+                else // RefreshNode or RefreshBranch (maybe trashed)
                 {
     	            // don't try to be too clever - refresh entirely
                     // there has to be race conds in there ;-(
 
 	                var content = contentService.GetById(payload.Id);
-                    if (content == null)
+                    if (content == null || content.Trashed)
                     {
-                        // gone fishing, remove entirely from all indexes
+                        // gone fishing, remove entirely from all indexes (with descendants)
                         DeleteIndexForEntity(payload.Id, false);
                         continue;
                     }
@@ -254,7 +222,7 @@ namespace Umbraco.Web.Search
                     ReIndexForContent(content, published);
 
                     // branch
-                    if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch))
+                    if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         var masked = published == null ? null : new List<int>();
                         var descendants = contentService.GetDescendants(content);
@@ -345,7 +313,7 @@ namespace Umbraco.Web.Search
 			}
 		}
         
-        private static void ReIndexForMedia(IMedia sender, bool isMediaPublished)
+        private static void ReIndexForMedia(IMedia sender)
         {
             var xml = sender.ToXml();
             //add an icon attribute to get indexed
@@ -355,10 +323,8 @@ namespace Umbraco.Web.Search
                 xml, IndexTypes.Media,
                 ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
 
-                    //Index this item for all indexers if the media is not trashed, otherwise if the item is trashed
-                    // then only index this for indexers supporting unpublished media
+                    // index this item for all indexers
 
-                    .Where(x => isMediaPublished || (x.SupportUnpublishedContent))
                     .Where(x => x.EnableDefaultEventHandler));
         }
 

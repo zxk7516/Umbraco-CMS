@@ -298,7 +298,7 @@ namespace Umbraco.Tests.Integration
                     Msg = _msgCount,
                     Sender = sender.Name,
                     EventArgs = payload,
-                    Name = payload.Action.ToString().Replace(" ", ""),
+                    Name = payload.ChangeTypes.ToString().Replace(" ", ""),
                     Args = payload.Id.ToInvariantString()
                 };
                 _events.Add(e);

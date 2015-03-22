@@ -1127,14 +1127,14 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 foreach (var payload in payloads)
                 {
-                    if (payload.Action.HasType(ContentService.ChangeEventTypes.RefreshAll))
+                    if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                     {
                         LoadXmlTreeFromDatabaseLocked(safeXml);
                         publishedChanged = true;
                         continue;
                     }
 
-                    if (payload.Action.HasType(ContentService.ChangeEventTypes.Remove))
+                    if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
                     {
                         var toRemove = safeXml.Xml.GetElementById(payload.Id.ToInvariantString());
                         if (toRemove != null)
@@ -1146,7 +1146,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         continue;
                     }
 
-                    if (payload.Action.HasTypesNone(ContentService.ChangeEventTypes.RefreshNode | ContentService.ChangeEventTypes.RefreshBranch))
+                    if (payload.ChangeTypes.HasTypesNone(TreeChangeTypes.RefreshNode | TreeChangeTypes.RefreshBranch))
                     { 
                         // ?!
                         continue;
@@ -1155,7 +1155,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     var content = _serviceContext.ContentService.GetById(payload.Id);
                     var current = safeXml.Xml.GetElementById(payload.Id.ToInvariantString());
 
-                    if (content.HasPublishedVersion == false)
+                    if (content.HasPublishedVersion == false || content.Trashed)
                     {
                         // no published version
                         if (current != null)
@@ -1203,7 +1203,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         // if exists and unchanged and not refreshing the branch, skip entirely
                         if (current != null
                             && currentRv == currentDto.Rv
-                            && payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch) == false)
+                            && payload.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch) == false)
                             continue;
 
                         // note: Examine would not be able to do the path trick below, and we cannot help for
@@ -1215,7 +1215,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         // inconsistent level (and path) attributes.
 
                         var refreshBranch = current == null
-                            || payload.Action.HasType(ContentService.ChangeEventTypes.RefreshBranch)
+                            || payload.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch)
                             || current.Attributes["path"].Value != currentDto.Path;
 
                         if (refreshBranch)

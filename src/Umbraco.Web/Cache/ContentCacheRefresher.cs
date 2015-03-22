@@ -7,13 +7,14 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 using Umbraco.Web.PublishedCache;
-using ChangeEventTypes = Umbraco.Core.Services.ContentService.ChangeEventTypes;
 
 namespace Umbraco.Web.Cache
 {
     public sealed class ContentCacheRefresher : JsonCacheRefresherBase<ContentCacheRefresher>
     {
         #region Json
+
+        // FIXME CLEAR ALL THIS
 
         // ContentCacheRefresher is the result of the merge of PageCacheRefresher and
         // UnpublishedPageCacheRefresher - because they have to work together as one cache
@@ -53,14 +54,14 @@ namespace Umbraco.Web.Cache
 
         internal class JsonPayload
         {
-            public JsonPayload(int id, ContentService.ChangeEventTypes action)
+            public JsonPayload(int id, TreeChangeTypes changeTypes)
             {
                 Id = id;
-                Action = action;
+                ChangeTypes = changeTypes;
             }
 
             public int Id { get; private set; }
-            public ContentService.ChangeEventTypes Action { get; private set; }
+            public TreeChangeTypes ChangeTypes { get; private set; }
         }
 
         internal static string Serialize(IEnumerable<JsonPayload> payloads)
@@ -103,7 +104,7 @@ namespace Umbraco.Web.Cache
             bool draftChanged, publishedChanged;
             svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
 
-            if (payloads.Any(x => x.Action.HasType(ChangeEventTypes.RefreshAll)) 
+            if (payloads.Any(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshAll)) 
                 || publishedChanged)
             {
                 // from PageCacheRefresher - when a public version changes

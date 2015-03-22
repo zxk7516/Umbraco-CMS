@@ -116,5 +116,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             _xmlStore.NotifyChanges(payloads, out draftChanged, out publishedChanged);
         }
+
+        public override void NotifyChanges(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
+        {
+            anythingChanged = true;
+        }
     }
 }
