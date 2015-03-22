@@ -26,7 +26,7 @@ namespace Umbraco.Tests.CoreXml
             Assert.AreEqual(@"<root foo=""bar"">
   <a></a>
   <b x=""1""></b>
-</root>", xml);
+</root>".CrLf(), xml);
         }
 
         [Test]
@@ -42,7 +42,7 @@ namespace Umbraco.Tests.CoreXml
             Assert.AreEqual(@"<xx:root foo=""bar"" xmlns:xx=""uri"">
   <a></a>
   <b x=""1""></b>
-</xx:root>", xml);
+</xx:root>".CrLf(), xml);
         }
 
         [Test]
@@ -58,7 +58,7 @@ namespace Umbraco.Tests.CoreXml
             Assert.AreEqual(@"<test foo=""bar"">
   <a></a>
   <b x=""1""></b>
-</test>", xml);
+</test>".CrLf(), xml);
         }
 
         [Test]
@@ -74,7 +74,7 @@ namespace Umbraco.Tests.CoreXml
             Assert.AreEqual(@"<xx:test foo=""bar"" xmlns:xx=""uri"">
   <a></a>
   <b x=""1""></b>
-</xx:test>", xml);
+</xx:test>".CrLf(), xml);
         }
 
         [Test]
