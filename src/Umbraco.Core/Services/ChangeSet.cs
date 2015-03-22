@@ -89,10 +89,16 @@ namespace Umbraco.Core.Services
             // _refsCount == 0, set to -1 to lock the ChangeSet
             _refsCount = -1;
 
-            var handler = Committed;
-            if (handler != null) handler(this, EventArgs.Empty);
-
-            CurrentContextItems.Clear(ContextKey);
+            // make sure we remove the ChangeSet even if the handler throws
+            try
+            {
+                var handler = Committed;
+                if (handler != null) handler(this, EventArgs.Empty);
+            }
+            finally
+            {
+                CurrentContextItems.Clear(ContextKey);
+            }
         }
     }
 }

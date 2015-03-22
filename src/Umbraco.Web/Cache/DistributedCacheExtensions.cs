@@ -203,15 +203,21 @@ namespace Umbraco.Web.Cache
 
         public static void FlushChangeSet(this DistributedCache dc, ChangeSet changeSet)
         {
-            if (changeSet == null || changeSet.Items.ContainsKey(ContentCacheBufferKey) == false) return;
+            if (changeSet == null) return;
 
-            var contentBuffer = (List<ContentCacheRefresher.JsonPayload>)changeSet.Items[ContentCacheBufferKey];
-            dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(contentBuffer));
-            changeSet.Items.Remove(ContentCacheBufferKey);
+            if (changeSet.Items.ContainsKey(ContentCacheBufferKey))
+            {
+                var contentBuffer = (List<ContentCacheRefresher.JsonPayload>)changeSet.Items[ContentCacheBufferKey];
+                dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(contentBuffer));
+                changeSet.Items.Remove(ContentCacheBufferKey);
+            }
 
-            var mediaBuffer = (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey];
-            dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(mediaBuffer));
-            changeSet.Items.Remove(MediaCacheBufferKey);
+            if (changeSet.Items.ContainsKey(MediaCacheBufferKey))
+            {
+                var mediaBuffer = (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey];
+                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(mediaBuffer));
+                changeSet.Items.Remove(MediaCacheBufferKey);
+            }
         }
 
         #endregion
