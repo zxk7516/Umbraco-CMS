@@ -28,6 +28,14 @@ namespace Umbraco.Core.Persistence.DatabaseModelDefinitions
                 var resultColumnAttribute = propertyInfo.FirstAttribute<ResultColumnAttribute>();
                 if (resultColumnAttribute != null) continue;
 
+                //If current property has a RowVersionColumnAttribute then check type
+                var rowVersionColumnAttribute = propertyInfo.FirstAttribute<RowVersionColumnAttribute>();
+                if (rowVersionColumnAttribute != null)
+                {
+                    if (propertyInfo.PropertyType != typeof(long))
+                        throw new Exception("RowValue column must be of type long.");
+                }
+
                 //Looks for ColumnAttribute with the name of the column, which would exist with ExplicitColumns
                 //Otherwise use the name of the property itself as the default convention
                 var columnAttribute = propertyInfo.FirstAttribute<ColumnAttribute>();

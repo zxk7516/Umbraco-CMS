@@ -55,7 +55,15 @@ namespace Umbraco.Core.Persistence
 		public ResultColumnAttribute(string name) : base(name) { }
 	}
 
-	// Specify the table name of a poco
+    // For explicit pocos, marks property as a rowversion column and optionally supplies column name
+    [AttributeUsage(AttributeTargets.Property)]
+    public class RowVersionColumnAttribute : ColumnAttribute
+    {
+        public RowVersionColumnAttribute() { }
+        public RowVersionColumnAttribute(string name) : base(name) { }
+    }
+    
+    // Specify the table name of a poco
 	[AttributeUsage(AttributeTargets.Class)]
 	public class TableNameAttribute : Attribute
 	{
@@ -1460,6 +1468,7 @@ namespace Umbraco.Core.Persistence
 						var sb = new StringBuilder();
 						var index = 0;
 						var pd = PocoData.ForObject(poco,primaryKeyName);
+					    PocoColumn rvColumn = null;
 						if (columns == null)
 						{
 							foreach (var i in pd.Columns)
@@ -1475,6 +1484,16 @@ namespace Umbraco.Core.Persistence
 								// Dont update result only columns
 								if (i.Value.ResultColumn)
 									continue;
+
+                                // Update row version columns
+							    if (i.Value.RowVersion)
+							    {
+                                    if (index > 0)
+                                        sb.Append(", ");
+                                    sb.AppendFormat("{0} = {0} + 1", EscapeSqlIdentifier(i.Key));
+							        rvColumn = i.Value;
+							        continue;
+							    }
 
 								// Build the sql
 								if (index > 0)
@@ -1509,14 +1528,23 @@ namespace Umbraco.Core.Persistence
 
 						}
 
-						cmd.CommandText = string.Format("UPDATE {0} SET {1} WHERE {2} = {3}{4}",
-											EscapeTableName(tableName), sb.ToString(), EscapeSqlIdentifier(primaryKeyName), _paramPrefix, index++);
+					    string whereRvColumn = null;
+					    if (rvColumn != null)
+					    {
+                            whereRvColumn = string.Format(" AND {0} = {1}{2}", EscapeSqlIdentifier(rvColumn.ColumnName), _paramPrefix, index++);
+                            AddParam(cmd, rvColumn.GetValue(poco), _paramPrefix);
+					    }
+
+                        cmd.CommandText = string.Format("UPDATE {0} SET {1} WHERE {2} = {3}{4}{5}",
+											EscapeTableName(tableName), sb.ToString(), EscapeSqlIdentifier(primaryKeyName), _paramPrefix, index++, whereRvColumn);
 						AddParam(cmd, primaryKeyValue, _paramPrefix);
 
 						DoPreExecute(cmd);
 
 						// Do it
 						var retv=cmd.ExecuteNonQueryWithRetry();
+                        if (rvColumn != null && retv != 0)
+                            rvColumn.SetValue(poco, (long) rvColumn.GetValue(poco) + 1);
 						OnExecutedCommand(cmd);
 						return retv;
 					}
@@ -1767,6 +1795,7 @@ namespace Umbraco.Core.Persistence
 			public string ColumnName;
 			public PropertyInfo PropertyInfo;
 			public bool ResultColumn;
+		    public bool RowVersion;
 			public virtual void SetValue(object target, object val) { PropertyInfo.SetValue(target, val, null); }
 			public virtual object GetValue(object target) { return PropertyInfo.GetValue(target, null); }
 			public virtual object ChangeType(object val) { return Convert.ChangeType(val, PropertyInfo.PropertyType); }
@@ -1925,6 +1954,12 @@ namespace Umbraco.Core.Persistence
 						pc.ColumnName = colattr.Name;
 						if ((colattr as ResultColumnAttribute) != null)
 							pc.ResultColumn = true;
+					    if ((colattr as RowVersionColumnAttribute) != null)
+					    {
+                            if (pc.PropertyInfo.PropertyType != typeof (long))
+                                throw new Exception("RowValue column must be of type long.");
+                            pc.RowVersion = true;					        
+					    }
 					}
 					if (pc.ColumnName == null)
 					{
