@@ -87,6 +87,11 @@ namespace Umbraco.Core
 			/// Guid for a Template object.
 			/// </summary>
 			public const string Template = "6FBDE604-4178-42CE-A10B-8A2600A2F07D";
+
+            /// <summary>
+            /// Guid for a Lock object.
+            /// </summary>
+		    public const string LockObject = "87A9F1FF-B1E4-4A25-BABB-465A4A47EC41";
 		}
 	}
 }
