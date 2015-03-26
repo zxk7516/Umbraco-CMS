@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Models
@@ -7,38 +6,45 @@ namespace Umbraco.Core.Models
     internal static class ContentTypeExtensions
     {
         /// <summary>
-        /// Get all descendant content types
+        /// Gets all descendant content types of a specified content type.
         /// </summary>
-        /// <param name="contentType"></param>
-        /// <returns></returns>
+        /// <param name="contentType">The content type.</param>
+        /// <returns>The descendant content types.</returns>
+        /// <remarks>Descendants corresponds to the parent-child relationship, and has
+        /// nothing to do with compositions, though a child should always be composed
+        /// of its parent.</remarks>
         public static IEnumerable<IContentTypeBase> Descendants(this IContentTypeBase contentType)
         {
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            var descendants = contentTypeService.GetContentTypeChildren(contentType.Id)
-                                                .FlattenList(type => contentTypeService.GetContentTypeChildren(type.Id));
-            return descendants;
+            return ((ContentTypeService) contentTypeService).GetContentTypeDescendants(contentType.Id, false); // fixme - cast
         }
 
         /// <summary>
-        /// Get all descendant and self content types
+        /// Gets all descendant and self content types of a specified content type.
         /// </summary>
-        /// <param name="contentType"></param>
-        /// <returns></returns>
+        /// <param name="contentType">The content type.</param>
+        /// <returns>The descendant and self content types.</returns>
+        /// <remarks>Descendants corresponds to the parent-child relationship, and has
+        /// nothing to do with compositions, though a child should always be composed
+        /// of its parent.</remarks>
         public static IEnumerable<IContentTypeBase> DescendantsAndSelf(this IContentTypeBase contentType)
         {
-            var descendantsAndSelf = new[] { contentType }.Concat(contentType.Descendants());
-            return descendantsAndSelf;
+            var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
+            return ((ContentTypeService) contentTypeService).GetContentTypeDescendants(contentType.Id, true); // fixme - cast
         }
 
-        ///// <summary>
-        ///// Returns the descendant content type Ids for the given content type
-        ///// </summary>
-        ///// <param name="contentType"></param>
-        ///// <returns></returns>
-        //public static IEnumerable<int> DescendantIds(this IContentTypeBase contentType)
-        //{
-        //    return ((ContentTypeService) ApplicationContext.Current.Services.ContentTypeService)
-        //        .GetDescendantContentTypeIds(contentType.Id);
-        //}
+        /// <summary>
+        /// Gets all content types directly or indirectly composed of a specified content type.
+        /// </summary>
+        /// <param name="contentType">The content type.</param>
+        /// <returns>The content types directly or indirectly composed of the content type.</returns>
+        /// <remarks>This corresponds to the composition relationship and has nothing to do
+        /// with the parent-child relationship, though a child should always be composed of
+        /// its parent.</remarks>
+        public static IEnumerable<IContentTypeBase> ComposedOf(this IContentTypeBase contentType)
+        {
+            var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
+            return ((ContentTypeService) contentTypeService).GetContentTypesComposedOf(contentType.Id); // fixme - cast
+        }
     }
 }

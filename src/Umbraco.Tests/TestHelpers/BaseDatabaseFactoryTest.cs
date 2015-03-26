@@ -199,13 +199,13 @@ namespace Umbraco.Tests.TestHelpers
             // ensure we have a PublishedCachesService
             if (PublishedCachesServiceResolver.HasCurrent == false)
             {
-                var attr = this.GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
+                var behavior = GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
                 var cache = new NullCacheProvider();
 
-                var withEvents = attr != null && attr.WithEvents;
-                if (withEvents && LoggerResolver.HasCurrent == false)
+                var enableRepositoryEvents = behavior != null && behavior.EnableRepositoryEvents;
+                if (enableRepositoryEvents && LoggerResolver.HasCurrent == false)
                 {
-                    // XmlStore wants one if events
+                    // XmlStore wants one if handling events
                     LoggerResolver.Current = new LoggerResolver(Mock.Of<ILogger>())
                     {
                         CanResolveBeforeFrozen = true
@@ -216,7 +216,14 @@ namespace Umbraco.Tests.TestHelpers
                     };
                 }
 
-                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, withEvents);
+                // NOTE
+                // must ensure that XmlStore is not hitting the database right now because it's not
+                // been created yet - setting service "testing" to true should do it
+                // FIXME
+                // however in production... will XmlStore try to read from DB before it even has
+                // been created... and then what happens?
+
+                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, true, enableRepositoryEvents);
 
                 // initialize PublishedCacheService content with an Xml source
                 service.XmlStore.GetXmlDocument = () => 

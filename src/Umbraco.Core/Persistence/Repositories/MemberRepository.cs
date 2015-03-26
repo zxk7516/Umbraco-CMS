@@ -42,6 +42,20 @@ namespace Umbraco.Core.Persistence.Repositories
             _memberGroupRepository = memberGroupRepository;
         }
 
+        #region Lock
+
+        public void AcquireWriteLock()
+        {
+            Database.AcquireLockNodeWriteLock(Constants.System.MemberTreeLock);
+        }
+
+        public void AcquireReadLock()
+        {
+            Database.AcquireLockNodeReadLock(Constants.System.MemberTreeLock);
+        }
+
+        #endregion
+
         #region Overrides of RepositoryBase<int, IMembershipUser>
 
         protected override IMember PerformGet(int id)

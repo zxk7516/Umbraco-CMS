@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using Umbraco.Core.Auditing;
@@ -8,6 +9,7 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Querying;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Persistence.UnitOfWork;
 
 namespace Umbraco.Core.Services
@@ -41,12 +43,74 @@ namespace Umbraco.Core.Services
             _memberService = memberService;
         }
 
+        #region Lock Helper Methods
+
+        // note: ultimately the two methods below end up locking ALL content types
+
+        private T WithReadLockedMemberTypes<T>(Func<MemberTypeRepository, T> func, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberTypeRepository(uow))
+            {
+                var repository = irepository as MemberTypeRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                var ret = func(repository);
+                if (autoCommit == false) return ret;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+                return ret;
+            }
+        }
+
+        private void WithReadLockedMemberTypes(Action<MemberTypeRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberTypeRepository(uow))
+            {
+                var repository = irepository as MemberTypeRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        private void WithWriteLockedMemberAndMemberTypes(Action<MemberTypeRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberTypeRepository(uow))
+            using (var iMemberRepository = RepositoryFactory.CreateMemberRepository(uow))
+            {
+                var repository = irepository as MemberTypeRepository;
+                if (repository == null) throw new Exception("oops");
+
+                var memberRepository = iMemberRepository as MemberRepository;
+                if (memberRepository == null) throw new Exception("oops");
+
+                // respect order to avoid deadlocks
+                memberRepository.AcquireWriteLock();
+                repository.AcquireWriteLock();
+
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        #endregion
+
+        #region Member - Get, Has, Is
+
         public IEnumerable<IMemberType> GetAll(params int[] ids)
         {
-            using (var repository = RepositoryFactory.CreateMemberTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.GetAll(ids);
-            }
+            return WithReadLockedMemberTypes(repository => repository.GetAll(ids));
         }
 
         /// <summary>
@@ -56,10 +120,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMemberType"/></returns>
         public IMemberType Get(int id)
         {
-            using (var repository = RepositoryFactory.CreateMemberTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Get(id);
-            }
+            return WithReadLockedMemberTypes(repository => repository.Get(id));
         }
 
         /// <summary>
@@ -69,81 +130,80 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMemberType"/></returns>
         public IMemberType Get(string alias)
         {
-            using (var repository = RepositoryFactory.CreateMemberTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMemberType>.Builder.Where(x => x.Alias == alias);
-                var contentTypes = repository.GetByQuery(query);
-
-                return contentTypes.FirstOrDefault();
-            }
+            var query = Query<IMemberType>.Builder.Where(x => x.Alias == alias);
+            return WithReadLockedMemberTypes(repository => repository.GetByQuery(query).FirstOrDefault());
         }
+
+        #endregion
+
+        #region Member - Save, Delete
 
         public void Save(IMemberType memberType, int userId = 0)
         {
             if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMemberType>(memberType), this))
                 return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMemberAndMemberTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberTypeRepository(uow))
-                {
-                    memberType.CreatorId = userId;
-                    repository.AddOrUpdate(memberType);
+                memberType.CreatorId = userId;
+                repository.AddOrUpdate(memberType);
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                    uow.Commit();
-                }
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(memberType).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
 
-                NotifyMemberServiceOfMemberTypeChanges(memberType);
-            }
+            //FIXME REFACTOR THIS
+            //NotifyMemberServiceOfMemberTypeChanges(memberType);
             Saved.RaiseEvent(new SaveEventArgs<IMemberType>(memberType, false), this);
         }
 
         public void Save(IEnumerable<IMemberType> memberTypes, int userId = 0)
         {
-            var asArray = memberTypes.ToArray();
+            var memberTypesA = memberTypes.ToArray();
 
-            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMemberType>(asArray), this))
+            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMemberType>(memberTypesA), this))
                 return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMemberAndMemberTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberTypeRepository(uow))
+                foreach (var memberType in memberTypesA)
                 {
-                    foreach (var memberType in asArray)
-                    {
-                        memberType.CreatorId = userId;
-                        repository.AddOrUpdate(memberType);
-                    }
-
-                    //save it all in one go
-                    uow.Commit();
+                    memberType.CreatorId = userId;
+                    repository.AddOrUpdate(memberType);
                 }
 
-                NotifyMemberServiceOfMemberTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
-            }
-            Saved.RaiseEvent(new SaveEventArgs<IMemberType>(asArray, false), this);
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(memberTypesA).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
+
+            //FIXME REFACTOR THIS
+            //NotifyMemberServiceOfMemberTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
+
+            Saved.RaiseEvent(new SaveEventArgs<IMemberType>(memberTypesA, false), this);
         }
+
+        // FIXME DELETE NOT RAISING TRANSACTION EVENTS OOPS
 
         public void Delete(IMemberType memberType, int userId = 0)
         {
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMemberType>(memberType), this))
                 return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMemberAndMemberTypes(repository =>
             {
                 _memberService.DeleteMembersOfType(memberType.Id);
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberTypeRepository(uow))
-                {
-                    repository.Delete(memberType);
-                    uow.Commit();
+                repository.Delete(memberType);
+            });
 
-                    Deleted.RaiseEvent(new DeleteEventArgs<IMemberType>(memberType, false), this);
-                }
-            }
+            // FIXME EVENTS?!
+
+            Deleted.RaiseEvent(new DeleteEventArgs<IMemberType>(memberType, false), this);
         }
 
         public void Delete(IEnumerable<IMemberType> memberTypes, int userId = 0)
@@ -153,41 +213,23 @@ namespace Umbraco.Core.Services
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMemberType>(asArray), this))
                 return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMemberAndMemberTypes(repository =>
             {
                 foreach (var contentType in asArray)
-                {
                     _memberService.DeleteMembersOfType(contentType.Id);
-                }
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberTypeRepository(uow))
-                {
-                    foreach (var memberType in asArray)
-                    {
-                        repository.Delete(memberType);
-                    }
+                foreach (var memberType in asArray)
+                    repository.Delete(memberType);
+            });
 
-                    uow.Commit();
+            // FIXME EVENTS?!
 
-                    Deleted.RaiseEvent(new DeleteEventArgs<IMemberType>(asArray, false), this);
-                }                
-            }
+            Deleted.RaiseEvent(new DeleteEventArgs<IMemberType>(asArray, false), this);
         }
 
-        /// <summary>
-        /// Notifies the member service of member type changes.
-        /// </summary>
-        /// <param name="memberTypes">The changed member types.</param>
-        private void NotifyMemberServiceOfMemberTypeChanges(params IContentTypeBase[] memberTypes)
-        {
-            var ids = GetContentTypesToNotify(memberTypes).Select(x => x.Id).ToArray();
-            if (ids.Length == 0) return;
+        #endregion
 
-            var svc = _memberService as MemberService;
-            if (svc == null) throw new Exception("Oops!");
-            svc.NotifyMemberTypeChanges(ids);
-        }
+        #region Event Handlers
 
         /// <summary>
         /// Occurs before Save
@@ -208,5 +250,7 @@ namespace Umbraco.Core.Services
         /// Occurs after Delete
         /// </summary>
         public static event TypedEventHandler<IMemberTypeService, DeleteEventArgs<IMemberType>> Deleted;
+
+        #endregion
     }
 }

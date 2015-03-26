@@ -89,6 +89,30 @@ namespace Umbraco.Core.Persistence.Repositories
             return Database.Fetch<string>("SELECT DISTINCT Alias FROM cmsPropertyType ORDER BY Alias");
         }
 
+        public IEnumerable<IContentType> GetTypesDirectlyComposedOf(int id)
+        {
+            //var sql = GetBaseQuery(false)
+            //    .InnerJoin<ContentType2ContentTypeDto>()
+            //    .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+            //    .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
+
+            var sql = new Sql().Select("*")
+                .From<ContentTypeDto>()
+                .InnerJoin<NodeDto>()
+                .On<ContentTypeDto, NodeDto>(left => left.NodeId, right => right.NodeId)
+                .LeftJoin<DocumentTypeDto>()
+                .On<DocumentTypeDto, ContentTypeDto>(left => left.ContentTypeNodeId, right => right.NodeId)
+                .InnerJoin<ContentType2ContentTypeDto>()
+                .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId)
+                .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
+
+            var dtos = Database.Fetch<DocumentTypeDto, ContentTypeDto, NodeDto>(sql);
+            return dtos.Any()
+                ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
+                : Enumerable.Empty<IContentType>();
+        }
+
         #region Overrides of PetaPocoRepositoryBase<int,IContentType>
 
         protected override Sql GetBaseQuery(bool isCount)
@@ -114,20 +138,21 @@ namespace Umbraco.Core.Persistence.Repositories
         protected override IEnumerable<string> GetDeleteClauses()
         {
             var list = new List<string>
-                           {
-                               "DELETE FROM umbracoUser2NodeNotify WHERE nodeId = @Id",
-                               "DELETE FROM umbracoUser2NodePermission WHERE nodeId = @Id",
-                               "DELETE FROM cmsTagRelationship WHERE nodeId = @Id",
-                               "DELETE FROM cmsContentTypeAllowedContentType WHERE Id = @Id",
-                               "DELETE FROM cmsContentTypeAllowedContentType WHERE AllowedId = @Id",
-                               "DELETE FROM cmsContentType2ContentType WHERE parentContentTypeId = @Id",
-                               "DELETE FROM cmsContentType2ContentType WHERE childContentTypeId = @Id",
-                               "DELETE FROM cmsPropertyType WHERE contentTypeId = @Id",
-                               "DELETE FROM cmsPropertyTypeGroup WHERE contenttypeNodeId = @Id",
-                               "DELETE FROM cmsDocumentType WHERE contentTypeNodeId = @Id",
-                               "DELETE FROM cmsContentType WHERE nodeId = @Id",
-                               "DELETE FROM umbracoNode WHERE id = @Id"
-                           };
+            {
+                "DELETE FROM umbracoUser2NodeNotify WHERE nodeId = @Id",
+                "DELETE FROM umbracoUser2NodePermission WHERE nodeId = @Id",
+                "DELETE FROM cmsTagRelationship WHERE nodeId = @Id",
+                "DELETE FROM cmsContentTypeAllowedContentType WHERE Id = @Id",
+                "DELETE FROM cmsContentTypeAllowedContentType WHERE AllowedId = @Id",
+                "DELETE FROM cmsContentType2ContentType WHERE parentContentTypeId = @Id",
+                "DELETE FROM cmsContentType2ContentType WHERE childContentTypeId = @Id",
+                "DELETE FROM cmsPropertyData WHERE propertyTypeId IN (SELECT id FROM cmsPropertyType WHERE contentTypeId = @Id)",
+                "DELETE FROM cmsPropertyType WHERE contentTypeId = @Id",
+                "DELETE FROM cmsPropertyTypeGroup WHERE contenttypeNodeId = @Id",
+                "DELETE FROM cmsDocumentType WHERE contentTypeNodeId = @Id",
+                "DELETE FROM cmsContentType WHERE nodeId = @Id",
+                "DELETE FROM umbracoNode WHERE id = @Id"
+            };
             return list;
         }
 
@@ -240,8 +265,6 @@ namespace Umbraco.Core.Persistence.Repositories
             entity.ResetDirtyProperties();
         }
 
-        #endregion
-
-        
+        #endregion      
     }
 }

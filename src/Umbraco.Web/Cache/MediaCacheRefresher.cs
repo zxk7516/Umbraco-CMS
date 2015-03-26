@@ -114,6 +114,14 @@ namespace Umbraco.Web.Cache
                     // only need to do it for the current media
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheItem(
                         RepositoryBase.GetCacheIdKey<IMedia>(payload.Id));
+
+                    // remove those that are in the branch
+                    if (payload.ChangeTypes.HasTypesAny(TreeChangeTypes.RefreshBranch | TreeChangeTypes.Remove))
+                    {
+                        var pathid = "," + payload.Id + ",";
+                        ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IMedia>(
+                            (_, v) => v.Path.Contains(pathid));
+                    }
                 }
             }
 
@@ -141,6 +149,15 @@ namespace Umbraco.Web.Cache
         public override void Remove(int id)
         {
             throw new NotSupportedException();
+        }
+
+        #endregion
+
+        #region Indirect
+
+        public void RefreshMediaTypes(IEnumerable<int> refreshedIds, IEnumerable<int> removedIds)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -10,7 +9,6 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Rdbms;
-
 using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Relators;
@@ -33,6 +31,20 @@ namespace Umbraco.Core.Persistence.Repositories
         {
         }
 
+        #region Lock
+
+        public void AcquireWriteLock()
+        {
+            Database.AcquireLockNodeWriteLock(Constants.System.ContentTypesLock);
+        }
+
+        public void AcquireReadLock()
+        {
+            Database.AcquireLockNodeReadLock(Constants.System.ContentTypesLock);
+        }
+
+        #endregion
+
         /// <summary>
         /// Returns the content type ids that match the query
         /// </summary>
@@ -40,6 +52,9 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns></returns>
         protected IEnumerable<int> PerformGetByQuery(IQuery<PropertyType> query)
         {
+            // FIXME - this is used by DataTypeDefinitionRepository to remove properties
+            // from content types if they have a deleted data type - wrong in so many ways!
+
             var sqlClause = new Sql();
             sqlClause.Select("*")
                .From<PropertyTypeGroupDto>()
@@ -54,10 +69,7 @@ namespace Umbraco.Core.Persistence.Repositories
 
             var dtos = Database.Fetch<PropertyTypeGroupDto, PropertyTypeDto, DataTypeDto, PropertyTypeGroupDto>(new GroupPropertyTypeRelator().Map, sql);
 
-            foreach (var dto in dtos.DistinctBy(x => x.ContentTypeNodeId))
-            {
-                yield return dto.ContentTypeNodeId;
-            }
+            return dtos.DistinctBy(x => x.ContentTypeNodeId).Select(x => x.ContentTypeNodeId);
         }
         
         protected virtual PropertyType CreatePropertyType(string propertyEditorAlias, DataTypeDatabaseType dbType, string propertyTypeAlias)
@@ -192,6 +204,9 @@ AND umbracoNode.id <> @id",
             {
                 throw new DuplicateNameException("An item with the alias " + entity.Alias + " already exists");
             }
+
+            // FIXME race condition here + should be a database 'unique' something?!
+            // at the moment we are safe due to the big massive lock around everything
 
             var propertyGroupFactory = new PropertyGroupFactory(entity.Id);
 

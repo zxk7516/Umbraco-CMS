@@ -507,7 +507,7 @@ namespace Umbraco.Web.Cache
 
         #endregion
 
-        #region Media type cache
+        #region Member type cache
 
         /// <summary>
         /// Remove all cache for a given media type
@@ -538,7 +538,6 @@ namespace Umbraco.Web.Cache
         }
 
         #endregion
-
 
         #region Stylesheet Cache
 

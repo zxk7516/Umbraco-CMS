@@ -43,7 +43,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private Func<IMedia, XElement> _xmlMediaSerializer;
         private XmlStoreFilePersister _persisterTask;
         private BackgroundTaskRunner<XmlStoreFilePersister> _filePersisterRunner;
-        private bool _withEvents;
+        private bool _withRepositoryEvents;
+        private bool _withOtherEvents;
 
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _serviceContext;
@@ -77,40 +78,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         //    recreate it, we should ensure that NO other thread, even in a distributed
         //    environment, can read the XML tables at that time - so we should have a
         //    global, distributed lock on everything...
-        //
-        // get a RepeatableRead transaction & update root node = takes a write-lock
-        // and prevents other transaction (whatever their isolation level) from reading it
-        // take care of resetting the isolation level to default on the connection though
-        // by begin/commit an empty transaction on that same connection
-        //
-        // FIXME BEWARE! creating a uow does NOT create a transaction, the transaction
-        // must be explicitely created, else the uow will create it ONLY when it commits
-        // must check ContentService for patterns here!!!
-
-        /*
-         * var uow = UowProvider.GetUnitOfWork();
-         * using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-         * using (var repository = RepositoryFactory.CreateContentRepository(uow))
-         * {
-         *   // aquire a write-lock on the whole content tree
-         *   ContentRepository.AquireContentTreeExclusiveLock(uow.Database);
-         *   
-         *   // do whatever we have to do...
-         *   
-         *   // ...and complete
-         *   transaction.Complete();
-         * }
-         */
-
-        private void AquireContentTreeExclusiveLock(Database database)
-        {
-            if (database.CurrentTransactionIsolationLevel < IsolationLevel.RepeatableRead)
-                throw new InvalidOperationException("A transaction with minimum RepeatableRead isolation level is required.");
-            database.Execute("UPDATE umbracoNode SET sortOrder = (CASE WHEN (sortOrder=1) THEN -1 ELSE 1 END) WHERE id=-1");
-        }
-
-        // and we'd also need
-        // ContentRepository.EnsureContentTreeSharedAccess(...);
 
         #region Constructors
 
@@ -120,8 +87,62 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
         public XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache)
-            : this(serviceContext, databaseContext, routesCache, true)
+            : this(serviceContext, databaseContext, routesCache, false, false)
         { }
+
+        // internal for unit tests
+        // no file nor db, no config check
+        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache,
+            bool testing, bool enableRepositoryEvents)
+        {
+            if (testing == false)
+                EnsureConfigurationIsValid();
+
+            _serviceContext = serviceContext;
+            _databaseContext = databaseContext;
+            _routesCache = routesCache;
+
+            InitializeSerializers();
+
+            if (testing)
+            {
+                _xmlFileEnabled = false;
+            }
+            else
+            {
+                InitializeFilePersister();
+            }
+
+            // need to wait for resolution to be frozen
+            if (Resolution.IsFrozen)
+                OnResolutionFrozen(testing, enableRepositoryEvents);
+            else
+                Resolution.Frozen += (sender, args) => OnResolutionFrozen(testing, enableRepositoryEvents);
+        }
+
+        // internal for unit tests
+        // initialize with an xml document
+        // no events, no file nor db, no config check
+        internal XmlStore(XmlDocument xmlDocument)
+        {
+            _xmlDocument = xmlDocument;
+            _xmlFileEnabled = false;
+
+            // do not plug events, we may not have what it takes to handle them
+        }
+
+        // internal for unit tests
+        // initialize with a function returning an xml document
+        // no events, no file nor db, no config check
+        internal XmlStore(Func<XmlDocument> getXmlDocument)
+        {
+            if (getXmlDocument == null)
+                throw new ArgumentNullException("getXmlDocument");
+            GetXmlDocument = getXmlDocument;
+            _xmlFileEnabled = false;
+
+            // do not plug events, we may not have what it takes to handle them
+        }
 
         private void InitializeSerializers()
         {
@@ -147,21 +168,19 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _filePersisterRunner.Add(_persisterTask);
         }
 
-        private void InitializeEventsAndContent()
+        private void OnResolutionFrozen(bool testing, bool enableRepositoryEvents)
         {
-            InitializeEvents();
+            if (testing == false || enableRepositoryEvents)
+                InitializeRepositoryEvents();
+            if (testing)
+                return;
+            InitializeOtherEvents();
             InitializeContent();
         }
 
         // plug events
-        private void InitializeEvents()
+        private void InitializeRepositoryEvents()
         {
-            // plug event handlers
-            // distributed events
-            //ContentCacheRefresher.CacheUpdated += ContentCacheUpdated;
-            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated;
-                // same refresher for content, media & member
-
             // plug repository event handlers
             // these trigger within the transaction to ensure consistency
             // and are used to maintain the central, database-level XML cache
@@ -175,24 +194,31 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RemovedVersion += OnMemberRemovedVersion;
             MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
 
+            // plug
+            // note: there's no REMOVE because content will be DELETED beforehand (no xml to handle)
+            ContentTypeServiceBase.TransactionRefreshedEntity += OnContentTypeRefreshedEntity;
+
             // mostly to be sure - each node should have been deleted beforehand
             ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
 
+            _withRepositoryEvents = true;
+        }
+
+        private void InitializeOtherEvents()
+        {
+            // plug event handlers
+            // distributed events
+            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
+
             // temp - until we get rid of Content
             global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
 
-            // used to maintain the central, database-level XML cache - NOT distributed
-            ContentService.ContentTypesChanged += OnContentTypesChanged;
-            MediaService.ContentTypesChanged += OnMediaTypesChanged;
-            MemberService.MemberTypesChanged += OnMemberTypesChanged;
-
-            _withEvents = true;
+            _withOtherEvents = true;
         }
 
         private void ClearEvents()
         {
-            //ContentCacheRefresher.CacheUpdated -= ContentCacheUpdated;
             ContentTypeCacheRefresher.CacheUpdated -= ContentTypeCacheUpdated; // same refresher for content, media & member
 
             ContentRepository.RemovedEntity -= OnContentRemovedEntity;
@@ -205,16 +231,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RemovedVersion -= OnMemberRemovedVersion;
             MemberRepository.RefreshedEntity -= OnMemberRefreshedEntity;
 
+            ContentTypeServiceBase.TransactionRefreshedEntity -= OnContentTypeRefreshedEntity;
+
             ContentRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
 
             global::umbraco.cms.businesslogic.Content.DeletedContent -= OnDeletedContent;
 
-            ContentService.ContentTypesChanged -= OnContentTypesChanged;
-            MediaService.ContentTypesChanged -= OnMediaTypesChanged;
-            MemberService.MemberTypesChanged -= OnMemberTypesChanged;
-
-            _withEvents = false;
+            _withRepositoryEvents = false;
+            _withOtherEvents = false;
         }
 
         private void InitializeContent()
@@ -231,59 +256,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         public void Dispose()
         {
             ClearEvents();
-        }
-
-        // internal for unit tests
-        // no file nor db, no config check
-        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, bool withEvents)
-        {
-            var testing = withEvents == false;
-
-            if (testing == false)
-                EnsureConfigurationIsValid();
-
-            _serviceContext = serviceContext;
-            _databaseContext = databaseContext;
-            _routesCache = routesCache;
-
-            if (testing)
-            {
-                _xmlFileEnabled = false;
-                return;
-            }
-
-            InitializeSerializers();
-            InitializeFilePersister();
-
-            // need to wait for resolution to be frozen
-            if (Resolution.IsFrozen)
-                InitializeEventsAndContent();
-            else
-                Resolution.Frozen += (sender, args) => InitializeEventsAndContent();
-        }
-
-        // internal for unit tests
-        // initialize with an xml document
-        // no events, no file nor db, no config check
-        internal XmlStore(XmlDocument xmlDocument)
-        {
-            _xmlDocument = xmlDocument;
-            _xmlFileEnabled = false;
-
-            // do not plug events, we may not have what it takes to handle them
-        }
-
-        // internal for unit tests
-        // initialize with a function returning an xml document
-        // no events, no file nor db, no config check
-        internal XmlStore(Func<XmlDocument> getXmlDocument)
-        {
-            if (getXmlDocument == null)
-                throw new ArgumentNullException("getXmlDocument");
-            GetXmlDocument = getXmlDocument;
-            _xmlFileEnabled = false;
-
-            // do not plug events, we may not have what it takes to handle them
         }
 
         #endregion
@@ -480,6 +452,45 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 parentNode.AppendChild(childNode);
                 PopulateXml(hierarchy, nodeIndex, childId, childNode);
             }
+        }
+
+        /// <summary>
+        /// Generates the complete (simplified) XML DTD.
+        /// </summary>
+        /// <returns>The DTD as a string</returns>
+        private string GetDtd()
+        {
+            var dtd = new StringBuilder();
+            dtd.AppendLine("<!DOCTYPE root [ ");
+
+            if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
+            {
+                dtd.AppendLine("<!ELEMENT node ANY> <!ATTLIST node id ID #REQUIRED>  <!ELEMENT data ANY>");
+            }
+            else
+            {
+                // that whole thing does not make real sense? how could it fail?
+                try
+                {
+                    var dtdInner = new StringBuilder();
+                    var contentTypes = _serviceContext.ContentTypeService.GetAllContentTypes();
+                    // though aliases should be safe and non null already?
+                    var aliases = contentTypes.Select(x => x.Alias.ToSafeAlias()).WhereNotNull();
+                    foreach (var alias in aliases)
+                    {
+                        dtdInner.AppendLine(String.Format("<!ELEMENT {0} ANY>", alias));
+                        dtdInner.AppendLine(String.Format("<!ATTLIST {0} id ID #REQUIRED>", alias));
+                    }
+                    dtd.Append(dtdInner);
+                }
+                catch (Exception exception)
+                {
+                    LogHelper.Error<ContentTypeService>("Failed to build a DTD for the Xml cache.", exception);
+                }
+            }
+
+            dtd.AppendLine("]>");
+            return dtd.ToString();
         }
 
         // try to load from file, otherwise database
@@ -868,7 +879,7 @@ AND (umbracoNode.id=@id)";
 
             try
             {
-                xml.Load(_xmlFileName);
+                xml.Load(_xmlFileName); // will need read-access to the file, and write-lock
                 _lastFileRead = DateTime.UtcNow;
             }
             catch (Exception e)
@@ -988,7 +999,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         {
             // initialise the document ready for the composition of content
             var xml = new XmlDocument();
-            InitializeXml(xml, _serviceContext.ContentTypeService.GetDtd());
+            InitializeXml(xml, GetDtd());
 
             var parents = new Dictionary<int, XmlNode>();
 
@@ -1119,7 +1130,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             draftChanged = true; // by default - we don't track drafts
             publishedChanged = false;
 
-            if (_withEvents == false)
+            if (_withOtherEvents == false)
                 return;
 
             // process all changes on one xml clone
@@ -1241,6 +1252,16 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                             {
                                 // dtos are ordered by sortOrder already
                                 var dto = dtos.Current;
+
+                                // if node is already there, somewhere, remove
+                                var n = safeXml.Xml.GetElementById(dto.Id.ToInvariantString());
+                                if (n != null)
+                                {
+                                    if (n.ParentNode == null) throw new Exception("oops");
+                                    n.ParentNode.RemoveChild(n);
+                                }
+
+                                // find parent, add node
                                 var p = safeXml.Xml.GetElementById(dto.ParentId.ToInvariantString()); // branch, so parentId > 0
                                 if (p == null) continue; // takes care of out-of-sync & masked
                                 p.AppendChild(dto.XmlNode);
@@ -1311,7 +1332,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     {
                         // skip those that don't really change anything for us
                         if (payload.IsNew 
-                            || (payload.WasDeleted || payload.AliasChanged || payload.PropertyRemoved) == false)
+                            || (payload.Removed || payload.AliasChanged || payload.PropertyRemoved) == false)
                             continue;
 
                         switch (payload.Type)
@@ -1813,6 +1834,21 @@ WHERE cmsContentXml.nodeId IN (
             db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@nodeId", parms);
         }
 
+        private void OnContentTypeRefreshedEntity(ContentTypeServiceBase sender, ContentTypeServiceBase.EntityChangeEventArgs args)
+        {
+            var contentTypeIds = args.Entities.OfType<IContentType>().Select(x => x.Id).ToArray();
+            if (contentTypeIds.Any())
+                RebuildContentAndPreviewXml(contentTypeIds: contentTypeIds);
+
+            var mediaTypeIds = args.Entities.OfType<IMediaType>().Select(x => x.Id).ToArray();
+            if (mediaTypeIds.Any())
+                RebuildMediaXml(contentTypeIds: mediaTypeIds);
+
+            var memberTypeIds = args.Entities.OfType<IMemberType>().Select(x => x.Id).ToArray();
+            if (memberTypeIds.Any())
+                RebuildMemberXml(contentTypeIds: memberTypeIds);
+        }
+
         #endregion
 
         #region Rebuild Database Xml
@@ -1820,306 +1856,294 @@ WHERE cmsContentXml.nodeId IN (
         public void RebuildContentAndPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
-            RebuildContentXml(groupSize, contentTypeIdsA);
-            RebuildPreviewXml(groupSize, contentTypeIdsA);
+
+            var svc = _serviceContext.ContentService as ContentService;
+            if (svc == null) throw new Exception("oops");
+            svc.WithWriteLocked(repository =>
+            {
+                RebuildContentXmlLocked(repository, groupSize, contentTypeIdsA);
+                RebuildPreviewXmlLocked(repository, groupSize, contentTypeIdsA);
+            });
         }
 
         public void RebuildContentXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
-            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
-            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
-
             var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
-            var repo = svc.GetContentRepository() as ContentRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            svc.WithWriteLocked(repository => RebuildContentXmlLocked(repository, groupSize, contentTypeIds));
+        }
 
-            // FIXME - transaction isolation level issue
-            // the transaction is, by default, ReadCommited meaning that we do not lock the whole tables
-            // so nothing prevents another transaction from messing with the content while we run?!
-
-            // need to remove the data and re-insert it, in one transaction
-            using (var tr = db.GetTransaction())
+        private void RebuildContentXmlLocked(ContentRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+            var db = repository.UnitOfWork.Database;
+            
+            // remove all - if anything fails the transaction will rollback
+            if (contentTypeIds == null || contentTypeIdsA.Length == 0)
             {
-                // remove all - if anything fails the transaction will rollback
-                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
-                {
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//WHERE umbracoNode.nodeObjectType=@objType",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //WHERE umbracoNode.nodeObjectType=@objType",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
 )",
-                        new { objType = contentObjectType });
-                }
-                else
-                {
-                    // assume number of ctypes won't blow IN(...)
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-//WHERE umbracoNode.nodeObjectType=@objType
-//AND cmsContent.contentType IN (@ctypes)",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                    new { objType = contentObjectType });
+            }
+            else
+            {
+                // assume number of ctypes won't blow IN(...)
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+                //WHERE umbracoNode.nodeObjectType=@objType
+                //AND cmsContent.contentType IN (@ctypes)",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode
     JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
     WHERE umbracoNode.nodeObjectType=@objType
     AND cmsContent.contentType IN (@ctypes) 
 )",
-                        new { objType = contentObjectType, ctypes = contentTypeIdsA }); 
-                }
-
-                // insert back - if anything fails the transaction will rollback
-                var query = Query<IContent>.Builder.Where(x => x.Published);
-                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
-                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
-
-                var pageIndex = 0;
-                var processed = 0;
-                int total;
-                do
-                {
-                    // must use .GetPagedResultsByQuery2 which does NOT implicitely add (cmsDocument.newest = 1)
-                    // because we already have the condition on the content being published
-                    var descendants = repo.GetPagedResultsByQuery2(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
-                    var items = descendants.Select(c => new ContentXmlDto { NodeId = c.Id, Xml = _xmlContentSerializer(c).ToString(SaveOptions.None) }).ToArray();
-                    db.BulkInsertRecords(items, tr);
-                    processed += items.Length;
-                } while (processed < total);
-                
-                tr.Complete();
+                    new { objType = contentObjectType, ctypes = contentTypeIdsA });
             }
+
+            // insert back - if anything fails the transaction will rollback
+            var query = Query<IContent>.Builder.Where(x => x.Published);
+            if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                // must use .GetPagedResultsByQuery2 which does NOT implicitely add (cmsDocument.newest = 1)
+                // because we already have the condition on the content being published
+                var descendants = repository.GetPagedResultsByQuery2(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                var items = descendants.Select(c => new ContentXmlDto { NodeId = c.Id, Xml = _xmlContentSerializer(c).ToString(SaveOptions.None) }).ToArray();
+                db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
+                processed += items.Length;
+            } while (processed < total);
         }
 
         public void RebuildPreviewXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
-            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
-            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
-
             var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
-            var repo = svc.GetContentRepository() as ContentRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            svc.WithWriteLocked(repository => RebuildPreviewXmlLocked(repository, groupSize, contentTypeIds));
+        }
 
-            // need to remove the data and re-insert it, in one transaction
-            using (var tr = db.GetTransaction())
+        private void RebuildPreviewXmlLocked(ContentRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+            var db = repository.UnitOfWork.Database;
+
+            // remove all - if anything fails the transaction will rollback
+            if (contentTypeIds == null || contentTypeIdsA.Length == 0)
             {
-                // remove all - if anything fails the transaction will rollback
-                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
-                {
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsPreviewXml 
-//FROM cmsPreviewXml 
-//JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
-//WHERE umbracoNode.nodeObjectType=@objType",
-                    db.Execute(@"DELETE FROM cmsPreviewXml
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsPreviewXml 
+                //FROM cmsPreviewXml 
+                //JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+                //WHERE umbracoNode.nodeObjectType=@objType",
+                db.Execute(@"DELETE FROM cmsPreviewXml
 WHERE cmsPreviewXml.nodeId IN (
     SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
 )",
-                        new { objType = contentObjectType });
-                }
-                else
-                {
-                    // assume number of ctypes won't blow IN(...)
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsPreviewXml 
-//FROM cmsPreviewXml 
-//JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
-//JOIN cmsContent ON (cmsPreviewXml.nodeId=cmsContent.nodeId)
-//WHERE umbracoNode.nodeObjectType=@objType
-//AND cmsContent.contentType IN (@ctypes)",
-                    db.Execute(@"DELETE FROM cmsPreviewXml
+                    new { objType = contentObjectType });
+            }
+            else
+            {
+                // assume number of ctypes won't blow IN(...)
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsPreviewXml 
+                //FROM cmsPreviewXml 
+                //JOIN umbracoNode ON (cmsPreviewXml.nodeId=umbracoNode.Id) 
+                //JOIN cmsContent ON (cmsPreviewXml.nodeId=cmsContent.nodeId)
+                //WHERE umbracoNode.nodeObjectType=@objType
+                //AND cmsContent.contentType IN (@ctypes)",
+                db.Execute(@"DELETE FROM cmsPreviewXml
 WHERE cmsPreviewXml.nodeId IN (
     SELECT id FROM umbracoNode
     JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
     WHERE umbracoNode.nodeObjectType=@objType
     AND cmsContent.contentType IN (@ctypes) 
 )",
-                        new { objType = contentObjectType, ctypes = contentTypeIdsA });
-                }
-
-                // insert back - if anything fails the transaction will rollback
-                var query = Query<IContent>.Builder;
-                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
-                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
-
-                var pageIndex = 0;
-                var processed = 0;
-                int total;
-                do
-                {
-                    // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
-                    // is what we want for preview (ie latest version of a content, published or not)
-                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
-                    var items = descendants.Select(c => new PreviewXmlDto
-                    {
-                        NodeId = c.Id,
-                        Xml = _xmlContentSerializer(c).ToString(SaveOptions.None)
-                    }).ToArray();
-                    db.BulkInsertRecords(items, tr);
-                    processed += items.Length;
-                } while (processed < total);
-
-                tr.Complete();
+                    new { objType = contentObjectType, ctypes = contentTypeIdsA });
             }
+
+            // insert back - if anything fails the transaction will rollback
+            var query = Query<IContent>.Builder;
+            if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
+                // is what we want for preview (ie latest version of a content, published or not)
+                var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                var items = descendants.Select(c => new PreviewXmlDto
+                {
+                    NodeId = c.Id,
+                    Xml = _xmlContentSerializer(c).ToString(SaveOptions.None)
+                }).ToArray();
+                db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
+                processed += items.Length;
+            } while (processed < total);
         }
 
         public void RebuildMediaXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
-            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
-            var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
-
             var svc = _serviceContext.MediaService as MediaService;
             if (svc == null) throw new Exception("oops");
-            var repo = svc.GetMediaRepository() as MediaRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            svc.WithWriteLocked(repository => RebuildMediaXmlLocked(repository, groupSize, contentTypeIds));
+        }
 
-            // need to remove the data and re-insert it, in one transaction
-            using (var tr = db.GetTransaction())
+        public void RebuildMediaXmlLocked(MediaRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
+            var db = repository.UnitOfWork.Database;
+
+            // remove all - if anything fails the transaction will rollback
+            if (contentTypeIds == null || contentTypeIdsA.Length == 0)
             {
-                // remove all - if anything fails the transaction will rollback
-                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
-                {
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//WHERE umbracoNode.nodeObjectType=@objType",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //WHERE umbracoNode.nodeObjectType=@objType",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
 )",
-                        new { objType = mediaObjectType });
-                }
-                else
-                {
-                    // assume number of ctypes won't blow IN(...)
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-//WHERE umbracoNode.nodeObjectType=@objType
-//AND cmsContent.contentType IN (@ctypes)",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                    new { objType = mediaObjectType });
+            }
+            else
+            {
+                // assume number of ctypes won't blow IN(...)
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+                //WHERE umbracoNode.nodeObjectType=@objType
+                //AND cmsContent.contentType IN (@ctypes)",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode
     JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
     WHERE umbracoNode.nodeObjectType=@objType
     AND cmsContent.contentType IN (@ctypes) 
 )",
-                        new { objType = mediaObjectType, ctypes = contentTypeIdsA });
-                }
-
-                // insert back - if anything fails the transaction will rollback
-                var query = Query<IMedia>.Builder;
-                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
-                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
-
-                var pageIndex = 0;
-                var processed = 0;
-                int total;
-                do
-                {
-                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
-                    var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMediaSerializer(m).ToString(SaveOptions.None) }).ToArray();
-                    db.BulkInsertRecords(items, tr);
-                    processed += items.Length;
-                } while (processed < total);
-
-                tr.Complete();
+                    new { objType = mediaObjectType, ctypes = contentTypeIdsA });
             }
+
+            // insert back - if anything fails the transaction will rollback
+            var query = Query<IMedia>.Builder;
+            if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMediaSerializer(m).ToString(SaveOptions.None) }).ToArray();
+                db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
+                processed += items.Length;
+            } while (processed < total);
         }
 
         public void RebuildMemberXml(int groupSize = 5000, IEnumerable<int> contentTypeIds = null)
         {
-            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
-            var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
-
             var svc = _serviceContext.MemberService as MemberService;
             if (svc == null) throw new Exception("oops");
-            var repo = svc.GetMemberRepository() as MemberRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            svc.WithWriteLocked(repository => RebuildMemberXmlLocked(repository, groupSize, contentTypeIds));
+        }
 
-            // need to remove the data and re-insert it, in one transaction
-            using (var tr = db.GetTransaction())
+        public void RebuildMemberXmlLocked(MemberRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
+        {
+            var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
+            var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
+            var db = repository.UnitOfWork.Database;
+
+            // remove all - if anything fails the transaction will rollback
+            if (contentTypeIds == null || contentTypeIdsA.Length == 0)
             {
-                // remove all - if anything fails the transaction will rollback
-                if (contentTypeIds == null || contentTypeIdsA.Length == 0)
-                {
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//WHERE umbracoNode.nodeObjectType=@objType",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //WHERE umbracoNode.nodeObjectType=@objType",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode WHERE umbracoNode.nodeObjectType=@objType
 )",
-                        new { objType = memberObjectType });
-                }
-                else
-                {
-                    // assume number of ctypes won't blow IN(...)
-                    // must support SQL-CE
-//                    db.Execute(@"DELETE cmsContentXml 
-//FROM cmsContentXml 
-//JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
-//JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
-//WHERE umbracoNode.nodeObjectType=@objType
-//AND cmsContent.contentType IN (@ctypes)",
-                    db.Execute(@"DELETE FROM cmsContentXml
+                    new { objType = memberObjectType });
+            }
+            else
+            {
+                // assume number of ctypes won't blow IN(...)
+                // must support SQL-CE
+                //                    db.Execute(@"DELETE cmsContentXml 
+                //FROM cmsContentXml 
+                //JOIN umbracoNode ON (cmsContentXml.nodeId=umbracoNode.Id) 
+                //JOIN cmsContent ON (cmsContentXml.nodeId=cmsContent.nodeId)
+                //WHERE umbracoNode.nodeObjectType=@objType
+                //AND cmsContent.contentType IN (@ctypes)",
+                db.Execute(@"DELETE FROM cmsContentXml
 WHERE cmsContentXml.nodeId IN (
     SELECT id FROM umbracoNode
     JOIN cmsContent ON cmsContent.nodeId=umbracoNode.id
     WHERE umbracoNode.nodeObjectType=@objType
     AND cmsContent.contentType IN (@ctypes) 
 )",
-                        new { objType = memberObjectType, ctypes = contentTypeIdsA });
-                }
-
-                // insert back - if anything fails the transaction will rollback
-                var query = Query<IMember>.Builder;
-                if (contentTypeIds != null && contentTypeIdsA.Length > 0)
-                    query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
-
-                var pageIndex = 0;
-                var processed = 0;
-                int total;
-                do
-                {
-                    var descendants = repo.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
-                    var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMemberSerializer(m).ToString(SaveOptions.None) }).ToArray();
-                    db.BulkInsertRecords(items, tr);
-                    processed += items.Length;
-                } while (processed < total);
-
-                tr.Complete();
+                    new { objType = memberObjectType, ctypes = contentTypeIdsA });
             }
+
+            // insert back - if anything fails the transaction will rollback
+            var query = Query<IMember>.Builder;
+            if (contentTypeIds != null && contentTypeIdsA.Length > 0)
+                query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
+
+            var pageIndex = 0;
+            var processed = 0;
+            int total;
+            do
+            {
+                var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
+                var items = descendants.Select(m => new ContentXmlDto { NodeId = m.Id, Xml = _xmlMemberSerializer(m).ToString(SaveOptions.None) }).ToArray();
+                db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
+                processed += items.Length;
+            } while (processed < total);
         }
 
         public bool VerifyContentAndPreviewXml()
+        {
+            var svc = _serviceContext.ContentService as ContentService;
+            if (svc == null) throw new Exception("oops");
+            return svc.WithReadLocked(repository => VerifyContentAndPreviewXmlLocked(repository));
+        }
+
+        private bool VerifyContentAndPreviewXmlLocked(ContentRepository repository)
         {
             // every published content item should have a corresponding row in cmsContentXml
             // every content item should have a corresponding row in cmsPreviewXml
 
             var contentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
-
-            var svc = _serviceContext.ContentService as ContentService;
-            if (svc == null) throw new Exception("oops");
-            var repo = svc.GetContentRepository() as ContentRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            var db = repository.UnitOfWork.Database;
 
             var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
 FROM umbracoNode
@@ -2143,15 +2167,17 @@ AND cmsPreviewXml.nodeId IS NULL
 
         public bool VerifyMediaXml()
         {
+            var svc = _serviceContext.MediaService as MediaService;
+            if (svc == null) throw new Exception("oops");
+            return svc.WithReadLocked(repository => VerifyMediaXmlLocked(repository));
+        }
+
+        public bool VerifyMediaXmlLocked(MediaRepository repository)
+        {
             // every non-trashed media item should have a corresponding row in cmsContentXml
 
             var mediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
-
-            var svc = _serviceContext.MediaService as MediaService;
-            if (svc == null) throw new Exception("oops");
-            var repo = svc.GetMediaRepository() as MediaRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            var db = repository.UnitOfWork.Database;
 
             var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
 FROM umbracoNode
@@ -2166,15 +2192,17 @@ AND cmsContentXml.nodeId IS NULL
 
         public bool VerifyMemberXml()
         {
+            var svc = _serviceContext.MemberService as MemberService;
+            if (svc == null) throw new Exception("oops");
+            return svc.WithReadLocked(repository => VerifyMemberXmlLocked(repository));
+        }
+
+        public bool VerifyMemberXmlLocked(MemberRepository repository)
+        {
             // every member item should have a corresponding row in cmsContentXml
 
             var memberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
-
-            var svc = _serviceContext.MemberService as MemberService;
-            if (svc == null) throw new Exception("oops");
-            var repo = svc.GetMemberRepository() as MemberRepository;
-            if (repo == null) throw new Exception("oops");
-            var db = repo.UnitOfWork.Database;
+            var db = repository.UnitOfWork.Database;
 
             var count = db.ExecuteScalar<int>(@"SELECT COUNT(*)
 FROM umbracoNode
@@ -2184,24 +2212,6 @@ AND cmsContentXml.nodeId IS NULL
 ", new { objType = memberObjectType });
 
             return count == 0;
-        }
-
-        private void OnContentTypesChanged(ContentService sender, ContentService.ContentTypeChangedEventArgs args)
-        {
-            // assuming that content types & content are locked
-            RebuildContentAndPreviewXml(5000, args.ContentTypeIds);
-        }
-
-        private void OnMediaTypesChanged(MediaService sender, MediaService.ContentTypeChangedEventArgs args)
-        {
-            // assuming that content types & content are locked
-            RebuildMediaXml(5000, args.ContentTypeIds);
-        }
-
-        private void OnMemberTypesChanged(MemberService sender, MemberService.MemberTypeChangedEventArgs args)
-        {
-            // assuming that content types & content are locked
-            RebuildMemberXml(500, args.MemberTypeIds);
         }
 
         #endregion

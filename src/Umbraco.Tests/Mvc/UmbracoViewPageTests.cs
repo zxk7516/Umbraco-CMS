@@ -465,7 +465,7 @@ namespace Umbraco.Tests.Mvc
                 new ProfilingLogger(logger, Mock.Of<IProfiler>())) { IsReady = true };
 
             var cache = new NullCacheProvider();
-            _service = new PublishedCachesService(svcCtx, appCtx.DatabaseContext, cache, false); // no events
+            _service = new PublishedCachesService(svcCtx, appCtx.DatabaseContext, cache, true, false); // no events
 
             var http = GetHttpContextFactory(url, routeData).HttpContext;
             var cacheProvider = new StaticCacheProvider();

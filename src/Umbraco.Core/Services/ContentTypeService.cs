@@ -28,17 +28,13 @@ namespace Umbraco.Core.Services
 	    private readonly IContentService _contentService;
         private readonly IMediaService _mediaService;
 
-        //Support recursive locks because some of the methods that require locking call other methods that require locking. 
-        //for example, the Move method needs to be locked but this calls the Save method which also needs to be locked.
-        private static readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-
         [Obsolete("Use the constructors that specify all dependencies instead")]
         public ContentTypeService(IContentService contentService, IMediaService mediaService)
 			: this(new PetaPocoUnitOfWorkProvider(LoggerResolver.Current.Logger), new RepositoryFactory(), contentService, mediaService)
         {}
 
         [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentTypeService( RepositoryFactory repositoryFactory, IContentService contentService, IMediaService mediaService)
+        public ContentTypeService(RepositoryFactory repositoryFactory, IContentService contentService, IMediaService mediaService)
             : this(new PetaPocoUnitOfWorkProvider(), repositoryFactory, contentService, mediaService)
         { }
 
@@ -72,6 +68,113 @@ namespace Umbraco.Core.Services
                 return repository.GetAllPropertyTypeAliases();
             }
         }
+
+        #region Lock Helper Methods
+
+        // note
+        // locking content or media types ends up locking ALL types
+
+        private T WithReadLockedContentTypes<T>(Func<ContentTypeRepository, T> func, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateContentTypeRepository(uow))
+            {
+                var repository = irepository as ContentTypeRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                var ret = func(repository);
+                if (autoCommit == false) return ret;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+                return ret;
+            }
+        }
+
+        private void WithReadLockedContentTypes(Action<ContentTypeRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateContentTypeRepository(uow))
+            {
+                var repository = irepository as ContentTypeRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        private T WithReadLockedMediaTypes<T>(Func<MediaTypeRepository, T> func, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMediaTypeRepository(uow))
+            {
+                var repository = irepository as MediaTypeRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                var ret = func(repository);
+                if (autoCommit == false) return ret;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+                return ret;
+            }
+        }
+
+        private void WithWriteLockedContentAndContentTypes(Action<ContentTypeRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateContentTypeRepository(uow))
+            using (var iContentRepository = RepositoryFactory.CreateContentRepository(uow))
+            {
+                var repository = irepository as ContentTypeRepository;
+                if (repository == null) throw new Exception("oops");
+
+                var contentRepository = iContentRepository as ContentRepository;
+                if (contentRepository == null) throw new Exception("oops");
+
+                // respect order to avoid deadlocks
+                contentRepository.AcquireWriteLock();
+                repository.AcquireWriteLock();
+
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        private void WithWriteLockedMediaAndMediaTypes(Action<MediaTypeRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMediaTypeRepository(uow))
+            using (var iMediaRepository = RepositoryFactory.CreateMediaRepository(uow))
+            {
+                var repository = irepository as MediaTypeRepository;
+                if (repository == null) throw new Exception("oops");
+
+                var mediaRepository = iMediaRepository as MediaRepository;
+                if (mediaRepository == null) throw new Exception("oops");
+
+                // respect order to avoid deadlocks
+                mediaRepository.AcquireWriteLock();
+                repository.AcquireWriteLock();
+
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        #endregion
+
+        #region All - Copy
 
         /// <summary>
         /// Copies a content type as a child under the specified parent if specified (otherwise to the root)
@@ -156,133 +259,15 @@ namespace Umbraco.Core.Services
             return clone;
         }
 
-        /// <summary>
-        /// Gets an <see cref="IContentType"/> object by its Id
-        /// </summary>
-        /// <param name="id">Id of the <see cref="IContentType"/> to retrieve</param>
-        /// <returns><see cref="IContentType"/></returns>
-        public IContentType GetContentType(int id)
-        {
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Get(id);
-            }
-        }
+        #endregion
 
-        /// <summary>
-        /// Gets an <see cref="IContentType"/> object by its Alias
-        /// </summary>
-        /// <param name="alias">Alias of the <see cref="IContentType"/> to retrieve</param>
-        /// <returns><see cref="IContentType"/></returns>
-        public IContentType GetContentType(string alias)
-        {
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IContentType>.Builder.Where(x => x.Alias == alias);
-                var contentTypes = repository.GetByQuery(query);
-
-                return contentTypes.FirstOrDefault();
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of all available <see cref="IContentType"/> objects
-        /// </summary>
-        /// <param name="ids">Optional list of ids</param>
-        /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
-        public IEnumerable<IContentType> GetAllContentTypes(params int[] ids)
-        {
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.GetAll(ids);
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of children for a <see cref="IContentType"/> object
-        /// </summary>
-        /// <param name="id">Id of the Parent</param>
-        /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
-        public IEnumerable<IContentType> GetContentTypeChildren(int id)
-        {
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IContentType>.Builder.Where(x => x.ParentId == id);
-                var contentTypes = repository.GetByQuery(query);
-                return contentTypes;
-            }
-        }
-
-        ///// <summary>
-        ///// Returns the content type descendant Ids for the content type specified
-        ///// </summary>
-        ///// <param name="contentTypeId"></param>
-        ///// <returns></returns>
-        //internal IEnumerable<int> GetDescendantContentTypeIds(int contentTypeId)
-        //{            
-        //    using (var uow = UowProvider.GetUnitOfWork())
-        //    {
-        //        //method to return the child content type ids for the id specified
-        //        Func<int, int[]> getChildIds =
-        //            parentId =>
-        //            uow.Database.Fetch<ContentType2ContentTypeDto>("WHERE parentContentTypeId = @Id", new {Id = parentId})
-        //               .Select(x => x.ChildId).ToArray();
-
-        //        //recursively get all descendant ids
-        //        return getChildIds(contentTypeId).FlattenList(getChildIds);                
-        //    }
-        //} 
-
-        /// <summary>
-        /// Checks whether an <see cref="IContentType"/> item has any children
-        /// </summary>
-        /// <param name="id">Id of the <see cref="IContentType"/></param>
-        /// <returns>True if the content type has any children otherwise False</returns>
-        public bool HasChildren(int id)
-        {
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IContentType>.Builder.Where(x => x.ParentId == id);
-                int count = repository.Count(query);
-                return count > 0;
-            }
-        }
-
-        /// <summary>
-        /// Notifies the content service of content type changes.
-        /// </summary>
-        /// <param name="contentTypes">The changed content types.</param>
-        private void NotifyContentServiceOfContentTypeChanges(params IContentTypeBase[] contentTypes)
-        {
-            var types = GetContentTypesToNotify(contentTypes).ToArray();
-            if (types.Length == 0) return;
-
-            var t = types[0];
-            var ids = types.Select(x => x.Id).ToArray();
-            if (t is IContentType)
-            {
-                var svc = _contentService as ContentService;
-                if (svc == null) throw new Exception("Oops!");
-                svc.NotifyContentTypeChanges(ids);
-            }
-            else if (t is IMediaType)
-            {
-                var svc = _mediaService as MediaService;
-                if (svc == null) throw new Exception("Oops!");
-                svc.NotifyContentTypeChanges(ids);
-            }
-            else
-            {
-                throw new Exception("Oops!");
-            }
-        }
+        #region All - Validate
 
         public void Validate(IContentTypeComposition compo)
         {
-            using (new WriteLock(Locker))
-            {
-                ValidateLocked(compo);
-            }
+            // locking the content types but it really does not matter
+            // because it locks ALL content types incl. medias & members &...
+            WithReadLockedContentTypes(repository => ValidateLocked(compo));
         }
 
         private void ValidateLocked(IContentTypeComposition compositionContentType)
@@ -318,7 +303,7 @@ namespace Umbraco.Core.Services
                 dependencies.Add(indirectReference);
                 //Get all compositions for the current indirect reference
                 var directReferences = indirectReference.ContentTypeComposition;
-                
+
                 foreach (var directReference in directReferences)
                 {
                     if (directReference.Id == compositionContentType.Id || directReference.Alias.Equals(compositionContentType.Alias)) continue;
@@ -345,6 +330,121 @@ namespace Umbraco.Core.Services
             }
         }
 
+        #endregion
+
+        #region Content - Get, Has, Is
+
+        /// <summary>
+        /// Gets an <see cref="IContentType"/> object by its Id
+        /// </summary>
+        /// <param name="id">Id of the <see cref="IContentType"/> to retrieve</param>
+        /// <returns><see cref="IContentType"/></returns>
+        public IContentType GetContentType(int id)
+        {
+            return WithReadLockedContentTypes(repository => repository.Get(id));
+        }
+
+        /// <summary>
+        /// Gets an <see cref="IContentType"/> object by its Alias
+        /// </summary>
+        /// <param name="alias">Alias of the <see cref="IContentType"/> to retrieve</param>
+        /// <returns><see cref="IContentType"/></returns>
+        public IContentType GetContentType(string alias)
+        {
+            var query = Query<IContentType>.Builder.Where(x => x.Alias == alias);
+            return WithReadLockedContentTypes(repository => repository.GetByQuery(query).FirstOrDefault());
+        }
+
+        /// <summary>
+        /// Gets a list of all available <see cref="IContentType"/> objects
+        /// </summary>
+        /// <param name="ids">Optional list of ids</param>
+        /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
+        public IEnumerable<IContentType> GetAllContentTypes(params int[] ids)
+        {
+            return WithReadLockedContentTypes(repository => repository.GetAll(ids));
+        }
+
+        /// <summary>
+        /// Gets a list of children for a <see cref="IContentType"/> object
+        /// </summary>
+        /// <param name="id">Id of the Parent</param>
+        /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
+        public IEnumerable<IContentType> GetContentTypeChildren(int id)
+        {
+            var query = Query<IContentType>.Builder.Where(x => x.ParentId == id);
+            return WithReadLockedContentTypes(repository => repository.GetByQuery(query));
+        }
+
+        public IEnumerable<IContentType> GetContentTypeDescendants(int id, bool andSelf)
+        {
+            return WithReadLockedContentTypes(repository =>
+            {
+                var descendants = new List<IContentType>();
+                if (andSelf) descendants.Add(repository.Get(id));
+                var ids = new Stack<int>();
+                ids.Push(id);
+
+                while (ids.Count > 0)
+                {
+                    var i = ids.Pop();
+                    var query = Query<IContentType>.Builder.Where(x => x.ParentId == i);
+                    var result = repository.GetByQuery(query).ToArray();
+
+                    foreach (var c in result)
+                    {
+                        descendants.Add(c);
+                        ids.Push(c.Id);
+                    }
+                }
+
+                return descendants.ToArray();
+            });
+        }
+
+        public IEnumerable<IContentType> GetContentTypesComposedOf(int id)
+        {
+            return WithReadLockedContentTypes(repository =>
+            {
+                // hash set handles duplicates
+                var composed = new HashSet<IContentType>(new DelegateEqualityComparer<IContentType>(
+                    (x, y) => x.Id == y.Id,
+                    x => x.Id.GetHashCode()));
+
+                var ids = new Stack<int>();
+                ids.Push(id);
+
+                while (ids.Count > 0)
+                {
+                    var i = ids.Pop();
+                    var result = repository.GetTypesDirectlyComposedOf(i).ToArray();
+
+                    foreach (var c in result)
+                    {
+                        composed.Add(c);
+                        ids.Push(c.Id);
+                    }
+                }
+
+                return composed.ToArray();
+            });
+        }
+
+        /// <summary>
+        /// Checks whether an <see cref="IContentType"/> item has any children
+        /// </summary>
+        /// <param name="id">Id of the <see cref="IContentType"/></param>
+        /// <returns>True if the content type has any children otherwise False</returns>
+        public bool HasChildren(int id)
+        {
+            var query = Query<IContentType>.Builder.Where(x => x.ParentId == id);
+            return WithReadLockedContentTypes(repository => repository.Count(query) > 0);
+        }
+
+        #endregion
+
+        #region Content - Save, Delete
+
         /// <summary>
         /// Saves a single <see cref="IContentType"/> object
         /// </summary>
@@ -355,20 +455,28 @@ namespace Umbraco.Core.Services
 	        if (SavingContentType.IsRaisedEventCancelled(new SaveEventArgs<IContentType>(contentType), this)) 
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedContentAndContentTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateContentTypeRepository(uow))
-                {
-                    ValidateLocked(contentType); // throws if invalid
-                    contentType.CreatorId = userId;
-                    repository.AddOrUpdate(contentType);
+                // validate the DAG transform, within the lock
+                ValidateLocked(contentType); // throws if invalid
 
-                    uow.Commit();
-                }
+                contentType.CreatorId = userId;
+                repository.AddOrUpdate(contentType); // also updates contents
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                NotifyContentServiceOfContentTypeChanges(contentType);
-            }
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(contentType).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
+
+            // fixme - raise distributed events
+            // raise event for that type only, because it's a distributed event,
+            // so impacted types (through composition) will be determined locally
+            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
+            // fixme - descendants vs composition
+            //Changed.RaiseEvent(new ChangeEventArgs(contentType), this);
+            //ApplyChangesToContent(changedTypes);
+
             SavedContentType.RaiseEvent(new SaveEventArgs<IContentType>(contentType, false), this);
 	        Audit(AuditType.Save, string.Format("Save ContentType performed by user"), userId, contentType.Id);
         }
@@ -380,34 +488,37 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional id of the user saving the ContentType</param>
         public void Save(IEnumerable<IContentType> contentTypes, int userId = 0)
         {
-            var asArray = contentTypes.ToArray();
+            var contentTypesA = contentTypes.ToArray();
 
-            if (SavingContentType.IsRaisedEventCancelled(new SaveEventArgs<IContentType>(asArray), this)) 
+            if (SavingContentType.IsRaisedEventCancelled(new SaveEventArgs<IContentType>(contentTypesA), this)) 
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedContentAndContentTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateContentTypeRepository(uow))
-                {
-                    // all-or-nothing, validate them all first
-                    foreach (var contentType in asArray)
-                    {
-                        ValidateLocked(contentType); // throws if invalid
-                    }
-                    foreach (var contentType in asArray)
-                    {
-                        contentType.CreatorId = userId;
-                        repository.AddOrUpdate(contentType);
-                    }
+                // all-or-nothing, validate the DAG transforms, within the lock
+                foreach (var contentType in contentTypesA)
+                    ValidateLocked(contentType); // throws if invalid
 
-                    //save it all in one go
-                    uow.Commit();
+                foreach (var contentType in contentTypesA)
+                {
+                    contentType.CreatorId = userId;
+                    repository.AddOrUpdate(contentType); // also updates contents
                 }
 
-                NotifyContentServiceOfContentTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
-            }
-            SavedContentType.RaiseEvent(new SaveEventArgs<IContentType>(asArray, false), this);
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(contentTypesA).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
+
+            // fixme - raise distributed events
+            // raise event fot that type only, because it's a distributed event,
+            // so impacted types (through composition) will be determined locally
+            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
+            //Changed.RaiseEvent(new ChangeEventArgs(contentTypesA), this);
+
+            SavedContentType.RaiseEvent(new SaveEventArgs<IContentType>(contentTypesA, false), this);
 	        Audit(AuditType.Save, string.Format("Save ContentTypes performed by user"), userId, -1);
         }
 
@@ -422,21 +533,46 @@ namespace Umbraco.Core.Services
 	        if (DeletingContentType.IsRaisedEventCancelled(new DeleteEventArgs<IContentType>(contentType), this)) 
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedContentAndContentTypes(repository =>
             {
-                _contentService.DeleteContentOfType(contentType.Id);
+                // all descendants are going to be deleted
+                var descendantsAndSelf = contentType.DescendantsAndSelf().ToArray();
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateContentTypeRepository(uow))
-                {
-                    repository.Delete(contentType);
-                    uow.Commit();
+                // all impacted (through composition) probably lose some properties
+                var impacted = descendantsAndSelf.SelectMany(x => x.ComposedOf())
+                    .Distinct()
+                    .Except(descendantsAndSelf) // will be deleted anyway
+                    .ToArray();
 
-                    DeletedContentType.RaiseEvent(new DeleteEventArgs<IContentType>(contentType, false), this);
-                }
+                // delete content
+                foreach (var d in descendantsAndSelf)
+                    _contentService.DeleteContentOfType(d.Id);
 
-                Audit(AuditType.Delete, string.Format("Delete ContentType performed by user"), userId, contentType.Id);
-            }
+                // finally delete the content type
+                // - recursively deletes all descendants
+                // - deletes all associated property data
+                //  (contents of any descendant type have been deleted but
+                //   contents of any composed (impacted) type remain but
+                //   need to have their property data cleared)
+                repository.Delete(contentType);
+
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // no need for 'transaction event' for deleted content
+                // because deleting content does trigger its own event
+                //
+                // need 'transaction event' for content that have changed
+                // ie those that were composed of the deleted content OR
+                // of any of its descendants
+
+                OnTransactionRefreshedEntity(repository.UnitOfWork, impacted);
+            });
+
+            // fixme - raise distributed events
+            // have removed all descendants, modified all impacted
+
+            DeletedContentType.RaiseEvent(new DeleteEventArgs<IContentType>(contentType, false), this);
+            Audit(AuditType.Delete, string.Format("Delete ContentType performed by user"), userId, contentType.Id);
         }
 
         /// <summary>
@@ -449,35 +585,57 @@ namespace Umbraco.Core.Services
         /// </remarks>
         public void Delete(IEnumerable<IContentType> contentTypes, int userId = 0)
         {
-            var asArray = contentTypes.ToArray();
+            var contentTypesA = contentTypes.ToArray();
 
-            if (DeletingContentType.IsRaisedEventCancelled(new DeleteEventArgs<IContentType>(asArray), this)) 
+            if (DeletingContentType.IsRaisedEventCancelled(new DeleteEventArgs<IContentType>(contentTypesA), this)) 
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedContentAndContentTypes(repository =>
             {
-                foreach (var contentType in asArray)
-                {
-                    _contentService.DeleteContentOfType(contentType.Id);
-                }
+                // all descendants are going to be deleted
+                var allDescendantsAndSelf = contentTypesA.SelectMany(x => x.DescendantsAndSelf())
+                    .Distinct()
+                    .ToArray();
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateContentTypeRepository(uow))
-                {
-                    foreach (var contentType in asArray)
-                    {
-                        repository.Delete(contentType);
-                    }
+                // all impacted (through composition) probably lose some properties
+                var impacted = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
+                    .Distinct()
+                    .Except(allDescendantsAndSelf) // will be deleted anyway
+                    .ToArray();
 
-                    uow.Commit();
+                // delete content
+                foreach (var d in allDescendantsAndSelf)
+                    _contentService.DeleteContentOfType(d.Id);
 
-                    DeletedContentType.RaiseEvent(new DeleteEventArgs<IContentType>(asArray, false), this);
-                }
+                // finally delete the content types
+                // (see notes in overload)
+                foreach (var contentType in contentTypesA)
+                    repository.Delete(contentType);
 
-                Audit(AuditType.Delete, string.Format("Delete ContentTypes performed by user"), userId, -1);
-            }
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // (see notes in overload)
+                OnTransactionRefreshedEntity(repository.UnitOfWork, impacted);
+            });
+
+            // fixme - raise distributed events
+
+            DeletedContentType.RaiseEvent(new DeleteEventArgs<IContentType>(contentTypesA, false), this);
+            Audit(AuditType.Delete, string.Format("Delete ContentTypes performed by user"), userId, -1);
         }
-        
+
+        #endregion
+
+        #region Content - Move
+
+        // not implemented
+        // would update PATH, etc
+        // but what would happen with PARENT vs COMPOSITION?
+
+        #endregion
+
+        #region Media - Get, Has, Is
+
         /// <summary>
         /// Gets an <see cref="IMediaType"/> object by its Id
         /// </summary>
@@ -485,10 +643,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMediaType"/></returns>
         public IMediaType GetMediaType(int id)
         {
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Get(id);
-            }
+            return WithReadLockedMediaTypes(repository => repository.Get(id));
         }
 
         /// <summary>
@@ -498,13 +653,8 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMediaType"/></returns>
         public IMediaType GetMediaType(string alias)
         {
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMediaType>.Builder.Where(x => x.Alias == alias);
-                var contentTypes = repository.GetByQuery(query);
-
-                return contentTypes.FirstOrDefault();
-            }
+            var query = Query<IMediaType>.Builder.Where(x => x.Alias == alias);
+            return WithReadLockedMediaTypes(repository => repository.GetByQuery(query).FirstOrDefault());
         }
 
         /// <summary>
@@ -514,10 +664,7 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IMediaType"/> objects</returns>
         public IEnumerable<IMediaType> GetAllMediaTypes(params int[] ids)
         {
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.GetAll(ids);
-            }
+            return WithReadLockedMediaTypes(repository => repository.GetAll(ids));
         }
 
         /// <summary>
@@ -527,12 +674,8 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IMediaType"/> objects</returns>
         public IEnumerable<IMediaType> GetMediaTypeChildren(int id)
         {
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMediaType>.Builder.Where(x => x.ParentId == id);
-                var contentTypes = repository.GetByQuery(query);
-                return contentTypes;
-            }
+            var query = Query<IMediaType>.Builder.Where(x => x.ParentId == id);
+            return WithReadLockedMediaTypes(repository => repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -542,13 +685,13 @@ namespace Umbraco.Core.Services
         /// <returns>True if the media type has any children otherwise False</returns>
         public bool MediaTypeHasChildren(int id)
         {
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMediaType>.Builder.Where(x => x.ParentId == id);
-                int count = repository.Count(query);
-                return count > 0;
-            }
+            var query = Query<IMediaType>.Builder.Where(x => x.ParentId == id);
+            return WithReadLockedMediaTypes(repository => repository.Count(query) > 0);
         }
+
+        #endregion
+
+        #region Media - Save, Delete
 
         /// <summary>
         /// Saves a single <see cref="IMediaType"/> object
@@ -560,20 +703,26 @@ namespace Umbraco.Core.Services
 	        if (SavingMediaType.IsRaisedEventCancelled(new SaveEventArgs<IMediaType>(mediaType), this)) 
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMediaAndMediaTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMediaTypeRepository(uow))
-                {
-                    ValidateLocked(mediaType); // throws if invalid
-                    mediaType.CreatorId = userId;
-                    repository.AddOrUpdate(mediaType);
-                    uow.Commit();
-                    
-                }
+                // validate the DAG transform, within the lock
+                ValidateLocked(mediaType); // throws if invalid
 
-                NotifyContentServiceOfContentTypeChanges(mediaType);
-            }
+                mediaType.CreatorId = userId;
+                repository.AddOrUpdate(mediaType); // also updates contents
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(mediaType).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
+
+            // fixme - raise distributed events
+            // raise event fot that type only, because it's a distributed event,
+            // so impacted types (through composition) will be determined locally
+            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
+            //Changed.RaiseEvent(new ChangeEventArgs(mediaType), this);
+            //ApplyChangesToContent(changedTypes);
 
             SavedMediaType.RaiseEvent(new SaveEventArgs<IMediaType>(mediaType, false), this);
 	        Audit(AuditType.Save, string.Format("Save MediaType performed by user"), userId, mediaType.Id);
@@ -586,35 +735,37 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the user savging the MediaTypes</param>
         public void Save(IEnumerable<IMediaType> mediaTypes, int userId = 0)
         {
-            var asArray = mediaTypes.ToArray();
+            var mediaTypesA = mediaTypes.ToArray();
 
-            if (SavingMediaType.IsRaisedEventCancelled(new SaveEventArgs<IMediaType>(asArray), this))
+            if (SavingMediaType.IsRaisedEventCancelled(new SaveEventArgs<IMediaType>(mediaTypesA), this))
 				return;
 
-            using (new WriteLock(Locker))
+            WithWriteLockedMediaAndMediaTypes(repository =>
             {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMediaTypeRepository(uow))
-                {
-                    // all-or-nothing, validate them all first
-                    foreach (var mediaType in asArray)
-                    {
-                        ValidateLocked(mediaType); // throws if invalid
-                    }
-                    foreach (var mediaType in asArray)
-                    {
-                        mediaType.CreatorId = userId;
-                        repository.AddOrUpdate(mediaType);
-                    }
+                // all-or-nothing, validate the DAG transforms, within the lock
+                foreach (var mediaType in mediaTypesA)
+                    ValidateLocked(mediaType); // throws if invalid
 
-                    //save it all in one go
-                    uow.Commit();                    
+                foreach (var mediaType in mediaTypesA)
+                {
+                    mediaType.CreatorId = userId;
+                    repository.AddOrUpdate(mediaType); // also updates contents
                 }
 
-                NotifyContentServiceOfContentTypeChanges(asArray.Cast<IContentTypeBase>().ToArray());
-            }
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-            SavedMediaType.RaiseEvent(new SaveEventArgs<IMediaType>(asArray, false), this);
+                // figure out content types impacted by the changes through composition
+                var changedTypes = ComposeContentTypeChangesForTransactionEvent(mediaTypesA).ToArray();
+                OnTransactionRefreshedEntity(repository.UnitOfWork, changedTypes);
+            });
+
+            // fixme - raise distributed events
+            // raise event fot that type only, because it's a distributed event,
+            // so impacted types (through composition) will be determined locally
+            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
+            //Changed.RaiseEvent(new ChangeEventArgs(contentTypesA), this);
+
+            SavedMediaType.RaiseEvent(new SaveEventArgs<IMediaType>(mediaTypesA, false), this);
 			Audit(AuditType.Save, string.Format("Save MediaTypes performed by user"), userId, -1);
         }
 
@@ -628,22 +779,46 @@ namespace Umbraco.Core.Services
         {
 	        if (DeletingMediaType.IsRaisedEventCancelled(new DeleteEventArgs<IMediaType>(mediaType), this)) 
 				return;
-            using (new WriteLock(Locker))
+
+            WithWriteLockedMediaAndMediaTypes(repository =>
             {
-                _mediaService.DeleteMediaOfType(mediaType.Id, userId);
+                // all descendants are going to be deleted
+                var descendantsAndSelf = mediaType.DescendantsAndSelf().ToArray();
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMediaTypeRepository(uow))
-                {
+                // all impacted (through composition) probably lose some properties
+                var impacted = descendantsAndSelf.SelectMany(x => x.ComposedOf())
+                    .Distinct()
+                    .Except(descendantsAndSelf) // will be deleted anyway
+                    .ToArray();
 
-                    repository.Delete(mediaType);
-                    uow.Commit();
+                // delete content
+                foreach (var d in descendantsAndSelf)
+                    _mediaService.DeleteMediaOfType(d.Id);
 
-                    DeletedMediaType.RaiseEvent(new DeleteEventArgs<IMediaType>(mediaType, false), this);
-                }
+                // finally delete the content type
+                // - recursively deletes all descendants
+                // - deletes all associated property data
+                //  (contents of any descendant type have been deleted but
+                //   contents of any composed (impacted) type remain but
+                //   need to have their property data cleared)
+                repository.Delete(mediaType);
 
-                Audit(AuditType.Delete, string.Format("Delete MediaType performed by user"), userId, mediaType.Id);
-            }
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // no need for 'transaction event' for deleted content
+                // because deleting content does trigger its own event
+                //
+                // need 'transaction event' for content that have changed
+                // ie those that were composed of the deleted content OR
+                // of any of its descendants
+
+                OnTransactionRefreshedEntity(repository.UnitOfWork, impacted);
+            });
+
+            // fixme - raise distributed events
+
+            DeletedMediaType.RaiseEvent(new DeleteEventArgs<IMediaType>(mediaType, false), this);
+            Audit(AuditType.Delete, string.Format("Delete MediaType performed by user"), userId, mediaType.Id);
         }
 
         /// <summary>
@@ -654,87 +829,56 @@ namespace Umbraco.Core.Services
         /// <remarks>Deleting a <see cref="IMediaType"/> will delete all the <see cref="IMedia"/> objects based on this <see cref="IMediaType"/></remarks>
         public void Delete(IEnumerable<IMediaType> mediaTypes, int userId = 0)
         {
-            var asArray = mediaTypes.ToArray();
+            var mediaTypesA = mediaTypes.ToArray();
 
-            if (DeletingMediaType.IsRaisedEventCancelled(new DeleteEventArgs<IMediaType>(asArray), this)) 
+            if (DeletingMediaType.IsRaisedEventCancelled(new DeleteEventArgs<IMediaType>(mediaTypesA), this)) 
 				return;
-            using (new WriteLock(Locker))
+
+            WithWriteLockedMediaAndMediaTypes(repository =>
             {
-                foreach (var mediaType in asArray)
-                {
-                    _mediaService.DeleteMediaOfType(mediaType.Id);
-                }
+                // all descendants are going to be deleted
+                var allDescendantsAndSelf = mediaTypesA.SelectMany(x => x.DescendantsAndSelf())
+                    .Distinct()
+                    .ToArray();
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMediaTypeRepository(uow))
-                {
-                    foreach (var mediaType in asArray)
-                    {
-                        repository.Delete(mediaType);
-                    }
-                    uow.Commit();
+                // all impacted (through composition) probably lose some properties
+                var impacted = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
+                    .Distinct()
+                    .Except(allDescendantsAndSelf) // will be deleted anyway
+                    .ToArray();
 
-                    DeletedMediaType.RaiseEvent(new DeleteEventArgs<IMediaType>(asArray, false), this);
-                }
+                // delete content
+                foreach (var d in allDescendantsAndSelf)
+                    _mediaService.DeleteMediaOfType(d.Id);
 
-                Audit(AuditType.Delete, string.Format("Delete MediaTypes performed by user"), userId, -1);
-            }            
+                // finally delete the content types
+                // (see notes in overload)
+                foreach (var mediaType in mediaTypesA)
+                    repository.Delete(mediaType);
+
+                repository.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
+
+                // (see notes in overload)
+                OnTransactionRefreshedEntity(repository.UnitOfWork, impacted);
+            });
+
+            // fixme - raise distributed events
+            // allDescendantsAndSelf: report REMOVE
+            // impacted: report REFRESH
+            // BUT async => just report WTF?!
+
+            DeletedMediaType.RaiseEvent(new DeleteEventArgs<IMediaType>(mediaTypesA, false), this);
+            Audit(AuditType.Delete, string.Format("Delete MediaTypes performed by user"), userId, -1);
         }
 
-        /// <summary>
-        /// Generates the complete (simplified) XML DTD.
-        /// </summary>
-        /// <returns>The DTD as a string</returns>
-        public string GetDtd()
-        {
-            var dtd = new StringBuilder();
-            dtd.AppendLine("<!DOCTYPE root [ ");
+        #endregion
 
-            dtd.AppendLine(GetContentTypesDtd());
-            dtd.AppendLine("]>");
+        #region Media - Move
 
-            return dtd.ToString();
-        }
+        // not implemented
+        // (see content)
 
-        /// <summary>
-        /// Generates the complete XML DTD without the root.
-        /// </summary>
-        /// <returns>The DTD as a string</returns>
-        public string GetContentTypesDtd()
-        {
-            var dtd = new StringBuilder();
-            if (UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema)
-            {
-                dtd.AppendLine("<!ELEMENT node ANY> <!ATTLIST node id ID #REQUIRED>  <!ELEMENT data ANY>");
-            }
-            else
-            {
-                try
-                {
-                    var strictSchemaBuilder = new StringBuilder();
-
-                    var contentTypes = GetAllContentTypes();
-                    foreach (ContentType contentType in contentTypes)
-                    {
-                        string safeAlias = contentType.Alias.ToUmbracoAlias();
-                        if (safeAlias != null)
-                        {
-                            strictSchemaBuilder.AppendLine(String.Format("<!ELEMENT {0} ANY>", safeAlias));
-                            strictSchemaBuilder.AppendLine(String.Format("<!ATTLIST {0} id ID #REQUIRED>", safeAlias));
-                        }
-                    }
-
-                    // Only commit the strong schema to the container if we didn't generate an error building it
-                    dtd.Append(strictSchemaBuilder);
-                }
-                catch (Exception exception)
-                {
-                    LogHelper.Error<ContentTypeService>("Error while trying to build DTD for Xml schema; is Umbraco installed correctly and the connection string configured?", exception);
-                }
-
-            }
-            return dtd.ToString();
-        }
+        #endregion
 
         private void Audit(AuditType type, string message, int userId, int objectId)
         {

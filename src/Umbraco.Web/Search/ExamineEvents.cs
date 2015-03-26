@@ -21,8 +21,7 @@ namespace Umbraco.Web.Search
 	/// Used to wire up events for Examine
 	/// </summary>
 	public sealed class ExamineEvents : ApplicationEventHandler
-	{
-		
+	{		
 		/// <summary>
 		/// Once the application has started we should bind to all events and initialize the providers.
 		/// </summary>
@@ -40,16 +39,16 @@ namespace Umbraco.Web.Search
 
 			LogHelper.Info<ExamineEvents>("Adding examine event handlers for index providers: {0}", () => registeredProviders);
 
-			//don't bind event handlers if we're not suppose to listen
+			// don't bind event handlers if we're not suppose to listen
 			if (registeredProviders == 0)
 				return;
 
-            //Bind to distributed cache events - this ensures that this logic occurs on ALL servers that are taking part 
-            // in a load balanced environment.
+            // bind to distributed cache events - this ensures that this logic occurs on ALL servers
+            // that are taking part in a load balanced environment.
 		    CacheRefresherBase<ContentCacheRefresher>.CacheUpdated += ContentCacheRefresherUpdated;
-            CacheRefresherBase<MediaCacheRefresher>.CacheUpdated += MediaCacheRefresherCacheUpdated;
-            CacheRefresherBase<MemberCacheRefresher>.CacheUpdated += MemberCacheRefresherCacheUpdated;
-            CacheRefresherBase<ContentTypeCacheRefresher>.CacheUpdated += ContentTypeCacheRefresherCacheUpdated;
+            CacheRefresherBase<MediaCacheRefresher>.CacheUpdated += MediaCacheRefresherUpdated;
+            CacheRefresherBase<MemberCacheRefresher>.CacheUpdated += MemberCacheRefresherUpdated;
+            CacheRefresherBase<ContentTypeCacheRefresher>.CacheUpdated += ContentTypeCacheRefresherUpdated;
             
 			var contentIndexer = ExamineManager.Instance.IndexProviderCollection["InternalIndexer"] as UmbracoContentIndexer;
 			if (contentIndexer != null)
@@ -63,25 +62,18 @@ namespace Umbraco.Web.Search
 			}
 		}
 
-        /// <summary>
-        /// This is used to refresh content indexers IndexData based on the DataService whenever a content type is changed since
-        /// properties may have been added/removed
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        /// <remarks>
-        /// See: http://issues.umbraco.org/issue/U4-4798
-        /// </remarks>
-	    static void ContentTypeCacheRefresherCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs e)
+        // see: http://issues.umbraco.org/issue/U4-4798
+	    static void ContentTypeCacheRefresherUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs e)
         {
-            var indexersToUpdated = ExamineManager.Instance.IndexProviderCollection.OfType<UmbracoContentIndexer>();
-            foreach (var provider in indexersToUpdated)
+            var indexersToUpdate = ExamineManager.Instance.IndexProviderCollection.OfType<UmbracoContentIndexer>();
+            foreach (var provider in indexersToUpdate)
             {
+                // fixme - but are we re-indexing? what if a property is removed?
                 provider.RefreshIndexerDataFromDataService();
             }
         }
 
-	    static void MemberCacheRefresherCacheUpdated(MemberCacheRefresher sender, CacheRefresherEventArgs e)
+	    static void MemberCacheRefresherUpdated(MemberCacheRefresher sender, CacheRefresherEventArgs e)
 	    {
             switch (e.MessageType)
             {
@@ -123,12 +115,7 @@ namespace Umbraco.Web.Search
             }
 	    }
 
-	    /// <summary>
-        /// Handles index management for all media events - basically handling saving/copying/trashing/deleting
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
-	    static void MediaCacheRefresherCacheUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs args)
+	    static void MediaCacheRefresherUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs args)
         {
             if (args.MessageType != MessageType.RefreshByJson)
                 throw new NotSupportedException();
@@ -281,6 +268,21 @@ namespace Umbraco.Web.Search
             }
         }
 
+        private static void ReIndexForContent(IContent sender, bool? supportUnpublished = null)
+        {
+            var xml = sender.ToXml();
+            //add an icon attribute to get indexed
+            xml.Add(new XAttribute("icon", sender.ContentType.Icon));
+
+            ExamineManager.Instance.ReIndexNode(
+                xml, IndexTypes.Content,
+                ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
+
+                    // only for the specified indexers
+                    .Where(x => supportUnpublished.HasValue == false || supportUnpublished.Value == x.SupportUnpublishedContent)
+                    .Where(x => x.EnableDefaultEventHandler));
+        }
+
         private static void ReIndexForMember(IMember member)
 		{
 		    ExamineManager.Instance.ReIndexNode(
@@ -290,29 +292,6 @@ namespace Umbraco.Web.Search
 		            .Where(x => x.EnableDefaultEventHandler));
 		}
 
-		/// <summary>
-		/// Event handler to create a lower cased version of the node name, this is so we can support case-insensitive searching and still
-		/// use the Whitespace Analyzer
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		
-		private static void IndexerDocumentWriting(object sender, DocumentWritingEventArgs e)
-		{
-			if (e.Fields.Keys.Contains("nodeName"))
-			{
-                //TODO: This logic should really be put into the content indexer instead of hidden here!!
-
-				//add the lower cased version
-				e.Document.Add(new Field("__nodeName",
-										e.Fields["nodeName"].ToLower(),
-										Field.Store.YES,
-										Field.Index.ANALYZED,
-										Field.TermVector.NO
-										));
-			}
-		}
-        
         private static void ReIndexForMedia(IMedia sender)
         {
             var xml = sender.ToXml();
@@ -328,40 +307,33 @@ namespace Umbraco.Web.Search
                     .Where(x => x.EnableDefaultEventHandler));
         }
 
-	    /// <summary>
-	    /// Remove items from any index that doesn't support unpublished content
-	    /// </summary>
-        /// <param name="entityId"></param>
-	    /// <param name="keepIfUnpublished">
-	    /// If true, indicates that we will only delete this item from indexes that don't support unpublished content.
-	    /// If false it will delete this from all indexes regardless.
-	    /// </param>
-	    private static void DeleteIndexForEntity(int entityId, bool keepIfUnpublished)
-	    {
-	        ExamineManager.Instance.DeleteFromIndex(
+        private static void DeleteIndexForEntity(int entityId, bool keepIfUnpublished)
+        {
+            ExamineManager.Instance.DeleteFromIndex(
                 entityId.ToString(CultureInfo.InvariantCulture),
-	            ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
+                ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
 
                     //if keepIfUnpublished == true then only delete this item from indexes not supporting unpublished content,
-                    // otherwise if keepIfUnpublished == false then remove from all indexes
-                
+                // otherwise if keepIfUnpublished == false then remove from all indexes
+
                     .Where(x => keepIfUnpublished == false || x.SupportUnpublishedContent == false)
-	                .Where(x => x.EnableDefaultEventHandler));
-	    }
+                    .Where(x => x.EnableDefaultEventHandler));
+        }
 
-	    private static void ReIndexForContent(IContent sender, bool? supportUnpublished = null)
-	    {
-            var xml = sender.ToXml();
-            //add an icon attribute to get indexed
-            xml.Add(new XAttribute("icon", sender.ContentType.Icon));
+		private static void IndexerDocumentWriting(object sender, DocumentWritingEventArgs e)
+		{
+			if (e.Fields.Keys.Contains("nodeName"))
+			{
+                //TODO: This logic should really be put into the content indexer instead of hidden here!!
 
-	        ExamineManager.Instance.ReIndexNode(
-                xml, IndexTypes.Content,
-	            ExamineManager.Instance.IndexProviderCollection.OfType<BaseUmbracoIndexer>()
-                    
-                    // only for the specified indexers
-	                .Where(x => supportUnpublished.HasValue == false || supportUnpublished.Value == x.SupportUnpublishedContent)
-	                .Where(x => x.EnableDefaultEventHandler));
-	    }
+				//add the lower cased version
+				e.Document.Add(new Field("__nodeName",
+										e.Fields["nodeName"].ToLower(),
+										Field.Store.YES,
+										Field.Index.ANALYZED,
+										Field.TermVector.NO
+										));
+			}
+		}
     }
 }

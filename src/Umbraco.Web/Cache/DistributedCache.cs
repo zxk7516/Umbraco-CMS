@@ -38,8 +38,6 @@ namespace Umbraco.Web.Cache
         public const string ApplicationTreeCacheRefresherId = "0AC6C028-9860-4EA4-958D-14D39F45886E";
         public const string ApplicationCacheRefresherId = "B15F34A1-BC1D-4F8B-8369-3222728AB4C8";
         public const string TemplateRefresherId = "DD12B6A0-14B9-46e8-8800-C154F74047C8";
-        public const string PageCacheRefresherId = "27AB3022-3DFA-47b6-9119-5945BC88FD66";
-        public const string UnpublishedPageCacheRefresherId = "55698352-DFC5-4DBE-96BD-A4A0F6F77145";
         public const string MemberCacheRefresherId = "E285DF34-ACDC-4226-AE32-C0CB5CF388DA";
         public const string MemberGroupCacheRefresherId = "187F236B-BD21-4C85-8A7C-29FBA3D6C00C";
         public const string MediaCacheRefresherId = "B29286DD-2D40-4DDB-B325-681226589FEC";
@@ -61,8 +59,6 @@ namespace Umbraco.Web.Cache
         public static readonly Guid ApplicationTreeCacheRefresherGuid = new Guid(ApplicationTreeCacheRefresherId);
         public static readonly Guid ApplicationCacheRefresherGuid = new Guid(ApplicationCacheRefresherId);
         public static readonly Guid TemplateRefresherGuid = new Guid(TemplateRefresherId);
-        public static readonly Guid PageCacheRefresherGuid = new Guid(PageCacheRefresherId);
-        public static readonly Guid UnpublishedPageCacheRefresherGuid = new Guid(UnpublishedPageCacheRefresherId);
         public static readonly Guid MemberCacheRefresherGuid = new Guid(MemberCacheRefresherId);
         public static readonly Guid MemberGroupCacheRefresherGuid = new Guid(MemberGroupCacheRefresherId);
         public static readonly Guid MediaCacheRefresherGuid = new Guid(MediaCacheRefresherId);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
@@ -18,6 +19,7 @@ namespace Umbraco.Web.Cache
     /// </remarks>
     public class MemberCacheRefresher : TypedCacheRefresherBase<MemberCacheRefresher, IMember>
     {
+        #region Define
 
         protected override MemberCacheRefresher Instance
         {
@@ -33,7 +35,11 @@ namespace Umbraco.Web.Cache
         {
             get { return "Clears Member Cache"; }
         }
-        
+
+        #endregion
+
+        #region Events
+
         public override void Refresh(int id)
         {
             ClearCache(id);
@@ -69,5 +75,16 @@ namespace Umbraco.Web.Cache
 
             ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheItem(RepositoryBase.GetCacheIdKey<IMember>(id));
         }
+
+        #endregion
+
+        #region Indirect
+
+        public void RefreshMemberTypes(IEnumerable<int> refreshedIds, IEnumerable<int> removedIds)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
     }
 }

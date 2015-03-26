@@ -16,6 +16,7 @@ namespace Umbraco.Core.Models
     {
         private List<IContentTypeComposition> _contentTypeComposition = new List<IContentTypeComposition>();
         internal List<int> RemovedContentTypeKeyTracker = new List<int>();
+        private bool _hasCompositionTypeBeenRemoved;
 
         protected ContentTypeCompositionBase(int parentId) : base(parentId)
         {
@@ -33,8 +34,29 @@ namespace Umbraco.Core.Models
         }
 
         private static readonly PropertyInfo ContentTypeCompositionSelector =
-            ExpressionHelper.GetPropertyInfo<ContentTypeCompositionBase, IEnumerable<IContentTypeComposition>>(
-                x => x.ContentTypeComposition);
+            ExpressionHelper.GetPropertyInfo<ContentTypeCompositionBase, IEnumerable<IContentTypeComposition>>(x => x.ContentTypeComposition);
+        private static readonly PropertyInfo HasCompositionTypeBeenRemovedSelector = ExpressionHelper.GetPropertyInfo<ContentTypeCompositionBase, bool>(x => x.HasCompositionTypeBeenRemoved);
+
+        /// <summary>
+        /// Gets or sets a value indicating whether a composition type has been removed from this instance.
+        /// </summary>
+        /// <remarks>
+        /// <para>This is currently (specifically) used in order to know that we need to refresh the content cache which 
+        /// needs to occur when a composition has been removed from a content type</para>
+        /// <para>Writing (anything) to this property will make it dirty, and that is what one wants to check. Reading
+        /// this property will return the last value that was written to it, but the value is never resetted to false,
+        /// so reading does not make much sense.</para>
+        /// </remarks>
+        [IgnoreDataMember]
+        internal bool HasCompositionTypeBeenRemoved
+        {
+            get { return _hasCompositionTypeBeenRemoved; }
+            private set
+            {
+                _hasCompositionTypeBeenRemoved = value;
+                OnPropertyChanged(HasCompositionTypeBeenRemovedSelector);
+            }
+        }
 
         /// <summary>
         /// List of ContentTypes that make up a composition of PropertyGroups and PropertyTypes for the current ContentType
@@ -121,6 +143,8 @@ namespace Umbraco.Core.Models
                 var contentTypeComposition = ContentTypeComposition.FirstOrDefault(x => x.Alias == alias);
                 if (contentTypeComposition == null)//You can't remove a composition from another composition
                     return false;
+
+                HasCompositionTypeBeenRemoved = true;
 
                 RemovedContentTypeKeyTracker.Add(contentTypeComposition.Id);
                 
@@ -250,6 +274,18 @@ namespace Umbraco.Core.Models
             return ContentTypeComposition
                 .Select(x => x.Id)
                 .Union(ContentTypeComposition.SelectMany(x => x.CompositionIds()));
+        }
+
+        public override void ResetDirtyProperties()
+        {
+            base.ResetDirtyProperties();
+            RemovedContentTypeKeyTracker.Clear();
+        }
+
+        public override void ResetDirtyProperties(bool rememberPreviouslyChangedProperties)
+        {
+            base.ResetDirtyProperties(rememberPreviouslyChangedProperties);
+            RemovedContentTypeKeyTracker.Clear();
         }
 
         public override object DeepClone()

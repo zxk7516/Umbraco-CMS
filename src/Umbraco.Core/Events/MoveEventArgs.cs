@@ -30,10 +30,8 @@ namespace Umbraco.Core.Events
         public MoveEventArgs(bool canCancel, params MoveEventInfo<TEntity>[] moveInfo)
             : base(default(TEntity), canCancel)
         {
-            if (moveInfo.FirstOrDefault() == null)
-            {
+            if (moveInfo.Length == 0)
                 throw new ArgumentException("moveInfo argument must contain at least one item");
-            }
 
             MoveInfoCollection = moveInfo;
             //assign the legacy props
@@ -50,10 +48,8 @@ namespace Umbraco.Core.Events
         public MoveEventArgs(params MoveEventInfo<TEntity>[] moveInfo)
             : base(default(TEntity))
         {
-            if (moveInfo.FirstOrDefault() == null)
-            {
+            if (moveInfo.Length == 0)
                 throw new ArgumentException("moveInfo argument must contain at least one item");
-            }
 
             MoveInfoCollection = moveInfo;
             //assign the legacy props

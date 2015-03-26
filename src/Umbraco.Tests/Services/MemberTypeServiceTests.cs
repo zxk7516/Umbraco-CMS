@@ -1,20 +1,16 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using umbraco.cms.presentation.create.controls;
 using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Tests.TestHelpers;
 using Umbraco.Tests.TestHelpers.Entities;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Tests.Services
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
-    [FacadeServiceBehavior(WithEvents = true)]
+    [FacadeServiceBehavior(EnableRepositoryEvents = true)]
     public class MemberTypeServiceTests : BaseServiceTest
     {
         [SetUp]

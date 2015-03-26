@@ -18,14 +18,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly ICacheProvider _requestCache;
 
         public PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
-            : this(serviceContext, databaseContext, requestCache, true)
+            : this(serviceContext, databaseContext, requestCache, false, true)
         { }
 
         // for testing
-        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache, bool withEvents)
+        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
+            bool testing, bool enableRepositoryEvents)
         {
             _routesCache = new RoutesCache();
-            _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, withEvents);
+            _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, testing, enableRepositoryEvents);
             _domainService = serviceContext.DomainService;
             _memberService = serviceContext.MemberService;
             _mediaService = serviceContext.MediaService;
@@ -87,6 +88,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return XmlStore.VerifyContentAndPreviewXml();
         }
 
+        // FIXME missing LOCKS here ** AND IN MANY SIMILAR PLACES ** WTF?
         public void RebuildContentAndPreviewXml()
         {
             XmlStore.RebuildContentAndPreviewXml();

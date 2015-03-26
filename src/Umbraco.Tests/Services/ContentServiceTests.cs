@@ -28,7 +28,7 @@ namespace Umbraco.Tests.Services
     /// </summary>
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
-    [FacadeServiceBehavior(WithEvents = true)]
+    [FacadeServiceBehavior(EnableRepositoryEvents = true)]
     public class ContentServiceTests : BaseServiceTest
     {
         [SetUp]
@@ -1173,6 +1173,7 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
+        [NUnit.Framework.Ignore("The whole \"republish all\" concept is obsolete.")]
         public void Can_RePublish_All_Content()
         {
             // Arrange
@@ -1208,6 +1209,7 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
+        [NUnit.Framework.Ignore("The whole \"republish all\" concept is obsolete.")]
         public void Can_RePublish_All_Content_Of_Type()
         {
             // Arrange

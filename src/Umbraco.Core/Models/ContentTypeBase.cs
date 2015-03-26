@@ -412,12 +412,15 @@ namespace Umbraco.Core.Models
             get { return _propertyTypes; }
         }
 
-            /// <summary>
-        /// A boolean flag indicating if a property type has been removed from this instance.
+        /// <summary>
+        /// Gets or sets a value indicating whether a property type has been removed from this instance.
         /// </summary>
         /// <remarks>
-        /// This is currently (specifically) used in order to know that we need to refresh the content cache which 
-        /// needs to occur when a property has been removed from a content type
+        /// <para>This is currently (specifically) used in order to know that we need to refresh the content cache which 
+        /// needs to occur when a property has been removed from a content type</para>
+        /// <para>Writing (anything) to this property will make it dirty, and that is what one wants to check. Reading
+        /// this property will return the last value that was written to it, but the value is never resetted to false,
+        /// so reading does not make much sense.</para>
         /// </remarks>
         [IgnoreDataMember]
         internal bool HasPropertyTypeBeenRemoved

@@ -100,6 +100,10 @@ namespace Umbraco.Core.Persistence.Repositories
                     }
                 }
 
+                // FIXME - nooooooooooo
+                // we just removed a property from a content type,
+                // but we raise no event, no nothing, and don't even mention compositions ;-(((((((
+
                 _contentTypeRepository.AddOrUpdate(contentType);
             }
 

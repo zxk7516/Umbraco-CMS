@@ -169,18 +169,6 @@ namespace Umbraco.Core.Services
         void Delete(IEnumerable<IMediaType> mediaTypes, int userId = 0);
 
         /// <summary>
-        /// Generates the complete (simplified) XML DTD.
-        /// </summary>
-        /// <returns>The DTD as a string</returns>
-        string GetDtd();
-
-        /// <summary>
-        /// Generates the complete XML DTD without the root.
-        /// </summary>
-        /// <returns>The DTD as a string</returns>
-        string GetContentTypesDtd();
-
-        /// <summary>
         /// Checks whether an <see cref="IContentType"/> item has any children
         /// </summary>
         /// <param name="id">Id of the <see cref="IContentType"/></param>

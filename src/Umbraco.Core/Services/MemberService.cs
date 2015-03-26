@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading;
 using System.Web.Security;
 using System.Xml.Linq;
@@ -67,6 +68,91 @@ namespace Umbraco.Core.Services
             _memberGroupService = memberGroupService;
             _dataTypeService = dataTypeService;
         }
+
+        #region Lock Helper Methods
+
+        // provide a locked repository within a RepeatableRead Transaction and a UnitOfWork
+        // depending on autoCommit, the Transaction & UnitOfWork can be auto-commited (default)
+        //
+        // the locks are database locks, re-entrant (recursive), and are released when the
+        // transaction completes - it is possible to acquire a read lock while holding a write
+        // lock, and a write lock while holding a read lock, within the same transaction
+        //
+        // we might want to try and see how this can be factored for other repos?
+
+        private void WithReadLocked(Action<MemberRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
+            {
+                var repository = irepository as MemberRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                action(repository);
+
+                if (autoCommit == false) return;
+
+                // commit the UnitOfWork... will get a transaction from the database
+                // and obtain the current one, which it will complete, which will do
+                // nothing because of transaction nesting, so it's only back here that
+                // the real complete will take place
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        internal T WithReadLocked<T>(Func<MemberRepository, T> func, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
+            {
+                var repository = irepository as MemberRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireReadLock();
+                var ret = func(repository);
+                if (autoCommit == false) return ret;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+                return ret;
+            }
+        }
+
+        internal void WithWriteLocked(Action<MemberRepository> action, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
+            {
+                var repository = irepository as MemberRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireWriteLock();
+                action(repository);
+                if (autoCommit == false) return;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+            }
+        }
+
+        private T WithWriteLocked<T>(Func<MemberRepository, T> func, bool autoCommit = true)
+        {
+            var uow = UowProvider.GetUnitOfWork();
+            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
+            {
+                var repository = irepository as MemberRepository;
+                if (repository == null) throw new Exception("oops");
+                repository.AcquireWriteLock();
+                var ret = func(repository);
+                if (autoCommit == false) return ret;
+                repository.UnitOfWork.Commit();
+                transaction.Complete();
+                return ret;
+            }
+        }
+
+        #endregion
 
         #region IMemberService Implementation
 
@@ -1243,50 +1329,5 @@ namespace Umbraco.Core.Services
 
             return member;
         }
-
-        #region Refactoring
-
-        // see note in ContentService
-
-        internal void NotifyMemberTypeChanges(params int[] memberTypeIds)
-        {
-            // assuming that all content types here are locked
-            // lock all content and raise the event
-
-            using (new WriteLock(Locker))
-            {
-                var uow = UowProvider.GetUnitOfWork();
-                OnContentTypesChanged(new MemberTypeChangedEventArgs(uow, memberTypeIds));
-            }
-        }
-
-        internal class MemberTypeChangedEventArgs : EventArgs
-        {
-            public MemberTypeChangedEventArgs(IDatabaseUnitOfWork unitOfWork, int[] memberTypeIds)
-            {
-                UnitOfWork = unitOfWork;
-                MemberTypeIds = memberTypeIds;
-            }
-
-            public int[] MemberTypeIds { get; private set; }
-            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
-        }
-
-        internal static event TypedEventHandler<MemberService, MemberTypeChangedEventArgs> MemberTypesChanged;
-
-        internal void OnContentTypesChanged(MemberTypeChangedEventArgs args)
-        {
-            var handler = MemberTypesChanged;
-            if (handler != null) handler(this, args);
-        }
-
-        internal IMemberRepository GetMemberRepository()
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            var repo = RepositoryFactory.CreateMemberRepository(uow);
-            return repo;
-        }
-
-        #endregion
     }
 }

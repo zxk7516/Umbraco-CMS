@@ -8,7 +8,6 @@ using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.Rdbms;
-
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Factories;
 using Umbraco.Core.Persistence.Querying;
@@ -43,6 +42,20 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         public bool EnsureUniqueNaming { get; set; }
+
+        #region Lock
+
+        public void AcquireWriteLock()
+        {
+            Database.AcquireLockNodeWriteLock(Constants.System.ContentTreeLock);
+        }
+
+        public void AcquireReadLock()
+        {
+            Database.AcquireLockNodeReadLock(Constants.System.ContentTreeLock);
+        }
+
+        #endregion
 
         #region Overrides of RepositoryBase<IContent>
 
