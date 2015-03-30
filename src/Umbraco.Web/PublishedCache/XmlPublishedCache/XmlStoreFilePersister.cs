@@ -38,6 +38,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _store = store;
             _logger = logger;
 
+            if (runner.TryAdd(this) == false) return;
+
             if (touched == false) return;
 
             LogHelper.Debug<XmlStoreFilePersister>("Create new touched, start.");
@@ -57,10 +59,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 {
                     LogHelper.Debug<XmlStoreFilePersister>("Touched, was released, create new.");
 
-                    // released, has run or is running, too late, add & return a new task
-                    var persister = new XmlStoreFilePersister(_runner, _store, _logger, true);
-                    _runner.Add(persister);
-                    return persister;
+                    // released, has run or is running, too late, return a new task (adds itself to runner)
+                    return new XmlStoreFilePersister(_runner, _store, _logger, true);
                 }
 
                 if (_timer == null)
@@ -86,8 +86,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 }
                 else
                 {
-                    LogHelper.Debug<XmlStoreFilePersister>("Save now, release.");
-                    ReleaseLocked();
+                    LogHelper.Debug<XmlStoreFilePersister>("Touched, has waited long enough, will save.");
+                    //ReleaseLocked();
                 }
 
                 return this; // still available
@@ -109,6 +109,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 _timer.Dispose();
             _timer = null;
             _released = true;
+
+            // if running (because of shutdown) this will have no effect
+            // else it tells the runner it is time to run the task
             _latch.Set();
         }
 

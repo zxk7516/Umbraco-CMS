@@ -162,10 +162,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 KeepAlive = true
             });
 
+            // create (and add to runner)
             _persisterTask = new XmlStoreFilePersister(_filePersisterRunner, this,
                 new ProfilingLogger(LoggerResolver.Current.Logger, ProfilerResolver.Current.Profiler));
-
-            _filePersisterRunner.Add(_persisterTask);
         }
 
         private void OnResolutionFrozen(bool testing, bool enableRepositoryEvents)
@@ -387,7 +386,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             }
 
             //_lastXmlChange = DateTime.UtcNow;
-            _persisterTask.Touch(); // _persisterTask != null because SyncToXmlFile == true
+            _persisterTask = _persisterTask.Touch(); // _persisterTask != null because SyncToXmlFile == true
         }
 
         private static XmlDocument Clone(XmlDocument xmlDoc)
