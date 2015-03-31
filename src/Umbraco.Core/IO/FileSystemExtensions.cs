@@ -6,7 +6,7 @@ namespace Umbraco.Core.IO
 {
     public static class FileSystemExtensions
     {
-
+        // TODO: use FileSystemHelper method instead!
         /// <summary>
         /// Attempts to open the file at <code>filePath</code> up to <code>maxRetries</code> times,
         /// with a thread sleep time of <code>sleepPerRetryInMilliseconds</code> between retries.

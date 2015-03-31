@@ -5,7 +5,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Web.Hosting;
 using System.Xml;
 using System.Xml.Linq;
 using Umbraco.Core;
@@ -101,6 +103,26 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _serviceContext = serviceContext;
             _databaseContext = databaseContext;
             _routesCache = routesCache;
+
+            // initialize file lock
+            // ApplicationId will look like "/LM/W3SVC/1/Root/AppName"
+            // name is system-wide and must be less than 260 chars
+            //
+            // From MSDN C++ CreateSemaphore doc:
+            // "The name can have a "Global\" or "Local\" prefix to explicitly create the object in
+            // the global or session namespace. The remainder of the name can contain any character 
+            // except the backslash character (\). For more information, see Kernel Object Namespaces."
+            //
+            // From MSDN "Kernel object namespaces" doc:
+            // "The separate client session namespaces enable multiple clients to run the same 
+            // applications without interfering with each other. For processes started under 
+            // a client session, the system uses the session namespace by default. However, these 
+            // processes can use the global namespace by prepending the "Global\" prefix to the object name."
+            //
+            // just use "default" (whatever it is) for now - ie, no prefix
+            //
+            var name = HostingEnvironment.ApplicationID + "/XmlStore/XmlFile";
+            _fileLock = new AsyncLock(name);
 
             InitializeSerializers();
 
@@ -656,9 +678,9 @@ AND (umbracoNode.id=@id)";
 
         private class SafeXmlReader : IDisposable
         {
-            private AsyncLock.Releaser _releaser;
+            private IDisposable _releaser;
 
-            public SafeXmlReader(XmlStore store, AsyncLock.Releaser releaser)
+            public SafeXmlReader(XmlStore store, IDisposable releaser)
             {
                 _releaser = releaser;
                 Xml = store.Xml;
@@ -679,11 +701,11 @@ AND (umbracoNode.id=@id)";
         private class SafeXmlWriter : IDisposable
         {
             private readonly XmlStore _store;
-            private AsyncLock.Releaser _releaser;
+            private IDisposable _releaser;
             private readonly bool _auto;
             private bool _committed;
 
-            public SafeXmlWriter(XmlStore store, AsyncLock.Releaser releaser, bool auto)
+            public SafeXmlWriter(XmlStore store, IDisposable releaser, bool auto)
             {
                 _store = store;
                 _auto = auto;
@@ -744,6 +766,7 @@ AND (umbracoNode.id=@id)";
         private readonly string _xmlFileName = IOHelper.MapPath(SystemFiles.ContentCacheXml);
         private DateTime _lastFileRead; // last time the file was read
         private DateTime _nextFileCheck; // last time we checked whether the file was changed
+        private readonly AsyncLock _fileLock;
 
         private bool XmlFileExists
         {
@@ -789,8 +812,12 @@ AND (umbracoNode.id=@id)";
                     Directory.CreateDirectory(directoryName);
 
                 // save
-                //xml.Save(_xmlFileName);
-                System.IO.File.WriteAllText(_xmlFileName, SaveXmlToString(xml));
+                using (_fileLock.Lock()) // ensure no other Umbraco is using the file
+                using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
+                {
+                    var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
+                    fs.Write(bytes, 0, bytes.Length);
+                }                  
 
                 LogHelper.Debug<XmlStore>("Saved Xml to file.");
             }
@@ -823,7 +850,7 @@ AND (umbracoNode.id=@id)";
                         Directory.CreateDirectory(directoryName);
 
                     // save
-                    //await safeXml.Xml.SaveAsync(_xmlFileName);
+                    using (await _fileLock.LockAsync()) // ensure no other Umbraco is using the file
                     using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
                     {
                         var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(safeXml.Xml));
@@ -878,7 +905,11 @@ AND (umbracoNode.id=@id)";
 
             try
             {
-                xml.Load(_xmlFileName); // will need read-access to the file, and write-lock
+                using (_fileLock.Lock()) // ensure no other Umbraco is using the file
+                using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    xml.Load(fs);
+                }
                 _lastFileRead = DateTime.UtcNow;
             }
             catch (Exception e)
@@ -896,8 +927,12 @@ AND (umbracoNode.id=@id)";
         private void DeleteXmlFileLocked()
         {
             if (System.IO.File.Exists(_xmlFileName) == false) return;
-            System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
-            System.IO.File.Delete(_xmlFileName);
+
+            using (_fileLock.Lock())
+            {
+                System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
+                System.IO.File.Delete(_xmlFileName);
+            }
         }
 
         private void ReloadXmlFromFileIfChanged()

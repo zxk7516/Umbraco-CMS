@@ -407,7 +407,7 @@ namespace Umbraco.Web.Editors
                     var f = mediaService.CreateMedia(fileName, parentId, mediaType);
 
                     var fileInfo = new FileInfo(file.LocalFileName);
-                    var fs = fileInfo.OpenReadWithRetry();
+                    var fs = fileInfo.OpenReadWithRetry(); // TODO: use FileSystemHelper methods w/timeout?
                     if (fs == null) throw new InvalidOperationException("Could not acquire file stream");
                     using (fs)
                     {
