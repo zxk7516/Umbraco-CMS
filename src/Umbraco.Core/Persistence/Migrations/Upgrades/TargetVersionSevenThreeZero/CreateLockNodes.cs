@@ -5,7 +5,7 @@ using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZero
 {
-    [Migration("7.3.0", 10, GlobalSettings.UmbracoMigrationName)]
+    [Migration("7.3.0", 100, GlobalSettings.UmbracoMigrationName)]
     public class CreateLockNodes : MigrationBase
     {
         public override void Up()

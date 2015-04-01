@@ -4,7 +4,7 @@ using Umbraco.Core.Configuration;
 
 namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZero
 {
-    [Migration("7.3.0", 9, GlobalSettings.UmbracoMigrationName)]
+    [Migration("7.3.0", 100, GlobalSettings.UmbracoMigrationName)]
     public class RefactorXmlColumns : MigrationBase
     {
         public override void Up()
