@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Threading;
-using Umbraco.Core.Auditing;
 using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
@@ -17,8 +15,6 @@ namespace Umbraco.Core.Services
     public class MemberTypeService : ContentTypeServiceBase, IMemberTypeService
     {
         private readonly IMemberService _memberService;
-
-        private static readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim();
 
         [Obsolete("Use the constructors that specify all dependencies instead")]
         public MemberTypeService(IMemberService memberService)

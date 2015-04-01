@@ -28,30 +28,34 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    /// <param name="xmlNode">The Xml node.</param>
 	    /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
 	    /// <param name="cacheProvider">A cache provider.</param>
-	    public XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider)
+        /// <param name="contentTypeCache">A content type cache.</param>
+        public XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider, PublishedContentTypeCache contentTypeCache)
 		{
 			_xmlNode = xmlNode;
 		    _isPreviewing = isPreviewing;
 		    _cacheProvider = cacheProvider;
+            _contentTypeCache = contentTypeCache;
 			InitializeStructure();
 			Initialize();
             InitializeChildren();
 		}
 
-        /// <summary>
-        /// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node,
-        /// and a value indicating whether to lazy-initialize the instance.
-        /// </summary>
-        /// <param name="xmlNode">The Xml node.</param>
-        /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
-        /// <param name="cacheProvider">A cache provider.</param>
-        /// <param name="lazyInitialize">A value indicating whether to lazy-initialize the instance.</param>
-        /// <remarks>Lazy-initializationg is NOT thread-safe.</remarks>
-        internal XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider, bool lazyInitialize)
+	    /// <summary>
+	    /// Initializes a new instance of the <c>XmlPublishedContent</c> class with an Xml node,
+	    /// and a value indicating whether to lazy-initialize the instance.
+	    /// </summary>
+	    /// <param name="xmlNode">The Xml node.</param>
+	    /// <param name="isPreviewing">A value indicating whether the published content is being previewed.</param>
+	    /// <param name="cacheProvider">A cache provider.</param>
+	    /// <param name="contentTypeCache">A content type cache.</param>
+	    /// <param name="lazyInitialize">A value indicating whether to lazy-initialize the instance.</param>
+	    /// <remarks>Lazy-initializationg is NOT thread-safe.</remarks>
+	    internal XmlPublishedContent(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider, PublishedContentTypeCache contentTypeCache, bool lazyInitialize)
 		{
 			_xmlNode = xmlNode;
             _isPreviewing = isPreviewing;
             _cacheProvider = cacheProvider;
+	        _contentTypeCache = contentTypeCache;
             InitializeStructure();
             if (lazyInitialize == false)
             {
@@ -62,6 +66,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private readonly XmlNode _xmlNode;
 	    private readonly ICacheProvider _cacheProvider;
+	    private readonly PublishedContentTypeCache _contentTypeCache;
         
         private bool _initialized;
 	    private bool _childrenInitialized;
@@ -334,7 +339,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (parent == null) return;
 
 		    if (parent.Name == "node" || (parent.Attributes != null && parent.Attributes.GetNamedItem("isDoc") != null))
-		        _parent = (new XmlPublishedContent(parent, _isPreviewing, _cacheProvider, true)).CreateModel();
+		        _parent = (new XmlPublishedContent(parent, _isPreviewing, _cacheProvider, _contentTypeCache, true)).CreateModel();
 		}
 
 		private void Initialize()
@@ -400,7 +405,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var dataXPath = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? "data" : "* [not(@isDoc)]";
 		    var nodes = _xmlNode.SelectNodes(dataXPath);
 
-		    _contentType = PublishedContentType.Get(PublishedItemType.Content, _docTypeAlias);
+            _contentType = _contentTypeCache.Get(PublishedItemType.Content, _docTypeAlias);
 
 		    var propertyNodes = new Dictionary<string, XmlNode>();
             if (nodes != null)
@@ -436,7 +441,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var iterator = nav.Select(expr);
             while (iterator.MoveNext())
 		        _children.Add(
-                    (new XmlPublishedContent(((IHasXmlNode)iterator.Current).GetNode(), _isPreviewing, _cacheProvider, true)).CreateModel());
+                    (new XmlPublishedContent(((IHasXmlNode)iterator.Current).GetNode(), _isPreviewing, _cacheProvider, _contentTypeCache, true)).CreateModel());
             
             // warn: this is not thread-safe
             _childrenInitialized = true;

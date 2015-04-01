@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Xml.XPath;
+using Umbraco.Core;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Services;
 using Umbraco.Core.Xml;
@@ -13,11 +14,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData
     {
         private readonly IMediaService _mediaService;
+        private readonly IContentTypeService _contentTypeService;
 
-        public PublishedMediaCache(bool preview, IMediaService mediaService)
+        public PublishedMediaCache(bool preview, IMediaService mediaService, IContentTypeService contentTypeService)
             : base(preview)
         {
             _mediaService = mediaService;
+            _contentTypeService = contentTypeService;
         }
 
         public override IPublishedContent GetById(bool preview, int contentId)
@@ -108,5 +111,21 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             return GetAtRoot(preview).Any();
         }
+
+        #region Content types
+
+        public override PublishedContentType GetContentType(int id)
+        {
+            var contentType = _contentTypeService.GetMediaType(id);
+            return contentType == null ? null : new PublishedContentType(contentType);
+        }
+
+        public override PublishedContentType GetContentType(string alias)
+        {
+            var contentType = _contentTypeService.GetMediaType(alias);
+            return contentType == null ? null : new PublishedContentType(contentType);
+        }
+
+        #endregion
     }
 }

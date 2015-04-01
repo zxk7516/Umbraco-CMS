@@ -1319,6 +1319,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
+        // FIXME in order to be consistent we should have a NotifyChanges(ContentTypeCacheRefresher.JsonPayload[] payloads)
+
         private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
         {
             IContentType contentType;

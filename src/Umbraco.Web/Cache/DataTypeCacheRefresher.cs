@@ -139,7 +139,8 @@ namespace Umbraco.Web.Cache
                 ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(
                     string.Format("{0}{1}", CacheKeys.DataTypePreValuesCacheKey, payload.Id));
 
-                PublishedContentType.ClearDataType(payload.Id);
+                //FIXME - notify the PublishedCachesService!!
+                //PublishedContentType.ClearDataType(payload.Id);
             });
 
             base.Refresh(jsonPayload);

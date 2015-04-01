@@ -174,13 +174,15 @@ namespace Umbraco.Web.Cache
             foreach (var contentType in impactedRefreshed)
             {
                 ClearLegacyCaches(contentType.Id, contentType.Alias, contentType.PropertyTypes.Select(x => x.Id));
-                PublishedContentType.ClearContentType(contentType.Id);
+                //FIXME - notify the PublishedCachesService!!
+                //PublishedContentType.ClearContentType(contentType.Id);
             }
 
             foreach (var payload in payloads.Where(x => x.Removed))
             {
                 ClearLegacyCaches(payload.Id, payload.Alias, payload.PropertyTypeIds);
-                PublishedContentType.ClearContentType(payload.Id);
+                //FIXME - notify the PublishedCachesService!!
+                //PublishedContentType.ClearContentType(payload.Id);
             }
 
             // do it in THIS order: we want to trigger content type events BEFORE managing content

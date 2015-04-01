@@ -1,17 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Web.Security;
 using Umbraco.Core;
 using Umbraco.Core.Dynamics;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.PropertyEditors;
-using Umbraco.Core.Services;
 using Umbraco.Web.Models;
 
 namespace Umbraco.Web.PublishedCache
@@ -21,78 +15,86 @@ namespace Umbraco.Web.PublishedCache
     /// </summary>
     internal sealed class PublishedMember : PublishedContentBase
     {
-
         private readonly IMember _member;
         private readonly IMembershipUser _membershipUser;
         private readonly IPublishedProperty[] _properties;
         private readonly PublishedContentType _publishedMemberType;
 
-        public PublishedMember(IMember member)
+        public PublishedMember(IMember member, PublishedContentType publishedMemberType)
         {
             if (member == null) throw new ArgumentNullException("member");            
+            if (publishedMemberType == null) throw new ArgumentNullException("publishedMemberType");
 
             _member = member;
             _membershipUser = member;
-            _publishedMemberType = PublishedContentType.Get(PublishedItemType.Member, _member.ContentTypeAlias);
-            if (_publishedMemberType == null)
-            {
-                throw new InvalidOperationException("Could not get member type with alias " + _member.ContentTypeAlias);
-            }
+            _publishedMemberType = publishedMemberType;
 
             _properties = PublishedProperty.MapProperties(_publishedMemberType.PropertyTypes, _member.Properties,
                 (t, v) => new RawValueProperty(t, v ?? string.Empty))
                 .ToArray();
         }
 
-
         #region Membership provider member properties
+
         public string Email
         {
             get { return _membershipUser.Email; }
         }
+
         public string UserName
         {
             get { return _membershipUser.Username; }
         }
+
         public string PasswordQuestion
         {
             get { return _membershipUser.PasswordQuestion; }
         }
+
         public string Comments
         {
             get { return _membershipUser.Comments; }
         }
+
         public bool IsApproved
         {
             get { return _membershipUser.IsApproved; }
         }
+
         public bool IsLockedOut
         {
             get { return _membershipUser.IsLockedOut; }
         }
+
         public DateTime LastLockoutDate
         {
             get { return _membershipUser.LastLockoutDate; }
         }
+
         public DateTime CreationDate
         {
             get { return _membershipUser.CreateDate; }
         }
+
         public DateTime LastLoginDate
         {
             get { return _membershipUser.LastLoginDate; }
         }
+
         public DateTime LastActivityDate
         {
             get { return _membershipUser.LastLoginDate; }
         }
+
         public DateTime LastPasswordChangedDate
         {
             get { return _membershipUser.LastPasswordChangeDate; }
         } 
+
         #endregion
 
         #region IPublishedContent
+
         public override PublishedItemType ItemType
         {
             get { return PublishedItemType.Member; }
@@ -224,6 +226,7 @@ namespace Umbraco.Web.PublishedCache
         {
             get { return _member.Level; }
         } 
+
         #endregion
     }
 }

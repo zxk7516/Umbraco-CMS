@@ -131,6 +131,16 @@ namespace Umbraco.Tests.PublishedContent
         {
             throw new NotImplementedException();
         }
+
+        public override PublishedContentType GetContentType(int id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override PublishedContentType GetContentType(string alias)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     class SolidPublishedContent : IPublishedContent

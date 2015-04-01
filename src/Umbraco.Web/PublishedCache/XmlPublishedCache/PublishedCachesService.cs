@@ -12,21 +12,34 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     {
         private readonly XmlStore _xmlStore;
         private readonly RoutesCache _routesCache;
+        private readonly PublishedContentTypeCache _contentTypeCache;
         private readonly IDomainService _domainService;
         private readonly IMemberService _memberService;
         private readonly IMediaService _mediaService;
         private readonly ICacheProvider _requestCache;
 
+        // FIXME must cleanup those constructors?!
+
         public PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
-            : this(serviceContext, databaseContext, requestCache, false, true)
+            : this(serviceContext, databaseContext, requestCache, new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MemberTypeService), false, true)
+        { }
+
+        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext,
+            ICacheProvider requestCache,
+            bool testing, bool enableRepositoryEvents)
+            : this(serviceContext, databaseContext, requestCache, new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MemberTypeService), testing, enableRepositoryEvents)
         { }
 
         // for testing
         internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
+            PublishedContentTypeCache contentTypeCache,
             bool testing, bool enableRepositoryEvents)
         {
             _routesCache = new RoutesCache();
+            _contentTypeCache = contentTypeCache;
+
             _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, testing, enableRepositoryEvents);
+
             _domainService = serviceContext.DomainService;
             _memberService = serviceContext.MemberService;
             _mediaService = serviceContext.MediaService;
@@ -41,9 +54,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // probably) so better use RequestCache.
 
             return new PublishedCaches(
-                new PublishedContentCache(_xmlStore, _domainService, _requestCache, _routesCache, previewToken),
-                new PublishedMediaCache(_xmlStore, _mediaService, _requestCache), // fixme inject
-                new PublishedMemberCache(_xmlStore, _requestCache, _memberService));
+                new PublishedContentCache(_xmlStore, _domainService, _requestCache, _contentTypeCache, _routesCache, previewToken),
+                new PublishedMediaCache(_xmlStore, _mediaService, _requestCache, _contentTypeCache),
+                new PublishedMemberCache(_xmlStore, _requestCache, _memberService, _contentTypeCache));
         }
 
         public override void Dispose()

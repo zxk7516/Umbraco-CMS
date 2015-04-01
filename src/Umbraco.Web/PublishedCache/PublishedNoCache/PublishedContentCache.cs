@@ -21,12 +21,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     {
         private readonly IContentService _contentService;
         private readonly IDomainService _domainService;
+        private readonly IContentTypeService _contentTypeService;
 
-        public PublishedContentCache(string previewToken, IDomainService domainService, IContentService contentService)
+        public PublishedContentCache(string previewToken, IDomainService domainService, IContentService contentService, IContentTypeService contentTypeService)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _domainService = domainService;
             _contentService = contentService;
+            _contentTypeService = contentTypeService;
         }
 
         #region Routes
@@ -286,6 +288,22 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             if (propertyType.IsDetachedOrNested == false)
                 throw new ArgumentException("Property type is neither detached nor nested.", "propertyType");
             return new PublishedProperty(propertyType, value, isPreviewing);
+        }
+
+        #endregion
+
+        #region Content types
+
+        public override PublishedContentType GetContentType(int id)
+        {
+            var contentType = _contentTypeService.GetContentType(id);
+            return contentType == null ? null : new PublishedContentType(contentType);
+        }
+
+        public override PublishedContentType GetContentType(string alias)
+        {
+            var contentType = _contentTypeService.GetContentType(alias);
+            return contentType == null ? null : new PublishedContentType(contentType);
         }
 
         #endregion

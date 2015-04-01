@@ -1,15 +1,12 @@
 using NUnit.Framework;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Tests.PublishedContent;
-using Umbraco.Web.PublishedCache;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Tests.TestHelpers
 {
     [TestFixture, RequiresSTA]
     public abstract class BaseWebTest : BaseDatabaseFactoryTest
     {
-
         [SetUp]
         public override void Initialize()
         {
@@ -17,8 +14,8 @@ namespace Umbraco.Tests.TestHelpers
 
             // need to specify a custom callback for unit tests
             // AutoPublishedContentTypes generates properties automatically
-            var type = new AutoPublishedContentType(0, "anything", new PublishedPropertyType[] {});
-            PublishedContentType.GetPublishedContentTypeCallback = (alias) => type;
+            var type = new AutoPublishedContentType(0, "anything", new PublishedPropertyType[] { });
+            ContentTypesCache.GetPublishedContentTypeByAlias = (alias) => type;
         }
         
         [TearDown]

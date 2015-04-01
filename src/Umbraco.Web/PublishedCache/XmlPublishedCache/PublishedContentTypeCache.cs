@@ -1,0 +1,172 @@
+﻿using System;
+using System.Linq;
+using System.Collections.Generic;
+using Umbraco.Core;
+using Umbraco.Core.Models;
+using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.Services;
+
+namespace Umbraco.Web.PublishedCache.XmlPublishedCache
+{
+    // FIXME
+    // this should replace the global, static PublishedContentType.Get method
+    // so that each cache can implement its own way of caching PublishedContentType
+    // in order to maintain consistency wrt content
+
+    // TODO: support PublishedItemType and have 1 content type cache
+
+    public class PublishedContentTypeCache
+    {
+        private readonly Dictionary<string, PublishedContentType> _typesByAlias = new Dictionary<string,PublishedContentType>();
+        private readonly Dictionary<int, PublishedContentType> _typesById = new Dictionary<int, PublishedContentType>();
+        private readonly IContentTypeService _contentTypeService;
+        private readonly IMemberTypeService _memberTypeService;
+
+        internal PublishedContentTypeCache(IContentTypeService contentTypeService, IMemberTypeService memberTypeService)
+        {
+            _contentTypeService = contentTypeService;
+            _memberTypeService = memberTypeService;
+        }
+
+        // for unit tests ONLY
+        internal PublishedContentTypeCache()
+        { }
+
+        public void ClearAll()
+        {
+            Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear all.");
+
+            _typesByAlias.Clear();
+            _typesById.Clear();
+        }
+
+        public void ClearContentType(int id)
+        {
+            Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear content type w/id {0}.", () => id);
+
+            PublishedContentType type;
+            if (_typesById.TryGetValue(id, out type) == false)
+                return;
+
+            _typesByAlias.Remove(type.Alias);
+            _typesById.Remove(id);
+        }
+
+        public void ClearDataType(int id)
+        {
+            Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear data type w/id {0}.", () => id);
+
+            // there is no recursion to handle here because a PublishedContentType contains *all* its
+            // properties ie both its own properties and those that were inherited (it's based upon an
+            // IContentTypeComposition) and so every PublishedContentType having a property based upon
+            // the cleared data type, be it local or inherited, will be cleared.
+
+            var toRemove = _typesById.Values.Where(x => x.PropertyTypes.Any(xx => xx.DataTypeId == id)).ToArray();
+            foreach (var type in toRemove)
+            {
+                _typesByAlias.Remove(type.Alias);
+                _typesById.Remove(type.Id);
+            }
+        }
+
+        public PublishedContentType Get(PublishedItemType itemType, string alias)
+        {
+            PublishedContentType type;
+            if (_typesByAlias.TryGetValue(alias, out type))
+                return type;
+            type = CreatePublishedContentType(PublishedItemType.Content, alias);
+            return _typesByAlias[type.Alias] = _typesById[type.Id] = type;
+        }
+
+        public PublishedContentType Get(PublishedItemType itemType, int id)
+        {
+            PublishedContentType type;
+            if (_typesById.TryGetValue(id, out type))
+                return type;
+            type = CreatePublishedContentType(itemType, id);
+            return _typesByAlias[type.Alias] = _typesById[type.Id] = type;
+        }
+
+        private PublishedContentType CreatePublishedContentType(PublishedItemType itemType, string alias)
+        {
+            if (GetPublishedContentTypeByAlias != null)
+                return GetPublishedContentTypeByAlias(alias);
+
+            IContentTypeComposition contentType;
+            switch (itemType)
+            {
+                case PublishedItemType.Content:
+                    contentType = _contentTypeService.GetContentType(alias);
+                    break;
+                case PublishedItemType.Media:
+                    contentType = _contentTypeService.GetMediaType(alias);
+                    break;
+                case PublishedItemType.Member:
+                    contentType = _memberTypeService.Get(alias);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("itemType");
+            }
+
+            if (contentType == null)
+                throw new Exception(string.Format("ContentTypeService failed to find a {0} type with alias \"{1}\".",
+                    itemType.ToString().ToLower(), alias));
+
+            return new PublishedContentType(contentType);
+        }
+
+        private PublishedContentType CreatePublishedContentType(PublishedItemType itemType, int id)
+        {
+            if (GetPublishedContentTypeById != null)
+                return GetPublishedContentTypeById(id);
+
+            IContentTypeComposition contentType;
+            switch (itemType)
+            {
+                case PublishedItemType.Content:
+                    contentType = _contentTypeService.GetContentType(id);
+                    break;
+                case PublishedItemType.Media:
+                    contentType = _contentTypeService.GetMediaType(id);
+                    break;
+                case PublishedItemType.Member:
+                    contentType = _memberTypeService.Get(id);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("itemType");
+            }
+
+            if (contentType == null)
+                throw new Exception(string.Format("ContentTypeService failed to find a {0} type with id {1}.",
+                    itemType.ToString().ToLower(), id));
+
+            return new PublishedContentType(contentType);
+        }
+
+        // for unit tests - changing the callback must reset the cache obviously
+        private Func<string, PublishedContentType> _getPublishedContentTypeByAlias;
+        internal Func<string, PublishedContentType> GetPublishedContentTypeByAlias
+        {
+            get { return _getPublishedContentTypeByAlias; }
+            set
+            {
+                _typesByAlias.Clear();
+                _typesById.Clear();
+                _getPublishedContentTypeByAlias = value;
+            }
+        }
+
+        // for unit tests - changing the callback must reset the cache obviously
+        private Func<int, PublishedContentType> _getPublishedContentTypeById;
+        internal Func<int, PublishedContentType> GetPublishedContentTypeById
+        {
+            get { return _getPublishedContentTypeById; }
+            set
+            {
+                _typesByAlias.Clear();
+                _typesById.Clear();
+                _getPublishedContentTypeById = value;
+            }
+        }
+    }
+}

@@ -83,9 +83,9 @@ namespace Umbraco.Tests.CodeFirst
                     new PublishedPropertyType("pageTitle", 0, "?"), 
                 };
             var type = new AutoPublishedContentType(0, "anything", propertyTypes);
-            PublishedContentType.GetPublishedContentTypeCallback = (alias) => type;
+            ContentTypesCache.GetPublishedContentTypeByAlias = (alias) => type;
             Console.WriteLine("INIT STRONG {0}",
-                PublishedContentType.Get(PublishedItemType.Content, "anything")
+                ContentTypesCache.Get(PublishedItemType.Content, "anything")
                     .PropertyTypes.Count());
         }
 

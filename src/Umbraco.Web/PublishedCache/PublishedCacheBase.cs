@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Xml.XPath;
+using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
 using Umbraco.Core.Models;
 
@@ -79,5 +80,9 @@ namespace Umbraco.Web.PublishedCache
         {
             return HasContent(CurrentPreview);
         }
+
+        public abstract PublishedContentType GetContentType(int id);
+
+        public abstract PublishedContentType GetContentType(string alias);
     }
 }

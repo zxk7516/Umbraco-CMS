@@ -51,7 +51,7 @@ namespace Umbraco.Tests.PublishedContent
                     new PublishedPropertyType("testRecursive", 0, "?"), 
                 };
             var type = new AutoPublishedContentType(0, "anything", propertyTypes);
-            PublishedContentType.GetPublishedContentTypeCallback = (alias) => type;
+            ContentTypesCache.GetPublishedContentTypeByAlias = (alias) => type;
         }
 
         public override void TearDown()
@@ -647,7 +647,7 @@ namespace Umbraco.Tests.PublishedContent
 	    public void CreateDetachedContentSample()
 	    {
             bool previewing = false;
-            var t = PublishedContentType.Get(PublishedItemType.Content, "detachedSomething");
+            var t = ContentTypesCache.Get(PublishedItemType.Content, "detachedSomething");
             var values = new Dictionary<string, object>();
             var properties = t.PropertyTypes.Select(x =>
             {

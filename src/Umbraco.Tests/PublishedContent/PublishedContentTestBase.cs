@@ -30,7 +30,7 @@ namespace Umbraco.Tests.PublishedContent
                     new PublishedPropertyType("content", 0, Constants.PropertyEditors.TinyMCEAlias), 
                 };
             var type = new AutoPublishedContentType(0, "anything", propertyTypes);
-            PublishedContentType.GetPublishedContentTypeCallback = (alias) => type;
+            ContentTypesCache.GetPublishedContentTypeByAlias = (alias) => type;
 
             var rCtx = GetRoutingContext("/test", 1234);
             UmbracoContext.Current = rCtx.UmbracoContext;

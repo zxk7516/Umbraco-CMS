@@ -43,9 +43,9 @@ namespace Umbraco.Tests
                     new PublishedPropertyType("content", 0, "?"), 
                 };
             var type = new AutoPublishedContentType(0, "anything", propertyTypes);
-            PublishedContentType.GetPublishedContentTypeCallback = (alias) => type;
+            ContentTypesCache.GetPublishedContentTypeByAlias = (alias) => type;
             Console.WriteLine("INIT LIB {0}",
-                PublishedContentType.Get(PublishedItemType.Content, "anything")
+                ContentTypesCache.Get(PublishedItemType.Content, "anything")
                     .PropertyTypes.Count());
             
             var routingContext = GetRoutingContext("/test", 1234);

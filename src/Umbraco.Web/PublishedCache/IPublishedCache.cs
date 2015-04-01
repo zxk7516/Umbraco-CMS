@@ -5,6 +5,7 @@ using System.Text;
 using System.Xml.XPath;
 using Umbraco.Core.CodeAnnotations;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
 
 namespace Umbraco.Web.PublishedCache
@@ -197,5 +198,20 @@ namespace Umbraco.Web.PublishedCache
 	    // have to also use Examine as much as we can so we don't have to make db calls for looking up things like the 
 	    // node type alias, etc... in order to populate the created IPublishedContent object.
 	    //IEnumerable<IPublishedContent> GetDocumentsByType(string docTypeAlias);
+
+        /// <summary>
+        /// Gets a content type identified by its unique identifier.
+        /// </summary>
+        /// <param name="id">The content type unique identifier.</param>
+        /// <returns>The content type, or null.</returns>
+        PublishedContentType GetContentType(int id);
+
+        /// <summary>
+        /// Gets a content type identified by its alias.
+        /// </summary>
+        /// <param name="alias">The content type alias.</param>
+        /// <returns>The content type, or null.</returns>
+        /// <remarks>The alias is case-insensitive.</remarks>
+        PublishedContentType GetContentType(string alias);
     }
 }

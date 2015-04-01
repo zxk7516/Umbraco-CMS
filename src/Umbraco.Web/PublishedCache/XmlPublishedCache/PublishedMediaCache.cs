@@ -32,23 +32,25 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	/// </remarks>
     internal class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache
 	{
-	    public PublishedMediaCache(XmlStore xmlStore, IMediaService mediaService, ICacheProvider cacheProvider)
+	    public PublishedMediaCache(XmlStore xmlStore, IMediaService mediaService, ICacheProvider cacheProvider, PublishedContentTypeCache contentTypeCache)
 	        : base(false)
 		{
             if (mediaService == null) throw new ArgumentNullException("mediaService");
 	        _mediaService = mediaService;
 	        _cacheProvider = cacheProvider;
 	        _xmlStore = xmlStore;
+	        _contentTypeCache = contentTypeCache;
 		}
 
 	    /// <summary>
 	    /// Generally used for unit testing to use an explicit examine searcher
 	    /// </summary>
-        /// <param name="mediaService"></param>
+	    /// <param name="mediaService"></param>
 	    /// <param name="searchProvider"></param>
 	    /// <param name="indexProvider"></param>
 	    /// <param name="cacheProvider"></param>
-	    internal PublishedMediaCache(IMediaService mediaService, BaseSearchProvider searchProvider, BaseIndexProvider indexProvider, ICacheProvider cacheProvider)
+	    /// <param name="contentTypeCache"></param>
+	    internal PublishedMediaCache(IMediaService mediaService, BaseSearchProvider searchProvider, BaseIndexProvider indexProvider, ICacheProvider cacheProvider, PublishedContentTypeCache contentTypeCache)
             : base(false)
 	    {
             if (mediaService == null) throw new ArgumentNullException("mediaService");
@@ -59,7 +61,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	        _searchProvider = searchProvider;
 		    _indexProvider = indexProvider;
 	        _cacheProvider = cacheProvider;
-	    }
+            _contentTypeCache = contentTypeCache;
+        }
 
         private readonly IMediaService _mediaService;
         
@@ -70,6 +73,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    private readonly BaseSearchProvider _searchProvider;
         private readonly BaseIndexProvider _indexProvider;
         private readonly XmlStore _xmlStore;
+        private readonly PublishedContentTypeCache _contentTypeCache;
 
         // must be specified by the ctor
 	    private readonly ICacheProvider _cacheProvider;
@@ -329,6 +333,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			                                      d => GetChildrenMedia(d.Id),
 			                                      GetProperty,
                                                   _cacheProvider,
+                                                  _contentTypeCache,
 			                                      true);
 		    return content.CreateModel();
 		}
@@ -389,6 +394,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				d => GetChildrenMedia(d.Id, xpath),
 				GetProperty,
                 _cacheProvider,
+                _contentTypeCache,
 				false);
 		    return content.CreateModel();
 		}
@@ -548,6 +554,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				Func<DictionaryPublishedContent, IEnumerable<IPublishedContent>> getChildren,
 				Func<DictionaryPublishedContent, string, IPublishedProperty> getProperty,
                 ICacheProvider cacheProvider,
+                PublishedContentTypeCache contentTypeCache,
 				bool fromExamine)
 			{
 				if (valueDictionary == null) throw new ArgumentNullException("valueDictionary");
@@ -586,7 +593,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 						}						
 					}, "parentID");
 
-			    _contentType = PublishedContentType.Get(PublishedItemType.Media, _documentTypeAlias);
+			    _contentType = contentTypeCache.Get(PublishedItemType.Media, _documentTypeAlias);
 				_properties = new Collection<IPublishedProperty>();
 
                 //handle content type properties
@@ -826,5 +833,19 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             //_cacheProvider.ClearCacheObjectTypes<IPublishedProperty>();
             //_cacheProvider.ClearCacheByKeySearch("XmlPublishedCache.PublishedMediaCache:RecursiveProperty-");
         }
+
+        #region Content types
+
+        public override PublishedContentType GetContentType(int id)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Media, id);
+        }
+
+        public override PublishedContentType GetContentType(string alias)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Media, alias);
+        }
+
+        #endregion
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml.XPath;
+using ClientDependency.Core;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
@@ -19,6 +20,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     {
         private readonly IDataTypeService _dataTypeService;
         private readonly IMemberService _memberService;
+        private readonly IMemberTypeService _memberTypeService;
 
         public PublishedMemberCache(IDataTypeService dataTypeService, IMemberService memberService)
         {
@@ -35,7 +37,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
 
             var result = _memberService.GetByProviderKey(key);
-            return result == null ? null : new PublishedMember(result).CreateModel();
+            if (result == null) return null;
+            var type = new PublishedContentType(_memberTypeService.Get(result.Id));
+            return new PublishedMember(result, type).CreateModel();
         }
 
         public IPublishedContent GetById(bool preview, int memberId)
@@ -52,7 +56,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
 
             var result = _memberService.GetById(memberId);
-            return result == null ? null : new PublishedMember(result).CreateModel();
+            if (result == null) return null;
+            var type = new PublishedContentType(_memberTypeService.Get(result.Id));
+            return new PublishedMember(result, type).CreateModel();
         }
 
         public IPublishedContent GetByUsername(string username)
@@ -64,7 +70,9 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
 
             var result = _memberService.GetByUsername(username);
-            return result == null ? null : new PublishedMember(result).CreateModel();
+            if (result == null) return null;
+            var type = new PublishedContentType(_memberTypeService.Get(result.Id));
+            return new PublishedMember(result, type).CreateModel();
         }
 
         public IPublishedContent GetByEmail(string email)
@@ -76,19 +84,27 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             }
 
             var result = _memberService.GetByEmail(email);
-            return result == null ? null : new PublishedMember(result).CreateModel();
+            if (result == null) return null;
+            var type = new PublishedContentType(_memberTypeService.Get(result.Id));
+            return new PublishedMember(result, type).CreateModel();
         }
 
         public IPublishedContent GetByMember(IMember member)
         {
-            return new PublishedMember(member).CreateModel();
+            var type = new PublishedContentType(_memberTypeService.Get(member.ContentTypeId));
+            return new PublishedMember(member, type).CreateModel();
         }
 
         public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
             // because members are flat (not a tree) everything is at root
-            var members = _memberService.GetAllMembers();            
-            return members.Select(m => (new PublishedMember(m)).CreateModel());
+            var members = _memberService.GetAllMembers().ToArray();
+            var types = members
+                .Select(x => x.ContentTypeId)
+                .Distinct()
+                .Select(x => new PublishedContentType(_memberTypeService.Get(x)))
+                .ToDictionary(x => x.Id);
+            return members.Select(m => (new PublishedMember(m, types[m.ContentTypeId])).CreateModel());
         }
 
         public XPathNavigator CreateNavigator()

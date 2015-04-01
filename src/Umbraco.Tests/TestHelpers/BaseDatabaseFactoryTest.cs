@@ -25,6 +25,7 @@ using Umbraco.Core.Profiling;
 using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
+using Umbraco.Tests.PublishedContent;
 using Umbraco.Web;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
@@ -41,6 +42,8 @@ namespace Umbraco.Tests.TestHelpers
     [TestFixture, RequiresSTA]
     public abstract class BaseDatabaseFactoryTest : BaseUmbracoApplicationTest
     {
+        protected PublishedContentTypeCache ContentTypesCache;
+
         //This is used to indicate that this is the first test to run in the test session, if so, we always
         //ensure a new database file is used.
         private static volatile bool _firstRunInTestSession = true;
@@ -223,7 +226,9 @@ namespace Umbraco.Tests.TestHelpers
                 // however in production... will XmlStore try to read from DB before it even has
                 // been created... and then what happens?
 
-                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, true, enableRepositoryEvents);
+                ContentTypesCache = new PublishedContentTypeCache(ApplicationContext.Services.ContentTypeService, ApplicationContext.Services.MemberTypeService);
+
+                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, ContentTypesCache, true, enableRepositoryEvents);
 
                 // initialize PublishedCacheService content with an Xml source
                 service.XmlStore.GetXmlDocument = () => 

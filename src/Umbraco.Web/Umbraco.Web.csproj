@@ -331,6 +331,7 @@
     <Compile Include="Mvc\ReflectedFixedRazorViewEngine.cs" />
     <Compile Include="Scheduling\ThreadingTaskAwaiter.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
+    <Compile Include="PublishedCache\XmlPublishedCache\PublishedContentTypeCache.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PublishedMemberCache.cs" />
     <Compile Include="Scheduling\BackgroundTaskRunner.cs" />
     <Compile Include="BatchedDatabaseServerMessenger.cs" />

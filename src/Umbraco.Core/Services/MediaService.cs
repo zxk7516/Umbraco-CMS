@@ -22,11 +22,6 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class MediaService : RepositoryService, IMediaService
     {
-
-        //Support recursive locks because some of the methods that require locking call other methods that require locking. 
-        //for example, the Move method needs to be locked but this calls the Save method which also needs to be locked.
-        private static readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-
         #region Constructors
 
         [Obsolete("Use the constructors that specify all dependencies instead")]

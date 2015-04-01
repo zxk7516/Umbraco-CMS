@@ -24,11 +24,18 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // an ICacheProvider that should be at request-level
         // a RoutesCache - need to cleanup that one
         // a preview token string (or null if not previewing)
-        public PublishedContentCache(XmlStore xmlStore, IDomainService domainService, ICacheProvider cacheProvider, RoutesCache routesCache, string previewToken)
+        public PublishedContentCache(
+            XmlStore xmlStore, // an XmlStore containing the master xml
+            IDomainService domainService, // an IDomainService implementation
+            ICacheProvider cacheProvider, // an ICacheProvider that should be at request-level
+            PublishedContentTypeCache contentTypeCache, // a PublishedContentType cache
+            RoutesCache routesCache, // a RoutesCache - FIXME need to cleanup that one
+            string previewToken) // a preview token string (or null if not previewing)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
             _cacheProvider = cacheProvider;
             _routesCache = routesCache; // may be null for unit-testing
+            _contentTypeCache = contentTypeCache;
             _domainService = domainService;
 
             _xmlStore = xmlStore;
@@ -41,6 +48,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly ICacheProvider _cacheProvider;
         private readonly RoutesCache _routesCache;
         private readonly IDomainService _domainService;
+        private readonly PublishedContentTypeCache _contentTypeCache;
 
         // for unit tests
         internal RoutesCache RoutesCache { get { return _routesCache; } }
@@ -206,17 +214,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         #region Converters
 
-        private static IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider)
+        private IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider)
 		{
 		    return xmlNode == null 
                 ? null
-                : (new XmlPublishedContent(xmlNode, isPreviewing, cacheProvider)).CreateModel();
+                : (new XmlPublishedContent(xmlNode, isPreviewing, cacheProvider, _contentTypeCache)).CreateModel();
 		}
 
-        private static IEnumerable<IPublishedContent> ConvertToDocuments(XmlNodeList xmlNodes, bool isPreviewing, ICacheProvider cacheProvider)
+        private IEnumerable<IPublishedContent> ConvertToDocuments(XmlNodeList xmlNodes, bool isPreviewing, ICacheProvider cacheProvider)
         {
             return xmlNodes.Cast<XmlNode>()
-                .Select(xmlNode => (new XmlPublishedContent(xmlNode, isPreviewing, cacheProvider)).CreateModel());
+                .Select(xmlNode => (new XmlPublishedContent(xmlNode, isPreviewing, cacheProvider, _contentTypeCache)).CreateModel());
         }
 
         #endregion
@@ -465,6 +473,20 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (propertyType.IsDetachedOrNested == false)
                 throw new ArgumentException("Property type is neither detached nor nested.", "propertyType");
             return new XmlPublishedProperty(propertyType, isPreviewing, value.ToString());
+        }
+
+        #endregion
+
+        #region Content types
+
+        public override PublishedContentType GetContentType(int id)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Content, id);
+        }
+
+        public override PublishedContentType GetContentType(string alias)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Content, alias);
         }
 
         #endregion
