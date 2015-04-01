@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Umbraco.Core;
 using Umbraco.Core.Events;
 using Umbraco.Core.Models;
@@ -10,6 +11,7 @@ using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic;
 using System.Linq;
 using umbraco.cms.businesslogic.web;
+using Umbraco.Core.Publishing;
 using Content = Umbraco.Core.Models.Content;
 using ApplicationTree = Umbraco.Core.Models.ApplicationTree;
 using DeleteEventArgs = umbraco.cms.businesslogic.DeleteEventArgs;
