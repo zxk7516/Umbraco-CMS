@@ -13,32 +13,12 @@ using Umbraco.Core.Persistence.UnitOfWork;
 namespace Umbraco.Core.Services
 {
     /// <summary>
-    /// Represents the ContentType Service, which is an easy access to operations involving <see cref="IContentType"/>
+    /// Represents the ContentType Service, which is an easy access to operations involving <see cref="IContentType"/>.
     /// </summary>
     public class ContentTypeService : ContentTypeServiceBase, IContentTypeService
     {
 	    private readonly IContentService _contentService;
         private readonly IMediaService _mediaService;
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentTypeService(IContentService contentService, IMediaService mediaService)
-			: this(new PetaPocoUnitOfWorkProvider(LoggerResolver.Current.Logger), new RepositoryFactory(), contentService, mediaService)
-        {}
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentTypeService(RepositoryFactory repositoryFactory, IContentService contentService, IMediaService mediaService)
-            : this(new PetaPocoUnitOfWorkProvider(), repositoryFactory, contentService, mediaService)
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, IContentService contentService, IMediaService mediaService)
-            : base(provider, repositoryFactory, LoggerResolver.Current.Logger)
-        {
-            if (contentService == null) throw new ArgumentNullException("contentService");
-            if (mediaService == null) throw new ArgumentNullException("mediaService");
-	        _contentService = contentService;
-            _mediaService = mediaService;
-        }
 
         public ContentTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IContentService contentService, IMediaService mediaService)
             : base(provider, repositoryFactory, logger)
