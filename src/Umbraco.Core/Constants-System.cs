@@ -31,6 +31,8 @@
             public const int ContentTreeLock = -333;
 		    public const int MediaTreeLock = -334;
 		    public const int MemberTreeLock = -335;
+		    public const int MediaTypesLock = -336;
+            public const int MemberTypesLock = -337;
 		}
 	}
 }

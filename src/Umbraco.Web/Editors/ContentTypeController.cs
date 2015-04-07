@@ -68,7 +68,7 @@ namespace Umbraco.Web.Editors
             IEnumerable<IContentType> types;
             if (contentId == Constants.System.Root)
             {
-                types = Services.ContentTypeService.GetAllContentTypes().ToList();
+                types = Services.ContentTypeService.GetAll().ToList();
 
                 //if no allowed root types are set, just return everything
                 if(types.Any(x => x.AllowedAsRoot))
@@ -86,7 +86,7 @@ namespace Umbraco.Web.Editors
                 
                 if (ids.Any() == false) return Enumerable.Empty<ContentTypeBasic>();
 
-                types = Services.ContentTypeService.GetAllContentTypes(ids).ToList();
+                types = Services.ContentTypeService.GetAll(ids).ToList();
             }
 
             var basics = types.Select(Mapper.Map<IContentType, ContentTypeBasic>).ToList();

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Umbraco.Core.Events;
+using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Rdbms;
@@ -22,113 +23,55 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class MediaService : RepositoryService, IMediaService
     {
+        private IMediaTypeService _mediaTypeService;
+
         #region Constructors
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MediaService(RepositoryFactory repositoryFactory)
-            : this(new PetaPocoUnitOfWorkProvider(), repositoryFactory)
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MediaService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory)
-            : base(provider, repositoryFactory, LoggerResolver.Current.Logger)
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MediaService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, IDataTypeService dataTypeService, IUserService userService)
-            : this(provider, repositoryFactory, LoggerResolver.Current.Logger, dataTypeService, userService)
-        { }
 
         public MediaService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IDataTypeService dataTypeService, IUserService userService)
             : base(provider, repositoryFactory, logger)
         {
-            if (dataTypeService == null) throw new ArgumentNullException("dataTypeService");
-            if (userService == null) throw new ArgumentNullException("userService");
+            // though... these are not used?
+            Mandate.ParameterNotNull(dataTypeService, "dataTypeService");
+            Mandate.ParameterNotNull(userService, "userService");
+
+            _lrepo = new LockingRepository<MediaRepository>(UowProvider,
+                uow => RepositoryFactory.CreateMediaRepository(uow) as MediaRepository,
+                LockingRepositoryLockIds, LockingRepositoryLockIds);
+        }
+
+        internal IMediaTypeService MediaTypeService
+        {
+            get
+            {
+                if (_mediaTypeService == null)
+                    throw new InvalidOperationException("MediaService.MediaTypeService has not been initialized.");
+                return _mediaTypeService;
+            }
+            set { _mediaTypeService = value; }
         }
 
         #endregion
 
-        #region Lock Helper Methods
+        #region Locking
 
-        // provide a locked repository within a RepeatableRead Transaction and a UnitOfWork
-        // depending on autoCommit, the Transaction & UnitOfWork can be auto-commited (default)
-        //
-        // the locks are database locks, re-entrant (recursive), and are released when the
-        // transaction completes - it is possible to acquire a read lock while holding a write
-        // lock, and a write lock while holding a read lock, within the same transaction
-        //
-        // we might want to try and see how this can be factored for other repos?
+        // constant
+        private static readonly int[] LockingRepositoryLockIds = { Constants.System.MediaTreeLock };
+
+        private readonly LockingRepository<MediaRepository> _lrepo;
 
         private void WithReadLocked(Action<MediaRepository> action, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMediaRepository(uow))
-            {
-                var repository = irepository as MediaRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                action(repository);
-
-                if (autoCommit == false) return;
-
-                // commit the UnitOfWork... will get a transaction from the database
-                // and obtain the current one, which it will complete, which will do
-                // nothing because of transaction nesting, so it's only back here that
-                // the real complete will take place
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
+            _lrepo.WithReadLocked(xr => action(xr.Repository), autoCommit);
         }
 
-        internal T WithReadLocked<T>(Func<MediaRepository, T> func, bool autoCommit = true)
+        internal TResult WithReadLocked<TResult>(Func<MediaRepository, TResult> func, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMediaRepository(uow))
-            {
-                var repository = irepository as MediaRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
+            return _lrepo.WithReadLocked(xr => func(xr.Repository), autoCommit);
         }
 
         internal void WithWriteLocked(Action<MediaRepository> action, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMediaRepository(uow))
-            {
-                var repository = irepository as MediaRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                action(repository);
-                if (autoCommit == false) return;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
-        }
-
-        private T WithWriteLocked<T>(Func<MediaRepository, T> func, bool autoCommit = true)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMediaRepository(uow))
-            {
-                var repository = irepository as MediaRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
+            _lrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
         }
 
         #endregion
@@ -170,7 +113,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMedia(string name, int parentId, string mediaTypeAlias, int userId = 0)
         {
-            var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
+            var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parentId, mediaType);
             CreateMedia(media, null, parentId, false, userId, false);
             return media;
@@ -192,7 +135,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMedia(string name, IMedia parent, string mediaTypeAlias, int userId = 0)
         {
-            var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
+            var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parent, mediaType);
             CreateMedia(media, null, parent.Id, false, userId, false);
             return media;
@@ -213,7 +156,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMediaWithIdentity(string name, int parentId, string mediaTypeAlias, int userId = 0)
         {
-            var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
+            var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parentId, mediaType);
             CreateMedia(media, null, parentId, false, userId, true);
             return media;
@@ -234,7 +177,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMediaWithIdentity(string name, IMedia parent, string mediaTypeAlias, int userId = 0)
         {
-            var mediaType = FindMediaTypeByAlias(mediaTypeAlias);
+            var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parent, mediaType);
             CreateMedia(media, parent, parent.Id, true, userId, true);
             return media;
@@ -404,8 +347,7 @@ namespace Umbraco.Core.Services
         /// <param name="orderDirection">Direction to order by</param>
         /// <param name="filter">Search text filter</param>
         /// <returns>An Enumerable list of <see cref="IMedia"/> objects</returns>
-        public IEnumerable<IMedia> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren,
-            string orderBy, Direction orderDirection, string filter = "")
+        public IEnumerable<IMedia> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy, Direction orderDirection, string filter = "")
         {
             Mandate.ParameterCondition(pageIndex >= 0, "pageIndex");
             Mandate.ParameterCondition(pageSize > 0, "pageSize");
@@ -694,7 +636,8 @@ namespace Umbraco.Core.Services
                 repository.Delete(c);
                 var args = new DeleteEventArgs<IMedia>(c, false); // raise event & get flagged files
                 Deleted.RaiseEvent(args, this);
-                repository.DeleteFiles(args.MediaFilesToDelete); // remove flagged files
+                IOHelper.DeleteFiles(args.MediaFilesToDelete, // remove flagged files
+                    (file, e) => Logger.Error<MemberService>("An error occurred while deleting file attached to nodes: " + file, e));
             }
         }
 
@@ -990,24 +933,6 @@ namespace Umbraco.Core.Services
             }
         }
 
-        private IMediaType FindMediaTypeByAlias(string mediaTypeAlias)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (uow.Database.GetTransaction(IsolationLevel.RepeatableRead)) 
-            using (var repository = RepositoryFactory.CreateMediaTypeRepository(uow))
-            {
-                ((MediaTypeRepository) repository).AcquireReadLock();
-
-                var query = Query<IMediaType>.Builder.Where(x => x.Alias == mediaTypeAlias);
-                var mediaType = repository.GetByQuery(query).FirstOrDefault();
-                if (mediaType == null)
-                    throw new Exception(
-                        string.Format("No MediaType matching the passed in Alias: '{0}' was found", mediaTypeAlias));
-
-                return mediaType;
-            }
-        }
-
         #endregion
 
         #region Event Handlers
@@ -1150,6 +1075,14 @@ namespace Umbraco.Core.Services
             Audit(AuditType.Delete,
                 string.Format("Delete Media of Type {0} performed by user", mediaTypeId),
                 userId, Constants.System.Root);
+        }
+
+        private IMediaType GetMediaType(string mediaTypeAlias)
+        {
+            var mediaType = MediaTypeService.Get(mediaTypeAlias);
+            if (mediaType == null)
+                throw new Exception(string.Format("No MediaType matching alias: \"{0}\".", mediaTypeAlias));
+            return mediaType;
         }
 
         #endregion

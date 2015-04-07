@@ -51,7 +51,7 @@ namespace Umbraco.Web.Editors
 
             if (contentId == Core.Constants.System.Root)
             {
-                return Services.ContentTypeService.GetAllMediaTypes()
+                return Services.MediaTypeService.GetAll()
                     .Where(x => x.AllowedAsRoot)
                     .Select(Mapper.Map<IMediaType, ContentTypeBasic>);
             }
@@ -65,7 +65,7 @@ namespace Umbraco.Web.Editors
             var ids = contentItem.ContentType.AllowedContentTypes.Select(x => x.Id.Value).ToArray();
             if (ids.Any() == false) return Enumerable.Empty<ContentTypeBasic>();
 
-            return Services.ContentTypeService.GetAllMediaTypes(ids)
+            return Services.MediaTypeService.GetAll(ids)
                 .Select(Mapper.Map<IMediaType, ContentTypeBasic>);
         }
     }

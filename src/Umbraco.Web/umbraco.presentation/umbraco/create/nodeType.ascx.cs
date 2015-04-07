@@ -82,7 +82,7 @@ namespace umbraco.cms.presentation.create.controls
                 return false;
 
             // ensure no content with that alias exists
-            var existing = ApplicationContext.Current.Services.ContentTypeService.GetContentType(alias);
+            var existing = ApplicationContext.Current.Services.ContentTypeService.Get(alias);
             if (existing != null)
                 return false;
 

@@ -30,11 +30,15 @@ namespace Umbraco.Core.Models
         /// <returns>True if template was removed, otherwise False</returns>
         bool RemoveTemplate(ITemplate template);
 
+        // fixme -kill.kill.kill
+        /*
+
         /// <summary>
         /// Creates a deep clone of the current entity with its identity/alias and it's property identities reset
         /// </summary>
         /// <param name="newAlias"></param>
         /// <returns></returns>
         IContentType DeepCloneWithResetIdentities(string newAlias);
+         */
     }
 }

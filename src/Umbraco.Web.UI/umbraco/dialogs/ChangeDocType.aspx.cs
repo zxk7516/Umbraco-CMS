@@ -65,7 +65,7 @@ namespace Umbraco.Web.UI.Umbraco.Dialogs
         private bool PopulateListOfValidAlternateDocumentTypes()
         {
             // Start with all content types
-            var documentTypes = ApplicationContext.Current.Services.ContentTypeService.GetAllContentTypes();
+            var documentTypes = ApplicationContext.Current.Services.ContentTypeService.GetAll();
 
             // Remove invalid ones from list of potential alternatives
             documentTypes = RemoveCurrentDocumentTypeFromAlternatives(documentTypes);
@@ -188,7 +188,7 @@ namespace Umbraco.Web.UI.Umbraco.Dialogs
 
         private IContentType GetSelectedDocumentType()
         {
-            return ApplicationContext.Current.Services.ContentTypeService.GetContentType(int.Parse(NewDocumentTypeList.SelectedItem.Value));
+            return ApplicationContext.Current.Services.ContentTypeService.Get(int.Parse(NewDocumentTypeList.SelectedItem.Value));
         }
 
         private IEnumerable<PropertyType> GetPropertiesOfContentType(IContentType contentType)
@@ -196,7 +196,7 @@ namespace Umbraco.Web.UI.Umbraco.Dialogs
             var properties = contentType.PropertyTypes.ToList();
             while (contentType.ParentId > -1)
             {
-                contentType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(contentType.ParentId);
+                contentType = ApplicationContext.Current.Services.ContentTypeService.Get(contentType.ParentId);
                 properties.AddRange(contentType.PropertyTypes);
             }
 

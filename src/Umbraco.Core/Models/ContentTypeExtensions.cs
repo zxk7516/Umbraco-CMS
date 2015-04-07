@@ -16,7 +16,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<IContentTypeBase> Descendants(this IContentTypeBase contentType)
         {
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetContentTypeDescendants(contentType.Id, false); // fixme - cast
+            return ((ContentTypeService) contentTypeService).GetDescendants(contentType.Id, false); // fixme - cast
         }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<IContentTypeBase> DescendantsAndSelf(this IContentTypeBase contentType)
         {
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetContentTypeDescendants(contentType.Id, true); // fixme - cast
+            return ((ContentTypeService) contentTypeService).GetDescendants(contentType.Id, true); // fixme - cast
         }
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<IContentTypeBase> ComposedOf(this IContentTypeBase contentType)
         {
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetContentTypesComposedOf(contentType.Id); // fixme - cast
+            return ((ContentTypeService) contentTypeService).GetComposedOf(contentType.Id); // fixme - cast
         }
     }
 }

@@ -20,11 +20,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly Dictionary<string, PublishedContentType> _typesByAlias = new Dictionary<string,PublishedContentType>();
         private readonly Dictionary<int, PublishedContentType> _typesById = new Dictionary<int, PublishedContentType>();
         private readonly IContentTypeService _contentTypeService;
+        private readonly IMediaTypeService _mediaTypeService;
         private readonly IMemberTypeService _memberTypeService;
 
-        internal PublishedContentTypeCache(IContentTypeService contentTypeService, IMemberTypeService memberTypeService)
+        internal PublishedContentTypeCache(IContentTypeService contentTypeService, IMediaTypeService mediaTypeService, IMemberTypeService memberTypeService)
         {
             _contentTypeService = contentTypeService;
+            _mediaTypeService = mediaTypeService;
             _memberTypeService = memberTypeService;
         }
 
@@ -96,10 +98,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             switch (itemType)
             {
                 case PublishedItemType.Content:
-                    contentType = _contentTypeService.GetContentType(alias);
+                    contentType = _contentTypeService.Get(alias);
                     break;
                 case PublishedItemType.Media:
-                    contentType = _contentTypeService.GetMediaType(alias);
+                    contentType = _mediaTypeService.Get(alias);
                     break;
                 case PublishedItemType.Member:
                     contentType = _memberTypeService.Get(alias);
@@ -124,10 +126,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             switch (itemType)
             {
                 case PublishedItemType.Content:
-                    contentType = _contentTypeService.GetContentType(id);
+                    contentType = _contentTypeService.Get(id);
                     break;
                 case PublishedItemType.Media:
-                    contentType = _contentTypeService.GetMediaType(id);
+                    contentType = _mediaTypeService.Get(id);
                     break;
                 case PublishedItemType.Member:
                     contentType = _memberTypeService.Get(id);

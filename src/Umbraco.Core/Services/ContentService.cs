@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Events;
+using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
@@ -24,39 +25,59 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class ContentService : RepositoryService, IContentService
     {
+        private IContentTypeService _contentTypeService;
+
         #region Constructors
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentService()
-            : this(new RepositoryFactory(ApplicationContext.Current.ApplicationCache, LoggerResolver.Current.Logger, SqlSyntaxContext.SqlSyntaxProvider, UmbracoConfig.For.UmbracoSettings()))
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentService(RepositoryFactory repositoryFactory)
-            : this(new PetaPocoUnitOfWorkProvider(LoggerResolver.Current.Logger), repositoryFactory)
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentService(IDatabaseUnitOfWorkProvider provider)
-            : this(provider, new RepositoryFactory(ApplicationContext.Current.ApplicationCache, LoggerResolver.Current.Logger, SqlSyntaxContext.SqlSyntaxProvider, UmbracoConfig.For.UmbracoSettings()))
-        { }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public ContentService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory)
-            : base(provider, repositoryFactory, LoggerResolver.Current.Logger)
-        { }
 
         public ContentService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IDataTypeService dataTypeService, IUserService userService)
             : base(provider, repositoryFactory, logger)
         {
-            if (dataTypeService == null) throw new ArgumentNullException("dataTypeService");
-            if (userService == null) throw new ArgumentNullException("userService");
+            // though... these are not used?
+            Mandate.ParameterNotNull(dataTypeService, "dataTypeService");
+            Mandate.ParameterNotNull(userService, "userService");
+
+            _lrepo = new LockingRepository<ContentRepository>(UowProvider,
+                uow => RepositoryFactory.CreateContentRepository(uow) as ContentRepository,
+                LockingRepositoryLockIds, LockingRepositoryLockIds);
+        }
+
+        internal IContentTypeService ContentTypeService
+        {
+            get
+            {
+                if (_contentTypeService == null)
+                    throw new InvalidOperationException("ContentService.ContentTypeService has not been initialized.");
+                return _contentTypeService;
+            }
+            set { _contentTypeService = value; }
         }
 
         #endregion
 
-        #region Lock Helper Methods
+        #region Locking
 
+        // constant
+        private static readonly int[] LockingRepositoryLockIds = { Constants.System.ContentTreeLock };
+
+        private readonly LockingRepository<ContentRepository> _lrepo;
+
+        private void WithReadLocked(Action<ContentRepository> action, bool autoCommit = true)
+        {
+            _lrepo.WithReadLocked(xr => action(xr.Repository), autoCommit);
+        }
+
+        internal TResult WithReadLocked<TResult>(Func<ContentRepository, TResult> func, bool autoCommit = true)
+        {
+            return _lrepo.WithReadLocked(xr => func(xr.Repository), autoCommit);
+        }
+
+        internal void WithWriteLocked(Action<ContentRepository> action, bool autoCommit = true)
+        {
+            _lrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
+        }
+
+        // fixme - remove
+        /*
         // provide a locked repository within a RepeatableRead Transaction and a UnitOfWork
         // depending on autoCommit, the Transaction & UnitOfWork can be auto-commited (default)
         //
@@ -68,24 +89,26 @@ namespace Umbraco.Core.Services
 
         private void WithReadLocked(Action<ContentRepository> action, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateContentRepository(uow))
-            {
-                var repository = irepository as ContentRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                action(repository);
-                
-                if (autoCommit == false) return;
+            _lrepo.WithReadLocked(x => action(x.Repository), autoCommit);
 
-                // commit the UnitOfWork... will get a transaction from the database
-                // and obtain the current one, which it will complete, which will do
-                // nothing because of transaction nesting, so it's only back here that
-                // the real complete will take place
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
+            //var uow = UowProvider.GetUnitOfWork();
+            //using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
+            //using (var irepository = RepositoryFactory.CreateContentRepository(uow))
+            //{
+            //    var repository = irepository as ContentRepository;
+            //    if (repository == null) throw new Exception("oops");
+            //    repository.AcquireReadLock();
+            //    action(repository);
+                
+            //    if (autoCommit == false) return;
+
+            //    // commit the UnitOfWork... will get a transaction from the database
+            //    // and obtain the current one, which it will complete, which will do
+            //    // nothing because of transaction nesting, so it's only back here that
+            //    // the real complete will take place
+            //    repository.UnitOfWork.Commit();
+            //    transaction.Complete();
+            //}
         }
 
         internal T WithReadLocked<T>(Func<ContentRepository, T> func, bool autoCommit = true)
@@ -137,6 +160,7 @@ namespace Umbraco.Core.Services
                 return ret;
             }
         }
+        */
 
         #endregion
 
@@ -144,22 +168,22 @@ namespace Umbraco.Core.Services
 
         public int CountPublished(string contentTypeAlias = null)
         {
-            return WithReadLocked(repository => repository.CountPublished(/*contentTypeAlias*/)); // fixme?!
+            return _lrepo.WithReadLocked(xr => xr.Repository.CountPublished(/*contentTypeAlias*/)); // fixme?!
         }
 
         public int Count(string contentTypeAlias = null)
         {
-            return WithReadLocked(repository => repository.Count(contentTypeAlias));
+            return _lrepo.WithReadLocked(xr => xr.Repository.Count(contentTypeAlias));
         }
 
         public int CountChildren(int parentId, string contentTypeAlias = null)
         {
-            return WithReadLocked(repository => repository.CountChildren(parentId, contentTypeAlias));
+            return _lrepo.WithReadLocked(xr => xr.Repository.CountChildren(parentId, contentTypeAlias));
         }
 
         public int CountDescendants(int parentId, string contentTypeAlias = null)
         {
-            return WithReadLocked(repository => repository.CountDescendants(parentId, contentTypeAlias));
+            return _lrepo.WithReadLocked(xr => xr.Repository.CountDescendants(parentId, contentTypeAlias));
         }
 
         #endregion
@@ -173,7 +197,7 @@ namespace Umbraco.Core.Services
         /// <param name="permissionSet"></param>
         public void ReplaceContentPermissions(EntityPermissionSet permissionSet)
         {
-            WithWriteLocked(repository => repository.ReplaceContentPermissions(permissionSet));
+            _lrepo.WithWriteLocked(xr => xr.Repository.ReplaceContentPermissions(permissionSet));
         }
 
         /// <summary>
@@ -184,7 +208,7 @@ namespace Umbraco.Core.Services
         /// <param name="userIds"></param>
         public void AssignContentPermission(IContent entity, char permission, IEnumerable<int> userIds)
         {
-            WithWriteLocked(repository => repository.AssignEntityPermission(entity, permission, userIds));
+            _lrepo.WithWriteLocked(xr => xr.Repository.AssignEntityPermission(entity, permission, userIds));
         }
 
         /// <summary>
@@ -194,7 +218,7 @@ namespace Umbraco.Core.Services
         /// <returns></returns>
         public IEnumerable<EntityPermission> GetPermissionsForEntity(IContent content)
         {
-            return WithWriteLocked(repository => repository.GetPermissionsForEntity(content.Id));
+            return _lrepo.WithWriteLocked(xr => xr.Repository.GetPermissionsForEntity(content.Id));
         }
 
         #endregion
@@ -217,7 +241,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContent(string name, int parentId, string contentTypeAlias, int userId = 0)
         {
-            var contentType = FindContentTypeByAlias(contentTypeAlias);
+            var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parentId, contentType);
             CreateContent(content, null, parentId, false, userId, false);
             return content;
@@ -239,7 +263,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContent(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
-            var contentType = FindContentTypeByAlias(contentTypeAlias);
+            var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parent, contentType);
             CreateContent(content, parent, parent.Id, true, userId, false);
             return content;
@@ -260,7 +284,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContentWithIdentity(string name, int parentId, string contentTypeAlias, int userId = 0)
         {
-            var contentType = FindContentTypeByAlias(contentTypeAlias);
+            var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parentId, contentType);
             CreateContent(content, null, parentId, false, userId, true);
             return content;
@@ -281,7 +305,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContentWithIdentity(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
-            var contentType = FindContentTypeByAlias(contentTypeAlias);
+            var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parent, contentType);
             CreateContent(content, parent, parent.Id, true, userId, true);
             return content;
@@ -312,7 +336,7 @@ namespace Umbraco.Core.Services
                     return;
                 }
 
-                WithWriteLocked(repository => repository.AddOrUpdate(content));
+                _lrepo.WithWriteLocked(xr => xr.Repository.AddOrUpdate(content));
 
                 Saved.RaiseEvent(new SaveEventArgs<IContent>(content, false), this);
                 TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshNode).ToEventArgs(), this);
@@ -337,7 +361,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent GetById(int id)
         {
-            return WithReadLocked(repository => repository.Get(id));
+            return _lrepo.WithReadLocked(xr => xr.Repository.Get(id));
         }
 
         /// <summary>
@@ -347,7 +371,7 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IEnumerable<IContent> GetByIds(IEnumerable<int> ids)
         {
-            return WithReadLocked(repository => repository.GetAll(ids.ToArray()));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetAll(ids.ToArray()));
         }
 
         /// <summary>
@@ -358,7 +382,7 @@ namespace Umbraco.Core.Services
         public IContent GetById(Guid key)
         {
             var query = Query<IContent>.Builder.Where(x => x.Key == key);
-            return WithReadLocked(repository => repository.GetByQuery(query).SingleOrDefault());
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).SingleOrDefault());
         }
 
         /// <summary>
@@ -369,13 +393,13 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetContentOfContentType(int id)
         {
             var query = Query<IContent>.Builder.Where(x => x.ContentTypeId == id);
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         internal IEnumerable<IContent> GetPublishedContentOfContentType(int id)
         {
             var query = Query<IContent>.Builder.Where(x => x.ContentTypeId == id);
-            return WithReadLocked(repository => repository.GetByPublishedVersion(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByPublishedVersion(query));
         }
 
         /// <summary>
@@ -386,7 +410,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetByLevel(int level)
         {
             var query = Query<IContent>.Builder.Where(x => x.Level == level && x.Trashed == false);
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -396,7 +420,7 @@ namespace Umbraco.Core.Services
         /// <returns>An <see cref="IContent"/> item</returns>
         public IContent GetByVersion(Guid versionId)
         {
-            return WithReadLocked(repository => repository.GetByVersion(versionId));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByVersion(versionId));
         }
 
 
@@ -407,7 +431,7 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
         public IEnumerable<IContent> GetVersions(int id)
         {
-            return WithReadLocked(repository => repository.GetAllVersions(id));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetAllVersions(id));
         }
 
         /// <summary>
@@ -434,7 +458,7 @@ namespace Umbraco.Core.Services
             if (ids.Any() == false)
                 return new List<IContent>();
 
-            return WithReadLocked(repository => repository.GetAll(ids));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetAll(ids));
         }
 
         /// <summary>
@@ -445,7 +469,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetChildren(int id)
         {
             var query = Query<IContent>.Builder.Where(x => x.ParentId == id);
-            return WithReadLocked(repository => repository.GetByQuery(query).OrderBy(x => x.SortOrder));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).OrderBy(x => x.SortOrder));
         }
 
         /// <summary>
@@ -456,7 +480,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetPublishedChildren(int id)
         {
             var query = Query<IContent>.Builder.Where(x => x.ParentId == id && x.Published);
-            return WithReadLocked(repository => repository.GetByQuery(query).OrderBy(x => x.SortOrder));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).OrderBy(x => x.SortOrder));
         }
 
         /// <summary>
@@ -483,9 +507,9 @@ namespace Umbraco.Core.Services
 
             IEnumerable<IContent> ret = null;
             var totalChildren2 = 0;
-            WithReadLocked(repository =>
+            _lrepo.WithReadLocked(xr =>
             {
-                ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
+                ret = xr.Repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
             });
             totalChildren = totalChildren2;
             return ret;
@@ -514,9 +538,9 @@ namespace Umbraco.Core.Services
             
             IEnumerable<IContent> ret = null;
             var totalChildren2 = 0;
-            WithReadLocked(repository =>
+            _lrepo.WithReadLocked(xr =>
             {
-                ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
+                ret = xr.Repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
             });
             totalChildren = totalChildren2;
             return ret;
@@ -531,7 +555,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetChildrenByName(int parentId, string name)
         {
             var query = Query<IContent>.Builder.Where(x => x.ParentId == parentId && x.Name.Contains(name));
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -554,7 +578,7 @@ namespace Umbraco.Core.Services
         {
             var pathMatch = content.Path + ",";
             var query = Query<IContent>.Builder.Where(x => x.Id != content.Id && x.Path.StartsWith(pathMatch));
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -612,7 +636,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetRootContent()
         {
             var query = Query<IContent>.Builder.Where(x => x.ParentId == Constants.System.Root);
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -622,7 +646,7 @@ namespace Umbraco.Core.Services
         internal IEnumerable<IContent> GetAllPublished()
         {
             var query = Query<IContent>.Builder.Where(x => x.Trashed == false);
-            return WithReadLocked(repository => repository.GetByPublishedVersion(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByPublishedVersion(query));
         }
 
         /// <summary>
@@ -632,7 +656,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetContentForExpiration()
         {
             var query = Query<IContent>.Builder.Where(x => x.Published && x.ExpireDate <= DateTime.Now);
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -642,7 +666,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetContentForRelease()
         {
             var query = Query<IContent>.Builder.Where(x => x.Published == false && x.ReleaseDate <= DateTime.Now);
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -652,7 +676,7 @@ namespace Umbraco.Core.Services
         public IEnumerable<IContent> GetContentInRecycleBin()
         {
             var query = Query<IContent>.Builder.Where(x => x.Path.Contains(Constants.System.RecycleBinContent.ToInvariantString()));
-            return WithReadLocked(repository => repository.GetByQuery(query));
+            return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
         }
 
         /// <summary>
@@ -673,7 +697,7 @@ namespace Umbraco.Core.Services
         public bool HasPublishedVersion(int id)
         {
             var query = Query<IContent>.Builder.Where(x => x.Published && x.Id == id && x.Trashed == false);
-            return WithReadLocked(repository => repository.Count(query) > 0);
+            return _lrepo.WithReadLocked(xr => xr.Repository.Count(query) > 0);
         }
 
         /// <summary>
@@ -695,7 +719,7 @@ namespace Umbraco.Core.Services
         /// <returns>true if the content is path-published; otherwise, false.</returns>
         public bool IsPathPublished(IContent content)
         {
-            return WithReadLocked(repository => repository.IsPathPublished(content));
+            return _lrepo.WithReadLocked(xr => xr.Repository.IsPathPublished(content));
         }
 
         #endregion
@@ -743,7 +767,7 @@ namespace Umbraco.Core.Services
 
             var isNew = content.IsNewEntity();
 
-            WithWriteLocked(repository =>
+            _lrepo.WithWriteLocked(xr =>
             {
                 if (content.HasIdentity == false)
                     content.CreatorId = userId;
@@ -754,7 +778,7 @@ namespace Umbraco.Core.Services
                 if (content.Published)
                     content.ChangePublishedState(PublishedState.Saving);
 
-                repository.AddOrUpdate(content);
+                xr.Repository.AddOrUpdate(content);
             });
 
             if (raiseEvents)
@@ -785,7 +809,7 @@ namespace Umbraco.Core.Services
             var treeChanges = contentsA.Select(x => new TreeChange<IContent>(x,
                 x.IsNewEntity() ? TreeChangeTypes.RefreshBranch : TreeChangeTypes.RefreshNode));
 
-            WithWriteLocked(repository =>
+            _lrepo.WithWriteLocked(xr =>
             {
                 foreach (var content in contentsA)
                 {
@@ -798,7 +822,7 @@ namespace Umbraco.Core.Services
                     if (content.Published)
                         content.ChangePublishedState(PublishedState.Saving);
 
-                    repository.AddOrUpdate(content);
+                    xr.Repository.AddOrUpdate(content);
                 }
             });
 
@@ -921,7 +945,7 @@ namespace Umbraco.Core.Services
         {
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IContent>(content), this))
                         return;
@@ -932,7 +956,7 @@ namespace Umbraco.Core.Services
                     if (content.Trashed == false && content.HasPublishedVersion)
                         UnPublished.RaiseEvent(new PublishEventArgs<IContent>(content, false, false), this);
 
-                    DeleteLocked(content, repository);
+                    DeleteLocked(content, xr.Repository);
 
                     TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.Remove).ToEventArgs(), this);
                 });                
@@ -965,7 +989,8 @@ namespace Umbraco.Core.Services
                 repository.Delete(c);
                 var args = new DeleteEventArgs<IContent>(c, false); // raise event & get flagged files
                 Deleted.RaiseEvent(args, this);
-                repository.DeleteFiles(args.MediaFilesToDelete); // remove flagged files
+                IOHelper.DeleteFiles(args.MediaFilesToDelete, // remove flagged files
+                    (file, e) => Logger.Error<MemberService>("An error occurred while deleting file attached to nodes: " + file, e));
             }
         }
 
@@ -987,7 +1012,7 @@ namespace Umbraco.Core.Services
             if (DeletingVersions.IsRaisedEventCancelled(new DeleteRevisionsEventArgs(id, dateToRetain: versionDate), this))
                 return;
 
-            WithWriteLocked(repository => repository.DeleteVersions(id, versionDate));
+            _lrepo.WithWriteLocked(xr => xr.Repository.DeleteVersions(id, versionDate));
 
             DeletedVersions.RaiseEvent(new DeleteRevisionsEventArgs(id, false, dateToRetain: versionDate), this);
             Audit(AuditType.Delete, "Delete Content by version date performed by user", userId, Constants.System.Root);
@@ -1005,7 +1030,7 @@ namespace Umbraco.Core.Services
         {
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     if (DeletingVersions.IsRaisedEventCancelled(new DeleteRevisionsEventArgs(id, /*specificVersion:*/ versionId), this))
                         return;
@@ -1016,7 +1041,7 @@ namespace Umbraco.Core.Services
                         DeleteVersions(id, content.UpdateDate, userId);
                     }
 
-                    repository.DeleteVersion(versionId);
+                    xr.Repository.DeleteVersion(versionId);
                 });
             }
 
@@ -1040,7 +1065,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     var originalPath = content.Path;
                     if (Trashing.IsRaisedEventCancelled(new MoveEventArgs<IContent>(
@@ -1053,7 +1078,7 @@ namespace Umbraco.Core.Services
                     //if (content.HasPublishedVersion)
                     //{ }
 
-                    PerformMoveLocked(content, Constants.System.RecycleBinContent, null, userId, moves, true, repository);
+                    PerformMoveLocked(content, Constants.System.RecycleBinContent, null, userId, moves, true, xr.Repository);
 
                     TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 });
@@ -1090,7 +1115,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     var parent = parentId == Constants.System.Root ? null : GetById(parentId);
                     if (parentId != Constants.System.Root && (parent == null || parent.Trashed))
@@ -1115,7 +1140,7 @@ namespace Umbraco.Core.Services
                         content.ChangePublishedState(PublishedState.Unpublishing);
                     }
 
-                    PerformMoveLocked(content, parentId, parent, userId, moves, trashed, repository);
+                    PerformMoveLocked(content, parentId, parent, userId, moves, trashed, xr.Repository);
 
                     TreeChanged.RaiseEvent(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch).ToEventArgs(), this);
                 });
@@ -1187,7 +1212,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     // no idea what those events are for, keep a simplified version
                     if (EmptyingRecycleBin.IsRaisedEventCancelled(new RecycleBinEventArgs(nodeObjectType), this))
@@ -1195,10 +1220,10 @@ namespace Umbraco.Core.Services
 
                     // emptying the recycle bin means deleting whetever is in there - do it properly!
                     var query = Query<IContent>.Builder.Where(x => x.ParentId == Constants.System.RecycleBinContent);
-                    var contents = repository.GetByQuery(query).ToArray();
+                    var contents = xr.Repository.GetByQuery(query).ToArray();
                     foreach (var content in contents)
                     {
-                        DeleteLocked(content, repository);
+                        DeleteLocked(content, xr.Repository);
                         deleted.Add(content);
                     }
 
@@ -1232,7 +1257,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     copy = content.DeepCloneWithResetIdentities();
                     copy.ParentId = parentId;
@@ -1252,7 +1277,7 @@ namespace Umbraco.Core.Services
                     copy.WriterId = userId;
 
                     // save
-                    repository.AddOrUpdate(copy);
+                    xr.Repository.AddOrUpdate(copy);
 
                     // process descendants
                     var copyIds = new Dictionary<int, IContent>();
@@ -1267,7 +1292,7 @@ namespace Umbraco.Core.Services
                             dcopy.ChangePublishedState(PublishedState.Saving);
                         dcopy.CreatorId = userId;
                         dcopy.WriterId = userId;
-                        repository.AddOrUpdate(dcopy);
+                        xr.Repository.AddOrUpdate(dcopy);
 
                         copyIds[descendant.Id] = dcopy;
                     }
@@ -1326,7 +1351,7 @@ namespace Umbraco.Core.Services
             if (RollingBack.IsRaisedEventCancelled(new RollbackEventArgs<IContent>(content), this))
                 return content;
 
-            WithWriteLocked(repository =>
+            _lrepo.WithWriteLocked(xr =>
             {
                 content.CreatorId = userId;
                 //content.WriterId = userId;
@@ -1340,7 +1365,7 @@ namespace Umbraco.Core.Services
                 // a rolled back version is .Saving and will be .Unpublished
                 content.ChangePublishedState(PublishedState.Saving);
 
-                repository.AddOrUpdate(content);
+                xr.Repository.AddOrUpdate(content);
             });
 
             RolledBack.RaiseEvent(new RollbackEventArgs<IContent>(content, false), this);
@@ -1382,7 +1407,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     var sortOrder = 0;
                     foreach (var content in itemsA)
@@ -1408,7 +1433,7 @@ namespace Umbraco.Core.Services
 
                         // save
                         saved.Add(content);
-                        repository.AddOrUpdate(content);
+                        xr.Repository.AddOrUpdate(content);
                     }
                 });
 
@@ -1436,7 +1461,7 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
         internal IEnumerable<IContent> GetPublishedDescendants(IContent content)
         {
-            return WithReadLocked(repository => GetPublishedDescendantsLocked(content, repository));
+            return _lrepo.WithReadLocked(xr => GetPublishedDescendantsLocked(content, xr.Repository));
         }
 
         internal IEnumerable<IContent> GetPublishedDescendantsLocked(IContent content, IContentRepository repository)
@@ -1494,7 +1519,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     // fail fast + use in alreadyChecked below to avoid duplicate checks
                     var attempt = EnsurePublishable(content);
@@ -1522,7 +1547,7 @@ namespace Umbraco.Core.Services
                         // so we bump the date etc
                         var publishedItem = status.ContentItem;
                         publishedItem.WriterId = userId;
-                        repository.AddOrUpdate(publishedItem);
+                        xr.Repository.AddOrUpdate(publishedItem);
                         publishedItems.Add(publishedItem);
                     }
                 });
@@ -1546,7 +1571,7 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     var newest = GetById(content.Id); // ensure we have the newest version
                     if (content.Version != newest.Version) // but use the original object if it's already the newest version
@@ -1565,7 +1590,7 @@ namespace Umbraco.Core.Services
                     }
 
                     content.WriterId = userId;
-                    repository.AddOrUpdate(content);
+                    xr.Repository.AddOrUpdate(content);
                 });
             }
 
@@ -1595,7 +1620,7 @@ namespace Umbraco.Core.Services
             var previouslyPublished = content.HasIdentity && content.HasPublishedVersion;
             var status = default(Attempt<PublishStatus>);
 
-            WithWriteLocked(repository =>
+            _lrepo.WithWriteLocked(xr =>
             {
                 // ensure content is publishable, and try to publish
                 status = EnsurePublishable(content);
@@ -1611,7 +1636,7 @@ namespace Umbraco.Core.Services
                     content.CreatorId = userId;
                 content.WriterId = userId;
 
-                repository.AddOrUpdate(content);
+                xr.Repository.AddOrUpdate(content);
             });
 
             if (raiseEvents)
@@ -1676,24 +1701,6 @@ namespace Umbraco.Core.Services
             Logger.Info<ContentService>(
                 string.Format( "Content '{0}' with Id '{1}' could not be published because its parent is not published.", content.Name, content.Id));
             return Attempt.Fail(new PublishStatus(content, PublishStatusType.FailedPathNotPublished));
-        }
-
-        private IContentType FindContentTypeByAlias(string contentTypeAlias)
-        {
-            var query = Query<IContentType>.Builder.Where(x => x.Alias == contentTypeAlias);
-
-            var uow = UowProvider.GetUnitOfWork();
-            using (uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var repository = RepositoryFactory.CreateContentTypeRepository(uow))
-            {
-                ((ContentTypeRepository) repository).AcquireReadLock();
-
-                var contentType = repository.GetByQuery(query).FirstOrDefault();
-                if (contentType == null)
-                    throw new Exception(
-                        string.Format("No ContentType matching the passed in Alias: '{0}' was found", contentTypeAlias));
-                return contentType;
-            }
         }
 
         #endregion
@@ -2052,10 +2059,10 @@ namespace Umbraco.Core.Services
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository =>
+                _lrepo.WithWriteLocked(xr =>
                 {
                     var query = Query<IContent>.Builder.Where(x => x.ContentTypeId == contentTypeId);
-                    var contents = repository.GetByQuery(query).ToArray();
+                    var contents = xr.Repository.GetByQuery(query).ToArray();
 
                     if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IContent>(contents), this))
                         return;
@@ -2073,17 +2080,17 @@ namespace Umbraco.Core.Services
                         // if current content has children, move them to trash
                         var c = content;
                         var childQuery = Query<IContent>.Builder.Where(x => x.Path.StartsWith(c.Path));
-                        var children = repository.GetByQuery(childQuery);
+                        var children = xr.Repository.GetByQuery(childQuery);
                         foreach (var child in children.Where(x => x.ContentTypeId != contentTypeId))
                         {
                             // see MoveToRecycleBin
-                            PerformMoveLocked(child, Constants.System.RecycleBinContent, null, userId, moves, true, repository);
+                            PerformMoveLocked(child, Constants.System.RecycleBinContent, null, userId, moves, true, xr.Repository);
                             changes.Add(new TreeChange<IContent>(content, TreeChangeTypes.RefreshBranch));
                         }
 
                         // delete content
                         // triggers the deleted event (and handles the files)
-                        DeleteLocked(content, repository);
+                        DeleteLocked(content, xr.Repository);
                         changes.Add(new TreeChange<IContent>(content, TreeChangeTypes.Remove));
                     }
                 });
@@ -2099,6 +2106,14 @@ namespace Umbraco.Core.Services
             Audit(AuditType.Delete,
                         string.Format("Delete Content of Type {0} performed by user", contentTypeId),
                         userId, Constants.System.Root);
+        }
+
+        private IContentType GetContentType(string contentTypeAlias)
+        {
+            var contentType = ContentTypeService.Get(contentTypeAlias);
+            if (contentType == null)
+                throw new Exception(string.Format("No ContentType matching alias: \"{0}\".", contentTypeAlias));
+            return contentType;
         }
 
         #endregion

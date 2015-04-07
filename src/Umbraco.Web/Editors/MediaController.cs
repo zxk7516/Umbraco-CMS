@@ -69,7 +69,7 @@ namespace Umbraco.Web.Editors
         /// <returns></returns>
         public MediaItemDisplay GetEmpty(string contentTypeAlias, int parentId)
         {
-            var contentType = Services.ContentTypeService.GetMediaType(contentTypeAlias);
+            var contentType = Services.MediaTypeService.Get(contentTypeAlias);
             if (contentType == null)
             {
                 throw new HttpResponseException(HttpStatusCode.NotFound);

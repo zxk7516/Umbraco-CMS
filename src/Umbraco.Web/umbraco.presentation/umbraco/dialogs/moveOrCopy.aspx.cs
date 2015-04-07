@@ -49,13 +49,13 @@ namespace umbraco.dialogs
                     ok.Text = ui.Text("general", "ok", UmbracoUser);
                     ok.Attributes.Add("style", "width: 60px");
 
-                    var documentType = Services.ContentTypeService.GetContentType(int.Parse(Request.GetItemAsString("id")));
+                    var documentType = Services.ContentTypeService.Get(int.Parse(Request.GetItemAsString("id")));
 
                     //Load master types... 
                     masterType.Attributes.Add("style", "width: 350px;");
                     masterType.Items.Add(new ListItem(ui.Text("none") + "...", "0"));
 
-                    foreach (var docT in Services.ContentTypeService.GetAllContentTypes().OrderBy(x => x.Name))
+                    foreach (var docT in Services.ContentTypeService.GetAll().OrderBy(x => x.Name))
                     {
                         masterType.Items.Add(new ListItem(docT.Name, docT.Id.ToString(CultureInfo.InvariantCulture)));
                     }
@@ -146,7 +146,7 @@ namespace umbraco.dialogs
         private void HandleDocumentTypeCopy()
         {
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            var contentType = contentTypeService.GetContentType(
+            var contentType = contentTypeService.Get(
                 int.Parse(Request.GetItemAsString("id")));
 
             //set the master
@@ -201,7 +201,7 @@ namespace umbraco.dialogs
                         parentContent = Services.ContentService.GetById(Request.GetItemAs<int>("copyTo"));
                         if (parentContent != null)
                         {
-                            parentContentType = Services.ContentTypeService.GetContentType(parentContent.ContentTypeId);
+                            parentContentType = Services.ContentTypeService.Get(parentContent.ContentTypeId);
                         }   
                     }    
                 }
@@ -213,7 +213,7 @@ namespace umbraco.dialogs
                         parentContent = Services.MediaService.GetById(Request.GetItemAs<int>("copyTo"));
                         if (parentContent != null)
                         {
-                            parentContentType = Services.ContentTypeService.GetMediaType(parentContent.ContentTypeId);
+                            parentContentType = Services.MediaTypeService.Get(parentContent.ContentTypeId);
                         }
                     }                    
                 }
@@ -225,11 +225,11 @@ namespace umbraco.dialogs
                     IContentTypeBase currContentType;
                     if (CurrentApp == "content")
                     {
-                        currContentType = Services.ContentTypeService.GetContentType(currContent.ContentTypeId);
+                        currContentType = Services.ContentTypeService.Get(currContent.ContentTypeId);
                     }
                     else
                     {
-                        currContentType = Services.ContentTypeService.GetMediaType(currContent.ContentTypeId);
+                        currContentType = Services.MediaTypeService.Get(currContent.ContentTypeId);
                     }
                     nodeAllowed = currContentType.AllowedAsRoot;
                     if (!nodeAllowed)

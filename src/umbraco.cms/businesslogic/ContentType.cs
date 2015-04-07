@@ -1168,11 +1168,11 @@ namespace umbraco.cms.businesslogic
             {
                 if (nodeObjectType == new Guid(Constants.ObjectTypes.DocumentType))
                 {
-                    return ApplicationContext.Current.Services.ContentTypeService.GetContentType;
+                    return ApplicationContext.Current.Services.ContentTypeService.Get;
                 }
                 if (nodeObjectType == new Guid(Constants.ObjectTypes.MediaType))
                 {
-                    return ApplicationContext.Current.Services.ContentTypeService.GetMediaType;
+                    return ApplicationContext.Current.Services.MediaTypeService.Get;
                 }
                 if (nodeObjectType == new Guid(Constants.ObjectTypes.MemberType))
                 {
@@ -1180,7 +1180,7 @@ namespace umbraco.cms.businesslogic
                 }
 
                 //default to content
-                return ApplicationContext.Current.Services.ContentTypeService.GetContentType;
+                return ApplicationContext.Current.Services.ContentTypeService.Get;
             }
         }
 

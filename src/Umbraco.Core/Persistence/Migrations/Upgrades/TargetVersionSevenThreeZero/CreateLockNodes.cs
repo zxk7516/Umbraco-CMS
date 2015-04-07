@@ -18,6 +18,8 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
             InsertLockObject(Constants.System.ContentTreeLock, "3FB9211A-B4F9-449C-8725-A075AE500518", "LOCK: ContentTree");
             InsertLockObject(Constants.System.MediaTreeLock, "5B4408F9-D9FB-4145-84BB-5F0F2C35B4B0", "LOCK: MediaTree");
             InsertLockObject(Constants.System.MemberTreeLock, "FA951390-DF12-4594-8366-89CA8396D977", "LOCK: MemberTree");
+            InsertLockObject(Constants.System.MediaTypesLock, "BA13E02F-E595-4415-8693-B044C83AA9A7", "LOCK: MediaTypes");
+            InsertLockObject(Constants.System.MemberTypesLock, "B23EED6B-CC05-48FE-B096-B50441D0E825", "LOCK: MemberTypes");
 
             // turn off identity insert if db provider is not mysql
             if (SqlSyntax.SupportsIdentityInsert())
@@ -31,6 +33,8 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.ContentTreeLock });
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MediaTreeLock });
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MemberTreeLock });
+            Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MediaTypesLock });
+            Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MemberTypesLock });
         }
 
         private void InsertLockObject(int id, string uniqueId, string text)

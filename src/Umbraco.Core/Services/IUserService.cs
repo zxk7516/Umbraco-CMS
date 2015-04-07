@@ -124,6 +124,10 @@ namespace Umbraco.Core.Services
         /// <param name="userType">UserType to delete</param>
         void DeleteUserType(IUserType userType);
 
+        // was on IMembershipMemberService
+        // BUT should NOT be there... it's a XxxTypeService method!
+        string GetDefaultMemberType();
+
         #endregion
     }
 }

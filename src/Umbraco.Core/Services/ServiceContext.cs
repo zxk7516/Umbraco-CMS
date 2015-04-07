@@ -1,12 +1,10 @@
 using System;
-using log4net;
 using Umbraco.Core.Logging;
 using System.IO;
 using Umbraco.Core.IO;
+using Umbraco.Core.Models;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.UnitOfWork;
-using Umbraco.Core.Publishing;
-using umbraco.interfaces;
 
 namespace Umbraco.Core.Services
 {
@@ -23,11 +21,10 @@ namespace Umbraco.Core.Services
         private Lazy<IAuditService> _auditService; 
         private Lazy<ILocalizedTextService> _localizedTextService;
         private Lazy<ITagService> _tagService;
-        private Lazy<IContentService> _contentService;
+        private Lazy<Tuple<IContentService, IContentTypeService>> _contentServices;
         private Lazy<IUserService> _userService;
-        private Lazy<IMemberService> _memberService;
-        private Lazy<IMediaService> _mediaService;
-        private Lazy<IContentTypeService> _contentTypeService;
+        private Lazy<Tuple<IMemberService, IMemberTypeService>> _memberServices;
+        private Lazy<Tuple<IMediaService, IMediaTypeService>> _mediaServices;
         private Lazy<IDataTypeService> _dataTypeService;
         private Lazy<IFileService> _fileService;
         private Lazy<ILocalizationService> _localizationService;
@@ -38,7 +35,6 @@ namespace Umbraco.Core.Services
         private Lazy<IApplicationTreeService> _treeService;
         private Lazy<ISectionService> _sectionService;
         private Lazy<IMacroService> _macroService;
-        private Lazy<IMemberTypeService> _memberTypeService;
         private Lazy<IMemberGroupService> _memberGroupService;
         private Lazy<INotificationService> _notificationService;
         private Lazy<IExternalLoginService> _externalLoginService;
@@ -46,9 +42,8 @@ namespace Umbraco.Core.Services
         /// <summary>
         /// public ctor - will generally just be used for unit testing all items are optional and if not specified, the defaults will be used
         /// </summary>
-        /// <param name="contentService"></param>
-        /// <param name="mediaService"></param>
-        /// <param name="contentTypeService"></param>
+        /// <param name="contentServices"></param>
+        /// <param name="mediaServices"></param>
         /// <param name="dataTypeService"></param>
         /// <param name="fileService"></param>
         /// <param name="localizationService"></param>
@@ -56,8 +51,7 @@ namespace Umbraco.Core.Services
         /// <param name="entityService"></param>
         /// <param name="relationService"></param>
         /// <param name="memberGroupService"></param>
-        /// <param name="memberTypeService"></param>
-        /// <param name="memberService"></param>
+        /// <param name="memberServices"></param>
         /// <param name="userService"></param>
         /// <param name="sectionService"></param>
         /// <param name="treeService"></param>
@@ -69,10 +63,11 @@ namespace Umbraco.Core.Services
         /// <param name="taskService"></param>
         /// <param name="macroService"></param>
         /// <param name="publicAccessService"></param>
+        /// <param name="externalLoginService"></param>
         public ServiceContext(
-            IContentService contentService = null,
-            IMediaService mediaService = null,
-            IContentTypeService contentTypeService = null,
+            Tuple<IContentService, IContentTypeService> contentServices = null,
+            Tuple<IMediaService, IMediaTypeService> mediaServices = null,
+            Tuple<IMemberService, IMemberTypeService> memberServices = null, // fixme and groups?
             IDataTypeService dataTypeService = null,
             IFileService fileService = null,
             ILocalizationService localizationService = null,
@@ -80,8 +75,6 @@ namespace Umbraco.Core.Services
             IEntityService entityService = null,
             IRelationService relationService = null,
             IMemberGroupService memberGroupService = null,
-            IMemberTypeService memberTypeService = null,
-            IMemberService memberService = null,
             IUserService userService = null,
             ISectionService sectionService = null,
             IApplicationTreeService treeService = null,
@@ -99,9 +92,8 @@ namespace Umbraco.Core.Services
             if (auditService != null) _auditService = new Lazy<IAuditService>(() => auditService);
             if (localizedTextService != null) _localizedTextService = new Lazy<ILocalizedTextService>(() => localizedTextService);
             if (tagService != null) _tagService = new Lazy<ITagService>(() => tagService);
-            if (contentService != null) _contentService = new Lazy<IContentService>(() => contentService);
-            if (mediaService != null) _mediaService = new Lazy<IMediaService>(() => mediaService);
-            if (contentTypeService != null) _contentTypeService = new Lazy<IContentTypeService>(() => contentTypeService);
+            if (contentServices != null) _contentServices = new Lazy<Tuple<IContentService, IContentTypeService>>(() => contentServices);
+            if (mediaServices != null) _mediaServices = new Lazy<Tuple<IMediaService, IMediaTypeService>>(() => mediaServices);
             if (dataTypeService != null) _dataTypeService = new Lazy<IDataTypeService>(() => dataTypeService);
             if (fileService != null) _fileService = new Lazy<IFileService>(() => fileService);
             if (localizationService != null) _localizationService = new Lazy<ILocalizationService>(() => localizationService);
@@ -110,9 +102,8 @@ namespace Umbraco.Core.Services
             if (relationService != null) _relationService = new Lazy<IRelationService>(() => relationService);
             if (sectionService != null) _sectionService = new Lazy<ISectionService>(() => sectionService);
             if (memberGroupService != null) _memberGroupService = new Lazy<IMemberGroupService>(() => memberGroupService);
-            if (memberTypeService != null) _memberTypeService = new Lazy<IMemberTypeService>(() => memberTypeService);
             if (treeService != null) _treeService = new Lazy<IApplicationTreeService>(() => treeService);
-            if (memberService != null) _memberService = new Lazy<IMemberService>(() => memberService);
+            if (memberServices != null) _memberServices = new Lazy<Tuple<IMemberService, IMemberTypeService>>(() => memberServices);
             if (userService != null) _userService = new Lazy<IUserService>(() => userService);
             if (notificationService != null) _notificationService = new Lazy<INotificationService>(() => notificationService);
             if (domainService != null) _domainService = new Lazy<IDomainService>(() => domainService);
@@ -167,7 +158,7 @@ namespace Umbraco.Core.Services
                     logger));
 
             if (_notificationService == null)
-                _notificationService = new Lazy<INotificationService>(() => new NotificationService(provider, _userService.Value, _contentService.Value, logger));
+                _notificationService = new Lazy<INotificationService>(() => new NotificationService(provider, _userService.Value, ContentService, logger));
 
             if (_serverRegistrationService == null)
                 _serverRegistrationService = new Lazy<ServerRegistrationService>(() => new ServerRegistrationService(provider, repositoryFactory, logger));
@@ -175,17 +166,41 @@ namespace Umbraco.Core.Services
             if (_userService == null)
                 _userService = new Lazy<IUserService>(() => new UserService(provider, repositoryFactory, logger));
 
-            if (_memberService == null)
-                _memberService = new Lazy<IMemberService>(() => new MemberService(provider, repositoryFactory, logger, _memberGroupService.Value, _dataTypeService.Value));
+            // FIXME stop using _whateverService.Value everywhere!
+            // FIXME below: inject everything?!
 
-            if (_contentService == null)
-                _contentService = new Lazy<IContentService>(() => new ContentService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value));
+            if (_memberServices == null)
+                _memberServices = new Lazy<Tuple<IMemberService, IMemberTypeService>>(() =>
+                {
+                    var memberService = new MemberService(provider, repositoryFactory, logger, _memberGroupService.Value, _dataTypeService.Value);
+                    var memberTypeService = new MemberTypeService(provider, repositoryFactory, logger);
+                    memberService.MemberTypeService = memberTypeService;
+                    memberTypeService.MemberService = memberService;
+                    return Tuple.Create((IMemberService) memberService, (IMemberTypeService) memberTypeService);
+                });
 
-            if (_mediaService == null)
-                _mediaService = new Lazy<IMediaService>(() => new MediaService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value));
+            if (_memberGroupService == null)
+                _memberGroupService = new Lazy<IMemberGroupService>(() => new MemberGroupService(provider, repositoryFactory, logger));
 
-            if (_contentTypeService == null)
-                _contentTypeService = new Lazy<IContentTypeService>(() => new ContentTypeService(provider, repositoryFactory, logger, _contentService.Value, _mediaService.Value));
+            if (_contentServices == null)
+                _contentServices = new Lazy<Tuple<IContentService, IContentTypeService>>(() =>
+                {
+                    var contentService = new ContentService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
+                    var contentTypeService = new ContentTypeService(provider, repositoryFactory, logger);
+                    contentService.ContentTypeService = contentTypeService;
+                    contentTypeService.ContentService = contentService;
+                    return Tuple.Create((IContentService)contentService, (IContentTypeService) contentTypeService);
+                });
+
+            if (_mediaServices == null)
+                _mediaServices = new Lazy<Tuple<IMediaService, IMediaTypeService>>(() =>
+                {
+                    var mediaService = new MediaService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
+                    var mediaTypeService = new MediaTypeService(provider, repositoryFactory, logger);
+                    mediaService.MediaTypeService = mediaTypeService;
+                    mediaTypeService.MediaService = mediaService;
+                    return Tuple.Create((IMediaService) mediaService, (IMediaTypeService) mediaTypeService);
+                });
 
             if (_dataTypeService == null)
                 _dataTypeService = new Lazy<IDataTypeService>(() => new DataTypeService(provider, repositoryFactory, logger));
@@ -197,12 +212,12 @@ namespace Umbraco.Core.Services
                 _localizationService = new Lazy<ILocalizationService>(() => new LocalizationService(provider, repositoryFactory, logger));
 
             if (_packagingService == null)
-                _packagingService = new Lazy<IPackagingService>(() => new PackagingService(logger, _contentService.Value, _contentTypeService.Value, _mediaService.Value, _macroService.Value, _dataTypeService.Value, _fileService.Value, _localizationService.Value, _userService.Value, repositoryFactory, provider));
+                _packagingService = new Lazy<IPackagingService>(() => new PackagingService(logger, ContentService, ContentTypeService, MediaService, _macroService.Value, _dataTypeService.Value, _fileService.Value, _localizationService.Value, _userService.Value, repositoryFactory, provider));
 
             if (_entityService == null)
                 _entityService = new Lazy<IEntityService>(() => new EntityService(
-                    provider, repositoryFactory, logger, 
-                    _contentService.Value, _contentTypeService.Value, _mediaService.Value, _dataTypeService.Value, _memberService.Value, _memberTypeService.Value));
+                    provider, repositoryFactory, logger,
+                    ContentService, ContentTypeService, MediaService, MediaTypeService, MemberService, MemberTypeService, _dataTypeService.Value));
 
             if (_relationService == null)
                 _relationService = new Lazy<IRelationService>(() => new RelationService(provider, repositoryFactory, logger, _entityService.Value));
@@ -216,15 +231,8 @@ namespace Umbraco.Core.Services
             if (_macroService == null)
                 _macroService = new Lazy<IMacroService>(() => new MacroService(provider, repositoryFactory, logger));
 
-            if (_memberTypeService == null)
-                _memberTypeService = new Lazy<IMemberTypeService>(() => new MemberTypeService(provider, repositoryFactory, logger, _memberService.Value));
-
             if (_tagService == null)
                 _tagService = new Lazy<ITagService>(() => new TagService(provider, repositoryFactory, logger));
-
-            if (_memberGroupService == null)
-                _memberGroupService = new Lazy<IMemberGroupService>(() => new MemberGroupService(provider, repositoryFactory, logger));
-
         }
 
         /// <summary>
@@ -320,7 +328,7 @@ namespace Umbraco.Core.Services
         /// </summary>
         public IContentService ContentService
         {
-            get { return _contentService.Value; }
+            get { return _contentServices.Value.Item1; }
         }
 
         /// <summary>
@@ -328,7 +336,15 @@ namespace Umbraco.Core.Services
         /// </summary>
         public IContentTypeService ContentTypeService
         {
-            get { return _contentTypeService.Value; }
+            get { return _contentServices.Value.Item2; }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="IMediaTypeService"/>
+        /// </summary>
+        public IMediaTypeService MediaTypeService
+        {
+            get { return _mediaServices.Value.Item2; }
         }
 
         /// <summary>
@@ -360,7 +376,7 @@ namespace Umbraco.Core.Services
         /// </summary>
         public IMediaService MediaService
         {
-            get { return _mediaService.Value; }
+            get { return _mediaServices.Value.Item1; }
         }
 
         /// <summary>
@@ -384,7 +400,7 @@ namespace Umbraco.Core.Services
         /// </summary>
         public IMemberService MemberService
         {
-            get { return _memberService.Value; }
+            get { return _memberServices.Value.Item1; }
         }
 
         /// <summary>
@@ -408,7 +424,7 @@ namespace Umbraco.Core.Services
         /// </summary>
         public IMemberTypeService MemberTypeService
         {
-            get { return _memberTypeService.Value; }
+            get { return _memberServices.Value.Item2; }
         }
 
         /// <summary>

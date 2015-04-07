@@ -165,7 +165,7 @@ namespace Umbraco.Web.Cache
             var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
             var impactedRefreshed = payloads
                 .Where(x => x.Removed == false)
-                .Select(x => contentTypeService.GetContentType(x.Id))
+                .Select(x => contentTypeService.Get(x.Id))
                 .WhereNotNull()
                 .SelectMany(x => x.ComposedOf()) // fixme what about descendants?!
                 .DistinctBy(x => x.Id)

@@ -57,28 +57,28 @@ namespace Umbraco.Core.Services
         /// </summary>
         /// <param name="id">Id of the <see cref="IContentType"/> to retrieve</param>
         /// <returns><see cref="IContentType"/></returns>
-        IContentType GetContentType(int id);
+        IContentType Get(int id);
 
         /// <summary>
         /// Gets an <see cref="IContentType"/> object by its Alias
         /// </summary>
         /// <param name="alias">Alias of the <see cref="IContentType"/> to retrieve</param>
         /// <returns><see cref="IContentType"/></returns>
-        IContentType GetContentType(string alias);
+        IContentType Get(string alias);
 
         /// <summary>
         /// Gets a list of all available <see cref="IContentType"/> objects
         /// </summary>
         /// <param name="ids">Optional list of ids</param>
         /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
-        IEnumerable<IContentType> GetAllContentTypes(params int[] ids);
+        IEnumerable<IContentType> GetAll(params int[] ids);
 
         /// <summary>
         /// Gets a list of children for a <see cref="IContentType"/> object
         /// </summary>
         /// <param name="id">Id of the Parent</param>
         /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
-        IEnumerable<IContentType> GetContentTypeChildren(int id);
+        IEnumerable<IContentType> GetChildren(int id);
 
         /// <summary>
         /// Saves a single <see cref="IContentType"/> object
@@ -110,6 +110,8 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the User deleting the ContentTypes</param>
         void Delete(IEnumerable<IContentType> contentTypes, int userId = 0);
         
+        // fixme - remove
+        /*
         /// <summary>
         /// Gets an <see cref="IMediaType"/> object by its Id
         /// </summary>
@@ -167,6 +169,7 @@ namespace Umbraco.Core.Services
         /// <remarks>Deleting a <see cref="IMediaType"/> will delete all the <see cref="IMedia"/> objects based on this <see cref="IMediaType"/></remarks>
         /// <param name="userId">Optional Id of the User deleting the MediaTypes</param>
         void Delete(IEnumerable<IMediaType> mediaTypes, int userId = 0);
+        */
 
         /// <summary>
         /// Checks whether an <see cref="IContentType"/> item has any children
@@ -175,11 +178,13 @@ namespace Umbraco.Core.Services
         /// <returns>True if the content type has any children otherwise False</returns>
         bool HasChildren(int id);
 
+        /*
         /// <summary>
         /// Checks whether an <see cref="IMediaType"/> item has any children
         /// </summary>
         /// <param name="id">Id of the <see cref="IMediaType"/></param>
         /// <returns>True if the media type has any children otherwise False</returns>
         bool MediaTypeHasChildren(int id);
+        */
     }
 }

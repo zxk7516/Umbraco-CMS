@@ -89,30 +89,6 @@ namespace Umbraco.Core.Persistence.Repositories
             return Database.Fetch<string>("SELECT DISTINCT Alias FROM cmsPropertyType ORDER BY Alias");
         }
 
-        public IEnumerable<IContentType> GetTypesDirectlyComposedOf(int id)
-        {
-            //var sql = GetBaseQuery(false)
-            //    .InnerJoin<ContentType2ContentTypeDto>()
-            //    .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
-            //    .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
-
-            var sql = new Sql().Select("*")
-                .From<ContentTypeDto>()
-                .InnerJoin<NodeDto>()
-                .On<ContentTypeDto, NodeDto>(left => left.NodeId, right => right.NodeId)
-                .LeftJoin<DocumentTypeDto>()
-                .On<DocumentTypeDto, ContentTypeDto>(left => left.ContentTypeNodeId, right => right.NodeId)
-                .InnerJoin<ContentType2ContentTypeDto>()
-                .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
-                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId)
-                .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
-
-            var dtos = Database.Fetch<DocumentTypeDto, ContentTypeDto, NodeDto>(sql);
-            return dtos.Any()
-                ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
-                : Enumerable.Empty<IContentType>();
-        }
-
         #region Overrides of PetaPocoRepositoryBase<int,IContentType>
 
         protected override Sql GetBaseQuery(bool isCount)

@@ -389,9 +389,9 @@ namespace Umbraco.Tests.Mvc
         ServiceContext GetServiceContext(IUmbracoSettingsSection umbracoSettings, ILogger logger)
         {
             var svcCtx = new ServiceContext(
-                new Mock<IContentService>().Object,
-                new Mock<IMediaService>().Object,
-                new Mock<IContentTypeService>().Object,
+                Tuple.Create(new Mock<IContentService>().Object, new Mock<IContentTypeService>().Object),
+                Tuple.Create(new Mock<IMediaService>().Object, new Mock<IMediaTypeService>().Object),
+                Tuple.Create(new Mock<IMemberService>().Object, new Mock<IMemberTypeService>().Object),
                 new Mock<IDataTypeService>().Object,
                 new Mock<IFileService>().Object,
                 new Mock<ILocalizationService>().Object,
@@ -414,8 +414,6 @@ namespace Umbraco.Tests.Mvc
                     logger,
                     new Mock<IEntityService>().Object),
                 new Mock<IMemberGroupService>().Object,
-                new Mock<IMemberTypeService>().Object,
-                new Mock<IMemberService>().Object,
                 new Mock<IUserService>().Object,
             new Mock<ISectionService>().Object,
                 new Mock<IApplicationTreeService>().Object,

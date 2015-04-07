@@ -58,11 +58,11 @@ namespace Umbraco.Tests.Publishing
             var testData = CreateTestData();
             //Create some other data which are descendants of Text Page 2
             var mandatorContent = MockedContent.CreateSimpleContent(
-                ServiceContext.ContentTypeService.GetContentType("umbMandatory"), "Invalid Content", testData.Single(x => x.Name == "Text Page 2").Id);
+                ServiceContext.ContentTypeService.Get("umbMandatory"), "Invalid Content", testData.Single(x => x.Name == "Text Page 2").Id);
             mandatorContent.SetValue("author", string.Empty);
             ServiceContext.ContentService.Save(mandatorContent, 0);
             var subContent = MockedContent.CreateSimpleContent(
-                ServiceContext.ContentTypeService.GetContentType("umbTextpage"), "Sub Sub Sub", mandatorContent.Id);
+                ServiceContext.ContentTypeService.Get("umbTextpage"), "Sub Sub Sub", mandatorContent.Id);
             ServiceContext.ContentService.Save(subContent, 0);
             
             //publish root and nodes at it's children level

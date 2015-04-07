@@ -226,7 +226,10 @@ namespace Umbraco.Tests.TestHelpers
                 // however in production... will XmlStore try to read from DB before it even has
                 // been created... and then what happens?
 
-                ContentTypesCache = new PublishedContentTypeCache(ApplicationContext.Services.ContentTypeService, ApplicationContext.Services.MemberTypeService);
+                ContentTypesCache = new PublishedContentTypeCache(
+                        ApplicationContext.Services.ContentTypeService,
+                        ApplicationContext.Services.MediaTypeService, 
+                        ApplicationContext.Services.MemberTypeService);
 
                 var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, ContentTypesCache, true, enableRepositoryEvents);
 

@@ -42,20 +42,6 @@ namespace Umbraco.Core.Persistence.Repositories
 
         public bool EnsureUniqueNaming { get; set; }
 
-        #region Lock
-
-        public void AcquireWriteLock()
-        {
-            Database.AcquireLockNodeWriteLock(Constants.System.MediaTreeLock);
-        }
-
-        public void AcquireReadLock()
-        {
-            Database.AcquireLockNodeReadLock(Constants.System.MediaTreeLock);
-        }
-
-        #endregion
-
         #region Overrides of RepositoryBase<int,IMedia>
 
         protected override IMedia PerformGet(int id)

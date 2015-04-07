@@ -60,7 +60,7 @@ function openNodeType(id) {
 
         public override void Render(ref XmlTree tree)
         {
-            var docTypes = Service.GetContentTypeChildren(base.m_id);
+            var docTypes = Service.GetChildren(base.m_id);
 
             foreach (var docType in docTypes)
             {

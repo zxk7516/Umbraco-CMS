@@ -43,11 +43,11 @@ function openMediaType(id) {
 
         public override void Render(ref XmlTree tree)
         {
-            var mediaTypes = Service.GetMediaTypeChildren(base.m_id);
+            var mediaTypes = Service.GetChildren(base.m_id);
 
             foreach (var mediaType in mediaTypes)
             {
-                var hasChildren = Service.MediaTypeHasChildren(mediaType.Id);
+                var hasChildren = Service.HasChildren(mediaType.Id);
 
                 XmlTreeNode xNode = XmlTreeNode.Create(this);
                 xNode.NodeID = mediaType.Id.ToString(CultureInfo.InvariantCulture);
@@ -68,9 +68,9 @@ function openMediaType(id) {
             }
         }
 
-        private IContentTypeService Service
+        private IMediaTypeService Service
         {
-            get { return Services.ContentTypeService; }
+            get { return Services.MediaTypeService; }
         }
     }
 }

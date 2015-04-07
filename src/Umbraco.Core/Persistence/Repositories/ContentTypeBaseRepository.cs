@@ -14,6 +14,7 @@ using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Relators;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Persistence.Repositories
 {
@@ -30,20 +31,6 @@ namespace Umbraco.Core.Persistence.Repositories
             : base(work, cache, logger, sqlSyntax)
         {
         }
-
-        #region Lock
-
-        public void AcquireWriteLock()
-        {
-            Database.AcquireLockNodeWriteLock(Constants.System.ContentTypesLock);
-        }
-
-        public void AcquireReadLock()
-        {
-            Database.AcquireLockNodeReadLock(Constants.System.ContentTypesLock);
-        }
-
-        #endregion
 
         /// <summary>
         /// Returns the content type ids that match the query
@@ -539,6 +526,30 @@ AND umbracoNode.id <> @id",
                     Logger.Warn<ContentTypeBaseRepository<TEntity>>("Could not assign a data type for the property type " + propertyType.Alias + " since no data type was found with a property editor " + propertyType.PropertyEditorAlias);
                 }
             }
+        }
+
+        public IEnumerable<TEntity> GetTypesDirectlyComposedOf(int id)
+        {
+            //var sql = GetBaseQuery(false)
+            //    .InnerJoin<ContentType2ContentTypeDto>()
+            //    .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+            //    .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
+
+            var sql = new Sql().Select("*")
+                .From<ContentTypeDto>()
+                .InnerJoin<NodeDto>()
+                .On<ContentTypeDto, NodeDto>(left => left.NodeId, right => right.NodeId)
+                .LeftJoin<DocumentTypeDto>()
+                .On<DocumentTypeDto, ContentTypeDto>(left => left.ContentTypeNodeId, right => right.NodeId)
+                .InnerJoin<ContentType2ContentTypeDto>()
+                .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+                .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId)
+                .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
+
+            var dtos = Database.Fetch<DocumentTypeDto, ContentTypeDto, NodeDto>(sql);
+            return dtos.Any()
+                ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
+                : Enumerable.Empty<TEntity>();
         }
 
         internal static class ContentTypeQueryMapper
@@ -1096,7 +1107,6 @@ AND umbracoNode.id <> @id",
 
                 
             }
-
         }
     }
 }

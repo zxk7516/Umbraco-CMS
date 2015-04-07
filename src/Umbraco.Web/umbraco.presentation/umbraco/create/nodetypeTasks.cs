@@ -31,7 +31,7 @@ namespace umbraco
 
             var contentType = parentId == -1
                                   ? new ContentType(-1)
-                                  : new ContentType(ApplicationContext.Current.Services.ContentTypeService.GetContentType(parentId), cleanAlias);
+                                  : new ContentType(ApplicationContext.Current.Services.ContentTypeService.Get(parentId), cleanAlias);
 
             contentType.CreatorId = User.Id;
 
@@ -63,7 +63,7 @@ namespace umbraco
 
         public override bool PerformDelete()
         {
-            var docType = ApplicationContext.Current.Services.ContentTypeService.GetContentType(ParentID);
+            var docType = ApplicationContext.Current.Services.ContentTypeService.Get(ParentID);
             if (docType != null)
             {
                 ApplicationContext.Current.Services.ContentTypeService.Delete(docType);

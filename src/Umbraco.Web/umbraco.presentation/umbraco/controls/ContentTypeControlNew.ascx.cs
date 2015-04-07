@@ -325,8 +325,8 @@ namespace umbraco.controls
 
                     // figure out whether compositions are locked
                     var allContentTypes = Request.Path.ToLowerInvariant().Contains("editmediatype.aspx")
-                        ? ApplicationContext.Services.ContentTypeService.GetAllMediaTypes().Cast<IContentTypeComposition>().ToArray()
-                        : ApplicationContext.Services.ContentTypeService.GetAllContentTypes().Cast<IContentTypeComposition>().ToArray();
+                        ? ApplicationContext.Services.MediaTypeService.GetAll().Cast<IContentTypeComposition>().ToArray()
+                        : ApplicationContext.Services.ContentTypeService.GetAll().Cast<IContentTypeComposition>().ToArray();
                     var isUsing = allContentTypes.Where(x => x.ContentTypeComposition.Any(y => y.Id == _contentType.Id)).ToArray();
 
                     // if compositions are locked, do nothing (leave them as they are)
@@ -350,8 +350,8 @@ namespace umbraco.controls
 
                                 // add to the content type compositions
                                 var compositionType = isMediaType
-                                    ? Services.ContentTypeService.GetMediaType(compositionId).SafeCast<IContentTypeComposition>()
-                                    : Services.ContentTypeService.GetContentType(compositionId).SafeCast<IContentTypeComposition>();
+                                    ? Services.MediaTypeService.Get(compositionId).SafeCast<IContentTypeComposition>()
+                                    : Services.ContentTypeService.Get(compositionId).SafeCast<IContentTypeComposition>();
                                 try
                                 {
                                     //TODO if added=false then return error message
@@ -370,8 +370,8 @@ namespace umbraco.controls
                             {
                                 // and remove from the content type composition
                                 var compositionType = isMediaType
-                                    ? Services.ContentTypeService.GetMediaType(removeId).SafeCast<IContentTypeComposition>()
-                                    : Services.ContentTypeService.GetContentType(removeId).SafeCast<IContentTypeComposition>();
+                                    ? Services.MediaTypeService.Get(removeId).SafeCast<IContentTypeComposition>()
+                                    : Services.ContentTypeService.Get(removeId).SafeCast<IContentTypeComposition>();
                                 var removed = _contentType.ContentTypeItem.RemoveContentType(compositionType.Alias);
                             }
                         }
@@ -384,8 +384,8 @@ namespace umbraco.controls
                             {
                                 // remove existing
                                 var compositionType = isMediaType
-                                    ? Services.ContentTypeService.GetMediaType(removeId).SafeCast<IContentTypeComposition>()
-                                    : Services.ContentTypeService.GetContentType(removeId).SafeCast<IContentTypeComposition>();
+                                    ? Services.MediaTypeService.Get(removeId).SafeCast<IContentTypeComposition>()
+                                    : Services.ContentTypeService.Get(removeId).SafeCast<IContentTypeComposition>();
                                 var removed = _contentType.ContentTypeItem.RemoveContentType(compositionType.Alias);
                             }
                         }
@@ -716,8 +716,8 @@ jQuery(document).ready(function() {{ refreshDropDowns(); }});
             if (Page.IsPostBack == false)
             {
                 var allContentTypes = Request.Path.ToLowerInvariant().Contains("editmediatype.aspx")
-                    ? ApplicationContext.Services.ContentTypeService.GetAllMediaTypes().Cast<IContentTypeComposition>().ToArray()
-                    : ApplicationContext.Services.ContentTypeService.GetAllContentTypes().Cast<IContentTypeComposition>().ToArray();
+                    ? ApplicationContext.Services.MediaTypeService.GetAll().Cast<IContentTypeComposition>().ToArray()
+                    : ApplicationContext.Services.ContentTypeService.GetAll().Cast<IContentTypeComposition>().ToArray();
 
                 // note: there are many sanity checks missing here and there ;-((
                 // make sure once and for all

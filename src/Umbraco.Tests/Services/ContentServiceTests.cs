@@ -926,7 +926,7 @@ namespace Umbraco.Tests.Services
                 RawPasswordValue = "test"
                 };
             ServiceContext.UserService.Save(user);
-            var content = new Content("Test", -1, ServiceContext.ContentTypeService.GetContentType("umbTextpage"));
+            var content = new Content("Test", -1, ServiceContext.ContentTypeService.Get("umbTextpage"));
 
             // Act
             ServiceContext.ContentService.Save(content, (int)user.Id);
@@ -1455,7 +1455,7 @@ namespace Umbraco.Tests.Services
             var contentService = ServiceContext.ContentService;
             var contentTypeService = ServiceContext.ContentTypeService;
 
-            var contentType = contentTypeService.GetContentType("umbTextpage");
+            var contentType = contentTypeService.Get("umbTextpage");
             Content subpage = MockedContent.CreateSimpleContent(contentType, "Text Subpage 1", NodeDto.NodeIdSeed + 2);
             Content subpage2 = MockedContent.CreateSimpleContent(contentType, "Text Subpage 2", NodeDto.NodeIdSeed + 2);
             var list = new List<IContent> {subpage, subpage2};
@@ -1490,7 +1490,7 @@ namespace Umbraco.Tests.Services
             // Arrange
             var contentService = ServiceContext.ContentService;
             var contentTypeService = ServiceContext.ContentTypeService;
-            var contentType = contentTypeService.GetContentType("umbTextpage");
+            var contentType = contentTypeService.Get("umbTextpage");
 
             // Act
             contentService.DeleteContentOfType(contentType.Id);
@@ -1537,7 +1537,7 @@ namespace Umbraco.Tests.Services
         {
             // Arrange
             var contentService = ServiceContext.ContentService;
-            var contentType = ServiceContext.ContentTypeService.GetContentType("umbTextpage");
+            var contentType = ServiceContext.ContentTypeService.Get("umbTextpage");
             Content subsubpage = MockedContent.CreateSimpleContent(contentType, "Text Page 3", NodeDto.NodeIdSeed + 2);
             contentService.Save(subsubpage, 0);
 
@@ -1653,7 +1653,7 @@ namespace Umbraco.Tests.Services
         public void Can_Save_Lazy_Content()
         {	        
 	        var unitOfWork = PetaPocoUnitOfWorkProvider.CreateUnitOfWork(Mock.Of<ILogger>());
-            var contentType = ServiceContext.ContentTypeService.GetContentType("umbTextpage");
+            var contentType = ServiceContext.ContentTypeService.Get("umbTextpage");
             var root = ServiceContext.ContentService.GetById(NodeDto.NodeIdSeed + 1);
 
             var c = new Lazy<IContent>(() => MockedContent.CreateSimpleContent(contentType, "Hierarchy Simple Text Page", root.Id));
@@ -1894,7 +1894,7 @@ namespace Umbraco.Tests.Services
 
         private IEnumerable<IContent> CreateContentHierarchy()
         {
-            var contentType = ServiceContext.ContentTypeService.GetContentType("umbTextpage");
+            var contentType = ServiceContext.ContentTypeService.Get("umbTextpage");
             var root = ServiceContext.ContentService.GetById(NodeDto.NodeIdSeed + 1);
 
 			var list = new List<IContent>();

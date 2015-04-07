@@ -51,14 +51,14 @@ namespace Umbraco.Web.Editors
                             Services.DataTypeService.GetDataTypeDefinitionByName(Constants.Conventions.DataTypes.ListViewPrefix + "Member"))
                         : Mapper.Map<IDataTypeDefinition, DataTypeBasic>(dtMember);
                 case UmbracoObjectTypes.MediaType:                
-                    var mediaType = Services.ContentTypeService.GetMediaType(contentTypeId);
+                    var mediaType = Services.MediaTypeService.Get(contentTypeId);
                     var dtMedia = Services.DataTypeService.GetDataTypeDefinitionByName(Constants.Conventions.DataTypes.ListViewPrefix + mediaType.Alias);
                     return dtMedia == null
                         ? Mapper.Map<IDataTypeDefinition, DataTypeBasic>(
                             Services.DataTypeService.GetDataTypeDefinitionByName(Constants.Conventions.DataTypes.ListViewPrefix + "Media"))
                         : Mapper.Map<IDataTypeDefinition, DataTypeBasic>(dtMedia);
                 case UmbracoObjectTypes.DocumentType:
-                    var docType = Services.ContentTypeService.GetContentType(contentTypeId);
+                    var docType = Services.ContentTypeService.Get(contentTypeId);
                     var dtDoc = Services.DataTypeService.GetDataTypeDefinitionByName(Constants.Conventions.DataTypes.ListViewPrefix + docType.Alias);
                     return dtDoc == null
                         ? Mapper.Map<IDataTypeDefinition, DataTypeBasic>(

@@ -26,10 +26,10 @@ namespace umbraco
 
         public override bool PerformDelete()
         {
-            var mediaType = ApplicationContext.Current.Services.ContentTypeService.GetMediaType(ParentID);
+            var mediaType = ApplicationContext.Current.Services.MediaTypeService.Get(ParentID);
             if (mediaType != null)
             {
-                ApplicationContext.Current.Services.ContentTypeService.Delete(mediaType);
+                ApplicationContext.Current.Services.MediaTypeService.Delete(mediaType);
             }
             return false;
         }

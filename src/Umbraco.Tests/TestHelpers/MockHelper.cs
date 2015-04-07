@@ -1,10 +1,5 @@
+using System;
 using Moq;
-using Umbraco.Core;
-using Umbraco.Core.Configuration.UmbracoSettings;
-using Umbraco.Core.Logging;
-using Umbraco.Core.Persistence;
-using Umbraco.Core.Persistence.SqlSyntax;
-using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Tests.TestHelpers
@@ -14,9 +9,9 @@ namespace Umbraco.Tests.TestHelpers
         public static ServiceContext GetMockedServiceContext()
         {
             return new ServiceContext(
-                new Mock<IContentService>().Object,
-                new Mock<IMediaService>().Object,
-                new Mock<IContentTypeService>().Object,
+                Tuple.Create(new Mock<IContentService>().Object, new Mock<IContentTypeService>().Object),
+                Tuple.Create(new Mock<IMediaService>().Object, new Mock<IMediaTypeService>().Object),
+                Tuple.Create(new Mock<IMemberService>().Object, new Mock<IMemberTypeService>().Object),
                 new Mock<IDataTypeService>().Object,
                 new Mock<IFileService>().Object,
                 new Mock<ILocalizationService>().Object,
@@ -24,8 +19,6 @@ namespace Umbraco.Tests.TestHelpers
                 new Mock<IEntityService>().Object,
                 new Mock<IRelationService>().Object,
                 new Mock<IMemberGroupService>().Object,
-                new Mock<IMemberTypeService>().Object,
-                new Mock<IMemberService>().Object,
                 new Mock<IUserService>().Object,
                 new Mock<ISectionService>().Object,
                 new Mock<IApplicationTreeService>().Object,

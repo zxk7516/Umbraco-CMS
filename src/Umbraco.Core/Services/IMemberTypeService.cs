@@ -55,5 +55,13 @@ namespace Umbraco.Core.Services
         /// <remarks>Deleting a <see cref="IMemberType"/> will delete all the <see cref="IContent"/> objects based on this <see cref="IMemberType"/></remarks>
         /// <param name="userId">Optional Id of the User deleting the ContentTypes</param>
         void Delete(IEnumerable<IMemberType> memberTypes, int userId = 0);
+
+        /// <summary>
+        /// Gets the default MemberType alias
+        /// </summary>
+        /// <remarks>By default we'll return the 'writer', but we need to check it exists. If it doesn't we'll 
+        /// return the first type that is not an admin, otherwise if there's only one we will return that one.</remarks>
+        /// <returns>Alias of the default MemberType</returns>
+        string GetDefault();
     }
 }

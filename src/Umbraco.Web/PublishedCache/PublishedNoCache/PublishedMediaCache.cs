@@ -14,13 +14,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     class PublishedMediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData
     {
         private readonly IMediaService _mediaService;
-        private readonly IContentTypeService _contentTypeService;
+        private readonly IMediaTypeService _mediaTypeService;
 
-        public PublishedMediaCache(bool preview, IMediaService mediaService, IContentTypeService contentTypeService)
+        public PublishedMediaCache(bool preview, IMediaService mediaService, IMediaTypeService mediaTypeService)
             : base(preview)
         {
             _mediaService = mediaService;
-            _contentTypeService = contentTypeService;
+            _mediaTypeService = mediaTypeService;
         }
 
         public override IPublishedContent GetById(bool preview, int contentId)
@@ -116,13 +116,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public override PublishedContentType GetContentType(int id)
         {
-            var contentType = _contentTypeService.GetMediaType(id);
+            var contentType = _mediaTypeService.Get(id);
             return contentType == null ? null : new PublishedContentType(contentType);
         }
 
         public override PublishedContentType GetContentType(string alias)
         {
-            var contentType = _contentTypeService.GetMediaType(alias);
+            var contentType = _mediaTypeService.Get(alias);
             return contentType == null ? null : new PublishedContentType(contentType);
         }
 

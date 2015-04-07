@@ -116,7 +116,7 @@ namespace Umbraco.Web.Editors
         /// </returns>
         public ContentItemDisplay GetEmpty(string contentTypeAlias, int parentId)
         {
-            var contentType = Services.ContentTypeService.GetContentType(contentTypeAlias);
+            var contentType = Services.ContentTypeService.Get(contentTypeAlias);
             if (contentType == null)
             {
                 throw new HttpResponseException(HttpStatusCode.NotFound);

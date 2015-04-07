@@ -21,13 +21,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // FIXME must cleanup those constructors?!
 
         public PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
-            : this(serviceContext, databaseContext, requestCache, new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MemberTypeService), false, true)
+            : this(serviceContext, databaseContext, requestCache,
+                new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MediaTypeService, serviceContext.MemberTypeService), false, true)
         { }
 
         internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext,
             ICacheProvider requestCache,
             bool testing, bool enableRepositoryEvents)
-            : this(serviceContext, databaseContext, requestCache, new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MemberTypeService), testing, enableRepositoryEvents)
+            : this(serviceContext, databaseContext, requestCache,
+                new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MediaTypeService, serviceContext.MemberTypeService), testing, enableRepositoryEvents)
         { }
 
         // for testing

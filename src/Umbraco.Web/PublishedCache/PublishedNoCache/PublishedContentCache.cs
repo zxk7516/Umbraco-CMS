@@ -296,13 +296,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public override PublishedContentType GetContentType(int id)
         {
-            var contentType = _contentTypeService.GetContentType(id);
+            var contentType = _contentTypeService.Get(id);
             return contentType == null ? null : new PublishedContentType(contentType);
         }
 
         public override PublishedContentType GetContentType(string alias)
         {
-            var contentType = _contentTypeService.GetContentType(alias);
+            var contentType = _contentTypeService.Get(alias);
             return contentType == null ? null : new PublishedContentType(contentType);
         }
 

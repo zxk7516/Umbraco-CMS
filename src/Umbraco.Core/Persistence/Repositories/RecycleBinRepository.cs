@@ -82,51 +82,6 @@ namespace Umbraco.Core.Persistence.Repositories
             }
         }
 
-        /// <summary>
-        /// Deletes all files passed in.
-        /// </summary>
-        /// <param name="files"></param>
-        /// <returns></returns>
-        public virtual bool DeleteFiles(IEnumerable<string> files)
-        {
-            //ensure duplicates are removed
-            files = files.Distinct();
-
-            var allsuccess = true;
-
-            var fs = FileSystemProviderManager.Current.GetFileSystemProvider<MediaFileSystem>();
-            Parallel.ForEach(files, file =>
-            {
-                try
-                {
-                    if (file.IsNullOrWhiteSpace()) return;
-
-                    var relativeFilePath = fs.GetRelativePath(file);
-                    if (fs.FileExists(relativeFilePath) == false) return;
-                    
-                    var parentDirectory = System.IO.Path.GetDirectoryName(relativeFilePath);
-
-                    // don't want to delete the media folder if not using directories.
-                    if (UmbracoConfig.For.UmbracoSettings().Content.UploadAllowDirectories && parentDirectory != fs.GetRelativePath("/"))
-                    {
-                        //issue U4-771: if there is a parent directory the recursive parameter should be true
-                        fs.DeleteDirectory(parentDirectory, String.IsNullOrEmpty(parentDirectory) == false);
-                    }
-                    else
-                    {
-                        fs.DeleteFile(file, true);
-                    }
-                }
-                catch (Exception e)
-                {
-                    Logger.Error<RecycleBinRepository<TId, TEntity>>("An error occurred while deleting file attached to nodes: " + file, e);
-                    allsuccess = false;
-                }
-            });
-
-            return allsuccess;
-        }
-
         private string FormatDeleteStatement(string tableName, string keyName)
         {
             //This query works with sql ce and sql server:

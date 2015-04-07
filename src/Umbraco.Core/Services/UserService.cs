@@ -53,22 +53,11 @@ namespace Umbraco.Core.Services
                 var types = repository.GetAll().Select(x => x.Alias).ToArray();
 
                 if (types.Any() == false)
-                {
                     throw new EntityNotFoundException("No member types could be resolved");
-                }
 
-                if (types.InvariantContains("writer"))
-                {
-                    return types.First(x => x.InvariantEquals("writer"));
-                }
-                
-                if (types.Length == 1)
-                {
-                    return types.First();
-                }
-
-                //first that is not admin
-                return types.First(x => x.InvariantEquals("admin") == false);
+                return types.FirstOrDefault(x => x.InvariantEquals("writer"))
+                       ?? types.FirstOrDefault(x => x.InvariantEquals("admin") == false)
+                       ?? types[0];
             }
         }
 

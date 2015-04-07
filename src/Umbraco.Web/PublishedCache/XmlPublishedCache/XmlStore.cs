@@ -217,7 +217,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             // plug
             // note: there's no REMOVE because content will be DELETED beforehand (no xml to handle)
-            ContentTypeServiceBase.TransactionRefreshedEntity += OnContentTypeRefreshedEntity;
+            ContentTypeService.TransactionRefreshedEntity += OnContentTypeRefreshedEntity;
+            MediaTypeService.TransactionRefreshedEntity += OnMediaTypeRefreshedEntity;
+            MemberTypeService.TransactionRefreshedEntity += OnMemberTypeRefreshedEntity;
 
             // mostly to be sure - each node should have been deleted beforehand
             ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
@@ -252,7 +254,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RemovedVersion -= OnMemberRemovedVersion;
             MemberRepository.RefreshedEntity -= OnMemberRefreshedEntity;
 
-            ContentTypeServiceBase.TransactionRefreshedEntity -= OnContentTypeRefreshedEntity;
+            ContentTypeService.TransactionRefreshedEntity -= OnContentTypeRefreshedEntity;
+            MediaTypeService.TransactionRefreshedEntity -= OnMediaTypeRefreshedEntity;
+            MemberTypeService.TransactionRefreshedEntity -= OnMemberTypeRefreshedEntity;
 
             ContentRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
@@ -480,7 +484,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 try
                 {
                     var dtdInner = new StringBuilder();
-                    var contentTypes = _serviceContext.ContentTypeService.GetAllContentTypes();
+                    var contentTypes = _serviceContext.ContentTypeService.GetAll();
                     // though aliases should be safe and non null already?
                     var aliases = contentTypes.Select(x => x.Alias.ToSafeAlias()).WhereNotNull();
                     foreach (var alias in aliases)
@@ -1329,11 +1333,11 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     break;
                 case MessageType.RefreshById:
                     var refreshedId = (int)args.MessageObject;
-                    contentType = _serviceContext.ContentTypeService.GetContentType(refreshedId);
+                    contentType = _serviceContext.ContentTypeService.Get(refreshedId);
                     if (contentType != null) RefreshContentTypes(new[] { refreshedId });
                     else
                     {
-                        mediaType = _serviceContext.ContentTypeService.GetMediaType(refreshedId);
+                        mediaType = _serviceContext.MediaTypeService.Get(refreshedId);
                         if (mediaType != null) RefreshMediaTypes(new[] { refreshedId });
                         else
                         {
@@ -1865,17 +1869,23 @@ WHERE cmsContentXml.nodeId IN (
             db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@nodeId", parms);
         }
 
-        private void OnContentTypeRefreshedEntity(ContentTypeServiceBase sender, ContentTypeServiceBase.EntityChangeEventArgs args)
+        private void OnContentTypeRefreshedEntity(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, ContentTypeServiceBase<ContentTypeRepository, IContentType>.EntityChangeEventArgs args)
         {
-            var contentTypeIds = args.Entities.OfType<IContentType>().Select(x => x.Id).ToArray();
+            var contentTypeIds = args.Entities.Select(x => x.Id).ToArray();
             if (contentTypeIds.Any())
                 RebuildContentAndPreviewXml(contentTypeIds: contentTypeIds);
+        }
 
-            var mediaTypeIds = args.Entities.OfType<IMediaType>().Select(x => x.Id).ToArray();
+        private void OnMediaTypeRefreshedEntity(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, ContentTypeServiceBase<MediaTypeRepository, IMediaType>.EntityChangeEventArgs args)
+        {
+            var mediaTypeIds = args.Entities.Select(x => x.Id).ToArray();
             if (mediaTypeIds.Any())
                 RebuildMediaXml(contentTypeIds: mediaTypeIds);
+        }
 
-            var memberTypeIds = args.Entities.OfType<IMemberType>().Select(x => x.Id).ToArray();
+        private void OnMemberTypeRefreshedEntity(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, ContentTypeServiceBase<MemberTypeRepository, IMemberType>.EntityChangeEventArgs args)
+        {
+            var memberTypeIds = args.Entities.Select(x => x.Id).ToArray();
             if (memberTypeIds.Any())
                 RebuildMemberXml(contentTypeIds: memberTypeIds);
         }

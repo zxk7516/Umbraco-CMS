@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using Umbraco.Core.Auditing;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Events;
+using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
@@ -28,656 +29,77 @@ namespace Umbraco.Core.Services
     public class MemberService : RepositoryService, IMemberService
     {
         private readonly IMemberGroupService _memberGroupService;
-        private readonly EntityXmlSerializer _entitySerializer = new EntityXmlSerializer();
-        private readonly IDataTypeService _dataTypeService;
-        private static readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim();
+        private IMemberTypeService _memberTypeService;
 
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MemberService(RepositoryFactory repositoryFactory, IMemberGroupService memberGroupService)
-            : this(new PetaPocoUnitOfWorkProvider(), repositoryFactory, memberGroupService)
-        {
-        }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MemberService(IDatabaseUnitOfWorkProvider provider, IMemberGroupService memberGroupService)
-            : this(provider, new RepositoryFactory(), memberGroupService)
-        {
-        }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MemberService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, IMemberGroupService memberGroupService)
-            : base(provider, repositoryFactory, LoggerResolver.Current.Logger)
-        {
-            if (memberGroupService == null) throw new ArgumentNullException("memberGroupService");
-            _memberGroupService = memberGroupService;
-            _dataTypeService = new DataTypeService(provider, repositoryFactory);
-        }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public MemberService(IDatabaseUnitOfWorkProvider provider, IMemberGroupService memberGroupService, IDataTypeService dataTypeService)
-            : this(provider, new RepositoryFactory(), LoggerResolver.Current.Logger, memberGroupService, dataTypeService)
-        {
-
-        }
+        #region Constructor
 
         public MemberService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IMemberGroupService memberGroupService, IDataTypeService dataTypeService)
             : base(provider, repositoryFactory, logger)
         {
-            if (memberGroupService == null) throw new ArgumentNullException("memberGroupService");
-            if (dataTypeService == null) throw new ArgumentNullException("dataTypeService");
+            // though... these are not used?
+            Mandate.ParameterNotNull(dataTypeService, "dataTypeService");
+            Mandate.ParameterNotNull(memberGroupService, "memberGroupService");
+
             _memberGroupService = memberGroupService;
-            _dataTypeService = dataTypeService;
+
+            _lmrepo = new LockingRepository<MemberRepository>(UowProvider,
+                uow => RepositoryFactory.CreateMemberRepository(uow) as MemberRepository,
+                LockingRepositoryLockIds, LockingRepositoryLockIds);
+
+            _lgrepo = new LockingRepository<MemberGroupRepository>(UowProvider,
+                uow => RepositoryFactory.CreateMemberGroupRepository(uow) as MemberGroupRepository,
+                LockingRepositoryLockIds, LockingRepositoryLockIds);
         }
 
-        #region Lock Helper Methods
+        internal IMemberTypeService MemberTypeService
+        {
+            get
+            {
+                if (_memberTypeService == null)
+                    throw new InvalidOperationException("MemberService.MemberTypeService has not been initialized.");
+                return _memberTypeService;
+            }
+            set { _memberTypeService = value; }
+        }
 
-        // provide a locked repository within a RepeatableRead Transaction and a UnitOfWork
-        // depending on autoCommit, the Transaction & UnitOfWork can be auto-commited (default)
-        //
-        // the locks are database locks, re-entrant (recursive), and are released when the
-        // transaction completes - it is possible to acquire a read lock while holding a write
-        // lock, and a write lock while holding a read lock, within the same transaction
-        //
-        // we might want to try and see how this can be factored for other repos?
+        #endregion
+
+        #region Locking
+
+        // constant
+        private static readonly int[] LockingRepositoryLockIds = { Constants.System.MemberTreeLock };
+
+        private readonly LockingRepository<MemberRepository> _lmrepo;
+        private readonly LockingRepository<MemberGroupRepository> _lgrepo;
 
         private void WithReadLocked(Action<MemberRepository> action, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var repository = irepository as MemberRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                action(repository);
-
-                if (autoCommit == false) return;
-
-                // commit the UnitOfWork... will get a transaction from the database
-                // and obtain the current one, which it will complete, which will do
-                // nothing because of transaction nesting, so it's only back here that
-                // the real complete will take place
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
+            _lmrepo.WithReadLocked(xr => action(xr.Repository), autoCommit);
         }
 
-        internal T WithReadLocked<T>(Func<MemberRepository, T> func, bool autoCommit = true)
+        internal TResult WithReadLocked<TResult>(Func<MemberRepository, TResult> func, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var repository = irepository as MemberRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
+            return _lmrepo.WithReadLocked(xr => func(xr.Repository), autoCommit);
         }
 
         internal void WithWriteLocked(Action<MemberRepository> action, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var repository = irepository as MemberRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                action(repository);
-                if (autoCommit == false) return;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
+            _lmrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
         }
 
-        private T WithWriteLocked<T>(Func<MemberRepository, T> func, bool autoCommit = true)
+        private TResult WithReadLockedGroups<TResult>(Func<MemberGroupRepository, TResult> func, bool autoCommit = true)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var repository = irepository as MemberRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
+            return _lgrepo.WithReadLocked(xr => func(xr.Repository), autoCommit);
+        }
+
+        private void WithWriteLockedGroups(Action<MemberGroupRepository> action, bool autoCommit = true)
+        {
+            _lgrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
         }
 
         #endregion
 
-        #region IMemberService Implementation
-
-        /// <summary>
-        /// Gets the default MemberType alias
-        /// </summary>
-        /// <remarks>By default we'll return the 'writer', but we need to check it exists. If it doesn't we'll 
-        /// return the first type that is not an admin, otherwise if there's only one we will return that one.</remarks>
-        /// <returns>Alias of the default MemberType</returns>
-        public string GetDefaultMemberType()
-        {
-            using (var repository = RepositoryFactory.CreateMemberTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var types = repository.GetAll().Select(x => x.Alias).ToArray();
-
-                if (types.Any() == false)
-                {
-                    throw new InvalidOperationException("No member types could be resolved");
-                }
-
-                if (types.InvariantContains("Member"))
-                {
-                    return types.First(x => x.InvariantEquals("Member"));
-                }
-
-                return types.First();
-            }
-        }
-
-        /// <summary>
-        /// Checks if a Member with the username exists
-        /// </summary>
-        /// <param name="username">Username to check</param>
-        /// <returns><c>True</c> if the Member exists otherwise <c>False</c></returns>
-        public bool Exists(string username)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Exists(username);
-            }
-        }
-
-        /// <summary>
-        /// This is simply a helper method which essentially just wraps the MembershipProvider's ChangePassword method
-        /// </summary>
-        /// <remarks>This method exists so that Umbraco developers can use one entry point to create/update 
-        /// Members if they choose to. </remarks>
-        /// <param name="member">The Member to save the password for</param>
-        /// <param name="password">The password to encrypt and save</param>
-        public void SavePassword(IMember member, string password)
-        {
-            if (member == null) throw new ArgumentNullException("member");
-
-            var provider = MembershipProviderExtensions.GetMembersMembershipProvider();
-            if (provider.IsUmbracoMembershipProvider())
-            {
-                provider.ChangePassword(member.Username, "", password);
-            }
-            else
-            {
-                throw new NotSupportedException("When using a non-Umbraco membership provider you must change the member password by using the MembershipProvider.ChangePassword method");
-            }
-
-            //go re-fetch the member and update the properties that may have changed
-            var result = GetByUsername(member.Username);
-            
-            //should never be null but it could have been deleted by another thread.
-            if (result == null) 
-                return;
-            
-            member.RawPasswordValue = result.RawPasswordValue;
-            member.LastPasswordChangeDate = result.LastPasswordChangeDate;
-            member.UpdateDate = member.UpdateDate;
-        }
-
-        /// <summary>
-        /// Checks if a Member with the id exists
-        /// </summary>
-        /// <param name="id">Id of the Member</param>
-        /// <returns><c>True</c> if the Member exists otherwise <c>False</c></returns>
-        public bool Exists(int id)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Exists(id);
-            }
-        }
-
-        /// <summary>
-        /// Gets a Member by its integer id
-        /// </summary>
-        /// <param name="id"><see cref="System.int"/> Id</param>
-        /// <returns><see cref="IMember"/></returns>
-        public IMember GetById(int id)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.Get(id);
-            }
-        }
-
-        /// <summary>
-        /// Gets a Member by the unique key
-        /// </summary>
-        /// <remarks>The guid key corresponds to the unique id in the database
-        /// and the user id in the membership provider.</remarks>
-        /// <param name="id"><see cref="Guid"/> Id</param>
-        /// <returns><see cref="IMember"/></returns>
-        public IMember GetByKey(Guid id)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMember>.Builder.Where(x => x.Key == id);
-                var member = repository.GetByQuery(query).FirstOrDefault();
-                return member;
-            }
-        }
-
-        /// <summary>
-        /// Gets all Members for the specified MemberType alias
-        /// </summary>
-        /// <param name="memberTypeAlias">Alias of the MemberType</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByMemberType(string memberTypeAlias)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMember>.Builder.Where(x => x.ContentTypeAlias == memberTypeAlias);
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        /// <summary>
-        /// Gets all Members for the MemberType id
-        /// </summary>
-        /// <param name="memberTypeId">Id of the MemberType</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByMemberType(int memberTypeId)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                repository.Get(memberTypeId);
-                var query = Query<IMember>.Builder.Where(x => x.ContentTypeId == memberTypeId);
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        /// <summary>
-        /// Gets all Members within the specified MemberGroup name
-        /// </summary>
-        /// <param name="memberGroupName">Name of the MemberGroup</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByGroup(string memberGroupName)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.GetByMemberGroup(memberGroupName);
-            }
-        }
-
-        /// <summary>
-        /// Gets all Members with the ids specified
-        /// </summary>
-        /// <remarks>If no Ids are specified all Members will be retrieved</remarks>
-        /// <param name="ids">Optional list of Member Ids</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetAllMembers(params int[] ids)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                return repository.GetAll(ids);
-            }
-        }
-
-        /// <summary>
-        /// Delete Members of the specified MemberType id
-        /// </summary>
-        /// <param name="memberTypeId">Id of the MemberType</param>
-        public void DeleteMembersOfType(int memberTypeId)
-        {
-            using (new WriteLock(Locker))
-            {
-                using (var uow = UowProvider.GetUnitOfWork())
-                {
-                    var repository = RepositoryFactory.CreateMemberRepository(uow);
-                    //TODO: What about content that has the contenttype as part of its composition?
-                    var query = Query<IMember>.Builder.Where(x => x.ContentTypeId == memberTypeId);
-                    var members = repository.GetByQuery(query).ToArray();
-
-                    if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMember>(members), this))
-                        return;
-
-                    foreach (var member in members)
-                    {
-                        //Permantly delete the member
-                        Delete(member);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finds Members based on their display name
-        /// </summary>
-        /// <param name="displayNameToMatch">Display name to match</param>
-        /// <param name="pageIndex">Current page index</param>
-        /// <param name="pageSize">Size of the page</param>
-        /// <param name="totalRecords">Total number of records found (out)</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var query = new Query<IMember>();
-                
-                switch (matchType)
-                {
-                    case StringPropertyMatchType.Exact:
-                        query.Where(member => member.Name.Equals(displayNameToMatch));
-                        break;
-                    case StringPropertyMatchType.Contains:
-                        query.Where(member => member.Name.Contains(displayNameToMatch));
-                        break;
-                    case StringPropertyMatchType.StartsWith:
-                        query.Where(member => member.Name.StartsWith(displayNameToMatch));
-                        break;
-                    case StringPropertyMatchType.EndsWith:
-                        query.Where(member => member.Name.EndsWith(displayNameToMatch));
-                        break;
-                    case StringPropertyMatchType.Wildcard:
-                        query.Where(member => member.Name.SqlWildcard(displayNameToMatch, TextColumnType.NVarchar));                      
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                return repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords, "Name", Direction.Ascending);
-            }
-        }
-
-        /// <summary>
-        /// Finds a list of <see cref="IMember"/> objects by a partial email string
-        /// </summary>
-        /// <param name="emailStringToMatch">Partial email string to match</param>
-        /// <param name="pageIndex">Current page index</param>
-        /// <param name="pageSize">Size of the page</param>
-        /// <param name="totalRecords">Total number of records found (out)</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindByEmail(string emailStringToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var query = new Query<IMember>();
-
-                switch (matchType)
-                {
-                    case StringPropertyMatchType.Exact:
-                        query.Where(member => member.Email.Equals(emailStringToMatch));
-                        break;
-                    case StringPropertyMatchType.Contains:
-                        query.Where(member => member.Email.Contains(emailStringToMatch));
-                        break;
-                    case StringPropertyMatchType.StartsWith:
-                        query.Where(member => member.Email.StartsWith(emailStringToMatch));
-                        break;
-                    case StringPropertyMatchType.EndsWith:
-                        query.Where(member => member.Email.EndsWith(emailStringToMatch));
-                        break;
-                    case StringPropertyMatchType.Wildcard:
-                        query.Where(member => member.Email.SqlWildcard(emailStringToMatch, TextColumnType.NVarchar));
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                return repository.GetPagedResultsByQuery(query, pageIndex, pageSize,  out totalRecords, "Email", Direction.Ascending);
-            }
-        }
-
-        /// <summary>
-        /// Finds a list of <see cref="IMember"/> objects by a partial username
-        /// </summary>
-        /// <param name="login">Partial username to match</param>
-        /// <param name="pageIndex">Current page index</param>
-        /// <param name="pageSize">Size of the page</param>
-        /// <param name="totalRecords">Total number of records found (out)</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindByUsername(string login, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var query = new Query<IMember>();
-
-                switch (matchType)
-                {
-                    case StringPropertyMatchType.Exact:
-                        query.Where(member => member.Username.Equals(login));
-                        break;
-                    case StringPropertyMatchType.Contains:
-                        query.Where(member => member.Username.Contains(login));
-                        break;
-                    case StringPropertyMatchType.StartsWith:
-                        query.Where(member => member.Username.StartsWith(login));
-                        break;
-                    case StringPropertyMatchType.EndsWith:
-                        query.Where(member => member.Username.EndsWith(login));
-                        break;
-                    case StringPropertyMatchType.Wildcard:
-                        query.Where(member => member.Email.SqlWildcard(login, TextColumnType.NVarchar));
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                return repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords, "LoginName", Direction.Ascending);
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of Members based on a property search
-        /// </summary>
-        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
-        /// <param name="value"><see cref="System.string"/> Value to match</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, string value, StringPropertyMatchType matchType = StringPropertyMatchType.Exact)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                IQuery<IMember> query;
-
-                switch (matchType)
-                {
-                    case StringPropertyMatchType.Exact:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                (((Member)x).LongStringPropertyValue.SqlEquals(value, TextColumnType.NText) ||
-                                 ((Member)x).ShortStringPropertyValue.SqlEquals(value, TextColumnType.NVarchar)));
-                        break;
-                    case StringPropertyMatchType.Contains:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                (((Member)x).LongStringPropertyValue.SqlContains(value, TextColumnType.NText) ||
-                                 ((Member)x).ShortStringPropertyValue.SqlContains(value, TextColumnType.NVarchar)));
-                        break;
-                    case StringPropertyMatchType.StartsWith:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                (((Member)x).LongStringPropertyValue.SqlStartsWith(value, TextColumnType.NText) ||
-                                 ((Member)x).ShortStringPropertyValue.SqlStartsWith(value, TextColumnType.NVarchar)));
-                        break;
-                    case StringPropertyMatchType.EndsWith:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                (((Member)x).LongStringPropertyValue.SqlEndsWith(value, TextColumnType.NText) ||
-                                 ((Member)x).ShortStringPropertyValue.SqlEndsWith(value, TextColumnType.NVarchar)));
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of Members based on a property search
-        /// </summary>
-        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
-        /// <param name="value"><see cref="System.int"/> Value to match</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, int value, ValuePropertyMatchType matchType = ValuePropertyMatchType.Exact)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                IQuery<IMember> query;
-
-                switch (matchType)
-                {
-                    case ValuePropertyMatchType.Exact:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).IntegerPropertyValue == value);
-                        break;
-                    case ValuePropertyMatchType.GreaterThan:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).IntegerPropertyValue > value);
-                        break;
-                    case ValuePropertyMatchType.LessThan:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).IntegerPropertyValue < value);
-                        break;
-                    case ValuePropertyMatchType.GreaterThanOrEqualTo:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).IntegerPropertyValue >= value);
-                        break;
-                    case ValuePropertyMatchType.LessThanOrEqualTo:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).IntegerPropertyValue <= value);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of Members based on a property search
-        /// </summary>
-        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
-        /// <param name="value"><see cref="System.bool"/> Value to match</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, bool value)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query =
-                    Query<IMember>.Builder.Where(
-                        x =>
-                            ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                            ((Member)x).BoolPropertyValue == value);
-
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        /// <summary>
-        /// Gets a list of Members based on a property search
-        /// </summary>
-        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
-        /// <param name="value"><see cref="System.DateTime"/> Value to match</param>
-        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, DateTime value, ValuePropertyMatchType matchType = ValuePropertyMatchType.Exact)
-        {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                IQuery<IMember> query;
-
-                switch (matchType)
-                {
-                    case ValuePropertyMatchType.Exact:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).DateTimePropertyValue == value);
-                        break;
-                    case ValuePropertyMatchType.GreaterThan:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).DateTimePropertyValue > value);
-                        break;
-                    case ValuePropertyMatchType.LessThan:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).DateTimePropertyValue < value);
-                        break;
-                    case ValuePropertyMatchType.GreaterThanOrEqualTo:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).DateTimePropertyValue >= value);
-                        break;
-                    case ValuePropertyMatchType.LessThanOrEqualTo:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
-                                ((Member)x).DateTimePropertyValue <= value);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("matchType");
-                }
-
-                //TODO: Since this is by property value, we need a GetByPropertyQuery on the repo!
-                var members = repository.GetByQuery(query);
-                return members;
-            }
-        }
-
-        #endregion
-
-        #region IMembershipMemberService Implementation
+        #region Count
 
         /// <summary>
         /// Gets the total number of Members based on the count type
@@ -691,73 +113,37 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="System.int"/> with number of Members for passed in type</returns>
         public int GetCount(MemberCountType countType)
         {
-            using (var repository = RepositoryFactory.CreateMemberRepository(UowProvider.GetUnitOfWork()))
-            {
-                IQuery<IMember> query;
+            IQuery<IMember> query;
 
-                switch (countType)
-                {
-                    case MemberCountType.All:
-                        query = new Query<IMember>();
-                        return repository.Count(query);
-                    case MemberCountType.Online:
-                        var fromDate = DateTime.Now.AddMinutes(-Membership.UserIsOnlineTimeWindow);
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.LastLoginDate &&
-                                ((Member)x).DateTimePropertyValue > fromDate);
-                        return repository.GetCountByQuery(query);
-                    case MemberCountType.LockedOut:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.IsLockedOut &&
-                                ((Member)x).BoolPropertyValue == true);
-                        return repository.GetCountByQuery(query);
-                    case MemberCountType.Approved:
-                        query =
-                            Query<IMember>.Builder.Where(
-                                x =>
-                                ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.IsApproved &&
-                                ((Member)x).BoolPropertyValue == true);
-                        return repository.GetCountByQuery(query);
-                    default:
-                        throw new ArgumentOutOfRangeException("countType");
-                }
+            if (countType == MemberCountType.All)
+                return WithReadLocked(repository => repository.Count(new Query<IMember>()));
+
+            switch (countType)
+            {
+                case MemberCountType.Online:
+                    var fromDate = DateTime.Now.AddMinutes(-Membership.UserIsOnlineTimeWindow);
+                    query =
+                        Query<IMember>.Builder.Where(x =>
+                            ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.LastLoginDate &&
+                            ((Member)x).DateTimePropertyValue > fromDate);
+                    break;
+                case MemberCountType.LockedOut:
+                    query =
+                        Query<IMember>.Builder.Where(x =>
+                            ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.IsLockedOut &&
+                            ((Member)x).BoolPropertyValue == true);
+                    break;
+                case MemberCountType.Approved:
+                    query =
+                        Query<IMember>.Builder.Where(x =>
+                            ((Member)x).PropertyTypeAlias == Constants.Conventions.Member.IsApproved &&
+                            ((Member)x).BoolPropertyValue == true);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("countType");
             }
 
-        }
-
-        /// <summary>
-        /// Gets a list of paged <see cref="IMember"/> objects
-        /// </summary>
-        /// <param name="pageIndex">Current page index</param>
-        /// <param name="pageSize">Size of the page</param>
-        /// <param name="totalRecords">Total number of records found (out)</param>
-        /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                return repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords, "LoginName", Direction.Ascending);
-            }
-        }
-
-        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords,
-            string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "")
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                if (memberTypeAlias == null)
-                {
-                    return repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords, orderBy, orderDirection, filter);    
-                }
-                var query = new Query<IMember>().Where(x => x.ContentTypeAlias == memberTypeAlias);
-                return repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords, orderBy, orderDirection, filter);    
-            }
+            return WithReadLocked(repository => repository.GetCountByQuery(query));
         }
 
         /// <summary>
@@ -768,12 +154,12 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="System.int"/> with number of Members</returns>
         public int Count(string memberTypeAlias = null)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                return repository.Count(memberTypeAlias);
-            }
+            return WithReadLocked(repository => repository.Count(memberTypeAlias));
         }
+
+        #endregion
+
+        #region Create
 
         /// <summary>
         /// Creates an <see cref="IMember"/> object without persisting it
@@ -788,8 +174,10 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         public IMember CreateMember(string username, string email, string name, string memberTypeAlias)
         {
-            var memberType = FindMemberTypeByAlias(memberTypeAlias);
-            return CreateMember(username, email, name, memberType);
+            var memberType = GetMemberType(memberTypeAlias);
+            var member = new Member(name, email.ToLower().Trim(), username, memberType);
+            CreateMember(member, 0, false);
+            return member;
         }
 
         /// <summary>
@@ -806,9 +194,7 @@ namespace Umbraco.Core.Services
         public IMember CreateMember(string username, string email, string name, IMemberType memberType)
         {
             var member = new Member(name, email.ToLower().Trim(), username, memberType);
-
-            Created.RaiseEvent(new NewEventArgs<IMember>(member, false, memberType.Alias, -1), this);
-
+            CreateMember(member, 0, false);
             return member;
         }
 
@@ -824,8 +210,10 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         public IMember CreateMemberWithIdentity(string username, string email, string name, string memberTypeAlias)
         {
-            var memberType = FindMemberTypeByAlias(memberTypeAlias);
-            return CreateMemberWithIdentity(username, email, name, memberType);
+            var memberType = GetMemberType(memberTypeAlias);
+            var member = new Member(name, email.ToLower().Trim(), username, memberType);
+            CreateMember(member, 0, true);
+            return member;
         }
 
         /// <summary>
@@ -839,7 +227,9 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         public IMember CreateMemberWithIdentity(string username, string email, IMemberType memberType)
         {
-            return CreateMemberWithIdentity(username, email, username, memberType);
+            var member = new Member(username, email.ToLower().Trim(), username, memberType);
+            CreateMember(member, 0, true);
+            return member;
         }
 
         /// <summary>
@@ -854,7 +244,9 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         public IMember CreateMemberWithIdentity(string username, string email, string name, IMemberType memberType)
         {
-            return CreateMemberWithIdentity(username, email, name, "", memberType);
+            var member = new Member(name, email.ToLower().Trim(), username, memberType);
+            CreateMember(member, 0, true);
+            return member;
         }
 
         /// <summary>
@@ -868,44 +260,105 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         IMember IMembershipMemberService<IMember>.CreateWithIdentity(string username, string email, string passwordValue, string memberTypeAlias)
         {
-            var memberType = FindMemberTypeByAlias(memberTypeAlias);
-            return CreateMemberWithIdentity(username, email, username, passwordValue, memberType);
+            var memberType = GetMemberType(memberTypeAlias);
+            var member = new Member(username, email.ToLower().Trim(), username, passwordValue, memberType);
+            CreateMember(member, 0, true);
+            return member;
         }
 
-        /// <summary>
-        /// Creates and persists a Member
-        /// </summary>
-        /// <remarks>Using this method will persist the Member object before its returned 
-        /// meaning that it will have an Id available (unlike the CreateMember method)</remarks>
-        /// <param name="username">Username of the Member to create</param>
-        /// <param name="email">Email of the Member to create</param>
-        /// <param name="name">Name of the Member to create</param>
-        /// <param name="passwordValue">This value should be the encoded/encrypted/hashed value for the password that will be stored in the database</param>
-        /// <param name="memberType">MemberType the Member should be based on</param>
-        /// <returns><see cref="IMember"/></returns>
-        private IMember CreateMemberWithIdentity(string username, string email, string name, string passwordValue, IMemberType memberType)
+        private void CreateMember(Member member, int userId, bool withIdentity)
         {
-            if (memberType == null) throw new ArgumentNullException("memberType");
-
-            var member = new Member(name, email.ToLower().Trim(), username, passwordValue, memberType);
+            // there's no Creating event for members
 
             if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(member), this))
             {
                 member.WasCancelled = true;
-                return member;
+                return;
             }
 
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
+            member.CreatorId = userId;
+
+            if (withIdentity)
             {
-                repository.AddOrUpdate(member);
-                uow.Commit();
+                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(member), this))
+                {
+                    member.WasCancelled = true;
+                    return;
+                }
+
+                WithWriteLocked(repository => repository.AddOrUpdate(member));
+
+                Saved.RaiseEvent(new SaveEventArgs<IMember>(member, false), this);
             }
 
-            Saved.RaiseEvent(new SaveEventArgs<IMember>(member, false), this);
-            Created.RaiseEvent(new NewEventArgs<IMember>(member, false, memberType.Alias, -1), this);
+            Created.RaiseEvent(new NewEventArgs<IMember>(member, false, member.ContentType.Alias, -1), this);
 
-            return member;
+            var msg = withIdentity
+                ? "Member '{0}' was created with Id {1}"
+                : "Member '{0}' was created";
+            Audit(AuditType.New, string.Format(msg, member.Name, member.Id), member.CreatorId, member.Id);
+        }
+        
+        #endregion
+
+        #region Get, Has, Is, Exists...
+
+        /// <summary>
+        /// Gets a Member by its integer id
+        /// </summary>
+        /// <param name="id"><see cref="System.int"/> Id</param>
+        /// <returns><see cref="IMember"/></returns>
+        public IMember GetById(int id)
+        {
+            return WithReadLocked(repository => repository.Get(id));
+        }
+
+        /// <summary>
+        /// Gets a Member by the unique key
+        /// </summary>
+        /// <remarks>The guid key corresponds to the unique id in the database
+        /// and the user id in the membership provider.</remarks>
+        /// <param name="id"><see cref="Guid"/> Id</param>
+        /// <returns><see cref="IMember"/></returns>
+        public IMember GetByKey(Guid id)
+        {
+            var query = Query<IMember>.Builder.Where(x => x.Key == id);
+            return WithReadLocked(repository => repository.GetByQuery(query).FirstOrDefault());
+        }
+
+        /// <summary>
+        /// Gets a list of paged <see cref="IMember"/> objects
+        /// </summary>
+        /// <param name="pageIndex">Current page index</param>
+        /// <param name="pageSize">Size of the page</param>
+        /// <param name="totalRecords">Total number of records found (out)</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords)
+        {
+            IEnumerable<IMember> ret = null;
+            var totalRecords2 = 0;
+            WithReadLocked(repository =>
+            {
+                ret = repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords2, "LoginName", Direction.Ascending);
+            });
+            totalRecords = totalRecords2;
+            return ret;
+        }
+
+        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords, string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "")
+        {
+            IEnumerable<IMember> ret = null;
+            var totalRecords2 = 0;
+            WithReadLocked(repository =>
+            {
+                if (memberTypeAlias == null)
+                    ret = repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords2, orderBy, orderDirection, filter);
+
+                var query = new Query<IMember>().Where(x => x.ContentTypeAlias == memberTypeAlias);
+                ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords2, orderBy, orderDirection, filter);
+            });
+            totalRecords = totalRecords2;
+            return ret;
         }
 
         /// <summary>
@@ -917,14 +370,11 @@ namespace Umbraco.Core.Services
         {
             var asGuid = id.TryConvertTo<Guid>();
             if (asGuid.Success)
-            {
                 return GetByKey((Guid)id);
-            }
+
             var asInt = id.TryConvertTo<int>();
             if (asInt.Success)
-            {
                 return GetById((int)id);
-            }
 
             return null;
         }
@@ -936,14 +386,8 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMember"/></returns>
         public IMember GetByEmail(string email)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var query = Query<IMember>.Builder.Where(x => x.Email.Equals(email));
-                var member = repository.GetByQuery(query).FirstOrDefault();
-
-                return member;
-            }
+            var query = Query<IMember>.Builder.Where(x => x.Email.Equals(email));
+            return WithReadLocked(repository => repository.GetByQuery(query).FirstOrDefault());
         }
 
         /// <summary>
@@ -957,15 +401,404 @@ namespace Umbraco.Core.Services
             // a caching mechanism since this method is used by all the membership providers and could be
             // called quite a bit when dealing with members.
 
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                var query = Query<IMember>.Builder.Where(x => x.Username.Equals(username));
-                var member = repository.GetByQuery(query).FirstOrDefault();
-
-                return member;
-            }
+            var query = Query<IMember>.Builder.Where(x => x.Username.Equals(username));
+            return WithReadLocked(repository => repository.GetByQuery(query).FirstOrDefault());
         }
+
+        /// <summary>
+        /// Gets all Members for the specified MemberType alias
+        /// </summary>
+        /// <param name="memberTypeAlias">Alias of the MemberType</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByMemberType(string memberTypeAlias)
+        {
+            var query = Query<IMember>.Builder.Where(x => x.ContentTypeAlias == memberTypeAlias);
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Gets all Members for the MemberType id
+        /// </summary>
+        /// <param name="memberTypeId">Id of the MemberType</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByMemberType(int memberTypeId)
+        {
+            var query = Query<IMember>.Builder.Where(x => x.ContentTypeId == memberTypeId);
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Gets all Members within the specified MemberGroup name
+        /// </summary>
+        /// <param name="memberGroupName">Name of the MemberGroup</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByGroup(string memberGroupName)
+        {
+            return WithReadLocked(repository => repository.GetByMemberGroup(memberGroupName));
+        }
+
+        /// <summary>
+        /// Gets all Members with the ids specified
+        /// </summary>
+        /// <remarks>If no Ids are specified all Members will be retrieved</remarks>
+        /// <param name="ids">Optional list of Member Ids</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetAllMembers(params int[] ids)
+        {
+            return WithReadLocked(repository => repository.GetAll(ids));
+        }
+
+        private IEnumerable<IMember> FindMembersByQuery(Query<IMember> query, int pageIndex, int pageSize, out int totalRecords, string orderBy, Direction direction)
+        {
+            IEnumerable<IMember> ret = null;
+            var totalRecords2 = 0;
+            WithReadLocked(repository =>
+            {
+                ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords2, orderBy, direction);
+            });
+            totalRecords = totalRecords2;
+            return ret;
+        }
+
+        /// <summary>
+        /// Finds Members based on their display name
+        /// </summary>
+        /// <param name="displayNameToMatch">Display name to match</param>
+        /// <param name="pageIndex">Current page index</param>
+        /// <param name="pageSize">Size of the page</param>
+        /// <param name="totalRecords">Total number of records found (out)</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            var query = new Query<IMember>();
+
+            switch (matchType)
+            {
+                case StringPropertyMatchType.Exact:
+                    query.Where(member => member.Name.Equals(displayNameToMatch));
+                    break;
+                case StringPropertyMatchType.Contains:
+                    query.Where(member => member.Name.Contains(displayNameToMatch));
+                    break;
+                case StringPropertyMatchType.StartsWith:
+                    query.Where(member => member.Name.StartsWith(displayNameToMatch));
+                    break;
+                case StringPropertyMatchType.EndsWith:
+                    query.Where(member => member.Name.EndsWith(displayNameToMatch));
+                    break;
+                case StringPropertyMatchType.Wildcard:
+                    query.Where(member => member.Name.SqlWildcard(displayNameToMatch, TextColumnType.NVarchar));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            return FindMembersByQuery(query, pageIndex, pageSize, out totalRecords, "Name", Direction.Ascending);
+        }
+
+        /// <summary>
+        /// Finds a list of <see cref="IMember"/> objects by a partial email string
+        /// </summary>
+        /// <param name="emailStringToMatch">Partial email string to match</param>
+        /// <param name="pageIndex">Current page index</param>
+        /// <param name="pageSize">Size of the page</param>
+        /// <param name="totalRecords">Total number of records found (out)</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> FindByEmail(string emailStringToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            var query = new Query<IMember>();
+
+            switch (matchType)
+            {
+                case StringPropertyMatchType.Exact:
+                    query.Where(member => member.Email.Equals(emailStringToMatch));
+                    break;
+                case StringPropertyMatchType.Contains:
+                    query.Where(member => member.Email.Contains(emailStringToMatch));
+                    break;
+                case StringPropertyMatchType.StartsWith:
+                    query.Where(member => member.Email.StartsWith(emailStringToMatch));
+                    break;
+                case StringPropertyMatchType.EndsWith:
+                    query.Where(member => member.Email.EndsWith(emailStringToMatch));
+                    break;
+                case StringPropertyMatchType.Wildcard:
+                    query.Where(member => member.Email.SqlWildcard(emailStringToMatch, TextColumnType.NVarchar));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            return FindMembersByQuery(query, pageIndex, pageSize, out totalRecords, "Email", Direction.Ascending);
+        }
+
+        /// <summary>
+        /// Finds a list of <see cref="IMember"/> objects by a partial username
+        /// </summary>
+        /// <param name="login">Partial username to match</param>
+        /// <param name="pageIndex">Current page index</param>
+        /// <param name="pageSize">Size of the page</param>
+        /// <param name="totalRecords">Total number of records found (out)</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> FindByUsername(string login, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            var query = new Query<IMember>();
+
+            switch (matchType)
+            {
+                case StringPropertyMatchType.Exact:
+                    query.Where(member => member.Username.Equals(login));
+                    break;
+                case StringPropertyMatchType.Contains:
+                    query.Where(member => member.Username.Contains(login));
+                    break;
+                case StringPropertyMatchType.StartsWith:
+                    query.Where(member => member.Username.StartsWith(login));
+                    break;
+                case StringPropertyMatchType.EndsWith:
+                    query.Where(member => member.Username.EndsWith(login));
+                    break;
+                case StringPropertyMatchType.Wildcard:
+                    query.Where(member => member.Email.SqlWildcard(login, TextColumnType.NVarchar));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            return FindMembersByQuery(query, pageIndex, pageSize, out totalRecords, "LoginName", Direction.Ascending);
+        }
+
+        /// <summary>
+        /// Gets a list of Members based on a property search
+        /// </summary>
+        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
+        /// <param name="value"><see cref="System.string"/> Value to match</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, string value, StringPropertyMatchType matchType = StringPropertyMatchType.Exact)
+        {
+            IQuery<IMember> query;
+
+            switch (matchType)
+            {
+                case StringPropertyMatchType.Exact:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        (((Member)x).LongStringPropertyValue.SqlEquals(value, TextColumnType.NText) ||
+                            ((Member)x).ShortStringPropertyValue.SqlEquals(value, TextColumnType.NVarchar)));
+                    break;
+                case StringPropertyMatchType.Contains:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        (((Member)x).LongStringPropertyValue.SqlContains(value, TextColumnType.NText) ||
+                            ((Member)x).ShortStringPropertyValue.SqlContains(value, TextColumnType.NVarchar)));
+                    break;
+                case StringPropertyMatchType.StartsWith:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        (((Member)x).LongStringPropertyValue.SqlStartsWith(value, TextColumnType.NText) ||
+                            ((Member)x).ShortStringPropertyValue.SqlStartsWith(value, TextColumnType.NVarchar)));
+                    break;
+                case StringPropertyMatchType.EndsWith:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        (((Member)x).LongStringPropertyValue.SqlEndsWith(value, TextColumnType.NText) ||
+                            ((Member)x).ShortStringPropertyValue.SqlEndsWith(value, TextColumnType.NVarchar)));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Gets a list of Members based on a property search
+        /// </summary>
+        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
+        /// <param name="value"><see cref="System.int"/> Value to match</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, int value, ValuePropertyMatchType matchType = ValuePropertyMatchType.Exact)
+        {
+            IQuery<IMember> query;
+
+            switch (matchType)
+            {
+                case ValuePropertyMatchType.Exact:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).IntegerPropertyValue == value);
+                    break;
+                case ValuePropertyMatchType.GreaterThan:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).IntegerPropertyValue > value);
+                    break;
+                case ValuePropertyMatchType.LessThan:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).IntegerPropertyValue < value);
+                    break;
+                case ValuePropertyMatchType.GreaterThanOrEqualTo:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).IntegerPropertyValue >= value);
+                    break;
+                case ValuePropertyMatchType.LessThanOrEqualTo:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).IntegerPropertyValue <= value);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Gets a list of Members based on a property search
+        /// </summary>
+        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
+        /// <param name="value"><see cref="System.bool"/> Value to match</param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, bool value)
+        {
+            var query = Query<IMember>.Builder.Where(x =>
+                ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                ((Member)x).BoolPropertyValue == value);
+
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Gets a list of Members based on a property search
+        /// </summary>
+        /// <param name="propertyTypeAlias">Alias of the PropertyType to search for</param>
+        /// <param name="value"><see cref="System.DateTime"/> Value to match</param>
+        /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.Exact"/></param>
+        /// <returns><see cref="IEnumerable{IMember}"/></returns>
+        public IEnumerable<IMember> GetMembersByPropertyValue(string propertyTypeAlias, DateTime value, ValuePropertyMatchType matchType = ValuePropertyMatchType.Exact)
+        {
+            IQuery<IMember> query;
+
+            switch (matchType)
+            {
+                case ValuePropertyMatchType.Exact:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).DateTimePropertyValue == value);
+                    break;
+                case ValuePropertyMatchType.GreaterThan:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).DateTimePropertyValue > value);
+                    break;
+                case ValuePropertyMatchType.LessThan:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).DateTimePropertyValue < value);
+                    break;
+                case ValuePropertyMatchType.GreaterThanOrEqualTo:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).DateTimePropertyValue >= value);
+                    break;
+                case ValuePropertyMatchType.LessThanOrEqualTo:
+                    query = Query<IMember>.Builder.Where(x =>
+                        ((Member)x).PropertyTypeAlias == propertyTypeAlias &&
+                        ((Member)x).DateTimePropertyValue <= value);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("matchType");
+            }
+
+            //TODO: Since this is by property value, we need a GetByPropertyQuery on the repo!
+            return WithReadLocked(repository => repository.GetByQuery(query));
+        }
+
+        /// <summary>
+        /// Checks if a Member with the id exists
+        /// </summary>
+        /// <param name="id">Id of the Member</param>
+        /// <returns><c>True</c> if the Member exists otherwise <c>False</c></returns>
+        public bool Exists(int id)
+        {
+            return WithReadLocked(repository => repository.Exists(id));
+        }
+
+        /// <summary>
+        /// Checks if a Member with the username exists
+        /// </summary>
+        /// <param name="username">Username to check</param>
+        /// <returns><c>True</c> if the Member exists otherwise <c>False</c></returns>
+        public bool Exists(string username)
+        {
+            return WithReadLocked(repository => repository.Exists(username));
+        }
+
+        #endregion
+
+        #region Save
+
+        /// <summary>
+        /// Saves an <see cref="IMember"/>
+        /// </summary>
+        /// <param name="member"><see cref="IMember"/> to Save</param>
+        /// <param name="raiseEvents">Optional parameter to raise events. 
+        /// Default is <c>True</c> otherwise set to <c>False</c> to not raise events</param>
+        public void Save(IMember member, bool raiseEvents = true)
+        {
+            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(member), this))
+                return;
+
+            WithWriteLocked(repository =>
+            {
+                //member.CreatorId = 
+                repository.AddOrUpdate(member);
+            });
+
+            if (raiseEvents)
+                Saved.RaiseEvent(new SaveEventArgs<IMember>(member, false), this);
+            // fixme - distributed?
+            Audit(AuditType.Save, "Save Media performed by user", 0, member.Id);
+        }
+
+        /// <summary>
+        /// Saves a list of <see cref="IMember"/> objects
+        /// </summary>
+        /// <param name="members"><see cref="IEnumerable{IMember}"/> to save</param>
+        /// <param name="raiseEvents">Optional parameter to raise events. 
+        /// Default is <c>True</c> otherwise set to <c>False</c> to not raise events</param>
+        public void Save(IEnumerable<IMember> members, bool raiseEvents = true)
+        {
+            var membersA = members.ToArray();
+
+            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(membersA), this))
+                    return;
+
+            WithWriteLocked(repository =>
+            {
+                foreach (var member in membersA)
+                {
+                    //member.CreatorId = 
+                    repository.AddOrUpdate(member);
+                }
+            });
+
+            if (raiseEvents)
+                Saved.RaiseEvent(new SaveEventArgs<IMember>(membersA, false), this);
+            // fixme - distributed?
+            Audit(AuditType.Save, "Save Member items performed by user", 0, -1);
+        }
+
+        #endregion
+
+        #region Delete
 
         /// <summary>
         /// Deletes an <see cref="IMember"/>
@@ -976,165 +809,78 @@ namespace Umbraco.Core.Services
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMember>(member), this))
                 return;
 
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                repository.Delete(member);
-                uow.Commit();
-            }
+            WithWriteLocked(repository => DeleteLocked(member, repository));
+            //fixme - distributed?
 
-            Deleted.RaiseEvent(new DeleteEventArgs<IMember>(member, false), this);
+            Audit(AuditType.Delete, "Delete Media performed by user", 0, member.Id);
         }
 
-        /// <summary>
-        /// Saves an <see cref="IMember"/>
-        /// </summary>
-        /// <param name="entity"><see cref="IMember"/> to Save</param>
-        /// <param name="raiseEvents">Optional parameter to raise events. 
-        /// Default is <c>True</c> otherwise set to <c>False</c> to not raise events</param>
-        public void Save(IMember entity, bool raiseEvents = true)
+        private void DeleteLocked(IMember member, IMemberRepository repository)
         {
-            if (raiseEvents)
-            {
-                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(entity), this))
-                {
-                    return;
-                }
-            }
-
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                repository.AddOrUpdate(entity);
-                uow.Commit();
-            }
-
-            if (raiseEvents)
-                Saved.RaiseEvent(new SaveEventArgs<IMember>(entity, false), this);
-        }
-
-        /// <summary>
-        /// Saves a list of <see cref="IMember"/> objects
-        /// </summary>
-        /// <param name="entities"><see cref="IEnumerable{IMember}"/> to save</param>
-        /// <param name="raiseEvents">Optional parameter to raise events. 
-        /// Default is <c>True</c> otherwise set to <c>False</c> to not raise events</param>
-        public void Save(IEnumerable<IMember> entities, bool raiseEvents = true)
-        {
-            var asArray = entities.ToArray();
-
-            if (raiseEvents)
-            {
-                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IMember>(asArray), this))
-                    return;
-            }
-            using (new WriteLock(Locker))
-            {
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-                {
-                    foreach (var member in asArray)
-                    {
-                        repository.AddOrUpdate(member);
-                    }
-
-                    //commit the whole lot in one go
-                    uow.Commit();
-                }
-
-                if (raiseEvents)
-                    Saved.RaiseEvent(new SaveEventArgs<IMember>(asArray, false), this);
-            }
+            // a member has no descendants
+            repository.Delete(member);
+            var args = new DeleteEventArgs<IMember>(member, false); // raise event & get flagged files
+            Deleted.RaiseEvent(args, this);
+            IOHelper.DeleteFiles(args.MediaFilesToDelete, // remove flagged files
+                (file, e) => Logger.Error<MemberService>("An error occurred while deleting file attached to nodes: " + file, e));
         }
 
         #endregion
 
-        #region IMembershipRoleService Implementation
+        #region Roles
 
         public void AddRole(string roleName)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                repository.CreateIfNotExists(roleName);
-            }
+            WithWriteLockedGroups(repository => repository.CreateIfNotExists(roleName));
         }
 
         public IEnumerable<string> GetAllRoles()
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                var result = repository.GetAll();
-                return result.Select(x => x.Name).Distinct();
-            }
+            return WithReadLockedGroups(repository => repository.GetAll().Select(x => x.Name).Distinct());
         }
 
         public IEnumerable<string> GetAllRoles(int memberId)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                var result = repository.GetMemberGroupsForMember(memberId);
-                return result.Select(x => x.Name).Distinct();
-            }
+            return WithReadLockedGroups(repository => repository.GetMemberGroupsForMember(memberId).Select(x => x.Name).Distinct());
         }
 
         public IEnumerable<string> GetAllRoles(string username)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                var result = repository.GetMemberGroupsForMember(username);
-                return result.Select(x => x.Name).Distinct();
-            }
+            return WithReadLockedGroups(repository => repository.GetMemberGroupsForMember(username).Select(x => x.Name).Distinct());
         }
 
         public IEnumerable<IMember> GetMembersInRole(string roleName)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                return repository.GetByMemberGroup(roleName);
-            }
+            return WithReadLocked(repository => repository.GetByMemberGroup(roleName));
         }
 
         public IEnumerable<IMember> FindMembersInRole(string roleName, string usernameToMatch, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberRepository(uow))
-            {
-                return repository.FindMembersInRole(roleName, usernameToMatch, matchType);
-            }
+            return WithReadLocked(repository => repository.FindMembersInRole(roleName, usernameToMatch, matchType));
         }
 
         public bool DeleteRole(string roleName, bool throwIfBeingUsed)
         {
-            using (new WriteLock(Locker))
+            return _lgrepo.WithWriteLocked(xr =>
             {
                 if (throwIfBeingUsed)
                 {
-                    var inRole = GetMembersInRole(roleName);
+                    var mrepo = RepositoryFactory.CreateMemberRepository(xr.UnitOfWork); // safe, all is write-locked already
+                    var inRole = mrepo.GetByMemberGroup(roleName);
                     if (inRole.Any())
-                    {
                         throw new InvalidOperationException("The role " + roleName + " is currently assigned to members");
-                    }
                 }
 
-                var uow = UowProvider.GetUnitOfWork();
-                using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-                {
-                    var qry = new Query<IMemberGroup>().Where(g => g.Name == roleName);
-                    var found = repository.GetByQuery(qry).ToArray();
+                var query = new Query<IMemberGroup>().Where(g => g.Name == roleName);
+                var groups = xr.Repository.GetByQuery(query).ToArray();
 
-                    foreach (var memberGroup in found)
-                    {
-                        _memberGroupService.Delete(memberGroup);
-                    }
-                    return found.Any();
-                }
-            }
+                foreach (var group in groups)
+                    _memberGroupService.Delete(group);
+
+                return groups.Length > 0;
+            });
         }
+
         public void AssignRole(string username, string roleName)
         {
             AssignRoles(new[] { username }, new[] { roleName });
@@ -1142,11 +888,7 @@ namespace Umbraco.Core.Services
 
         public void AssignRoles(string[] usernames, string[] roleNames)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                repository.AssignRoles(usernames, roleNames);
-            }
+            WithWriteLockedGroups(repository => repository.AssignRoles(usernames, roleNames));
         }
 
         public void DissociateRole(string username, string roleName)
@@ -1156,11 +898,7 @@ namespace Umbraco.Core.Services
 
         public void DissociateRoles(string[] usernames, string[] roleNames)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                repository.DissociateRoles(usernames, roleNames);
-            }
+            WithWriteLockedGroups(repository => repository.DissociateRoles(usernames, roleNames));
         }
         
         public void AssignRole(int memberId, string roleName)
@@ -1170,11 +908,7 @@ namespace Umbraco.Core.Services
 
         public void AssignRoles(int[] memberIds, string[] roleNames)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                repository.AssignRoles(memberIds, roleNames);
-            }
+            WithWriteLockedGroups(repository => repository.AssignRoles(memberIds, roleNames));
         }
 
         public void DissociateRole(int memberId, string roleName)
@@ -1184,38 +918,12 @@ namespace Umbraco.Core.Services
 
         public void DissociateRoles(int[] memberIds, string[] roleNames)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateMemberGroupRepository(uow))
-            {
-                repository.DissociateRoles(memberIds, roleNames);
-            }
-        }
-
-        
+            WithWriteLockedGroups(repository => repository.DissociateRoles(memberIds, roleNames));
+        }       
 
         #endregion
 
-        private IMemberType FindMemberTypeByAlias(string memberTypeAlias)
-        {
-            using (var repository = RepositoryFactory.CreateMemberTypeRepository(UowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IMemberType>.Builder.Where(x => x.Alias == memberTypeAlias);
-                var types = repository.GetByQuery(query);
-
-                if (types.Any() == false)
-                    throw new Exception(
-                        string.Format("No MemberType matching the passed in Alias: '{0}' was found",
-                                      memberTypeAlias));
-
-                var contentType = types.First();
-
-                if (contentType == null)
-                    throw new Exception(string.Format("MemberType matching the passed in Alias: '{0}' was null",
-                                                      memberTypeAlias));
-
-                return contentType;
-            }
-        }
+        #region Private methods
 
         private void Audit(AuditType type, string message, int userId, int objectId)
         {
@@ -1226,7 +934,9 @@ namespace Umbraco.Core.Services
                 uow.Commit();
             }
         }
-        
+
+        #endregion
+
         #region Event Handlers
 
         /// <summary>
@@ -1259,6 +969,39 @@ namespace Umbraco.Core.Services
         public static event TypedEventHandler<IMemberService, SaveEventArgs<IMember>> Saved;
 
         #endregion
+
+        #region Membership
+
+        /// <summary>
+        /// This is simply a helper method which essentially just wraps the MembershipProvider's ChangePassword method
+        /// </summary>
+        /// <remarks>This method exists so that Umbraco developers can use one entry point to create/update 
+        /// Members if they choose to. </remarks>
+        /// <param name="member">The Member to save the password for</param>
+        /// <param name="password">The password to encrypt and save</param>
+        public void SavePassword(IMember member, string password)
+        {
+            if (member == null) throw new ArgumentNullException("member");
+
+            var provider = MembershipProviderExtensions.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider())
+                provider.ChangePassword(member.Username, "", password);
+            else
+                throw new NotSupportedException("When using a non-Umbraco membership provider you must change the member password by using the MembershipProvider.ChangePassword method");
+
+            // go re-fetch the member and update the properties that may have changed
+            var result = GetByUsername(member.Username);
+
+            // should never be null but it could have been deleted by another thread.
+            if (result == null)
+                return;
+
+            member.RawPasswordValue = result.RawPasswordValue;
+            member.LastPasswordChangeDate = result.LastPasswordChangeDate;
+            member.UpdateDate = member.UpdateDate;
+
+            // not saving?
+        }
 
         /// <summary>
         /// A helper method that will create a basic/generic member for use with a generic membership provider
@@ -1313,6 +1056,7 @@ namespace Umbraco.Core.Services
 
             memType.PropertyGroups.Add(propGroup);
 
+            // should we "create member"?
             var member = new Member(name, email, username, password, memType);
 
             //we've assigned ids to the property types and groups but we also need to assign fake ids to the properties themselves.
@@ -1323,5 +1067,50 @@ namespace Umbraco.Core.Services
 
             return member;
         }
+
+        #endregion
+
+        #region Content Types
+
+        /// <summary>
+        /// Delete Members of the specified MemberType id
+        /// </summary>
+        /// <param name="memberTypeId">Id of the MemberType</param>
+        public void DeleteMembersOfType(int memberTypeId)
+        {
+            // no tree to manage here
+
+            var query = Query<IMember>.Builder.Where(x => x.ContentTypeId == memberTypeId);
+
+            WithWriteLocked(repository =>
+            {
+                var members = repository.GetByQuery(query).ToArray();
+                if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMember>(members), this))
+                    return;
+                foreach (var member in members)
+                    DeleteLocked(member, repository);
+            });
+
+            // fixme - distributed?
+
+            Audit(AuditType.Delete,
+                string.Format("Delete Members of Type {0} performed by user", memberTypeId),
+                0, -1);
+        }
+
+        private IMemberType GetMemberType(string memberTypeAlias)
+        {
+            var memberType = MemberTypeService.Get(memberTypeAlias);
+            if (memberType == null)
+                throw new Exception(string.Format("No MemberType matching alias: \"{0}\".", memberTypeAlias));
+            return memberType;
+        }
+
+        public string GetDefaultMemberType()
+        {
+            return MemberTypeService.GetDefault();
+        }
+
+        #endregion
     }
 }

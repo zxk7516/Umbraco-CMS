@@ -397,7 +397,7 @@ namespace Umbraco.Core.Services
                 var alias = documentType.Element("Info").Element("Alias").Value;
                 if (_importedContentTypes.ContainsKey(alias) == false)
                 {
-                    var contentType = _contentTypeService.GetContentType(alias);
+                    var contentType = _contentTypeService.Get(alias);
                     _importedContentTypes.Add(alias, contentType == null
                                                          ? CreateContentTypeFromXml(documentType)
                                                          : UpdateContentTypeFromXml(documentType, contentType));
@@ -447,7 +447,7 @@ namespace Umbraco.Core.Services
                 var masterAlias = masterElement.Value;
                 parent = _importedContentTypes.ContainsKey(masterAlias)
                              ? _importedContentTypes[masterAlias]
-                             : _contentTypeService.GetContentType(masterAlias);
+                             : _contentTypeService.Get(masterAlias);
             }
 
             var alias = infoElement.Element("Alias").Value;
@@ -488,7 +488,7 @@ namespace Umbraco.Core.Services
                 var masterAlias = masterElement.Value;
                 IContentType parent = _importedContentTypes.ContainsKey(masterAlias)
                     ? _importedContentTypes[masterAlias]
-                    : _contentTypeService.GetContentType(masterAlias);
+                    : _contentTypeService.Get(masterAlias);
 
                 contentType.SetLazyParentId(new Lazy<int>(() => parent.Id));
             }
@@ -505,7 +505,7 @@ namespace Umbraco.Core.Services
                         var compositionAlias = composition.Value;
                         var compositionContentType = _importedContentTypes.ContainsKey(compositionAlias)
                             ? _importedContentTypes[compositionAlias]
-                            : _contentTypeService.GetContentType(compositionAlias);
+                            : _contentTypeService.Get(compositionAlias);
                         var added = contentType.AddContentType(compositionContentType);
                     }
                 }
@@ -707,24 +707,10 @@ namespace Umbraco.Core.Services
         /// <returns></returns>
         private IContentType FindContentTypeByAlias(string contentTypeAlias)
         {
-            using (var repository = _repositoryFactory.CreateContentTypeRepository(_uowProvider.GetUnitOfWork()))
-            {
-                var query = Query<IContentType>.Builder.Where(x => x.Alias == contentTypeAlias);
-                var types = repository.GetByQuery(query);
-
-                if (!types.Any())
-                    throw new Exception(
-                        string.Format("No ContentType matching the passed in Alias: '{0}' was found",
-                                      contentTypeAlias));
-
-                var contentType = types.First();
-
-                if (contentType == null)
-                    throw new Exception(string.Format("ContentType matching the passed in Alias: '{0}' was null",
-                                                      contentTypeAlias));
-
-                return contentType;
-            }
+            var contentType = _contentTypeService.Get(contentTypeAlias);
+            if (contentType == null)
+                throw new Exception(string.Format("No ContentType matching alias: \"{0}\".", contentTypeAlias));
+            return contentType;
         }
 
         #endregion
