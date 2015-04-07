@@ -62,7 +62,7 @@ namespace Umbraco.Tests.Migrations
                 }
             }
 
-            Assert.That(list.Count, Is.EqualTo(3));
+            Assert.That(list.Count, Is.EqualTo(2));
 
             var context = new MigrationContext(DatabaseProviders.SqlServerCE, null, Mock.Of<ILogger>());
             foreach (var migration1 in list)
