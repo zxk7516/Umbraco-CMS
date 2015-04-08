@@ -10,7 +10,7 @@ using Umbraco.Web.PublishedCache;
 
 namespace Umbraco.Web.Cache
 {
-    public sealed class ContentCacheRefresher : JsonCacheRefresherBase<ContentCacheRefresher>
+    public sealed class ContentCacheRefresher : PayloadCacheRefresherBase<ContentCacheRefresher>
     {
         #region Json
 
@@ -26,14 +26,26 @@ namespace Umbraco.Web.Cache
             public TreeChangeTypes ChangeTypes { get; private set; }
         }
 
-        internal static string Serialize(IEnumerable<JsonPayload> payloads)
-        {
-            return Newtonsoft.Json.JsonConvert.SerializeObject(payloads.ToArray());
-        }
+        //internal static string Serialize(IEnumerable<JsonPayload> payloads)
+        //{
+        //    return Newtonsoft.Json.JsonConvert.SerializeObject(payloads.ToArray());
+        //}
 
-        internal static JsonPayload[] Deserialize(string json)
+        //internal static JsonPayload[] Deserialize(string json)
+        //{
+        //    return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
+        //}
+
+        protected override object Deserialize(string json)
         {
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
+        }
+
+        internal JsonPayload[] GetPayload(object o)
+        {
+            if ((o is JsonPayload[]) == false)
+                throw new Exception("Invalid payload object.");
+            return (JsonPayload[]) o;
         }
 
         #endregion
@@ -59,9 +71,10 @@ namespace Umbraco.Web.Cache
 
         #region Events
 
-        public override void Refresh(string json)
+        public override void Refresh(object o)
         {
-            var payloads = Deserialize(json);
+            var payloads = GetPayload(o);
+
             var svce = PublishedCachesServiceResolver.Current.Service;
             bool draftChanged, publishedChanged;
             svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
@@ -91,11 +104,11 @@ namespace Umbraco.Web.Cache
 
             // fixme - and we want to notify Examine, etc?
 
-            base.Refresh(json);
+            base.Refresh(o);
         }
 
         // these events should never trigger
-        // everything should be JSON
+        // everything should be PAYLOAD/JSON
 
         public override void RefreshAll()
         {

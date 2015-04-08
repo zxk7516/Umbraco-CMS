@@ -288,10 +288,10 @@ namespace Umbraco.Tests.Integration
             // <action> is(are) the action(s)
             // X is the event content ID
 
-            if (args.MessageType != MessageType.RefreshByJson)
+            if (args.MessageType != MessageType.RefreshByPayload)
                 throw new NotSupportedException();
 
-            foreach (var payload in ContentCacheRefresher.Deserialize((string) args.MessageObject))
+            foreach (var payload in sender.GetPayload(args.MessageObject))
             {
                 var e = new EventInstance
                 {

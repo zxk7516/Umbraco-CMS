@@ -29,14 +29,14 @@ namespace Umbraco.Web.Cache
             if (changeSet.Items.ContainsKey(ContentCacheBufferKey))
             {
                 var buffer = (List<ContentCacheRefresher.JsonPayload>)changeSet.Items[ContentCacheBufferKey];
-                dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(buffer));
+                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, buffer.ToArray());
                 changeSet.Items.Remove(ContentCacheBufferKey);
             }
 
             if (changeSet.Items.ContainsKey(MediaCacheBufferKey))
             {
                 var buffer = (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey];
-                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(buffer));
+                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(buffer.ToArray()));
                 changeSet.Items.Remove(MediaCacheBufferKey);
             }
 
@@ -51,7 +51,7 @@ namespace Umbraco.Web.Cache
             if (changeSet.Items.ContainsKey(ContentTypeCacheBufferKey))
             {
                 var buffer = (List<ContentTypeCacheRefresher.JsonPayload>)changeSet.Items[ContentTypeCacheBufferKey];
-                dc.RefreshByJson(DistributedCache.ContentTypeCacheRefresherGuid, ContentTypeCacheRefresher.Serialize(buffer));
+                dc.RefreshByJson(DistributedCache.ContentTypeCacheRefresherGuid, ContentTypeCacheRefresher.Serialize(buffer.ToArray()));
                 changeSet.Items.Remove(ContentTypeCacheBufferKey);
             }
         }
@@ -205,7 +205,7 @@ namespace Umbraco.Web.Cache
             var changeSet = ChangeSet.Ambient;
             if (changeSet == null)
             {
-                dc.RefreshByJson(DistributedCache.ContentCacheRefresherGuid, ContentCacheRefresher.Serialize(payloads));
+                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
             }
             else
             {
