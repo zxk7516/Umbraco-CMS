@@ -411,6 +411,8 @@ namespace Umbraco.Core.Services
             if (Saving.IsRaisedEventCancelled(new SaveEventArgs<TItem>(item), this))
                 return;
 
+            TItem[] changed = null;
+
             LRepo.WithWriteLocked(xr =>
             {
                 // validate the DAG transform, within the lock
@@ -421,16 +423,14 @@ namespace Umbraco.Core.Services
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
                 // figure out content types impacted by the changes through composition
-                var changed = ComposeContentTypeChangesForTransactionEvent(item).Cast<TItem>().ToArray();
+                changed = ComposeContentTypeChangesForTransactionEvent(item).Cast<TItem>().ToArray();
                 TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
             });
 
-            // fixme - raise distributed events
-            // raise event fot that type only, because it's a distributed event,
-            // so impacted types (through composition) will be determined locally
-            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
-            //Changed.RaiseEvent(new ChangeEventArgs(mediaType), this);
-            //ApplyChangesToContent(changedTypes);
+            using (ChangeSet.WithAmbient)
+            {
+                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+            }
 
             Saved.RaiseEvent(new SaveEventArgs<TItem>(item, false), this);
             Audit(AuditType.Save, string.Format("Save MediaType performed by user"), userId, item.Id);
@@ -439,6 +439,8 @@ namespace Umbraco.Core.Services
         public void Save(IEnumerable<TItem> items, int userId = 0)
         {
             var itemsA = items.ToArray();
+
+            TItem[] changed = null;
 
             if (Saving.IsRaisedEventCancelled(new SaveEventArgs<TItem>(itemsA), this))
                 return;
@@ -458,15 +460,14 @@ namespace Umbraco.Core.Services
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
                 // figure out content types impacted by the changes through composition
-                var changed = ComposeContentTypeChangesForTransactionEvent(itemsA).Cast<TItem>().ToArray();
+                changed = ComposeContentTypeChangesForTransactionEvent(itemsA).Cast<TItem>().ToArray();
                 TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
             });
 
-            // fixme - raise distributed events
-            // raise event fot that type only, because it's a distributed event,
-            // so impacted types (through composition) will be determined locally
-            // fixme - can we do it OR do we need extra infos eg RefreshTypeLocally, RefreshTypeComposition
-            //Changed.RaiseEvent(new ChangeEventArgs(contentTypesA), this);
+            using (ChangeSet.WithAmbient)
+            {
+                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+            }
 
             Saved.RaiseEvent(new SaveEventArgs<TItem>(itemsA, false), this);
             Audit(AuditType.Save, string.Format("Save MediaTypes performed by user"), userId, -1);
@@ -481,13 +482,18 @@ namespace Umbraco.Core.Services
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<TItem>(item), this))
                 return;
 
+            TItem[] descendantsAndSelf = null;
+            TItem[] changed = null;
+
             LRepo.WithWriteLocked(xr =>
             {
                 // all descendants are going to be deleted
-                var descendantsAndSelf = item.DescendantsAndSelf().ToArray();
+                descendantsAndSelf = item.DescendantsAndSelf()
+                    .Cast<TItem>()
+                    .ToArray();
 
                 // all impacted (through composition) probably lose some properties
-                var changed = descendantsAndSelf.SelectMany(xx => xx.ComposedOf())
+                changed = descendantsAndSelf.SelectMany(xx => xx.ComposedOf())
                     .Distinct()
                     .Except(descendantsAndSelf) // will be deleted anyway
                     .Cast<TItem>()
@@ -515,7 +521,11 @@ namespace Umbraco.Core.Services
                 TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
             });
 
-            // fixme - raise distributed events
+            using (ChangeSet.WithAmbient)
+            {
+                TreeChanged.RaiseEvent(descendantsAndSelf.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
+                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+            }
 
             Deleted.RaiseEvent(new DeleteEventArgs<TItem>(item, false), this);
             Audit(AuditType.Delete, string.Format("Delete MediaType performed by user"), userId, item.Id);
@@ -534,15 +544,19 @@ namespace Umbraco.Core.Services
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<TItem>(itemsA), this))
                 return;
 
+            TItem[] allDescendantsAndSelf = null;
+            TItem[] changed = null;
+
             LRepo.WithWriteLocked(xr =>
             {
                 // all descendants are going to be deleted
-                var allDescendantsAndSelf = itemsA.SelectMany(xx => xx.DescendantsAndSelf())
+                allDescendantsAndSelf = itemsA.SelectMany(xx => xx.DescendantsAndSelf())
                     .Distinct()
+                    .Cast<TItem>()
                     .ToArray();
 
                 // all impacted (through composition) probably lose some properties
-                var changed = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
+                changed = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
                     .Distinct()
                     .Except(allDescendantsAndSelf) // will be deleted anyway
                     .Cast<TItem>()
@@ -562,10 +576,11 @@ namespace Umbraco.Core.Services
                 TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
             });
 
-            // fixme - raise distributed events
-            // allDescendantsAndSelf: report REMOVE
-            // impacted: report REFRESH
-            // BUT async => just report WTF?!
+            using (ChangeSet.WithAmbient)
+            {
+                TreeChanged.RaiseEvent(allDescendantsAndSelf.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
+                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+            }
 
             Deleted.RaiseEvent(new DeleteEventArgs<TItem>(itemsA, false), this);
             Audit(AuditType.Delete, string.Format("Delete MediaTypes performed by user"), userId, -1);
@@ -672,6 +687,8 @@ namespace Umbraco.Core.Services
         }
 
         public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, EntityChangeEventArgs> TransactionRefreshedEntity;
+
+        internal static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, TreeChange<TItem>.EventArgs> TreeChanged; 
 
         #endregion
     }

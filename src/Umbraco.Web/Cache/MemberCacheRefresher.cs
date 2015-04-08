@@ -80,7 +80,7 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshMemberTypes(IEnumerable<int> refreshedIds, IEnumerable<int> removedIds)
+        public void RefreshMemberTypes(IEnumerable<int> ids)
         {
             throw new NotImplementedException();
         }

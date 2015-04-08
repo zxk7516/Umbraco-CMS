@@ -101,8 +101,9 @@ namespace umbraco.cms.businesslogic
         /// <summary>
         /// Used for cache so we don't have to lookup column names all the time, this is actually only used for the ChildrenAsTable methods
         /// </summary>
-        private static readonly ConcurrentDictionary<string, IDictionary<string, string>> AliasToNames = new ConcurrentDictionary<string, IDictionary<string, string>>();
-        private static readonly ConcurrentDictionary<System.Tuple<string, string>, Guid> PropertyTypeCache = new ConcurrentDictionary<System.Tuple<string, string>, Guid>();
+        // these caches are disabled as we cannot clear them properly
+        //private static readonly ConcurrentDictionary<string, IDictionary<string, string>> AliasToNames = new ConcurrentDictionary<string, IDictionary<string, string>>();
+        //private static readonly ConcurrentDictionary<System.Tuple<string, string>, Guid> PropertyTypeCache = new ConcurrentDictionary<System.Tuple<string, string>, Guid>();
 
         /// <summary>
         /// Returns a content type's columns alias -> name mapping
@@ -114,12 +115,12 @@ namespace umbraco.cms.businesslogic
         /// </remarks>
         internal static IDictionary<string, string> GetAliasesAndNames(string contentTypeAlias)
         {
-            return AliasToNames.GetOrAdd(contentTypeAlias, s =>
-                {
+            //return AliasToNames.GetOrAdd(contentTypeAlias, s =>
+            //    {
                     var ct = GetByAlias(contentTypeAlias);
                     var userFields = ct.PropertyTypes.ToDictionary(x => x.Alias, x => x.Name);
                     return userFields;
-                });
+                //});
         }
 
         /// <summary>
@@ -128,13 +129,13 @@ namespace umbraco.cms.businesslogic
         /// <param name="contentTypeAlias"></param>
         public static void RemoveFromDataTypeCache(string contentTypeAlias)
         {
-            var toDelete = PropertyTypeCache.Keys.Where(key => string.Equals(key.Item1, contentTypeAlias)).ToList();
-            foreach (var key in toDelete)
-            {
-                Guid id;
-                PropertyTypeCache.TryRemove(key, out id);
-            }
-            AliasToNames.Clear();
+            //var toDelete = PropertyTypeCache.Keys.Where(key => string.Equals(key.Item1, contentTypeAlias)).ToList();
+            //foreach (var key in toDelete)
+            //{
+            //    Guid id;
+            //    PropertyTypeCache.TryRemove(key, out id);
+            //}
+            //AliasToNames.Clear();
         }
 
         /// <summary>
@@ -142,20 +143,20 @@ namespace umbraco.cms.businesslogic
         /// </summary>
         internal static void RemoveAllDataTypeCache()
         {
-            AliasToNames.Clear();
-            PropertyTypeCache.Clear();
+            //AliasToNames.Clear();
+            //PropertyTypeCache.Clear();
         }
 
         public static Guid GetDataType(string contentTypeAlias, string propertyTypeAlias)
         {
-            //propertyTypeAlias needs to be invariant, so we will store uppercase
-            var key = new System.Tuple<string, string>(contentTypeAlias, propertyTypeAlias.ToUpper());
+            ////propertyTypeAlias needs to be invariant, so we will store uppercase
+            //var key = new System.Tuple<string, string>(contentTypeAlias, propertyTypeAlias.ToUpper());
 
 
-            return PropertyTypeCache.GetOrAdd(
-                key,
-                tuple =>
-                {
+            //return PropertyTypeCache.GetOrAdd(
+            //    key,
+            //    tuple =>
+            //    {
                     // With 4.10 we can't do this via direct SQL as we have content type mixins
                     var controlId = Guid.Empty;
                     var ct = GetByAlias(contentTypeAlias);
@@ -165,7 +166,7 @@ namespace umbraco.cms.businesslogic
                         controlId = pt.DataTypeDefinition.DataType.Id;
                     }
                     return controlId;
-                });
+                //});
         }
 
         /// <summary>

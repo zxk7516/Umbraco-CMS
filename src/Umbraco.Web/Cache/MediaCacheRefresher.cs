@@ -155,7 +155,7 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshMediaTypes(IEnumerable<int> refreshedIds, IEnumerable<int> removedIds)
+        public void RefreshMediaTypes(IEnumerable<int> ids)
         {
             throw new NotImplementedException();
         }

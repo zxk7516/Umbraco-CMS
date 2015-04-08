@@ -475,20 +475,29 @@ namespace umbraco.cms.businesslogic.propertytype
 
         public static PropertyType GetPropertyType(int id)
         {
-            return ApplicationContext.Current.ApplicationCache.GetCacheItem(
-                GetCacheKey(id),
-                TimeSpan.FromMinutes(30),
-                delegate
-                    {
-                        try
-                        {
-                            return new PropertyType(id);
-                        }
-                        catch
-                        {
-                            return null;
-                        }
-                    });
+            try
+            {
+                return new PropertyType(id);
+            }
+            catch
+            {
+                return null;
+            }
+            // disable that cache - we don't know how to clear it
+            //return ApplicationContext.Current.ApplicationCache.GetCacheItem(
+            //    GetCacheKey(id),
+            //    TimeSpan.FromMinutes(30),
+            //    delegate
+            //        {
+            //            try
+            //            {
+            //                return new PropertyType(id);
+            //            }
+            //            catch
+            //            {
+            //                return null;
+            //            }
+            //        });
         }
 
         private void InvalidateCache()

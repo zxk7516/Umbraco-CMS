@@ -66,12 +66,16 @@ namespace Umbraco.Web.Cache
 
             //Bind to content type events
 
-            ContentTypeService.Saved += ContentTypeServiceSaved;
-            MediaTypeService.Saved += MediaTypeServiceSaved;
-            ContentTypeService.Deleted += ContentTypeServiceDeleted;
-            MediaTypeService.Deleted += MediaTypeServiceDeleted;
-            MemberTypeService.Saved += MemberTypeServiceSaved;
-            MemberTypeService.Deleted += MemberTypeServiceDeleted;
+            // fixme cleanup
+            //ContentTypeService.Saved += ContentTypeServiceSaved;
+            //MediaTypeService.Saved += MediaTypeServiceSaved;
+            //ContentTypeService.Deleted += ContentTypeServiceDeleted;
+            //MediaTypeService.Deleted += MediaTypeServiceDeleted;
+            //MemberTypeService.Saved += MemberTypeServiceSaved;
+            //MemberTypeService.Deleted += MemberTypeServiceDeleted;
+            ContentTypeService.TreeChanged += ContentTypeServiceChanged;
+            MediaTypeService.TreeChanged += ContentTypeServiceChanged;
+            MemberTypeService.TreeChanged += ContentTypeServiceChanged;
 
             //Bind to permission events
 
@@ -160,12 +164,15 @@ namespace Umbraco.Web.Cache
             LocalizationService.SavedLanguage -= LocalizationServiceSavedLanguage;
             LocalizationService.DeletedLanguage -= LocalizationServiceDeletedLanguage;
 
-            ContentTypeService.Saved -= ContentTypeServiceSaved;
-            MediaTypeService.Saved -= MediaTypeServiceSaved;
-            ContentTypeService.Deleted -= ContentTypeServiceDeleted;
-            MediaTypeService.Deleted -= MediaTypeServiceDeleted;
-            MemberTypeService.Saved -= MemberTypeServiceSaved;
-            MemberTypeService.Deleted -= MemberTypeServiceDeleted;
+            //ContentTypeService.Saved -= ContentTypeServiceSaved;
+            //MediaTypeService.Saved -= MediaTypeServiceSaved;
+            //ContentTypeService.Deleted -= ContentTypeServiceDeleted;
+            //MediaTypeService.Deleted -= MediaTypeServiceDeleted;
+            //MemberTypeService.Saved -= MemberTypeServiceSaved;
+            //MemberTypeService.Deleted -= MemberTypeServiceDeleted;
+            ContentTypeService.TreeChanged -= ContentTypeServiceChanged;
+            MediaTypeService.TreeChanged -= ContentTypeServiceChanged;
+            MemberTypeService.TreeChanged -= ContentTypeServiceChanged;
 
             Permission.New -= PermissionNew;
             Permission.Updated -= PermissionUpdated;
@@ -411,67 +418,84 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region Content/media/member Type event handlers
-        /// <summary>
-        /// Fires when a media type is deleted
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void MediaTypeServiceDeleted(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, DeleteEventArgs<IMediaType> e)
+
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, TreeChange<IContentType>.EventArgs args)
         {
-            e.DeletedEntities.ForEach(x => DistributedCache.Instance.RemoveMediaTypeCache(x));
+            DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
 
-        /// <summary>
-        /// Fires when a content type is deleted
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void ContentTypeServiceDeleted(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, DeleteEventArgs<IContentType> e)
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, TreeChange<IMediaType>.EventArgs args)
         {
-            e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveContentTypeCache(contentType));
+            DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
 
-        /// <summary>
-        /// Fires when a member type is deleted
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void MemberTypeServiceDeleted(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, DeleteEventArgs<IMemberType> e)
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, TreeChange<IMemberType>.EventArgs args)
         {
-            e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveMemberTypeCache(contentType));
+            DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
+        
+        // FIXME KILL
 
-        /// <summary>
-        /// Fires when a media type is saved
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void MediaTypeServiceSaved(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, SaveEventArgs<IMediaType> e)
-        {
-            e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMediaTypeCache(x));
-        }
+        ///// <summary>
+        ///// Fires when a media type is deleted
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void MediaTypeServiceDeleted(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, DeleteEventArgs<IMediaType> e)
+        //{
+        //    e.DeletedEntities.ForEach(x => DistributedCache.Instance.RemoveMediaTypeCache(x));
+        //}
+
+        ///// <summary>
+        ///// Fires when a content type is deleted
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void ContentTypeServiceDeleted(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, DeleteEventArgs<IContentType> e)
+        //{
+        //    e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveContentTypeCache(contentType));
+        //}
+
+        ///// <summary>
+        ///// Fires when a member type is deleted
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void MemberTypeServiceDeleted(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, DeleteEventArgs<IMemberType> e)
+        //{
+        //    e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveMemberTypeCache(contentType));
+        //}
+
+        ///// <summary>
+        ///// Fires when a media type is saved
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void MediaTypeServiceSaved(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, SaveEventArgs<IMediaType> e)
+        //{
+        //    e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMediaTypeCache(x));
+        //}
 
 
-        /// <summary>
-        /// Fires when a content type is saved
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void ContentTypeServiceSaved(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, SaveEventArgs<IContentType> e)
-        {
-            e.SavedEntities.ForEach(contentType => DistributedCache.Instance.RefreshContentTypeCache(contentType));
-        }
+        ///// <summary>
+        ///// Fires when a content type is saved
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void ContentTypeServiceSaved(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, SaveEventArgs<IContentType> e)
+        //{
+        //    e.SavedEntities.ForEach(contentType => DistributedCache.Instance.RefreshContentTypeCache(contentType));
+        //}
 
-        /// <summary>
-        /// Fires when a member type is saved
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        static void MemberTypeServiceSaved(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, SaveEventArgs<IMemberType> e)
-        {
-            e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMemberTypeCache(x));
-        }
-
+        ///// <summary>
+        ///// Fires when a member type is saved
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //static void MemberTypeServiceSaved(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, SaveEventArgs<IMemberType> e)
+        //{
+        //    e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMemberTypeCache(x));
+        //}
         
         #endregion
         

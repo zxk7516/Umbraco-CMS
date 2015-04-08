@@ -1319,87 +1319,25 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         }
 
         // FIXME in order to be consistent we should have a NotifyChanges(ContentTypeCacheRefresher.JsonPayload[] payloads)
+        // FIXME or to get rid of NotifyChanges and go back to proper events
 
         private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
         {
-            IContentType contentType;
-            IMediaType mediaType;
-            IMemberType memberType;
+            if (args.MessageType != MessageType.RefreshByJson)
+                throw new ArgumentOutOfRangeException("args", "MessageType must be RefreshByJson.");
+            
+            var json = (string) args.MessageObject;
+            var payloads = ContentTypeCacheRefresher.Deserialize(json);
 
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshAll:
-                    ReloadXmlFromDatabase();
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    contentType = _serviceContext.ContentTypeService.Get(refreshedId);
-                    if (contentType != null) RefreshContentTypes(new[] { refreshedId });
-                    else
-                    {
-                        mediaType = _serviceContext.MediaTypeService.Get(refreshedId);
-                        if (mediaType != null) RefreshMediaTypes(new[] { refreshedId });
-                        else
-                        {
-                            memberType = _serviceContext.MemberTypeService.Get(refreshedId);
-                            if (memberType != null) RefreshMemberTypes(new[] { refreshedId });
-                        }
-                    }
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IContentTypeBase)args.MessageObject;
-                    contentType = refreshedInstance as IContentType;
-                    if (contentType != null) RefreshContentTypes(new[] { refreshedInstance.Id });
-                    else
-                    {
-                        mediaType = refreshedInstance as IMediaType;
-                        if (mediaType != null) RefreshMediaTypes(new[] { refreshedInstance.Id });
-                        else
-                        {
-                            memberType = refreshedInstance as IMemberType;
-                            if (memberType != null) RefreshMemberTypes(new[] { refreshedInstance.Id });
-                        }
-                    }
-                    break;
-                case MessageType.RefreshByJson:
-                    var json = (string)args.MessageObject;
-                    foreach (var payload in ContentTypeCacheRefresher.DeserializeFromJsonPayload(json))
-                    {
-                        // skip those that don't really change anything for us
-                        if (payload.IsNew 
-                            || (payload.Removed || payload.AliasChanged || payload.PropertyRemoved) == false)
-                            continue;
+            // process content types
+            // only those that have been changed - for those that have been removed, content is removed already
+            var ids = payloads
+                .Where(x => x.ItemType == typeof (IContentType).Name && x.ChangeTypes.HasType(TreeChangeTypes.RefreshNode))
+                .Select(x => x.Id);
 
-                        switch (payload.Type)
-                        {
-                            // assume all descendants will be of the same type
+            RefreshContentTypes(ids);
 
-                            case "IContentType":
-                                RefreshContentTypes(FlattenIds(payload));
-                                break;
-                            case "IMediaType":
-                                RefreshMediaTypes(FlattenIds(payload));
-                                break;
-                            case "IMemberType":
-                                RefreshMemberTypes(FlattenIds(payload));
-                                break;
-                            default:
-                                throw new NotSupportedException("Invalid type: " + payload.Type);
-                        }
-                    }
-                    break;
-                case MessageType.RemoveById:
-                case MessageType.RemoveByInstance:
-                    // do nothing - content should be removed via their own events
-                    break;
-            }
-        }
-
-        private static IEnumerable<int> FlattenIds(ContentTypeCacheRefresher.JsonPayload payload)
-        {
-            yield return payload.Id;
-            foreach (var id in payload.DescendantPayloads.SelectMany(FlattenIds))
-                yield return id;
+            // ignore media and member types - we're not caching them
         }
 
         #endregion
@@ -1421,39 +1359,15 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private void RefreshContentTypes(IEnumerable<int> ids)
         {
-            // for single-refresh of one content we just re-serialize it instead of hitting the DB
-            // but for mass-refresh, we want to reload what's been serialized in the DB = faster
-            // so we want one big SQL that loads all the impacted xml DTO so we can update our XML
-            //
-            // oh and it should be an enum of content types (due to dependencies & such)
-
             // get xml
             var xmlDtos = _databaseContext.Database.Query<XmlDto>(ReadCmsContentXmlForContentTypesSql,
                 new { @nodeObjectType = new Guid(Constants.ObjectTypes.Document), /*@ids =*/ ids });
 
-            // fixme - still, missing plenty of locks here
-            // fixme - should we run the events as we do above?
             using (var safeXml = GetSafeXmlWriter())
             {
                 foreach (var xmlDto in xmlDtos)
                 {
-                    // fix sortOrder - see notes in UpdateSortOrder
-                    /*
-                    var tmp = new XmlDocument();
-                    tmp.LoadXml(xmlDto.Xml);
-                    if (tmp.DocumentElement == null) throw new Exception("oops");
-                    var attr = tmp.DocumentElement.GetAttributeNode("sortOrder");
-                    if (attr == null) throw new Exception("oops");
-                    attr.Value = xmlDto.SortOrder.ToInvariantString();
-                    xmlDto.Xml = tmp.InnerXml;
-                    */
-
-                    // and parse it into a DOM node
-                    var doc = new XmlDocument();
-                    doc.LoadXml(xmlDto.Xml);
-                    var node = doc.FirstChild;
-                    node = safeXml.Xml.ImportNode(node, true);
-
+                    var node = safeXml.Xml.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
                     AddOrUpdateXmlNode(safeXml.Xml, xmlDto.Id, xmlDto.Level, xmlDto.ParentId, node);
                 }
             }

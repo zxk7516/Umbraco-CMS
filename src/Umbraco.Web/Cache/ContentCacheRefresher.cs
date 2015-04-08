@@ -121,7 +121,7 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshContentTypes(IEnumerable<int> refreshedIds, IEnumerable<int> removedIds)
+        public void RefreshContentTypes(IEnumerable<int> ids)
         {
             // we could try to have a mechanism to notify the PublishedCachesService
             // and figure out whether published items were modified or not... keep it
