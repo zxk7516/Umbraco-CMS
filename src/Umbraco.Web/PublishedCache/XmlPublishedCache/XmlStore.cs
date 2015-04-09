@@ -178,15 +178,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         {
             if (SyncToXmlFile == false) return;
 
+            var logger = LoggerResolver.Current.Logger;
             _filePersisterRunner = new BackgroundTaskRunner<XmlStoreFilePersister>(new BackgroundTaskRunnerOptions
             {
                 LongRunning = true,
                 KeepAlive = true
-            });
+            }, logger);
 
             // create (and add to runner)
-            _persisterTask = new XmlStoreFilePersister(_filePersisterRunner, this,
-                new ProfilingLogger(LoggerResolver.Current.Logger, ProfilerResolver.Current.Profiler));
+            _persisterTask = new XmlStoreFilePersister(_filePersisterRunner, this, logger);
         }
 
         private void OnResolutionFrozen(bool testing, bool enableRepositoryEvents)

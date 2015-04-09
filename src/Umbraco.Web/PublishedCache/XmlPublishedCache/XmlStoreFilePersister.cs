@@ -18,7 +18,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     internal class XmlStoreFilePersister : ILatchedBackgroundTask
     {
         private readonly IBackgroundTaskRunner<XmlStoreFilePersister> _runner;
-        private readonly ProfilingLogger _logger;
+        private readonly ILogger _logger;
         private readonly XmlStore _store;
         private readonly ManualResetEventSlim _latch = new ManualResetEventSlim(false);
         private readonly object _locko = new object();
@@ -32,7 +32,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // save the cache when the app goes down
         public bool RunsOnShutdown { get { return true; } }
 
-        public XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ProfilingLogger logger, bool touched = false)
+        public XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ILogger logger, bool touched = false)
         {
             _runner = runner;
             _store = store;
@@ -42,12 +42,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             if (touched == false) return;
 
-            _logger.Logger.Debug<XmlStoreFilePersister>("Create new touched, start.");
+            _logger.Debug<XmlStoreFilePersister>("Create new touched, start.");
 
             _initialTouch = DateTime.Now;
             _timer = new Timer(_ => Release());
 
-            _logger.Logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+            _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
             _timer.Change(WaitMilliseconds, 0);
         }
 
@@ -57,7 +57,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             {
                 if (_released)
                 {
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Touched, was released, create new.");
+                    _logger.Debug<XmlStoreFilePersister>("Touched, was released, create new.");
 
                     // released, has run or is running, too late, return a new task (adds itself to runner)
                     return new XmlStoreFilePersister(_runner, _store, _logger, true);
@@ -65,12 +65,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 if (_timer == null)
                 {
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Touched, was idle, start.");
+                    _logger.Debug<XmlStoreFilePersister>("Touched, was idle, start.");
 
                     // not started yet, start
                     _initialTouch = DateTime.Now;
                     _timer = new Timer(_ => Release());
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+                    _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
                     _timer.Change(WaitMilliseconds, 0);
                     return this;
                 }
@@ -80,13 +80,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
                 if (DateTime.Now - _initialTouch < TimeSpan.FromMilliseconds(MaxWaitMilliseconds))
                 {
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Touched, was waiting, wait.", () => WaitMilliseconds);
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+                    _logger.Debug<XmlStoreFilePersister>("Touched, was waiting, wait.", () => WaitMilliseconds);
+                    _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
                     _timer.Change(WaitMilliseconds, 0);
                 }
                 else
                 {
-                    _logger.Logger.Debug<XmlStoreFilePersister>("Touched, has waited long enough, will save.");
+                    _logger.Debug<XmlStoreFilePersister>("Touched, has waited long enough, will save.");
                     //ReleaseLocked();
                 }
 
@@ -104,7 +104,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private void ReleaseLocked()
         {
-            _logger.Logger.Debug<XmlStoreFilePersister>("Timer: save now, release.");
+            _logger.Debug<XmlStoreFilePersister>("Timer: save now, release.");
             if (_timer != null)
                 _timer.Dispose();
             _timer = null;
@@ -127,7 +127,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public async Task RunAsync(CancellationToken token)
         {
-            _logger.Logger.Debug<XmlStoreFilePersister>("Run now.");
+            _logger.Debug<XmlStoreFilePersister>("Run now.");
 
             // http://stackoverflow.com/questions/13489065/best-practice-to-call-configureawait-for-all-server-side-code
             // http://blog.stephencleary.com/2012/07/dont-block-on-async-code.html
