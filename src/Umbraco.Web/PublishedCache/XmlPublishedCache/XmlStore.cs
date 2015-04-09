@@ -52,34 +52,42 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly ServiceContext _serviceContext;
         private readonly DatabaseContext _databaseContext;
 
-        // NOTES
-        //
         // LOCKS
         //
         //  we make use of various locking strategies in XmlStore:
+        //
+        //  _fileLock is an AsyncLock built on top of a named (system-wide) semaphore, that is
+        //    used to ensure that only the current app domain has access to the file. It is
+        //    acquired before the file is used, and released when the app domain goes down.
+        //
+        //    so when the web app restarts, the new app domain will not be able to read the
+        //    file until the old app domain is really done writing to it. as a consequence,
+        //    every methods in XmlStore can safely assume that the file is locked.
+        //
+        //    this does not "lock" the file itself in a filesystem way, so the file can still
+        //    be accessed by external tools such as a text editor, during debugging sessions.
+        //
+        //    the lock is acquired when needed, ie in
+        //      LoadXmlFromFile
+        //      SaveXmlToFile
+        //      SaveXmlToFileAsync
+        //    and these are the ONLY methods that access the file
         //
         //  _xmlLock is an AsyncLock that is used to protect _xml ie the master xml document
         //    from concurrent accesses. It is an AsyncLock because saving xml to file can be
         //    an async operation. It is never used directly but only through GetSafeXmlReader
         //    and GetSafeXmlWriter which provide safe, locked, clean access to _xml.
         //
-        // there is no lock around the xml file specifically, because all accesses to that
-        //    file happen while holding the _xmlLock lock.
-        //
         // there is not lock around writes to cmsContentXml and cmsPreviewXml as these are
-        //    supposed to happen in the context of the original ContentRepository transaction
+        //    supposed to happen in the context of the original repository transaction
         //    and therefore concurrency is already taken care of.
         //
         // there is no lock around the database, because writes are already protected (see
         //    above) and reads are atomic (only 1 query).
         //
-        // FIXME
-        //    when 'rebuilding all' we should somehow ensure that content does not change
-        //    while rebuilding - but that's a ContentService-level lock? How can we do it?
-        //    in addition at one point in time, we're going to remove all XML and then
-        //    recreate it, we should ensure that NO other thread, even in a distributed
-        //    environment, can read the XML tables at that time - so we should have a
-        //    global, distributed lock on everything...
+        // during 'rebuilding all' methods, we get the service write-lock so that no other
+        //    thread or app domain can read/write at the same time
+        //
 
         #region Constructors
 
@@ -104,26 +112,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _databaseContext = databaseContext;
             _routesCache = routesCache;
 
-            // initialize file lock
-            // ApplicationId will look like "/LM/W3SVC/1/Root/AppName"
-            // name is system-wide and must be less than 260 chars
-            //
-            // From MSDN C++ CreateSemaphore doc:
-            // "The name can have a "Global\" or "Local\" prefix to explicitly create the object in
-            // the global or session namespace. The remainder of the name can contain any character 
-            // except the backslash character (\). For more information, see Kernel Object Namespaces."
-            //
-            // From MSDN "Kernel object namespaces" doc:
-            // "The separate client session namespaces enable multiple clients to run the same 
-            // applications without interfering with each other. For processes started under 
-            // a client session, the system uses the session namespace by default. However, these 
-            // processes can use the global namespace by prepending the "Global\" prefix to the object name."
-            //
-            // just use "default" (whatever it is) for now - ie, no prefix
-            //
-            var name = HostingEnvironment.ApplicationID + "/XmlStore/XmlFile";
-            _fileLock = new AsyncLock(name);
-
             InitializeSerializers();
 
             if (testing)
@@ -133,6 +121,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             else
             {
                 InitializeFilePersister();
+                InitializeFileLock();
             }
 
             // need to wait for resolution to be frozen
@@ -505,13 +494,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         }
 
         // try to load from file, otherwise database
-        // assumes xml lock
+        // assumes xml lock (file is always locked)
         private void LoadXmlLocked(SafeXmlReaderWriter safeXml, out bool registerXmlChange)
         {
             LogHelper.Debug<XmlStore>("Loading Xml...");
 
             // try to get it from the file
-            if (XmlFileEnabled && XmlFileExists && (safeXml.Xml = LoadXmlFromFile()) != null)
+            if (XmlFileEnabled && (safeXml.Xml = LoadXmlFromFile()) != null)
             {
                 registerXmlChange = false; // loaded from disk, do NOT write back to disk!
                 return;
@@ -770,17 +759,111 @@ AND (umbracoNode.id=@id)";
         private readonly string _xmlFileName = IOHelper.MapPath(SystemFiles.ContentCacheXml);
         private DateTime _lastFileRead; // last time the file was read
         private DateTime _nextFileCheck; // last time we checked whether the file was changed
-        private readonly AsyncLock _fileLock; // protects the file
+        private AsyncLock _fileLock; // protects the file
+        private IDisposable _fileLocked; // protects the file
 
-        private bool XmlFileExists
+        private const int FileLockTimeoutMilliseconds = 4*60*1000; // 4'
+
+        private void InitializeFileLock()
         {
-            get
+            // initialize file lock
+            // ApplicationId will look like "/LM/W3SVC/1/Root/AppName"
+            // name is system-wide and must be less than 260 chars
+            //
+            // From MSDN C++ CreateSemaphore doc:
+            // "The name can have a "Global\" or "Local\" prefix to explicitly create the object in
+            // the global or session namespace. The remainder of the name can contain any character 
+            // except the backslash character (\). For more information, see Kernel Object Namespaces."
+            //
+            // From MSDN "Kernel object namespaces" doc:
+            // "The separate client session namespaces enable multiple clients to run the same 
+            // applications without interfering with each other. For processes started under 
+            // a client session, the system uses the session namespace by default. However, these 
+            // processes can use the global namespace by prepending the "Global\" prefix to the object name."
+            //
+            // just use "default" (whatever it is) for now - ie, no prefix
+            //
+            var name = HostingEnvironment.ApplicationID + "/XmlStore/XmlFile";
+            _fileLock = new AsyncLock(name);
+
+            // the file lock works with a shared, system-wide, semaphore - and we don't want
+            // to leak a count on that semaphore else the whole process will hang - so we have
+            // to ensure we dispose of the locker when the domain goes down - in theory the
+            // async lock should do it via its finalizer, but then there are some weird cases
+            // where the semaphore has been disposed of before it's been released, and then
+            // we'd need to GC-pin the semaphore... better dispose the locker explicitely
+            // when the app domain unloads.
+
+            if (AppDomain.CurrentDomain.IsDefaultAppDomain())
             {
-                // check that the file exists and has content (is not empty)
-                var fileInfo = new FileInfo(_xmlFileName);
-                return fileInfo.Exists && fileInfo.Length > 0;
+                LogHelper.Debug<XmlStore>("Registering Unload handler for default app domain.");
+                AppDomain.CurrentDomain.ProcessExit += OnDomainUnloadReleaseFileLock;
+            }
+            else
+            {
+                LogHelper.Debug<XmlStore>("Registering Unload handler for non-default app domain.");
+                AppDomain.CurrentDomain.DomainUnload += OnDomainUnloadReleaseFileLock;
             }
         }
+
+        private void EnsureFileLock()
+        {
+            if (_fileLock == null) return; // not locking (testing?)
+            if (_fileLocked != null) return; // locked already
+
+            // thread-safety, acquire lock only once!
+            // lock something that's readonly and not null..
+            lock (_xmlFileName) 
+            {
+                // double-check
+                if (_fileLock == null) return;
+                if (_fileLocked != null) return;
+
+                // don't hang forever, throws if it cannot lock within the timeout
+                LogHelper.Debug<XmlStore>("Acquiring exclusive access to file for this AppDomain...");
+                _fileLocked = _fileLock.Lock(FileLockTimeoutMilliseconds);
+                LogHelper.Debug<XmlStore>("Acquired exclusive access to file for this AppDomain.");
+            }
+        }
+
+        private void OnDomainUnloadReleaseFileLock(object sender, EventArgs args)
+        {
+            // the unload event triggers AFTER all hosted objects (eg the file persister
+            // background task runner) have been stopped, so we should NOT be accessing
+            // the file from now one - release the lock
+
+            // NOTE
+            // trying to write to the log via LogHelper at that point is a BAD idea
+            // it can lead to ugly deadlocks with the named semaphore - DONT do it
+
+            if (_fileLock == null) return; // not locking (testing?)
+            if (_fileLocked == null) return; // not locked
+
+            // thread-safety
+            // lock something that's readonly and not null..
+            lock (_xmlFileName)
+            {
+                // double-check
+                if (_fileLocked == null) return;
+
+                // in case you really need to debug... that should be safe...
+                //System.IO.File.AppendAllText(HostingEnvironment.MapPath("~/App_Data/log.txt"), string.Format("{0} {1} unlock", DateTime.Now, AppDomain.CurrentDomain.Id));
+                _fileLocked.Dispose();
+
+                _fileLock = null; // ensure we don't lock again
+            }
+        }
+
+        // not used - just try to read the file
+        //private bool XmlFileExists
+        //{
+        //    get
+        //    {
+        //        // check that the file exists and has content (is not empty)
+        //        var fileInfo = new FileInfo(_xmlFileName);
+        //        return fileInfo.Exists && fileInfo.Length > 0;
+        //    }
+        //}
 
         private DateTime XmlFileLastWriteTime
         {
@@ -791,81 +874,79 @@ AND (umbracoNode.id=@id)";
             }
         }
 
+        // assumes file lock
         internal void SaveXmlToFile()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
+            EnsureFileLock();
 
             var xml = _xml; // capture (atomic + volatile), immutable anyway
 
-            using (_fileLock.Lock()) // ensure no other Umbraco is using the file
+            try
             {
-                try
+                // delete existing file, if any
+                DeleteXmlFile();
+
+                // ensure cache directory exists
+                var directoryName = Path.GetDirectoryName(_xmlFileName);
+                if (directoryName == null)
+                    throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
+                if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                    Directory.CreateDirectory(directoryName);
+
+                // save
+                using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
                 {
-                    // delete existing file, if any
-                    DeleteXmlFileLocked();
-
-                    // ensure cache directory exists
-                    var directoryName = Path.GetDirectoryName(_xmlFileName);
-                    if (directoryName == null)
-                        throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
-                    if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
-                        Directory.CreateDirectory(directoryName);
-
-                    // save
-                    using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
-                    {
-                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
-                        fs.Write(bytes, 0, bytes.Length);
-                    }
-
-                    LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                    var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
+                    fs.Write(bytes, 0, bytes.Length);
                 }
-                catch (Exception e)
-                {
-                    // if something goes wrong remove the file
-                    DeleteXmlFileLocked();
 
-                    LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
-                }
+                LogHelper.Debug<XmlStore>("Saved Xml to file.");
+            }
+            catch (Exception e)
+            {
+                // if something goes wrong remove the file
+                DeleteXmlFile();
+
+                LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
             }
         }
 
+        // assumes file lock
         internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
+            EnsureFileLock();
 
             var xml = _xml; // capture (atomic + volatile), immutable anyway
 
-            using (await _fileLock.LockAsync()) // ensure no other Umbraco is using the file
+            try
             {
-                try
+                // delete existing file, if any
+                DeleteXmlFile();
+
+                // ensure cache directory exists
+                var directoryName = Path.GetDirectoryName(_xmlFileName);
+                if (directoryName == null)
+                    throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
+                if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                    Directory.CreateDirectory(directoryName);
+
+                // save
+                using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
                 {
-                    // delete existing file, if any
-                    DeleteXmlFileLocked();
-
-                    // ensure cache directory exists
-                    var directoryName = Path.GetDirectoryName(_xmlFileName);
-                    if (directoryName == null)
-                        throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
-                    if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
-                        Directory.CreateDirectory(directoryName);
-
-                    // save
-                    using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
-                    {
-                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
-                        await fs.WriteAsync(bytes, 0, bytes.Length);
-                    }
-
-                    LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                    var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
+                    await fs.WriteAsync(bytes, 0, bytes.Length);
                 }
-                catch (Exception e)
-                {
-                    // if something goes wrong remove the file
-                    DeleteXmlFileLocked();
 
-                    LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
-                }
+                LogHelper.Debug<XmlStore>("Saved Xml to file.");
+            }
+            catch (Exception e)
+            {
+                // if something goes wrong remove the file
+                DeleteXmlFile();
+
+                LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
             }
         }
 
@@ -897,34 +978,33 @@ AND (umbracoNode.id=@id)";
             return sb.ToString();
         }
 
+        // assumes file lock
         private XmlDocument LoadXmlFromFile()
         {
             LogHelper.Info<XmlStore>("Load Xml from file...");
+            EnsureFileLock();
 
-            using (_fileLock.Lock()) // ensure no other Umbraco is using the file
+            try
             {
-                try
+                var xml = new XmlDocument();
+                using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    var xml = new XmlDocument();
-                    using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        xml.Load(fs);
-                    }
-                    _lastFileRead = DateTime.UtcNow;
-                    LogHelper.Info<XmlStore>("Successfully loaded Xml from file.");
-                    return xml;
+                    xml.Load(fs);
                 }
-                catch (Exception e)
-                {
-                    LogHelper.Error<XmlStore>("Failed to load Xml from file.", e);
-                    DeleteXmlFileLocked();
-                    return null;
-                }
+                _lastFileRead = DateTime.UtcNow;
+                LogHelper.Info<XmlStore>("Successfully loaded Xml from file.");
+                return xml;
+            }
+            catch (Exception e)
+            {
+                LogHelper.Error<XmlStore>("Failed to load Xml from file.", e);
+                DeleteXmlFile();
+                return null;
             }
         }
 
-        // assumes file lock
-        private void DeleteXmlFileLocked()
+        // (files is always locked)
+        private void DeleteXmlFile()
         {
             if (System.IO.File.Exists(_xmlFileName) == false) return;
             System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
@@ -1171,6 +1251,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 foreach (var payload in payloads)
                 {
+                    LogHelper.Debug<XmlStore>("Notified {1} for {0}".FormatWith(payload.Id, payload.ChangeTypes));
+
                     if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                     {
                         LoadXmlTreeFromDatabaseLocked(safeXml);
@@ -1202,6 +1284,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     if (content == null || content.HasPublishedVersion == false || content.Trashed)
                     {
                         // no published version
+                        LogHelper.Debug<XmlStore>("Notified - {0} has no published version".FormatWith(payload.Id));
                         if (current != null)
                         {
                             // remove from xml if exists
@@ -1227,6 +1310,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         if (dtos.MoveNext() == false)
                         {
                             // gone fishing, remove (possible race condition)
+                            LogHelper.Debug<XmlStore>("Notif/{0} GoneFishing".FormatWith(payload.Id));
                             if (current != null)
                             {
                                 // remove from xml if exists
@@ -1828,6 +1912,7 @@ WHERE cmsContentXml.nodeId IN (
             svc.WithWriteLocked(repository => RebuildContentXmlLocked(repository, groupSize, contentTypeIds));
         }
 
+        // assumes content tree lock
         private void RebuildContentXmlLocked(ContentRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
         {
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
@@ -1894,6 +1979,7 @@ WHERE cmsContentXml.nodeId IN (
             svc.WithWriteLocked(repository => RebuildPreviewXmlLocked(repository, groupSize, contentTypeIds));
         }
 
+        // assumes content tree lock
         private void RebuildPreviewXmlLocked(ContentRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
         {
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
@@ -1964,6 +2050,7 @@ WHERE cmsPreviewXml.nodeId IN (
             svc.WithWriteLocked(repository => RebuildMediaXmlLocked(repository, groupSize, contentTypeIds));
         }
 
+        // assumes media tree lock
         public void RebuildMediaXmlLocked(MediaRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
         {
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
@@ -2028,6 +2115,7 @@ WHERE cmsContentXml.nodeId IN (
             svc.WithWriteLocked(repository => RebuildMemberXmlLocked(repository, groupSize, contentTypeIds));
         }
 
+        // assumes member tree lock
         public void RebuildMemberXmlLocked(MemberRepository repository, int groupSize, IEnumerable<int> contentTypeIds)
         {
             var contentTypeIdsA = contentTypeIds == null ? null : contentTypeIds.ToArray();
@@ -2089,9 +2177,10 @@ WHERE cmsContentXml.nodeId IN (
         {
             var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
-            return svc.WithReadLocked(repository => VerifyContentAndPreviewXmlLocked(repository));
+            return svc.WithReadLocked(VerifyContentAndPreviewXmlLocked);
         }
 
+        // assumes content tree lock
         private bool VerifyContentAndPreviewXmlLocked(ContentRepository repository)
         {
             // every published content item should have a corresponding row in cmsContentXml
@@ -2124,9 +2213,10 @@ AND cmsPreviewXml.nodeId IS NULL
         {
             var svc = _serviceContext.MediaService as MediaService;
             if (svc == null) throw new Exception("oops");
-            return svc.WithReadLocked(repository => VerifyMediaXmlLocked(repository));
+            return svc.WithReadLocked(VerifyMediaXmlLocked);
         }
 
+        // assumes media tree lock
         public bool VerifyMediaXmlLocked(MediaRepository repository)
         {
             // every non-trashed media item should have a corresponding row in cmsContentXml
@@ -2149,9 +2239,10 @@ AND cmsContentXml.nodeId IS NULL
         {
             var svc = _serviceContext.MemberService as MemberService;
             if (svc == null) throw new Exception("oops");
-            return svc.WithReadLocked(repository => VerifyMemberXmlLocked(repository));
+            return svc.WithReadLocked(VerifyMemberXmlLocked);
         }
 
+        // assumes member tree lock
         public bool VerifyMemberXmlLocked(MemberRepository repository)
         {
             // every member item should have a corresponding row in cmsContentXml

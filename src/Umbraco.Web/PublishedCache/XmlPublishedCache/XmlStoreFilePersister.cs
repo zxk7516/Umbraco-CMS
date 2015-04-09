@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Umbraco.Core;
 using Umbraco.Core.Logging;
 using Umbraco.Web.Scheduling;
 
@@ -25,6 +26,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private bool _released;
         private Timer _timer;
         private DateTime _initialTouch;
+        private readonly AsyncLock _runLock = new AsyncLock(); // ensure we run once at a time
+
+        // note:
+        // as long as the runner controls the runs, we know that we run once at a time, but
+        // when the AppDomain goes down and the runner has completed and yet the persister is
+        // asked to save, then we need to run immediately - but the runner may be running, so
+        // we need to make sure there's no collision - hence _runLock
 
         private const int WaitMilliseconds = 4000; // save the cache 4s after the last change (ie every 4s min)
         private const int MaxWaitMilliseconds = 30000; // save the cache after some time (ie no more than 30s of changes)
@@ -32,87 +40,117 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         // save the cache when the app goes down
         public bool RunsOnShutdown { get { return true; } }
 
-        public XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ILogger logger, bool touched = false)
+        // initialize the first instance, which is inactive (not touched yet)
+        public XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ILogger logger)
+            : this(runner, store, logger, false)
+        { }
+
+        // initialize further instances, which are active (touched)
+        private XmlStoreFilePersister(IBackgroundTaskRunner<XmlStoreFilePersister> runner, XmlStore store, ILogger logger, bool touched)
         {
             _runner = runner;
             _store = store;
             _logger = logger;
 
-            if (runner.TryAdd(this) == false) return;
+            if (_runner.TryAdd(this) == false)
+            {
+                _runner = null; // runner's down
+                _released = true; // don't mess with timer
+                return;
+            }
+
+            // runner could decide to run it anytime now
 
             if (touched == false) return;
 
-            _logger.Debug<XmlStoreFilePersister>("Create new touched, start.");
-
+            _logger.Debug<XmlStoreFilePersister>("Created, save in {0}ms.", () => WaitMilliseconds);
             _initialTouch = DateTime.Now;
-            _timer = new Timer(_ => Release());
-
-            _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+            _timer = new Timer(_ => TimerRelease());
             _timer.Change(WaitMilliseconds, 0);
         }
 
         public XmlStoreFilePersister Touch()
         {
+            // if _released is false then we're going to setup a timer
+            //  then the runner wants to shutdown & run immediately
+            //  this sets _released to true & the timer will trigger eventualy & who cares?
+            // if _released is true, either it's a normal release, or
+            //  a runner shutdown, in which case we won't be able to
+            //  add a new task, and so we'll run immediately
+
+            var ret = this;
+            var runNow = false;
+
             lock (_locko)
             {
-                if (_released)
+                if (_released) // our timer has triggered OR the runner is shutting down
                 {
-                    _logger.Debug<XmlStoreFilePersister>("Touched, was released, create new.");
+                    _logger.Debug<XmlStoreFilePersister>("Touched, was released...");
 
-                    // released, has run or is running, too late, return a new task (adds itself to runner)
-                    return new XmlStoreFilePersister(_runner, _store, _logger, true);
+                    // release: has run or is running, too late, return a new task (adds itself to runner)
+                    if (_runner == null)
+                    {
+                        _logger.Debug<XmlStoreFilePersister>("Runner is down, run now.");
+                        runNow = true;
+                    }
+                    else
+                    {
+                        _logger.Debug<XmlStoreFilePersister>("Create new...");
+                        ret = new XmlStoreFilePersister(_runner, _store, _logger, true);
+                        if (ret._runner == null)
+                        {
+                            // could not enlist with the runner, runner is completed, must run now
+                            _logger.Debug<XmlStoreFilePersister>("Runner is down, run now.");
+                            runNow = true;
+                        }
+                    }
                 }
 
-                if (_timer == null)
+                else if (_timer == null) // we don't have a timer yet
                 {
-                    _logger.Debug<XmlStoreFilePersister>("Touched, was idle, start.");
-
-                    // not started yet, start
+                    _logger.Debug<XmlStoreFilePersister>("Touched, was idle, start and save in {0}ms.", () => WaitMilliseconds);
                     _initialTouch = DateTime.Now;
-                    _timer = new Timer(_ => Release());
-                    _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
-                    _timer.Change(WaitMilliseconds, 0);
-                    return this;
-                }
-
-                // set the timer to trigger in WaitMilliseconds unless we've been touched first more
-                // than MaxWaitMilliseconds ago and then release now
-
-                if (DateTime.Now - _initialTouch < TimeSpan.FromMilliseconds(MaxWaitMilliseconds))
-                {
-                    _logger.Debug<XmlStoreFilePersister>("Touched, was waiting, wait.", () => WaitMilliseconds);
-                    _logger.Debug<XmlStoreFilePersister>("Save in {0}ms.", () => WaitMilliseconds);
+                    _timer = new Timer(_ => TimerRelease());
                     _timer.Change(WaitMilliseconds, 0);
                 }
-                else
-                {
-                    _logger.Debug<XmlStoreFilePersister>("Touched, has waited long enough, will save.");
-                    //ReleaseLocked();
-                }
 
-                return this; // still available
+                else // we have a timer
+                {
+                    // change the timer to trigger in WaitMilliseconds unless we've been touched first more
+                    // than MaxWaitMilliseconds ago and then leave the time unchanged
+
+                    if (DateTime.Now - _initialTouch < TimeSpan.FromMilliseconds(MaxWaitMilliseconds))
+                    {
+                        _logger.Debug<XmlStoreFilePersister>("Touched, was waiting, can delay, save in {0}ms.", () => WaitMilliseconds);
+                        _timer.Change(WaitMilliseconds, 0);
+                    }
+                    else
+                    {
+                        _logger.Debug<XmlStoreFilePersister>("Touched, was waiting, cannot delay.");
+                    }
+                }
             }
+
+            if (runNow)
+                Run();
+
+            return ret; // this, by default, unless we created a new one
         }
 
-        private void Release()
+        private void TimerRelease()
         {
             lock (_locko)
             {
-                ReleaseLocked();
+                _logger.Debug<XmlStoreFilePersister>("Timer: release.");
+                if (_timer != null)
+                    _timer.Dispose();
+                _timer = null;
+                _released = true;
+
+                // if running (because of shutdown) this will have no effect
+                // else it tells the runner it is time to run the task
+                _latch.Set();
             }
-        }
-
-        private void ReleaseLocked()
-        {
-            _logger.Debug<XmlStoreFilePersister>("Timer: save now, release.");
-            if (_timer != null)
-                _timer.Dispose();
-            _timer = null;
-            _released = true;
-
-            // if running (because of shutdown) this will have no effect
-            // else it tells the runner it is time to run the task
-            _latch.Set();
         }
 
         public WaitHandle Latch
@@ -127,12 +165,21 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public async Task RunAsync(CancellationToken token)
         {
-            _logger.Debug<XmlStoreFilePersister>("Run now.");
+            lock (_locko)
+            {
+                _logger.Debug<XmlStoreFilePersister>("Run now (async).");
+                // just make sure - in case the runner is running the task on shutdown
+                _released = true;
+            }
 
             // http://stackoverflow.com/questions/13489065/best-practice-to-call-configureawait-for-all-server-side-code
             // http://blog.stephencleary.com/2012/07/dont-block-on-async-code.html
             // do we really need that ConfigureAwait here?
-            await _store.SaveXmlToFileAsync().ConfigureAwait(false);
+
+            using (await _runLock.LockAsync())
+            {
+                await _store.SaveXmlToFileAsync().ConfigureAwait(false);
+            }
         }
 
         public bool IsAsync
@@ -145,7 +192,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public void Run()
         {
-            throw new NotImplementedException();
+            lock (_locko)
+            {
+                _logger.Debug<XmlStoreFilePersister>("Run now (sync).");
+                // not really needed but safer (it's only us invoking Run, but the method is public...)
+                _released = true;
+            }
+
+            using (_runLock.Lock())
+            {
+                _store.SaveXmlToFile();
+            }
         }
     }
 }
