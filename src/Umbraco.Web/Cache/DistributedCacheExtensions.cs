@@ -200,12 +200,12 @@ namespace Umbraco.Web.Cache
 
         #region Content cache
 
-        private static void RefreshContentCacheByJson(this DistributedCache dc, IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
+        private static void RefreshContentCacheByPayload(this DistributedCache dc, IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
         {
             var changeSet = ChangeSet.Ambient;
             if (changeSet == null)
             {
-                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
+                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads.ToArray());
             }
             else
             {
@@ -223,7 +223,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
-            dc.RefreshContentCacheByJson(payloads);
+            dc.RefreshContentCacheByPayload(payloads);
         }
 
         public static void RefreshContentCache(this DistributedCache dc, TreeChange<IContent>[] changes)
@@ -233,7 +233,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshContentCacheByJson(payloads);
+            dc.RefreshContentCacheByPayload(payloads);
         }
 
         #endregion
@@ -308,12 +308,6 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region Macro Cache
-
-        public static void ClearAllMacroCacheOnCurrentServer(this DistributedCache dc)
-        {
-            // NOTE: The 'false' ensure that it will only refresh on the current server, not post to all servers
-            dc.RefreshAll(DistributedCache.MacroCacheRefresherGuid, false);
-        }
 
         public static void RefreshMacroCache(this DistributedCache dc, IMacro macro)
         {
@@ -476,16 +470,6 @@ namespace Umbraco.Web.Cache
         {
             if (language == null) return;
             dc.Remove(DistributedCache.LanguageCacheRefresherGuid, language.id);
-        }
-
-        #endregion
-
-        #region Xslt Cache
-
-        public static void ClearXsltCacheOnCurrentServer(this DistributedCache dc)
-        {
-            if (UmbracoConfig.For.UmbracoSettings().Content.UmbracoLibraryCacheDuration <= 0) return;
-            ApplicationContext.Current.ApplicationCache.ClearCacheObjectTypes("MS.Internal.Xml.XPath.XPathSelectionIterator");
         }
 
         #endregion

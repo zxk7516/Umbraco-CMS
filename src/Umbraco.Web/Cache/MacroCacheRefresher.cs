@@ -26,9 +26,9 @@ namespace Umbraco.Web.Cache
         {
             return new[]
                 {
-                    CacheKeys.MacroCacheKey,
-                    CacheKeys.MacroContentCacheKey,
-                    CacheKeys.MacroXsltCacheKey,
+                    CacheKeys.MacroCacheKey, // umbraco.cms.businesslogic.macro.Macro objects cache
+                    CacheKeys.MacroContentCacheKey, // macro render cache
+                    CacheKeys.MacroXsltCacheKey, // XsltMacroEngine transforms cache
                 };
         }
 
@@ -168,12 +168,14 @@ namespace Umbraco.Web.Cache
 
         public override void RefreshAll()
         {
-            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<MacroCacheContent>();
+            //ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<MacroCacheContent>();
             GetAllMacroCacheKeys().ForEach(
                     prefix =>
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(prefix));
 
             ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IMacro>();
+
+            ClearMacroContentCache();
 
             base.RefreshAll();
         }
@@ -194,5 +196,9 @@ namespace Umbraco.Web.Cache
             base.Refresh(jsonPayload);
         }
 
+        public static void ClearMacroContentCache()
+        {
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<MacroCacheContent>();
+        }
     }
 }

@@ -1199,7 +1199,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     var content = _serviceContext.ContentService.GetById(payload.Id);
                     var current = safeXml.Xml.GetElementById(payload.Id.ToInvariantString());
 
-                    if (content.HasPublishedVersion == false || content.Trashed)
+                    if (content == null || content.HasPublishedVersion == false || content.Trashed)
                     {
                         // no published version
                         if (current != null)

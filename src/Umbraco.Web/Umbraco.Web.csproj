@@ -309,6 +309,7 @@
     <Compile Include="ApplicationContextExtensions.cs" />
     <Compile Include="AreaRegistrationContextExtensions.cs" />
     <Compile Include="HtmlHelperBackOfficeExtensions.cs" />
+    <Compile Include="PublishedCache\PublishedCachesServiceControl.cs" />
     <Compile Include="UmbracoDefaultOwinStartup.cs" />
     <Compile Include="Cache\ContentCacheRefresher.cs" />
     <Compile Include="IUmbracoContextAccessor.cs" />

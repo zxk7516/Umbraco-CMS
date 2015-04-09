@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
 using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
@@ -8,12 +9,7 @@ using Umbraco.Core.Services;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
-    // FIXME
-    // this should replace the global, static PublishedContentType.Get method
-    // so that each cache can implement its own way of caching PublishedContentType
-    // in order to maintain consistency wrt content
-
-    // TODO: support PublishedItemType and have 1 content type cache
+    // caches content, media and member types
 
     public class PublishedContentTypeCache
     {
@@ -22,6 +18,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly IContentTypeService _contentTypeService;
         private readonly IMediaTypeService _mediaTypeService;
         private readonly IMemberTypeService _memberTypeService;
+        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
         internal PublishedContentTypeCache(IContentTypeService contentTypeService, IMediaTypeService mediaTypeService, IMemberTypeService memberTypeService)
         {
@@ -34,24 +31,49 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         internal PublishedContentTypeCache()
         { }
 
+        internal class PublishedContentTypeInternal : PublishedContentType
+        {
+            public readonly string K;
+
+            public PublishedContentTypeInternal(IContentTypeComposition contentType)
+                : base(contentType)
+            {
+                if (contentType is IContentType)
+                    K = "c";
+                else if (contentType is IMediaType)
+                    K = "m";
+                else if (contentType is IMemberType)
+                    K = "b";
+                else throw new ArgumentOutOfRangeException();
+            }
+        }
+
         public void ClearAll()
         {
             Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear all.");
 
-            _typesByAlias.Clear();
-            _typesById.Clear();
+            using (new WriteLock(_lock))
+            {
+                _typesByAlias.Clear();
+                _typesById.Clear();
+            }
         }
 
         public void ClearContentType(int id)
         {
             Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear content type w/id {0}.", () => id);
 
-            PublishedContentType type;
-            if (_typesById.TryGetValue(id, out type) == false)
-                return;
+            using (var l = new UpgradeableReadLock(_lock))
+            {
+                PublishedContentType type;
+                if (_typesById.TryGetValue(id, out type) == false)
+                    return;
 
-            _typesByAlias.Remove(type.Alias);
-            _typesById.Remove(id);
+                l.UpgradeToWriteLock();
+
+                _typesByAlias.Remove(GetAliasKey(type));
+                _typesById.Remove(id);   
+            }
         }
 
         public void ClearDataType(int id)
@@ -63,30 +85,42 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // IContentTypeComposition) and so every PublishedContentType having a property based upon
             // the cleared data type, be it local or inherited, will be cleared.
 
-            var toRemove = _typesById.Values.Where(x => x.PropertyTypes.Any(xx => xx.DataTypeId == id)).ToArray();
-            foreach (var type in toRemove)
+            using (new WriteLock(_lock))
             {
-                _typesByAlias.Remove(type.Alias);
-                _typesById.Remove(type.Id);
+                var toRemove = _typesById.Values.Where(x => x.PropertyTypes.Any(xx => xx.DataTypeId == id)).ToArray();
+                foreach (var type in toRemove)
+                {
+                    _typesByAlias.Remove(GetAliasKey(type));
+                    _typesById.Remove(type.Id);
+                }
             }
         }
 
         public PublishedContentType Get(PublishedItemType itemType, string alias)
         {
             PublishedContentType type;
-            if (_typesByAlias.TryGetValue(alias, out type))
-                return type;
-            type = CreatePublishedContentType(PublishedItemType.Content, alias);
-            return _typesByAlias[type.Alias] = _typesById[type.Id] = type;
+            var aliasKey = GetAliasKey(itemType, alias);
+            using (var l = new UpgradeableReadLock(_lock))
+            {
+                if (_typesByAlias.TryGetValue(aliasKey, out type))
+                    return type;
+                type = CreatePublishedContentType(itemType, alias);
+                l.UpgradeToWriteLock();
+                return _typesByAlias[aliasKey] = _typesById[type.Id] = type;
+            }
         }
 
         public PublishedContentType Get(PublishedItemType itemType, int id)
         {
             PublishedContentType type;
-            if (_typesById.TryGetValue(id, out type))
-                return type;
-            type = CreatePublishedContentType(itemType, id);
-            return _typesByAlias[type.Alias] = _typesById[type.Id] = type;
+            using (var l = new UpgradeableReadLock(_lock))
+            {
+                if (_typesById.TryGetValue(id, out type))
+                    return type;
+                type = CreatePublishedContentType(itemType, id);
+                l.UpgradeToWriteLock();
+                return _typesByAlias[GetAliasKey(type)] = _typesById[type.Id] = type;
+            }
         }
 
         private PublishedContentType CreatePublishedContentType(PublishedItemType itemType, string alias)
@@ -114,7 +148,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new Exception(string.Format("ContentTypeService failed to find a {0} type with alias \"{1}\".",
                     itemType.ToString().ToLower(), alias));
 
-            return new PublishedContentType(contentType);
+            return new PublishedContentTypeInternal(contentType);
         }
 
         private PublishedContentType CreatePublishedContentType(PublishedItemType itemType, int id)
@@ -142,7 +176,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new Exception(string.Format("ContentTypeService failed to find a {0} type with id {1}.",
                     itemType.ToString().ToLower(), id));
 
-            return new PublishedContentType(contentType);
+            return new PublishedContentTypeInternal(contentType);
         }
 
         // for unit tests - changing the callback must reset the cache obviously
@@ -152,9 +186,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             get { return _getPublishedContentTypeByAlias; }
             set
             {
-                _typesByAlias.Clear();
-                _typesById.Clear();
-                _getPublishedContentTypeByAlias = value;
+                using (new WriteLock(_lock))
+                {
+                    _typesByAlias.Clear();
+                    _typesById.Clear();
+                    _getPublishedContentTypeByAlias = value;
+                }
             }
         }
 
@@ -165,10 +202,33 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             get { return _getPublishedContentTypeById; }
             set
             {
-                _typesByAlias.Clear();
-                _typesById.Clear();
-                _getPublishedContentTypeById = value;
+                using (new WriteLock(_lock))
+                {
+                    _typesByAlias.Clear();
+                    _typesById.Clear();
+                    _getPublishedContentTypeById = value;
+                }
             }
+        }
+
+        private static string GetAliasKey(PublishedItemType itemType, string alias)
+        {
+            string k;
+
+            if (itemType == PublishedItemType.Content)
+                k = "c";
+            else if (itemType == PublishedItemType.Media)
+                k = "m";
+            else if (itemType == PublishedItemType.Member)
+                k = "m";
+            else throw new ArgumentOutOfRangeException("itemType");
+
+            return k + ":" + alias;
+        }
+
+        private static string GetAliasKey(PublishedContentType contentType)
+        {
+            return ((PublishedContentTypeInternal) contentType).K + ":" + contentType.Alias;
         }
     }
 }

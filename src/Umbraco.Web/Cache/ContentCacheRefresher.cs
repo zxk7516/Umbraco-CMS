@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
@@ -26,16 +27,6 @@ namespace Umbraco.Web.Cache
             public TreeChangeTypes ChangeTypes { get; private set; }
         }
 
-        //internal static string Serialize(IEnumerable<JsonPayload> payloads)
-        //{
-        //    return Newtonsoft.Json.JsonConvert.SerializeObject(payloads.ToArray());
-        //}
-
-        //internal static JsonPayload[] Deserialize(string json)
-        //{
-        //    return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
-        //}
-
         protected override object Deserialize(string json)
         {
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
@@ -44,7 +35,7 @@ namespace Umbraco.Web.Cache
         internal JsonPayload[] GetPayload(object o)
         {
             if ((o is JsonPayload[]) == false)
-                throw new Exception("Invalid payload object.");
+                throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
             return (JsonPayload[]) o;
         }
 
@@ -75,18 +66,6 @@ namespace Umbraco.Web.Cache
         {
             var payloads = GetPayload(o);
 
-            var svce = PublishedCachesServiceResolver.Current.Service;
-            bool draftChanged, publishedChanged;
-            svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
-
-            if (payloads.Any(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshAll)) || publishedChanged)
-            {
-                // when a public version changes
-                ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-                DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
-                DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
-            }
-
             var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
             runtimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
             foreach (var payload in payloads)
@@ -102,7 +81,21 @@ namespace Umbraco.Web.Cache
                 }
             }
 
-            // fixme - and we want to notify Examine, etc?
+            // note: must do what's above FIRST else the repositories still have the old cached
+            // content and when the PublishedCachesService is notified of changes it does not see
+            // the new content...
+
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            bool draftChanged, publishedChanged;
+            svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
+
+            if (payloads.Any(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshAll)) || publishedChanged)
+            {
+                // when a public version changes
+                ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
+                MacroCacheRefresher.ClearMacroContentCache(); // just the content
+                ClearXsltCache();
+            }
 
             base.Refresh(o);
         }
@@ -143,14 +136,25 @@ namespace Umbraco.Web.Cache
             // fixme - but HOW does the PublishedCachesService knows about modified types?!
 
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
-            DistributedCache.Instance.ClearAllMacroCacheOnCurrentServer();
-            DistributedCache.Instance.ClearXsltCacheOnCurrentServer();
+            MacroCacheRefresher.ClearMacroContentCache(); // just the content
+            ClearXsltCache();
 
             var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
             runtimeCache.ClearCacheObjectTypes<PublicAccessEntry>();
             runtimeCache.ClearCacheObjectTypes<IContent>();
         }
 
+        #endregion
+
+        #region Helpers
+
+        private static void ClearXsltCache()
+        {
+            // todo: document where this is coming from
+            if (UmbracoConfig.For.UmbracoSettings().Content.UmbracoLibraryCacheDuration <= 0) return;
+            ApplicationContext.Current.ApplicationCache.ClearCacheObjectTypes("MS.Internal.Xml.XPath.XPathSelectionIterator");
+        }
+        
         #endregion
     }
 }

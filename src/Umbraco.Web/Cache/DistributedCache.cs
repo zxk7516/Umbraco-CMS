@@ -190,23 +190,9 @@ namespace Umbraco.Web.Cache
         public void RefreshAll(Guid factoryGuid)
         {
             if (factoryGuid == Guid.Empty) return;
-            RefreshAll(factoryGuid, true);
-        }
-
-        /// <summary>
-        /// Notifies the distributed cache of a global invalidation for a specified <see cref="ICacheRefresher"/>.
-        /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
-        /// <param name="allServers">If true, all servers in the load balancing environment are notified; otherwise,
-        /// only the local server is notified.</param>
-        public void RefreshAll(Guid factoryGuid, bool allServers)
-        {
-            if (factoryGuid == Guid.Empty) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefreshAll(
-                allServers 
-                    ? ServerRegistrarResolver.Current.Registrar.Registrations
-                    : Enumerable.Empty<IServerAddress>(), //this ensures it will only execute against the current server
+                ServerRegistrarResolver.Current.Registrar.Registrations,
                 GetRefresherById(factoryGuid));
         }
 
