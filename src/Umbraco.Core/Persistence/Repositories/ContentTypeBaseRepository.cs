@@ -74,7 +74,7 @@ namespace Umbraco.Core.Persistence.Repositories
         
         protected virtual PropertyType CreatePropertyType(string propertyEditorAlias, DataTypeDatabaseType dbType, string propertyTypeAlias)
         {
-            return new PropertyType(propertyEditorAlias, dbType);
+            return new PropertyType(propertyEditorAlias, dbType, propertyTypeAlias);
         }
 
         protected void PersistNewBaseContentType(ContentTypeDto dto, IContentTypeComposition entity)
@@ -462,8 +462,7 @@ AND umbracoNode.id <> @id",
             var list = new List<PropertyType>();
             foreach (var dto in dtos.Where(x => (x.PropertyTypeGroupId > 0) == false))
             {
-                var propType = CreatePropertyType(dto.DataTypeDto.PropertyEditorAlias, dto.DataTypeDto.DbType.EnumParse<DataTypeDatabaseType>(true), dto.Alias);
-                propType.Alias = dto.Alias;
+                var propType = CreatePropertyType(dto.DataTypeDto.PropertyEditorAlias, dto.DataTypeDto.DbType.EnumParse<DataTypeDatabaseType>(true), dto.Alias);      
                 propType.DataTypeDefinitionId = dto.DataTypeId;
                 propType.Description = dto.Description;
                 propType.Id = dto.Id;
@@ -1051,10 +1050,9 @@ AND umbracoNode.id <> @id",
                         .Select(group => new PropertyGroup(new PropertyTypeCollection(
                             result
                                 .Where(row => row.pgId == group.GroupId && row.ptId != null)
-                                .Select(row => new PropertyType(row.dtPropEdAlias, Enum<DataTypeDatabaseType>.Parse(row.dtDbType))
+                                .Select(row => new PropertyType(row.dtPropEdAlias, Enum<DataTypeDatabaseType>.Parse(row.dtDbType), row.ptAlias)
                                 {
                                     //fill in the rest of the property type properties
-                                    Alias = row.ptAlias,
                                     Description = row.ptDesc,
                                     DataTypeDefinitionId = row.dtId,
                                     Id = row.ptId,
@@ -1080,10 +1078,9 @@ AND umbracoNode.id <> @id",
                         .Where(x => x.pgId == null)
                         //filter based on the current content type
                         .Where(x => x.contentTypeId == currId)
-                        .Select(row => new PropertyType(row.dtPropEdAlias, Enum<DataTypeDatabaseType>.Parse(row.dtDbType))
+                        .Select(row => new PropertyType(row.dtPropEdAlias, Enum<DataTypeDatabaseType>.Parse(row.dtDbType), row.ptAlias)
                         {
                             //fill in the rest of the property type properties
-                            Alias = row.ptAlias,
                             Description = row.ptDesc,
                             DataTypeDefinitionId = row.dtId,
                             Id = row.ptId,

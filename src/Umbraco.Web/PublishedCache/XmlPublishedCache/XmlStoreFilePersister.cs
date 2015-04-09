@@ -128,7 +128,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         public async Task RunAsync(CancellationToken token)
         {
             _logger.Logger.Debug<XmlStoreFilePersister>("Run now.");
-            await _store.SaveXmlToFileAsync();
+
+            // http://stackoverflow.com/questions/13489065/best-practice-to-call-configureawait-for-all-server-side-code
+            // http://blog.stephencleary.com/2012/07/dont-block-on-async-code.html
+            // do we really need that ConfigureAwait here?
+            await _store.SaveXmlToFileAsync().ConfigureAwait(false);
         }
 
         public bool IsAsync
