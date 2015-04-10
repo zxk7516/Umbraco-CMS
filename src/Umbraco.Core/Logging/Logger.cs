@@ -61,7 +61,7 @@ namespace Umbraco.Core.Logging
 		/// <returns></returns>
 		private string PrefixThreadId(string generateMessageFormat)
 		{
-			return "[Thread " + Thread.CurrentThread.ManagedThreadId + "] " + generateMessageFormat;
+			return "[T" + Thread.CurrentThread.ManagedThreadId + "/D"+ AppDomain.CurrentDomain.Id + "] " + generateMessageFormat;
 		}
 
 		public void Error(Type callingType, string message, Exception exception)
