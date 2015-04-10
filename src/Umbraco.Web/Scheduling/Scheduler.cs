@@ -66,13 +66,13 @@ namespace Umbraco.Web.Scheduling
                                 // scheduled publishing/unpublishing
                                 // install on all, will only run on non-slaves servers
                                 // both are delayed recurring tasks
-                                _publishingRunner.Add(new ScheduledPublishing(_publishingRunner, 60000, 60000, applicationContext, settings));
-                                _tasksRunner.Add(new ScheduledTasks(_tasksRunner, 60000, 60000, applicationContext, settings));
+                                _publishingRunner.TryAdd(new ScheduledPublishing(_publishingRunner, 60000, 60000, applicationContext, settings));
+                                _tasksRunner.TryAdd(new ScheduledTasks(_tasksRunner, 60000, 60000, applicationContext, settings));
 
                                 // log scrubbing
                                 // install & run on all servers
                                 // LogScrubber is a delayed recurring task
-                                _scrubberRunner.Add(new LogScrubber(_scrubberRunner, 60000, LogScrubber.GetLogScrubbingInterval(settings), applicationContext, settings));
+                                _scrubberRunner.TryAdd(new LogScrubber(_scrubberRunner, 60000, LogScrubber.GetLogScrubbingInterval(settings), applicationContext, settings));
                             }
                         }
                     }

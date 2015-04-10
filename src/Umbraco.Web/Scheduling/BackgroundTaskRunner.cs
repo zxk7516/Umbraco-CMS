@@ -57,6 +57,8 @@ namespace Umbraco.Web.Scheduling
             _options = options;
             _logger = logger;
 
+            // what if the appDomain is already going down?
+
             HostingEnvironment.RegisterObject(this);
 
             if (options.AutoStart)
