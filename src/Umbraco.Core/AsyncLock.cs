@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 namespace Umbraco.Core
 {
     // http://blogs.msdn.com/b/pfxteam/archive/2012/02/12/10266988.aspx
+    //
+    // notes:
+    // - this is NOT a reader/writer lock
+    // - this is NOT a recursive lock
+    //
     internal class AsyncLock
     {
         private readonly SemaphoreSlim _semaphore;
@@ -19,23 +24,37 @@ namespace Umbraco.Core
 
         public AsyncLock(string name)
         {
-            // initial count: how many can be granted
-            // maximum count: how far can 'count' go when release is called
+            // WaitOne() waits until count > 0 then decrements count
+            // Release() increments count
+            // initial count: the initial count value
+            // maximum count: the max value of count, and then Release() throws
 
             if (string.IsNullOrWhiteSpace(name))
-                _semaphore = new SemaphoreSlim(1, 1);
-            else
-                _semaphore2 = new Semaphore(1, 1, name);
+            {
+                // anonymous semaphore
+                // use one unique releaser, that will not release the semaphore when finalized
+                // because the semaphore is destroyed anyway if the app goes down
 
-            _releaser = CreateReleaser(this);
-            _releaserTask = Task.FromResult(_releaser);
+                _semaphore = new SemaphoreSlim(1, 1); // create a local (to the app domain) semaphore
+                _releaser = new SemaphoreSlimReleaser(_semaphore);
+                _releaserTask = Task.FromResult(_releaser);
+            }
+            else
+            {
+                // named semaphore
+                // use dedicated releasers, that will release the semaphore when finalized
+                // because the semaphore is system-wide and we cannot leak counts
+
+                _semaphore2 = new Semaphore(1, 1, name); // create a system-wide named semaphore
+            }
         }
 
-        private static IDisposable CreateReleaser(AsyncLock asyncLock)
+        private IDisposable CreateReleaser()
         {
-            return asyncLock._semaphore != null
-                ? (IDisposable) new SemaphoreSlimReleaser(asyncLock._semaphore)
-                : (IDisposable) new NamedSemaphoreReleaser(asyncLock._semaphore2);
+            // for anonymous semaphore, use the unique releaser, else create a new one
+            return _semaphore != null
+                ? _releaser // (IDisposable)new SemaphoreSlimReleaser(_semaphore)
+                : (IDisposable)new NamedSemaphoreReleaser(_semaphore2);
         }
 
         public Task<IDisposable> LockAsync()
@@ -44,9 +63,9 @@ namespace Umbraco.Core
                 ? _semaphore.WaitAsync() 
                 : WaitOneAsync(_semaphore2);
 
-            return wait.IsCompleted ?
-                _releaserTask :
-                wait.ContinueWith((_, state) => CreateReleaser((AsyncLock) state),
+            return wait.IsCompleted 
+                ? _releaserTask ?? Task.FromResult(CreateReleaser()) // anonymous vs named
+                : wait.ContinueWith((_, state) => (((AsyncLock) state).CreateReleaser()),
                     this, CancellationToken.None,
                     TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
@@ -57,10 +76,20 @@ namespace Umbraco.Core
                 _semaphore.Wait();
             else
                 _semaphore2.WaitOne();
-            return _releaser;
+            return _releaser ?? CreateReleaser(); // anonymous vs named
         }
 
-        // note - before making that class a struct, read 
+        public IDisposable Lock(int millisecondsTimeout)
+        {
+            var entered = _semaphore != null
+                ? _semaphore.Wait(millisecondsTimeout)
+                : _semaphore2.WaitOne(millisecondsTimeout);
+            if (entered == false)
+                throw new TimeoutException("Failed to enter the lock within timeout.");
+            return _releaser ?? CreateReleaser(); // anonymous vs named
+        }
+
+        // note - before making those classes some structs, read 
         // about "impure methods" and mutating readonly structs...
 
         private class NamedSemaphoreReleaser : CriticalFinalizerObject, IDisposable
@@ -83,6 +112,17 @@ namespace Umbraco.Core
                 // critical
                 _semaphore.Release();
             }
+
+            // we WANT to release the semaphore because it's a system object
+            // ie a critical non-managed resource - so we inherit from CriticalFinalizerObject
+            // which means that the finalizer "should" run in all situations
+
+            // however... that can fail with System.ObjectDisposedException because the
+            // underlying handle was closed... because we cannot guarantee that the semaphore
+            // is not gone already... unless we get a GCHandle = GCHandle.Alloc(_semaphore);
+            // which should keep it around and then we free the handle?
+
+            // so... I'm not sure this is safe really...
 
             ~NamedSemaphoreReleaser()
             {
