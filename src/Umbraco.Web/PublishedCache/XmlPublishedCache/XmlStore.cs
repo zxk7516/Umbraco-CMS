@@ -381,6 +381,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             }
         }
 
+        // assumes xml lock
         private void SetXmlLocked(XmlDocument xml, bool registerXmlChange)
         {
             // this is the ONLY place where we write to _xml
@@ -391,21 +392,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             if (registerXmlChange == false || SyncToXmlFile == false)
                 return;
-
-            // assuming we know that UmbracoModule.PostRequestHandlerExecute will not
-            // run and signal the cache, so we know it's time to save the XML, we should
-            // save the file right now - in the past we checked for an HttpContext...
-            //
-            // keep doing it that way although it's dirty - ppl not running within the
-            // UmbracoModule should signal the cache by themselves
-            //
-            var syncNow = UmbracoContext.Current == null || UmbracoContext.Current.HttpContext == null;
-
-            if (syncNow)
-            {
-                SaveXmlToFileLocked(xml);
-                return;
-            }
 
             //_lastXmlChange = DateTime.UtcNow;
             _persisterTask = _persisterTask.Touch(); // _persisterTask != null because SyncToXmlFile == true
@@ -515,15 +501,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         }
 
         // try to load from file, otherwise database
-        // not locking anything - assumes correct locking
-        private void LoadXmlLocked(SafeXmlWriter safeXml, out bool registerXmlChange)
+        // assumes xml lock
+        private void LoadXmlLocked(SafeXmlReaderWriter safeXml, out bool registerXmlChange)
         {
             LogHelper.Debug<XmlStore>("Loading Xml...");
 
             // try to get it from the file
-            if (XmlFileEnabled && XmlFileExists && (safeXml.Xml = LoadXmlFromFileLocked()) != null)
+            if (XmlFileEnabled && XmlFileExists && (safeXml.Xml = LoadXmlFromFile()) != null)
             {
-                registerXmlChange = false;
+                registerXmlChange = false; // loaded from disk, do NOT write back to disk!
                 return;
             }
 
@@ -655,75 +641,89 @@ AND (umbracoNode.id=@id)";
             return doc;
         }
 
-        // gets a locked safe read accses to the main xml
-        private SafeXmlReader GetSafeXmlReader()
+        // NOTE
+        // - this is NOT a reader/writer lock and each lock is exclusive
+        // - these locks are NOT reentrant / recursive
+
+        // gets a locked safe read access to the main xml
+        private SafeXmlReaderWriter GetSafeXmlReader()
         {
             var releaser = _xmlLock.Lock();
-            return new SafeXmlReader(this, releaser);
+            return SafeXmlReaderWriter.GetReader(this, releaser);
         }
 
         // gets a locked safe read accses to the main xml
-        private async Task<SafeXmlReader> GetSafeXmlReaderAsync()
+        private async Task<SafeXmlReaderWriter> GetSafeXmlReaderAsync()
         {
             var releaser = await _xmlLock.LockAsync();
-            return new SafeXmlReader(this, releaser);
+            return SafeXmlReaderWriter.GetReader(this, releaser);
         }
 
         // gets a locked safe write access to the main xml (cloned)
-        private SafeXmlWriter GetSafeXmlWriter(bool auto = true)
+        private SafeXmlReaderWriter GetSafeXmlWriter(bool auto = true)
         {
             var releaser = _xmlLock.Lock();
-            return new SafeXmlWriter(this, releaser, auto);
+            return SafeXmlReaderWriter.GetWriter(this, releaser, auto);
         }
 
-        private class SafeXmlReader : IDisposable
-        {
-            private IDisposable _releaser;
-
-            public SafeXmlReader(XmlStore store, IDisposable releaser)
-            {
-                _releaser = releaser;
-                Xml = store.Xml;
-            }
-
-            public XmlDocument Xml { get; private set; }
-
-            public void Dispose()
-            {
-                if (_releaser == null)
-                    return;
-
-                _releaser.Dispose();
-                _releaser = null;
-            }
-        }
-
-        private class SafeXmlWriter : IDisposable
+        private class SafeXmlReaderWriter : IDisposable
         {
             private readonly XmlStore _store;
             private IDisposable _releaser;
-            private readonly bool _auto;
+            private bool _isWriter;
+            private bool _auto;
             private bool _committed;
+            private XmlDocument _xml;
 
-            public SafeXmlWriter(XmlStore store, IDisposable releaser, bool auto)
+            private SafeXmlReaderWriter(XmlStore store, IDisposable releaser, bool isWriter, bool auto)
             {
                 _store = store;
+                _releaser = releaser;
+                _isWriter = isWriter;
                 _auto = auto;
 
-                _releaser = releaser;
-
-                // modify a clone of the cache because even though we're into the write-lock
-                // we may have threads reading at the same time. why is this even an option?
-                //Xml = XmlIsImmutable ? Clone(_store.Xml) : _store.Xml;
-
-                // is not an option anymore
-                Xml = Clone(_store.Xml);
+                // cloning for writer is not an option anymore (see XmlIsImmutable)
+                _xml = _isWriter ? Clone(store.Xml) : store.Xml;
             }
 
-            public XmlDocument Xml { get; set; }
+            public static SafeXmlReaderWriter GetReader(XmlStore store, IDisposable releaser)
+            {
+                return new SafeXmlReaderWriter(store, releaser, false, false);
+            }
 
+            public static SafeXmlReaderWriter GetWriter(XmlStore store, IDisposable releaser, bool auto)
+            {
+                return new SafeXmlReaderWriter(store, releaser, true, auto);
+            }
+
+            public void UpgradeToWriter(bool auto)
+            {
+                _isWriter = true;
+                _auto = auto;
+                _xml = Clone(_xml); // cloning for writer is not an option anymore (see XmlIsImmutable)
+            }
+
+            public XmlDocument Xml
+            {
+                get
+                {
+                    return _xml;
+                }
+                set 
+                {
+                    if (_isWriter == false)
+                        throw new InvalidOperationException("Not writing.");
+                    _xml = value;
+                }
+            }
+
+            // registerXmlChange indicates whether to do what should be done when Xml changes,
+            // that is, to request that the file be written to disk - something we don't want
+            // to do if we're committing Xml precisely after we've read from disk!
             public void Commit(bool registerXmlChange = true)
             {
+                if (_isWriter == false)
+                    throw new InvalidOperationException("Not writing.");
                 _store.SetXmlLocked(Xml, registerXmlChange);
                 _committed = true;
             }
@@ -732,7 +732,7 @@ AND (umbracoNode.id=@id)";
             {
                 if (_releaser == null)
                     return;
-                if (_auto && _committed == false)
+                if (_isWriter && _auto && _committed == false)
                     Commit();
                 _releaser.Dispose();
                 _releaser = null;
@@ -766,7 +766,7 @@ AND (umbracoNode.id=@id)";
         private readonly string _xmlFileName = IOHelper.MapPath(SystemFiles.ContentCacheXml);
         private DateTime _lastFileRead; // last time the file was read
         private DateTime _nextFileCheck; // last time we checked whether the file was changed
-        private readonly AsyncLock _fileLock;
+        private readonly AsyncLock _fileLock; // protects the file
 
         private bool XmlFileExists
         {
@@ -789,54 +789,12 @@ AND (umbracoNode.id=@id)";
 
         internal void SaveXmlToFile()
         {
-            using (var safeXml = GetSafeXmlReader())
-            {
-                SaveXmlToFileLocked(safeXml.Xml);
-            }
-        }
-
-        private void SaveXmlToFileLocked(XmlDocument xml)
-        {
-            try
-            {
-                LogHelper.Info<XmlStore>("Save Xml to file...");
-
-                // delete existing file, if any
-                DeleteXmlFileLocked();
-
-                // ensure cache directory exists
-                var directoryName = Path.GetDirectoryName(_xmlFileName);
-                if (directoryName == null)
-                    throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
-                if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
-                    Directory.CreateDirectory(directoryName);
-
-                // save
-                using (_fileLock.Lock()) // ensure no other Umbraco is using the file
-                using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
-                {
-                    var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
-                    fs.Write(bytes, 0, bytes.Length);
-                }                  
-
-                LogHelper.Debug<XmlStore>("Saved Xml to file.");
-            }
-            catch (Exception e)
-            {
-                // if something goes wrong remove the file
-                DeleteXmlFileLocked();
-
-                LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
-            }
-        }
-
-        internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
-        {
             LogHelper.Info<XmlStore>("Save Xml to file...");
 
-            // lock xml while we save
-            using (var safeXml = await GetSafeXmlReaderAsync())
-            { 
+            var xml = _xml; // capture (atomic + volatile), immutable anyway
+
+            using (_fileLock.Lock()) // ensure no other Umbraco is using the file
+            {
                 try
                 {
                     // delete existing file, if any
@@ -850,12 +808,50 @@ AND (umbracoNode.id=@id)";
                         Directory.CreateDirectory(directoryName);
 
                     // save
-                    using (await _fileLock.LockAsync()) // ensure no other Umbraco is using the file
                     using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
                     {
-                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(safeXml.Xml));
+                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
+                        fs.Write(bytes, 0, bytes.Length);
+                    }
+
+                    LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                }
+                catch (Exception e)
+                {
+                    // if something goes wrong remove the file
+                    DeleteXmlFileLocked();
+
+                    LogHelper.Error<XmlStore>("Failed to save Xml to file.", e);
+                }
+            }
+        }
+
+        internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
+        {
+            LogHelper.Info<XmlStore>("Save Xml to file...");
+
+            var xml = _xml; // capture (atomic + volatile), immutable anyway
+
+            using (await _fileLock.LockAsync()) // ensure no other Umbraco is using the file
+            {
+                try
+                {
+                    // delete existing file, if any
+                    DeleteXmlFileLocked();
+
+                    // ensure cache directory exists
+                    var directoryName = Path.GetDirectoryName(_xmlFileName);
+                    if (directoryName == null)
+                        throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
+                    if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                        Directory.CreateDirectory(directoryName);
+
+                    // save
+                    using (var fs = new FileStream(_xmlFileName, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
+                    {
+                        var bytes = Encoding.UTF8.GetBytes(SaveXmlToString(xml));
                         await fs.WriteAsync(bytes, 0, bytes.Length);
-                    }                  
+                    }
 
                     LogHelper.Debug<XmlStore>("Saved Xml to file.");
                 }
@@ -897,42 +893,38 @@ AND (umbracoNode.id=@id)";
             return sb.ToString();
         }
 
-        // not locking anything - assumes correct locking
-        private XmlDocument LoadXmlFromFileLocked()
+        private XmlDocument LoadXmlFromFile()
         {
             LogHelper.Info<XmlStore>("Load Xml from file...");
-            var xml = new XmlDocument();
 
-            try
+            using (_fileLock.Lock()) // ensure no other Umbraco is using the file
             {
-                using (_fileLock.Lock()) // ensure no other Umbraco is using the file
-                using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+                try
                 {
-                    xml.Load(fs);
+                    var xml = new XmlDocument();
+                    using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        xml.Load(fs);
+                    }
+                    _lastFileRead = DateTime.UtcNow;
+                    LogHelper.Info<XmlStore>("Successfully loaded Xml from file.");
+                    return xml;
                 }
-                _lastFileRead = DateTime.UtcNow;
+                catch (Exception e)
+                {
+                    LogHelper.Error<XmlStore>("Failed to load Xml from file.", e);
+                    DeleteXmlFileLocked();
+                    return null;
+                }
             }
-            catch (Exception e)
-            {
-                LogHelper.Error<XmlStore>("Failed to load Xml from file.", e);
-                DeleteXmlFileLocked();
-                return null;
-            }
-
-            LogHelper.Info<XmlStore>("Successfully loaded Xml from file.");
-            return xml;
         }
 
-        // assumes lock
+        // assumes file lock
         private void DeleteXmlFileLocked()
         {
             if (System.IO.File.Exists(_xmlFileName) == false) return;
-
-            using (_fileLock.Lock())
-            {
-                System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
-                System.IO.File.Delete(_xmlFileName);
-            }
+            System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
+            System.IO.File.Delete(_xmlFileName);
         }
 
         private void ReloadXmlFromFileIfChanged()
@@ -1029,7 +1021,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // ReSharper restore UnusedAutoPropertyAccessor.Local
         }
 
-        private void LoadXmlTreeFromDatabaseLocked(SafeXmlWriter safeXml)
+        // assumes xml lock
+        private void LoadXmlTreeFromDatabaseLocked(SafeXmlReaderWriter safeXml)
         {
             // initialise the document ready for the composition of content
             var xml = new XmlDocument();
@@ -1059,6 +1052,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             safeXml.Xml = xml;
         }
 
+        // assumes xml lock
         private IEnumerable<XmlDto> LoadXmlTreeDtoFromDatabaseLocked(XmlDocument xmlDoc)
         {
             // get xml
@@ -1077,6 +1071,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             });
         }
 
+        // assumes xml lock
         private IEnumerable<XmlDto> LoadXmlBranchDtoFromDatabaseLocked(XmlDocument xmlDoc, int id, string path)
         {
             // get xml
