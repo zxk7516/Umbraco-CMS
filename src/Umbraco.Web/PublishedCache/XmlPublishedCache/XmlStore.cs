@@ -44,7 +44,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private Func<IMember, XElement> _xmlMemberSerializer;
         private Func<IMedia, XElement> _xmlMediaSerializer;
         private XmlStoreFilePersister _persisterTask;
-        private BackgroundTaskRunner<XmlStoreFilePersister> _filePersisterRunner;
         private bool _withRepositoryEvents;
         private bool _withOtherEvents;
 
@@ -168,14 +167,17 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (SyncToXmlFile == false) return;
 
             var logger = LoggerResolver.Current.Logger;
-            _filePersisterRunner = new BackgroundTaskRunner<XmlStoreFilePersister>(new BackgroundTaskRunnerOptions
+
+            // there's always be one task keeping a ref to the runner
+            // so it's safe to just create it as a local var here
+            var runner = new BackgroundTaskRunner<XmlStoreFilePersister>(new BackgroundTaskRunnerOptions
             {
                 LongRunning = true,
                 KeepAlive = true
             }, logger);
 
             // create (and add to runner)
-            _persisterTask = new XmlStoreFilePersister(_filePersisterRunner, this, logger);
+            _persisterTask = new XmlStoreFilePersister(runner, this, logger);
         }
 
         private void OnResolutionFrozen(bool testing, bool enableRepositoryEvents)
@@ -354,11 +356,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly AsyncLock _xmlLock = new AsyncLock(); // protects _xml
         //private DateTime _lastXmlChange; // last time Xml was reported as changed
 
-        // XmlLock is to be used to ensure that only 1 thread at a time is editing
-        // the Xml - so that's a higher level than just protecting _xml, which is
-        // volatile anyway.
-
-        // to be used by PublishedContentCache only, and by content.Instance
+        // to be used by PublishedContentCache only
         // for non-preview content only
         public XmlDocument Xml
         {
@@ -418,21 +416,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var doctype = xml.CreateDocumentType("root", null, null, subset);
             xml.InsertAfter(doctype, xml.FirstChild);
         }
-
-        //private void RefreshSchema(XmlDocument xml)
-        //{
-        //    // remove current doctype
-        //    var n = xml.FirstChild;
-        //    while (n.NodeType != XmlNodeType.DocumentType && n.NextSibling != null)
-        //        n = n.NextSibling;
-        //    if (n.NodeType == XmlNodeType.DocumentType)
-        //        xml.RemoveChild(n);
-
-        //    // set new doctype
-        //    var dtd = _svcs.ContentTypeService.GetContentTypesDtd();
-        //    var doctype = xml.CreateDocumentType("root", null, null, dtd);
-        //    xml.InsertAfter(doctype, xml.FirstChild);
-        //}
 
         private static void InitializeXml(XmlDocument xml, string dtd)
         {
@@ -676,7 +659,7 @@ AND (umbracoNode.id=@id)";
                 _auto = auto;
 
                 // cloning for writer is not an option anymore (see XmlIsImmutable)
-                _xml = _isWriter ? Clone(store.Xml) : store.Xml;
+                _xml = _isWriter ? Clone(store._xml) : store._xml;
             }
 
             public static SafeXmlReaderWriter GetReader(XmlStore store, IDisposable releaser)
@@ -691,6 +674,8 @@ AND (umbracoNode.id=@id)";
 
             public void UpgradeToWriter(bool auto)
             {
+                if (_isWriter)
+                    throw new InvalidOperationException("Already writing.");
                 _isWriter = true;
                 _auto = auto;
                 _xml = Clone(_xml); // cloning for writer is not an option anymore (see XmlIsImmutable)
@@ -717,7 +702,7 @@ AND (umbracoNode.id=@id)";
             {
                 if (_isWriter == false)
                     throw new InvalidOperationException("Not writing.");
-                _store.SetXmlLocked(Xml, registerXmlChange);
+                _store.SetXmlLocked(_xml, registerXmlChange);
                 _committed = true;
             }
 
@@ -1576,7 +1561,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // append all attributes from the document node to the published node
             if (documentNode.Attributes == null) throw new Exception("oops");
             foreach (XmlAttribute att in documentNode.Attributes)
-                ((XmlElement)publishedNode).SetAttribute(att.Name, att.Value);
+                ((XmlElement) publishedNode).SetAttribute(att.Name, att.Value);
 
             // find the first child node, if any
             var childNodes = publishedNode.SelectNodes(ChildNodesXPath);
