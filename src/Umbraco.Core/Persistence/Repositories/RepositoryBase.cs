@@ -54,6 +54,25 @@ namespace Umbraco.Core.Persistence.Repositories
             get { return _cache.RuntimeCache; }
         }
 
+        private const string CacheEnabledKey = "Umbraco.Core.Persistence.Repositories.RepositoryBase.CacheEnabled";
+
+        protected bool CacheEnabled
+        {
+            get
+            {
+                var x = CurrentContextItems.Get(CacheEnabledKey);
+                return x == null || (bool) x;
+            }
+        }
+
+        public static void SetCacheEnabledForCurrentRequest(bool value)
+        {
+            if (value)
+                CurrentContextItems.Clear(CacheEnabledKey);
+            else
+                CurrentContextItems.Set(CacheEnabledKey, false);
+        }
+
         public static string GetCacheIdKey<T>(object id)
         {
             return string.Format("{0}{1}", GetCacheTypeKey<T>(), id);
@@ -77,8 +96,7 @@ namespace Umbraco.Core.Persistence.Repositories
     {
         protected RepositoryBase(IUnitOfWork work, CacheHelper cache, ILogger logger)
             : base(work, cache, logger)
-        {
-        }
+        { }
 
         private readonly RepositoryCacheOptions _cacheOptions = new RepositoryCacheOptions();
 
@@ -114,6 +132,7 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         protected abstract TEntity PerformGet(TId id);
+
         /// <summary>
         /// Gets an entity by the passed in Id utilizing the repository's runtime cache
         /// </summary>
@@ -121,23 +140,29 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns></returns>
         public TEntity Get(TId id)
         {
-            return RuntimeCache.GetCacheItem<TEntity>(
-                GetCacheIdKey<TEntity>(id), () =>
-                {
-                    var entity = PerformGet(id);
-                    if (entity == null) return null;
-                    //on initial construction we don't want to have dirty properties tracked
-                    // http://issues.umbraco.org/issue/U4-1946
-                    var asEntity = entity as TracksChangesEntityBase;
-                    if (asEntity != null)
-                    {
-                        asEntity.ResetDirtyProperties(false);
-                    }
-                    return entity;
-                });
+            var key = GetCacheIdKey<TEntity>(id);
+            if (CacheEnabled)
+                return RuntimeCache.GetCacheItem<TEntity>(key, () => GetInternal(id));
+            RuntimeCache.ClearCacheItem(key); // don't keep old stuff in the cache
+            return GetInternal(id);
+        }
+
+        private TEntity GetInternal(TId id)
+        {
+            var entity = PerformGet(id);
+            if (entity == null) return null;
+            //on initial construction we don't want to have dirty properties tracked
+            // http://issues.umbraco.org/issue/U4-1946
+            var asEntity = entity as TracksChangesEntityBase;
+            if (asEntity != null)
+            {
+                asEntity.ResetDirtyProperties(false);
+            }
+            return entity;
         }
 
         protected abstract IEnumerable<TEntity> PerformGetAll(params TId[] ids);
+
         /// <summary>
         /// Gets all entities of type TEntity or a list according to the passed in Ids
         /// </summary>
@@ -157,11 +182,31 @@ namespace Umbraco.Core.Persistence.Repositories
                 throw new InvalidOperationException("Cannot perform a query with more than 2000 parameters");
             }
 
+            if (CacheEnabled)
+                return GetAllWithCache(ids);
+            RuntimeCache.ClearCacheByKeySearch(GetCacheTypeKey<TEntity>()); // don't keep old stuff in the cache
+            return GetAllNoCache(ids);
+        }
+
+        private IEnumerable<TEntity> GetAllNoCache(TId[] ids)
+        {
+            var entityCollection = PerformGetAll(ids)
+                //ensure we don't include any null refs in the returned collection!
+                .WhereNotNull()
+                .ToArray();
+
+            return entityCollection;
+        }
+
+        private IEnumerable<TEntity> GetAllWithCache(TId[] ids)
+        {
             if (ids.Any())
             {
-                var entities = ids.Select(x => RuntimeCache.GetCacheItem<TEntity>(GetCacheIdKey<TEntity>(x))).ToArray();
+                var entities = ids.Select(x => RuntimeCache.GetCacheItem<TEntity>(GetCacheIdKey<TEntity>(x)))
+                    .Where(x => x != null)
+                    .ToArray();
 
-                if (ids.Count().Equals(entities.Count()) && entities.Any(x => x == null) == false)
+                if (ids.Count().Equals(entities.Count()))
                     return entities;
             }
             else
@@ -240,6 +285,7 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         protected abstract IEnumerable<TEntity> PerformGetByQuery(IQuery<TEntity> query);
+
         /// <summary>
         /// Gets a list of entities by the passed in query
         /// </summary>
@@ -253,6 +299,7 @@ namespace Umbraco.Core.Persistence.Repositories
         }
 
         protected abstract bool PerformExists(TId id);
+
         /// <summary>
         /// Returns a boolean indicating whether an entity with the passed Id exists
         /// </summary>
@@ -260,15 +307,20 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns></returns>
         public bool Exists(TId id)
         {
-            var fromCache = RuntimeCache.GetCacheItem<TEntity>(GetCacheIdKey<TEntity>(id));
-            if (fromCache != null)
-            {
+            var key = GetCacheIdKey<TEntity>(id);
+            if (CacheEnabled && RuntimeCache.GetCacheItem<TEntity>(key) != null)
                 return true;
-            }
-            return PerformExists(id);
+
+            var exists = PerformExists(id);
+
+            if (CacheEnabled == false && exists == false)
+                RuntimeCache.ClearCacheItem(key);
+
+            return exists;
         }
 
         protected abstract int PerformCount(IQuery<TEntity> query);
+
         /// <summary>
         /// Returns an integer with the count of entities found with the passed in query
         /// </summary>
@@ -305,7 +357,6 @@ namespace Umbraco.Core.Persistence.Repositories
                 RuntimeCache.ClearCacheItem(GetCacheTypeKey<TEntity>());
                 throw;
             }
-
         }
 
         /// <summary>
@@ -330,7 +381,6 @@ namespace Umbraco.Core.Persistence.Repositories
                 RuntimeCache.ClearCacheItem(GetCacheTypeKey<TEntity>());
                 throw;
             }
-
         }
 
         /// <summary>
