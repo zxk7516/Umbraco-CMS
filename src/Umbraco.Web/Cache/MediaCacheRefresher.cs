@@ -73,7 +73,7 @@ namespace Umbraco.Web.Cache
             var payloads = Deserialize(json);
             var svce = PublishedCachesServiceResolver.Current.Service;
             bool anythingChanged;
-            svce.NotifyChanges(payloads, out anythingChanged);
+            svce.Notify(payloads, out anythingChanged);
 
             if (anythingChanged)
             {
@@ -155,9 +155,10 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshMediaTypes(IEnumerable<int> ids)
+        public void RefreshMediaTypes()
         {
-            throw new NotImplementedException();
+            var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
+            runtimeCache.ClearCacheObjectTypes<IMedia>();
         }
 
         #endregion

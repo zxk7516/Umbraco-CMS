@@ -31,23 +31,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         internal PublishedContentTypeCache()
         { }
 
-        internal class PublishedContentTypeInternal : PublishedContentType
-        {
-            public readonly string K;
-
-            public PublishedContentTypeInternal(IContentTypeComposition contentType)
-                : base(contentType)
-            {
-                if (contentType is IContentType)
-                    K = "c";
-                else if (contentType is IMediaType)
-                    K = "m";
-                else if (contentType is IMemberType)
-                    K = "b";
-                else throw new ArgumentOutOfRangeException();
-            }
-        }
-
         public void ClearAll()
         {
             Core.Logging.LogHelper.Debug<PublishedContentTypeCache>("Clear all.");
@@ -98,10 +81,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public PublishedContentType Get(PublishedItemType itemType, string alias)
         {
-            PublishedContentType type;
             var aliasKey = GetAliasKey(itemType, alias);
             using (var l = new UpgradeableReadLock(_lock))
             {
+                PublishedContentType type;
                 if (_typesByAlias.TryGetValue(aliasKey, out type))
                     return type;
                 type = CreatePublishedContentType(itemType, alias);
@@ -112,9 +95,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public PublishedContentType Get(PublishedItemType itemType, int id)
         {
-            PublishedContentType type;
             using (var l = new UpgradeableReadLock(_lock))
             {
+                PublishedContentType type;
                 if (_typesById.TryGetValue(id, out type))
                     return type;
                 type = CreatePublishedContentType(itemType, id);
@@ -148,7 +131,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new Exception(string.Format("ContentTypeService failed to find a {0} type with alias \"{1}\".",
                     itemType.ToString().ToLower(), alias));
 
-            return new PublishedContentTypeInternal(contentType);
+            return new PublishedContentType(itemType, contentType);
         }
 
         private PublishedContentType CreatePublishedContentType(PublishedItemType itemType, int id)
@@ -176,7 +159,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 throw new Exception(string.Format("ContentTypeService failed to find a {0} type with id {1}.",
                     itemType.ToString().ToLower(), id));
 
-            return new PublishedContentTypeInternal(contentType);
+            return new PublishedContentType(itemType, contentType);
         }
 
         // for unit tests - changing the callback must reset the cache obviously
@@ -228,7 +211,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private static string GetAliasKey(PublishedContentType contentType)
         {
-            return ((PublishedContentTypeInternal) contentType).K + ":" + contentType.Alias;
+            return GetAliasKey(contentType.ItemType, contentType.Alias);
         }
     }
 }

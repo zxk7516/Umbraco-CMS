@@ -12,12 +12,154 @@ using Umbraco.Core.Persistence.UnitOfWork;
 
 namespace Umbraco.Core.Services
 {
+    internal abstract class ContentTypeServiceBase : RepositoryService
+    {
+        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
+            : base(provider, repositoryFactory, logger)
+        { }
+
+        #region Events
+
+        [Flags]
+        public enum ChangeTypes : byte
+        {
+            None = 0,
+            RefreshMain = 1, // changed, impacts content (adding ppty or composition does NOT)
+            RefreshOther = 2, // changed, other changes
+            Remove = 4 // item type has been removed
+        }
+
+        #endregion
+    }
+
+    internal static class ContentTypeServiceBaseChangeExtensions
+    {
+        public static ContentTypeServiceBase<TItem>.Change.EventArgs ToEventArgs<TItem>(this IEnumerable<ContentTypeServiceBase<TItem>.Change> changes)
+            where TItem : class, IContentTypeComposition
+        {
+            return new ContentTypeServiceBase<TItem>.Change.EventArgs(changes);
+        }
+
+        public static bool HasType(this ContentTypeServiceBase.ChangeTypes change, ContentTypeServiceBase.ChangeTypes type)
+        {
+            return (change & type) != ContentTypeServiceBase.ChangeTypes.None;
+        }
+
+        public static bool HasTypesAll(this ContentTypeServiceBase.ChangeTypes change, ContentTypeServiceBase.ChangeTypes types)
+        {
+            return (change & types) == types;
+        }
+
+        public static bool HasTypesAny(this ContentTypeServiceBase.ChangeTypes change, ContentTypeServiceBase.ChangeTypes types)
+        {
+            return (change & types) != ContentTypeServiceBase.ChangeTypes.None;
+        }
+
+        public static bool HasTypesNone(this ContentTypeServiceBase.ChangeTypes change, ContentTypeServiceBase.ChangeTypes types)
+        {
+            return (change & types) == ContentTypeServiceBase.ChangeTypes.None;
+        }
+    }
+
+    internal abstract class ContentTypeServiceBase<TItem> : ContentTypeServiceBase
+        where TItem : class, IContentTypeComposition
+    {
+        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
+            : base(provider, repositoryFactory, logger)
+        { }
+
+        #region Events
+
+        public class Change
+        {
+            public Change(TItem item, ChangeTypes changeTypes)
+            {
+                Item = item;
+                ChangeTypes = changeTypes;
+            }
+
+            public TItem Item { get; private set; }
+            public ChangeTypes ChangeTypes { get; internal set; }
+
+            public EventArgs ToEventArgs(Change change)
+            {
+                return new EventArgs(change);
+            }
+
+            public class EventArgs : System.EventArgs
+            {
+                public EventArgs(IEnumerable<Change> changes)
+                {
+                    Changes = changes.ToArray();
+                }
+
+                public EventArgs(Change change)
+                    : this(new[] { change })
+                { }
+
+                public IEnumerable<Change> Changes { get; private set; }
+            }
+        }
+
+        internal static event TypedEventHandler<ContentTypeServiceBase<TItem>, Change.EventArgs> Changed;
+
+        protected void OnChanged(Change.EventArgs args)
+        {
+            Changed.RaiseEvent(args, this);
+        }
+
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, Change.EventArgs> TxEntityRefreshed;
+
+        protected void OnTxEntityRefreshed(Change.EventArgs args)
+        {
+            TxEntityRefreshed.RaiseEvent(args, this);
+        }
+
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, SaveEventArgs<TItem>> Saving;
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, SaveEventArgs<TItem>> Saved;
+
+        protected void OnSaving(SaveEventArgs<TItem> args)
+        {
+            Saving.RaiseEvent(args, this);
+        }
+
+        protected bool OnSavingCancelled(SaveEventArgs<TItem> args)
+        {
+            return Saving.IsRaisedEventCancelled(args, this);
+        }
+
+        protected void OnSaved(SaveEventArgs<TItem> args)
+        {
+            Saved.RaiseEvent(args, this);
+        }
+
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, DeleteEventArgs<TItem>> Deleting;
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, DeleteEventArgs<TItem>> Deleted;
+
+        protected void OnDeleting(DeleteEventArgs<TItem> args)
+        {
+            Deleting.RaiseEvent(args, this);
+        }
+
+        protected bool OnDeletingCancelled(DeleteEventArgs<TItem> args)
+        {
+            return Deleting.IsRaisedEventCancelled(args, this);
+        }
+
+        protected void OnDeleted(DeleteEventArgs<TItem> args)
+        {
+            Deleted.RaiseEvent(args, this);
+        }
+
+        #endregion
+    }
+
     /// <summary>
     /// Provides a base class for <see cref="ContentTypeService"/>, <see cref="MediaTypeService"/> and <see cref="MemberTypeService"/>.
     /// </summary>
     /// <typeparam name="TRepository">The type of the underlying repository.</typeparam>
     /// <typeparam name="TItem">The type of the item.</typeparam>
-    internal abstract class ContentTypeServiceBase<TRepository, TItem> : RepositoryService, IContentTypeServiceBase<TItem>
+    internal abstract class ContentTypeServiceBase<TRepository, TItem> : ContentTypeServiceBase<TItem>, IContentTypeServiceBase<TItem>
         where TRepository : ContentTypeBaseRepository<TItem>, IDisposable
         where TItem : class, IContentTypeComposition
     {
@@ -97,6 +239,7 @@ namespace Umbraco.Core.Services
 
         #region Composition
 
+        /*
         internal IEnumerable<TreeChange<IContentTypeBase>> ComposeContentTypeChangesForDistributedCache(IEnumerable<IContentTypeBase> contentTypes)
         {
             var changes = new Dictionary<int, TreeChange<IContentTypeBase>>();
@@ -134,6 +277,37 @@ namespace Umbraco.Core.Services
             }
 
             return changes.Values;
+        }
+
+        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForDistributedEvent(IContentTypeBase contentType)
+        {
+            return ComposeContentTypeChangesForDistributedEvent(new[] { contentType });
+        }
+
+        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForDistributedEvent(IEnumerable<IContentTypeBase> contentTypes)
+        {
+            // see notes in _ForTransactionEvent below
+
+            // hash set handles duplicates
+            var changes = new HashSet<IContentTypeBase>(new DelegateEqualityComparer<IContentTypeBase>(
+                (x, y) => x.Id == y.Id,
+                x => x.Id.GetHashCode()));
+
+            // for a distributed event we want to signal EVERYTHING
+            // FIXME but then the content cache will refresh FAR MORE than needed?!
+            // so we'd need details about different types of changes?!
+
+            foreach (var contentType in contentTypes)
+            {
+                // add that one
+                changes.Add(contentType);
+
+                // add all of these that are directly or indirectly composed of that one
+                foreach (var c in contentType.ComposedOf())
+                    changes.Add(c);
+            }
+
+            return changes;
         }
 
         internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForTransactionEvent(IContentTypeBase contentType)
@@ -208,80 +382,44 @@ namespace Umbraco.Core.Services
 
             return changes;
         }
+        */
 
-        /// <summary>
-        /// Determines which content types are impacted by content types changes, in a way that needs
-        /// to be notified to the content service.
-        /// </summary>
-        /// <param name="contentTypes">The changed content types.</param>
-        /// <returns>The impacted content types.</returns>
-        internal IEnumerable<IContentTypeBase> ComposeContentTypeChanges(params IContentTypeBase[] contentTypes)
+        internal IEnumerable<Change> ComposeContentTypeChanges(params TItem[] contentTypes)
         {
-            // hash set handles duplicates
-            var notify = new HashSet<IContentTypeBase>(new DelegateEqualityComparer<IContentTypeBase>(
-                (x, y) => x.Id == y.Id,
-                x => x.Id.GetHashCode()));
+            // find all content types impacted by the changes,
+            // - content type alias changed
+            // - content type property removed, or alias changed
+            // - content type composition removed (not testing if composition had properties...)
+            //
+            // because these are the changes that would impact the raw content data
 
-            // fixme
-            // this method was originally GetContentTypesForXmlUpdates and was targetted at the XML cache
-            // so it does NOT handle some situations that would have no impact on the XML cache
-            //
-            // ALSO it looks like it's never been updated for compositions?
-            //
-            // situations
-            // - local change, eg change the alias of the content type
-            //  content cache must know about the change, but no impact to descendants
-            // - DAG change, eg change anything WRT properties
-            //  
-            // eg 'new property' => don't really need to 'rebuild' the xml stuff
-            // but need to update the content types = impact on content cache
-            //
-            // edited & removed properties, must rebuild xml stuff & impact on cache
-            // edited property data types, nothing to do & impact the cache
-            //
-            // TODO try to figure out
-            // - refresh the xml/json/serialized in database
-            //    ctype alias changed = just that one
-            //    ptype alias changed or removed = descendants
-            //    composition removed = ptype removed = descendants
-            //    composition added, ... = nothing because NO impact on XML
-            // - reload the content in cache
-            //    if serialized has changed = same as above
-            // - update the content type in cache
-            //    if the content type has been updated in any way
-            //    ctype alias change = just that one
-            //    anything else = descendants
-            //
-            // TODO try this:
-            //  pass the contentTypes to the transaction event, let it figure things out
-            //  trigger changed ThisType/ThisBranch events?
-            //
-            // FIXME note that the transaction events CANNOT run the IsDirty, only Was DIRTY * TOO LATE
-            // would have the same impact if moving the ContentRepository events to ContentService...
-            // BUT could do it by gathering the types before uow.Commit()
+            // note
+            // this is meant to run *after* uow.Commit() so must use WasPropertyDirty() everywhere
+            // instead of IsPropertyDirty() since dirty properties have been resetted already
+
+            var changes = new List<Change>();
 
             foreach (var contentType in contentTypes)
             {
-                // fixme experiment
-                var hasOtherThanAliasChanged = ((ContentType)contentType).GetDirtyProperties().Any(x => x.InvariantEquals("Alias") == false);
-
                 var dirty = contentType as IRememberBeingDirty;
                 if (dirty == null) throw new Exception("oops");
 
                 // skip new content types
                 var isNewContentType = dirty.WasPropertyDirty("HasIdentity");
-                if (isNewContentType) continue;
+                if (isNewContentType)
+                {
+                    AddChange(changes, contentType, ChangeTypes.RefreshOther);
+                    continue;
+                }
 
-                // fixme - contentType.PropertyTypes is LOCAL ONLY or COMPOSED?
-                // fixme - what about ADDED PROPERTIES?
-                // fixme - what about properties that CHANGE THEIR DATA TYPE?
-                // fixme - what about COMPOSITION CHANGES
+                // alias change?
+                var hasAliasChanged = dirty.WasPropertyDirty("Alias");
 
                 // existing property alias change?
                 var hasAnyPropertyChangedAlias = contentType.PropertyTypes.Any(propertyType =>
                 {
                     var dirtyProperty = propertyType as IRememberBeingDirty;
-                    if (dirtyProperty == null) return false;
+                    if (dirtyProperty == null) throw new Exception("oops");
 
                     // skip new properties
                     var isNewProperty = dirtyProperty.WasPropertyDirty("HasIdentity");
@@ -295,25 +433,41 @@ namespace Umbraco.Core.Services
                 // removed properties?
                 var hasAnyPropertyBeenRemoved = dirty.WasPropertyDirty("HasPropertyTypeBeenRemoved");
 
-                // alias change?
-                var hasAliasBeenChanged = dirty.WasPropertyDirty("Alias");
+                // removed compositions?
+                var hasAnyCompositionBeenRemoved = dirty.WasPropertyDirty("HasCompositionTypeBeenRemoved");
 
-                // skip if nothing changed
-                if ((hasAliasBeenChanged || hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias) == false) continue;
+                // main impact on properties?
+                var hasPropertyMainImpact = hasAnyCompositionBeenRemoved || hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias;
 
-                // alias changes impact only the current content type whereas property changes impact descendants
-                if (hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias)
+                if (hasAliasChanged || hasPropertyMainImpact)
                 {
-                    foreach (var c in contentType.DescendantsAndSelf())
-                        notify.Add(c);
+                    // add that one, as a main change
+                    AddChange(changes, contentType, ChangeTypes.RefreshMain);
+
+                    if (hasPropertyMainImpact)
+                        foreach (var c in contentType.ComposedOf().Cast<TItem>())
+                            AddChange(changes, c, ChangeTypes.RefreshMain);
                 }
                 else
                 {
-                    notify.Add(contentType);
+                    // add that one, as an other change
+                    AddChange(changes, contentType, ChangeTypes.RefreshOther);
                 }
             }
 
-            return notify;
+            return changes;
+        }
+
+        // ensures changes contains no duplicates
+        private static void AddChange(ICollection<Change> changes, TItem contentType, ChangeTypes changeTypes)
+        {
+            var change = changes.FirstOrDefault(x => x.Item == contentType);
+            if (change == null)
+            {
+                changes.Add(new Change(contentType, changeTypes));
+                return;
+            }
+            change.ChangeTypes |= changeTypes;
         }
         
         #endregion
@@ -408,10 +562,10 @@ namespace Umbraco.Core.Services
 
         public void Save(TItem item, int userId = 0)
         {
-            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<TItem>(item), this))
+            if (OnSavingCancelled(new SaveEventArgs<TItem>(item)))
                 return;
 
-            TItem[] changed = null;
+            Change.EventArgs args = null;
 
             LRepo.WithWriteLocked(xr =>
             {
@@ -422,17 +576,18 @@ namespace Umbraco.Core.Services
                 xr.Repository.AddOrUpdate(item); // also updates contents
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                // figure out content types impacted by the changes through composition
-                changed = ComposeContentTypeChangesForTransactionEvent(item).Cast<TItem>().ToArray();
-                TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
+                // figure out impacted content types
+                var changes = ComposeContentTypeChanges(item).ToArray();
+                args = changes.ToEventArgs();
+                OnTxEntityRefreshed(args);
             });
 
             using (ChangeSet.WithAmbient)
             {
-                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+                OnChanged(args);
             }
 
-            Saved.RaiseEvent(new SaveEventArgs<TItem>(item, false), this);
+            OnSaved(new SaveEventArgs<TItem>(item, false));
             Audit(AuditType.Save, string.Format("Save MediaType performed by user"), userId, item.Id);
         }
 
@@ -440,10 +595,10 @@ namespace Umbraco.Core.Services
         {
             var itemsA = items.ToArray();
 
-            TItem[] changed = null;
-
-            if (Saving.IsRaisedEventCancelled(new SaveEventArgs<TItem>(itemsA), this))
+            if (OnSavingCancelled(new SaveEventArgs<TItem>(itemsA)))
                 return;
+
+            Change.EventArgs args = null;
 
             LRepo.WithWriteLocked(xr =>
             {
@@ -459,17 +614,18 @@ namespace Umbraco.Core.Services
 
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                // figure out content types impacted by the changes through composition
-                changed = ComposeContentTypeChangesForTransactionEvent(itemsA).Cast<TItem>().ToArray();
-                TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
+                // figure out impacted content types
+                var changes = ComposeContentTypeChanges(itemsA).ToArray();
+                args = changes.ToEventArgs();
+                OnTxEntityRefreshed(args);
             });
 
             using (ChangeSet.WithAmbient)
             {
-                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+                OnChanged(args);
             }
 
-            Saved.RaiseEvent(new SaveEventArgs<TItem>(itemsA, false), this);
+            OnSaved(new SaveEventArgs<TItem>(itemsA, false));
             Audit(AuditType.Save, string.Format("Save MediaTypes performed by user"), userId, -1);
         }
 
@@ -479,21 +635,22 @@ namespace Umbraco.Core.Services
 
         public void Delete(TItem item, int userId = 0)
         {
-            if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<TItem>(item), this))
+            if (OnDeletingCancelled(new DeleteEventArgs<TItem>(item)))
                 return;
 
-            TItem[] descendantsAndSelf = null;
-            TItem[] changed = null;
+            Change.EventArgs args = null;
 
             LRepo.WithWriteLocked(xr =>
             {
                 // all descendants are going to be deleted
-                descendantsAndSelf = item.DescendantsAndSelf()
+                var descendantsAndSelf = item.DescendantsAndSelf()
                     .Cast<TItem>()
                     .ToArray();
 
                 // all impacted (through composition) probably lose some properties
-                changed = descendantsAndSelf.SelectMany(xx => xx.ComposedOf())
+                // don't try to be too clever here, just report them all
+                // do this before anything is deleted
+                var changed = descendantsAndSelf.SelectMany(xx => xx.ComposedOf())
                     .Distinct()
                     .Except(descendantsAndSelf) // will be deleted anyway
                     .Cast<TItem>()
@@ -512,22 +669,19 @@ namespace Umbraco.Core.Services
 
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                // no need for 'transaction event' for deleted content
-                // because deleting content does trigger its own event
-                //
-                // need 'transaction event' for content that have changed
-                // ie those that were composed of the deleted content OR
-                // of any of its descendants
-                TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
+                var changes = descendantsAndSelf.Select(x => new Change(x, ChangeTypes.Remove))
+                    .Concat(changed.Select(x => new Change(x, ChangeTypes.RefreshMain | ChangeTypes.RefreshOther)));
+                args = changes.ToEventArgs();
+
+                OnTxEntityRefreshed(args);
             });
 
             using (ChangeSet.WithAmbient)
             {
-                TreeChanged.RaiseEvent(descendantsAndSelf.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
-                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+                OnChanged(args);
             }
 
-            Deleted.RaiseEvent(new DeleteEventArgs<TItem>(item, false), this);
+            OnDeleted(new DeleteEventArgs<TItem>(item, false));
             Audit(AuditType.Delete, string.Format("Delete MediaType performed by user"), userId, item.Id);
         }
 
@@ -541,22 +695,23 @@ namespace Umbraco.Core.Services
         {
             var itemsA = items.ToArray();
 
-            if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<TItem>(itemsA), this))
+            if (OnDeletingCancelled(new DeleteEventArgs<TItem>(itemsA)))
                 return;
 
-            TItem[] allDescendantsAndSelf = null;
-            TItem[] changed = null;
+            Change.EventArgs args = null;
 
             LRepo.WithWriteLocked(xr =>
             {
                 // all descendants are going to be deleted
-                allDescendantsAndSelf = itemsA.SelectMany(xx => xx.DescendantsAndSelf())
+                var allDescendantsAndSelf = itemsA.SelectMany(xx => xx.DescendantsAndSelf())
                     .Distinct()
                     .Cast<TItem>()
                     .ToArray();
 
                 // all impacted (through composition) probably lose some properties
-                changed = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
+                // don't try to be too clever here, just report them all
+                // do this before anything is deleted
+                var changed = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
                     .Distinct()
                     .Except(allDescendantsAndSelf) // will be deleted anyway
                     .Cast<TItem>()
@@ -572,17 +727,19 @@ namespace Umbraco.Core.Services
 
                 xr.UnitOfWork.Commit(); // commits the UOW but NOT the transaction
 
-                // (see notes in overload)
-                TransactionRefreshedEntity.RaiseEvent(new EntityChangeEventArgs(xr.UnitOfWork, changed), this);
+                var changes = allDescendantsAndSelf.Select(x => new Change(x, ChangeTypes.Remove))
+                    .Concat(changed.Select(x => new Change(x, ChangeTypes.RefreshMain | ChangeTypes.RefreshOther)));
+                args = changes.ToEventArgs();
+
+                OnTxEntityRefreshed(args);
             });
 
             using (ChangeSet.WithAmbient)
             {
-                TreeChanged.RaiseEvent(allDescendantsAndSelf.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.Remove)).ToEventArgs(), this);
-                TreeChanged.RaiseEvent(changed.Select(x => new TreeChange<TItem>(x, TreeChangeTypes.RefreshNode)).ToEventArgs(), this);
+                OnChanged(args);
             }
 
-            Deleted.RaiseEvent(new DeleteEventArgs<TItem>(itemsA, false), this);
+            OnDeleted(new DeleteEventArgs<TItem>(itemsA, false));
             Audit(AuditType.Delete, string.Format("Delete MediaTypes performed by user"), userId, -1);
         }
 
@@ -663,32 +820,6 @@ namespace Umbraco.Core.Services
                 uow.Commit();
             }
         }
-
-        #endregion
-
-        #region Events
-
-        public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, SaveEventArgs<TItem>> Saving;
-        public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, SaveEventArgs<TItem>> Saved;
-
-        public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, DeleteEventArgs<TItem>> Deleting;
-        public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, DeleteEventArgs<TItem>> Deleted;
-
-        public class EntityChangeEventArgs : EventArgs
-        {
-            public EntityChangeEventArgs(IDatabaseUnitOfWork unitOfWork, IEnumerable<TItem> entities)
-            {
-                UnitOfWork = unitOfWork;
-                Entities = entities;
-            }
-
-            public IEnumerable<TItem> Entities { get; private set; }
-            public IDatabaseUnitOfWork UnitOfWork { get; private set; }
-        }
-
-        public static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, EntityChangeEventArgs> TransactionRefreshedEntity;
-
-        internal static event TypedEventHandler<ContentTypeServiceBase<TRepository, TItem>, TreeChange<TItem>.EventArgs> TreeChanged; 
 
         #endregion
     }

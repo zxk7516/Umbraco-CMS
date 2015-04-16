@@ -1,21 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Web.Script.Serialization;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
-using Umbraco.Core.Models.EntityBase;
-using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Services;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Web.Cache
 {
-
     /// <summary>
     /// A cache refresher to ensure content type cache is updated when content types change - this is applicable to content, media and member types
     /// </summary>
@@ -28,7 +22,7 @@ namespace Umbraco.Web.Cache
 
         internal class JsonPayload
         {
-            public JsonPayload(string itemType, int id, TreeChangeTypes changeTypes)
+            public JsonPayload(string itemType, int id, ContentTypeServiceBase.ChangeTypes changeTypes)
             {
                 ItemType = itemType;
                 Id = id;
@@ -37,7 +31,7 @@ namespace Umbraco.Web.Cache
 
             public string ItemType { get; private set; }
             public int Id { get; private set; }
-            public TreeChangeTypes ChangeTypes { get; private set; }
+            public ContentTypeServiceBase.ChangeTypes ChangeTypes { get; private set; }
         }
 
         internal static string Serialize(IEnumerable<JsonPayload> payloads)
@@ -102,21 +96,20 @@ namespace Umbraco.Web.Cache
             foreach (var id in payloads.Select(x => x.Id))
                 ClearLegacyCaches(id);
 
-            // do it in THIS order: we want to trigger content type events BEFORE managing content
-            base.Refresh(json);
-
-            // NOTE
-            // anything that deals with content needs to be done after base.Refresh()
-            // so that all content type handling has taken place & we can reference types
-
-            if (payloads.Any(x => x.ItemType == typeof (IContentType).Name))
-                RefreshContentCache(payloads.Where(x => x.ItemType == typeof (IContentType).Name));
+            if (payloads.Any(x => x.ItemType == typeof(IContentType).Name))
+                RefreshContentCache();
 
             if (payloads.Any(x => x.ItemType == typeof(IMediaType).Name))
-                RefreshMediaCache(payloads.Where(x => x.ItemType == typeof (IMediaType).Name));
+                RefreshMediaCache();
 
-            if (payloads.Any(x => x.ItemType == typeof (IMemberType).Name))
-                RefreshMemberCache(payloads.Where(x => x.ItemType == typeof (IMemberType).Name));
+            if (payloads.Any(x => x.ItemType == typeof(IMemberType).Name))
+                RefreshMemberCache();
+
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            svce.Notify(payloads);
+            
+            // now we can trigger the event
+            base.Refresh(json);
         }
 
         public override void RefreshAll()
@@ -139,14 +132,13 @@ namespace Umbraco.Web.Cache
             throw new NotSupportedException();
         }
 
-        private static void RefreshContentCache(IEnumerable<JsonPayload> payloads)
+        private static void RefreshContentCache()
         {
             var contentCacheRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.ContentCacheRefresherGuid) as ContentCacheRefresher;
             if (contentCacheRefresher == null) throw new Exception("oops");
 
-            // when an 'item' type is removed, all 'items' are previously removed,
-            // so here we only need to bother with 'item' types that have changed.
-            contentCacheRefresher.RefreshContentTypes(payloads.Where(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshNode)).Select(x => x.Id));
+            // don't try to be clever - refresh all
+            contentCacheRefresher.RefreshContentTypes();
 
             // fixme - this is xml-cache specific & should be handled by the PublishedCacheService itself!
             var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
@@ -154,24 +146,22 @@ namespace Umbraco.Web.Cache
                 service.RoutesCache.Clear();
         }
 
-        private static void RefreshMediaCache(IEnumerable<JsonPayload> payloads)
+        private static void RefreshMediaCache()
         {
             var mediaCacheRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.MediaCacheRefresherGuid) as MediaCacheRefresher;
             if (mediaCacheRefresher == null) throw new Exception("oops");
 
-            // when an 'item' type is removed, all 'items' are previously removed,
-            // so here we only need to bother with 'item' types that have changed.
-            mediaCacheRefresher.RefreshMediaTypes(payloads.Where(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshNode)).Select(x => x.Id));
+            // don't try to be clever - refresh all
+            mediaCacheRefresher.RefreshMediaTypes();
         }
 
-        private static void RefreshMemberCache(IEnumerable<JsonPayload> payloads)
+        private static void RefreshMemberCache()
         {
             var memberCacheRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.MemberCacheRefresherGuid) as MemberCacheRefresher;
             if (memberCacheRefresher == null) throw new Exception("oops");
 
-            // when an 'item' type is removed, all 'items' are previously removed,
-            // so here we only need to bother with 'item' types that have changed.
-            memberCacheRefresher.RefreshMemberTypes(payloads.Where(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshNode)).Select(x => x.Id));
+            // don't try to be clever - refresh all
+            memberCacheRefresher.RefreshMemberTypes();
         }
         
         private static void ClearLegacyCaches(int contentTypeId /*, string contentTypeAlias, IEnumerable<int> propertyTypeIds*/)

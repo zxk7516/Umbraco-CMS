@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
+using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
@@ -17,6 +21,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly IMemberService _memberService;
         private readonly IMediaService _mediaService;
         private readonly ICacheProvider _requestCache;
+
+        #region Constructors
 
         // FIXME must cleanup those constructors?!
 
@@ -40,13 +46,22 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _routesCache = new RoutesCache();
             _contentTypeCache = contentTypeCache;
 
-            _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, testing, enableRepositoryEvents);
+            _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, _contentTypeCache, testing, enableRepositoryEvents);
 
             _domainService = serviceContext.DomainService;
             _memberService = serviceContext.MemberService;
             _mediaService = serviceContext.MediaService;
             _requestCache = requestCache;
         }
+
+        public override void Dispose()
+        {
+            _xmlStore.Dispose();
+        }
+
+        #endregion
+
+        #region PublishedCachesService Caches
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
@@ -61,20 +76,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 new PublishedMemberCache(_xmlStore, _requestCache, _memberService, _contentTypeCache));
         }
 
-        public override void Dispose()
-        {
-            _xmlStore.Dispose();
-        }
+        #endregion
 
-        /// <summary>
-        /// Gets the underlying XML store.
-        /// </summary>
-        public XmlStore XmlStore { get { return _xmlStore; } }
-
-        /// <summary>
-        /// Gets the underlying RoutesCache.
-        /// </summary>
-        public RoutesCache RoutesCache { get { return _routesCache; } }
+        #region PublishedCachesService Preview
 
         public override string EnterPreview(IUser user, int contentId)
         {
@@ -97,6 +101,20 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var previewContent = new PreviewContent(_xmlStore, previewToken);
             previewContent.ClearPreviewSet();
         }
+
+        #endregion
+
+        #region Xml specific
+
+        /// <summary>
+        /// Gets the underlying XML store.
+        /// </summary>
+        public XmlStore XmlStore { get { return _xmlStore; } }
+
+        /// <summary>
+        /// Gets the underlying RoutesCache.
+        /// </summary>
+        public RoutesCache RoutesCache { get { return _routesCache; } }
 
         public bool VerifyContentAndPreviewXml()
         {
@@ -129,14 +147,25 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             XmlStore.RebuildMemberXml();
         }
 
-        public override void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
+        #endregion
+
+        #region Change management
+
+        public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            _xmlStore.NotifyChanges(payloads, out draftChanged, out publishedChanged);
+            _xmlStore.Notify(payloads, out draftChanged, out publishedChanged);
         }
 
-        public override void NotifyChanges(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
+        public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
             anythingChanged = true;
         }
+
+        public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
+        {
+            _xmlStore.Notify(payloads);
+        }
+
+        #endregion
     }
 }

@@ -80,9 +80,10 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshMemberTypes(IEnumerable<int> ids)
+        public void RefreshMemberTypes()
         {
-            throw new NotImplementedException();
+            var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
+            runtimeCache.ClearCacheObjectTypes<IMember>();
         }
 
         #endregion

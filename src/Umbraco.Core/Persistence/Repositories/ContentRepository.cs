@@ -673,10 +673,6 @@ namespace Umbraco.Core.Persistence.Repositories
         internal IEnumerable<IContent> GetPagedResultsByQuery2(IQuery<IContent> query, int pageIndex, int pageSize, out int totalRecords,
             string orderBy, Direction orderDirection, string filter = "")
         {
-
-            //NOTE: This uses the GetBaseQuery method but that does not take into account the required 'newest' field which is 
-            // what we always require for a paged result, so we'll ensure it's included in the filter
-
             var args = new List<object>();
             var sbWhere = new StringBuilder(); //"AND (cmsDocument.newest = 1)");
 

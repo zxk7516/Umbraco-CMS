@@ -47,6 +47,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private bool _withRepositoryEvents;
         private bool _withOtherEvents;
 
+        private readonly PublishedContentTypeCache _contentTypeCache;
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _serviceContext;
         private readonly DatabaseContext _databaseContext;
@@ -95,13 +96,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         /// </summary>
         /// <remarks>The default constructor will boot the cache, load data from file or database,
         /// wire events in order to manage changes, etc.</remarks>
-        public XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache)
-            : this(serviceContext, databaseContext, routesCache, false, false)
+        public XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, PublishedContentTypeCache contentTypeCache)
+            : this(serviceContext, databaseContext, routesCache, contentTypeCache, false, false)
         { }
 
         // internal for unit tests
         // no file nor db, no config check
-        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache,
+        internal XmlStore(ServiceContext serviceContext, DatabaseContext databaseContext, RoutesCache routesCache, PublishedContentTypeCache contentTypeCache,
             bool testing, bool enableRepositoryEvents)
         {
             if (testing == false)
@@ -110,6 +111,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _serviceContext = serviceContext;
             _databaseContext = databaseContext;
             _routesCache = routesCache;
+            _contentTypeCache = contentTypeCache;
 
             InitializeSerializers();
 
@@ -190,7 +192,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             InitializeContent();
         }
 
-        // plug events
         private void InitializeRepositoryEvents()
         {
             // plug repository event handlers
@@ -207,10 +208,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RefreshedEntity += OnMemberRefreshedEntity;
 
             // plug
-            // note: there's no REMOVE because content will be DELETED beforehand (no xml to handle)
-            ContentTypeService.TransactionRefreshedEntity += OnContentTypeRefreshedEntity;
-            MediaTypeService.TransactionRefreshedEntity += OnMediaTypeRefreshedEntity;
-            MemberTypeService.TransactionRefreshedEntity += OnMemberTypeRefreshedEntity;
+            ContentTypeService.TxEntityRefreshed += OnContentTypeEntityRefreshed;
+            MediaTypeService.TxEntityRefreshed += OnMediaTypeEntityRefreshed;
+            MemberTypeService.TxEntityRefreshed += OnMemberTypeEntityRefreshed;
 
             // mostly to be sure - each node should have been deleted beforehand
             ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
@@ -221,10 +221,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private void InitializeOtherEvents()
         {
-            // plug event handlers
-            // distributed events
-            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheUpdated; // same refresher for content, media & member
-
             // temp - until we get rid of Content
             global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
 
@@ -233,8 +229,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private void ClearEvents()
         {
-            ContentTypeCacheRefresher.CacheUpdated -= ContentTypeCacheUpdated; // same refresher for content, media & member
-
             ContentRepository.RemovedEntity -= OnContentRemovedEntity;
             ContentRepository.RemovedVersion -= OnContentRemovedVersion;
             ContentRepository.RefreshedEntity -= OnContentRefreshedEntity;
@@ -245,9 +239,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             MemberRepository.RemovedVersion -= OnMemberRemovedVersion;
             MemberRepository.RefreshedEntity -= OnMemberRefreshedEntity;
 
-            ContentTypeService.TransactionRefreshedEntity -= OnContentTypeRefreshedEntity;
-            MediaTypeService.TransactionRefreshedEntity -= OnMediaTypeRefreshedEntity;
-            MemberTypeService.TransactionRefreshedEntity -= OnMemberTypeRefreshedEntity;
+            ContentTypeService.TxEntityRefreshed -= OnContentTypeEntityRefreshed;
+            MediaTypeService.TxEntityRefreshed -= OnMediaTypeEntityRefreshed;
+            MemberTypeService.TxEntityRefreshed -= OnMemberTypeEntityRefreshed;
 
             ContentRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
@@ -608,11 +602,11 @@ AND (umbracoNode.id=@id)";
                 });
             foreach (var xmlDto in xmlDtos)
             {
-                var xml = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+                var xml = xmlDto.XmlNode = doc.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
                 if (xml == null || xml.Attributes == null) continue;
                 if (xmlDto.Published == false)
                     xml.Attributes.Append(doc.CreateAttribute("isDraft"));
-                AddOrUpdateXmlNode(doc, xmlDto.Id, xmlDto.Level, xmlDto.ParentId, xml);
+                AddOrUpdateXmlNode(doc, xmlDto);
             }
             return doc;
         }
@@ -1217,13 +1211,11 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         #endregion
 
-        #region Handle Distributed Events for Memory Xml
+        #region Handle Distributed Notifications for Memory Xml
 
-        // nothing should cause changes to the cache
-        // it's the cache that subscribes to events and manages itself
-        // except for requests for cache reset
+        // NOT using events, see notes in IPublishedCachesService
 
-        public void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
+        public void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
             draftChanged = true; // by default - we don't track drafts
             publishedChanged = false;
@@ -1236,7 +1228,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 foreach (var payload in payloads)
                 {
-                    LogHelper.Debug<XmlStore>("Notified {1} for {0}".FormatWith(payload.Id, payload.ChangeTypes));
+                    LogHelper.Debug<XmlStore>("Notified {0} for content {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
                     if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                     {
@@ -1269,7 +1261,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     if (content == null || content.HasPublishedVersion == false || content.Trashed)
                     {
                         // no published version
-                        LogHelper.Debug<XmlStore>("Notified - {0} has no published version".FormatWith(payload.Id));
+                        LogHelper.Debug<XmlStore>("Notified, content {0} has no published version".FormatWith(payload.Id));
                         if (current != null)
                         {
                             // remove from xml if exists
@@ -1295,7 +1287,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         if (dtos.MoveNext() == false)
                         {
                             // gone fishing, remove (possible race condition)
-                            LogHelper.Debug<XmlStore>("Notif/{0} GoneFishing".FormatWith(payload.Id));
+                            LogHelper.Debug<XmlStore>("Notifified, content {0} gone fishing".FormatWith(payload.Id));
                             if (current != null)
                             {
                                 // remove from xml if exists
@@ -1372,7 +1364,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         else
                         {
                             // in-place
-                            AddOrUpdateXmlNode(safeXml.Xml, currentDto.Id, currentDto.Level, currentDto.ParentId, currentDto.XmlNode);
+                            AddOrUpdateXmlNode(safeXml.Xml, currentDto);
                         }
                     }
 
@@ -1387,24 +1379,27 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        // FIXME in order to be consistent we should have a NotifyChanges(ContentTypeCacheRefresher.JsonPayload[] payloads)
-        // FIXME or to get rid of NotifyChanges and go back to proper events
-
-        private void ContentTypeCacheUpdated(ContentTypeCacheRefresher sender, CacheRefresherEventArgs args)
+        public void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
-            if (args.MessageType != MessageType.RefreshByJson)
-                throw new ArgumentOutOfRangeException("args", "MessageType must be RefreshByJson.");
-            
-            var json = (string) args.MessageObject;
-            var payloads = ContentTypeCacheRefresher.Deserialize(json);
+            // see ContentTypeServiceBase
+            // in all cases we just want to clear the content type cache
+            // the type will be reloaded if/when needed
+            foreach (var payload in payloads)
+                _contentTypeCache.ClearContentType(payload.Id);
 
-            // process content types
-            // only those that have been changed - for those that have been removed, content is removed already
+            // process content types / content cache
+            // only those that have been changed - with impact on content - RefreshMain
+            // for those that have been removed, content is removed already
             var ids = payloads
-                .Where(x => x.ItemType == typeof (IContentType).Name && x.ChangeTypes.HasType(TreeChangeTypes.RefreshNode))
-                .Select(x => x.Id);
+                .Where(x => x.ItemType == typeof(IContentType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
+                .Select(x => x.Id)
+                .ToArray();
 
-            RefreshContentTypes(ids);
+            foreach (var payload in payloads)
+                LogHelper.Debug<XmlStore>("Notified {0} for type {1}".FormatWith(payload.ChangeTypes, payload.Id));
+
+            if (ids.Length > 0) // must have refreshes, not only removes
+                RefreshContentTypes(ids);
 
             // ignore media and member types - we're not caching them
         }
@@ -1436,8 +1431,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             {
                 foreach (var xmlDto in xmlDtos)
                 {
-                    var node = safeXml.Xml.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
-                    AddOrUpdateXmlNode(safeXml.Xml, xmlDto.Id, xmlDto.Level, xmlDto.ParentId, node);
+                    xmlDto.XmlNode = safeXml.Xml.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
+                    AddOrUpdateXmlNode(safeXml.Xml, xmlDto);
                 }
             }
         }
@@ -1453,16 +1448,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         }
 
         // adds or updates a node (docNode) into a cache (xml)
-        private static void AddOrUpdateXmlNode(XmlDocument xml, int id, int level, int parentId, XmlNode docNode)
+        private static void AddOrUpdateXmlNode(XmlDocument xml, XmlDto xmlDto)
         {
             // sanity checks
-            if (id != docNode.AttributeValue<int>("id"))
+            var docNode = xmlDto.XmlNode;
+            if (xmlDto.Id != docNode.AttributeValue<int>("id"))
                 throw new ArgumentException("Values of id and docNode/@id are different.");
-            if (parentId != docNode.AttributeValue<int>("parentID"))
+            if (xmlDto.ParentId != docNode.AttributeValue<int>("parentID"))
                 throw new ArgumentException("Values of parentId and docNode/@parentID are different.");
 
             // find the document in the cache
-            XmlNode currentNode = xml.GetElementById(id.ToInvariantString());
+            XmlNode currentNode = xml.GetElementById(xmlDto.Id.ToInvariantString());
 
             // if the document is not there already then it's a new document
             // we must make sure that its document type exists in the schema
@@ -1470,9 +1466,9 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 EnsureSchema(docNode.Name, xml);
 
             // find the parent
-            XmlNode parentNode = level == 1
+            XmlNode parentNode = xmlDto.Level == 1
                 ? xml.DocumentElement
-                : xml.GetElementById(parentId.ToInvariantString());
+                : xml.GetElementById(xmlDto.ParentId.ToInvariantString());
 
             // no parent = cannot do anything
             if (parentNode == null)
@@ -1493,7 +1489,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 // pain...
 
                 // first copy current parent ID - so we can compare with target parent
-                var moving = currentNode.AttributeValue<int>("parentID") != parentId;
+                var moving = currentNode.AttributeValue<int>("parentID") != xmlDto.ParentId;
 
                 if (docNode.Name == currentNode.Name)
                 {
@@ -1534,6 +1530,15 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                     currentNode = docNode;
                 }
             }
+
+            var attrs = currentNode.Attributes;
+            if (attrs == null) throw new Exception("oops.");
+
+            var attr = attrs["rv"] ?? attrs.Append(xml.CreateAttribute("rv"));
+            attr.Value = xmlDto.Rv.ToString(CultureInfo.InvariantCulture);
+
+            attr = attrs["path"] ?? attrs.Append(xml.CreateAttribute("path"));
+            attr.Value = xmlDto.Path;
 
             // if the nodes are not ordered, must sort
             // (see U4-509 + has to work with ReplaceChild too)
@@ -1852,23 +1857,32 @@ WHERE cmsContentXml.nodeId IN (
             db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@nodeId", parms);
         }
 
-        private void OnContentTypeRefreshedEntity(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, ContentTypeServiceBase<ContentTypeRepository, IContentType>.EntityChangeEventArgs args)
+        private void OnContentTypeEntityRefreshed(ContentTypeServiceBase<IContentType> sender, ContentTypeServiceBase<IContentType>.Change.EventArgs args)
         {
-            var contentTypeIds = args.Entities.Select(x => x.Id).ToArray();
+            // handling a transaction event that does not play well with cache...
+            RepositoryBase.SetCacheEnabledForCurrentRequest(false);
+
+            const ContentTypeServiceBase.ChangeTypes types // only for those that have been refreshed
+                = ContentTypeServiceBase.ChangeTypes.RefreshMain | ContentTypeServiceBase.ChangeTypes.RefreshOther;
+            var contentTypeIds = args.Changes.Where(x => x.ChangeTypes.HasTypesAny(types)).Select(x => x.Item.Id).ToArray();
             if (contentTypeIds.Any())
                 RebuildContentAndPreviewXml(contentTypeIds: contentTypeIds);
         }
 
-        private void OnMediaTypeRefreshedEntity(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, ContentTypeServiceBase<MediaTypeRepository, IMediaType>.EntityChangeEventArgs args)
+        private void OnMediaTypeEntityRefreshed(ContentTypeServiceBase<IMediaType> sender, ContentTypeServiceBase<IMediaType>.Change.EventArgs args)
         {
-            var mediaTypeIds = args.Entities.Select(x => x.Id).ToArray();
+            const ContentTypeServiceBase.ChangeTypes types // only for those that have been refreshed
+                = ContentTypeServiceBase.ChangeTypes.RefreshMain | ContentTypeServiceBase.ChangeTypes.RefreshOther;
+            var mediaTypeIds = args.Changes.Where(x => x.ChangeTypes.HasTypesAny(types)).Select(x => x.Item.Id).ToArray();
             if (mediaTypeIds.Any())
                 RebuildMediaXml(contentTypeIds: mediaTypeIds);
         }
 
-        private void OnMemberTypeRefreshedEntity(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, ContentTypeServiceBase<MemberTypeRepository, IMemberType>.EntityChangeEventArgs args)
+        private void OnMemberTypeEntityRefreshed(ContentTypeServiceBase<IMemberType> sender, ContentTypeServiceBase<IMemberType>.Change.EventArgs args)
         {
-            var memberTypeIds = args.Entities.Select(x => x.Id).ToArray();
+            const ContentTypeServiceBase.ChangeTypes types // only for those that have been refreshed
+                = ContentTypeServiceBase.ChangeTypes.RefreshMain | ContentTypeServiceBase.ChangeTypes.RefreshOther;
+            var memberTypeIds = args.Changes.Where(x => x.ChangeTypes.HasTypesAny(types)).Select(x => x.Item.Id).ToArray();
             if (memberTypeIds.Any())
                 RebuildMemberXml(contentTypeIds: memberTypeIds);
         }

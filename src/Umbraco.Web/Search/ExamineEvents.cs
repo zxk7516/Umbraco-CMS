@@ -45,10 +45,10 @@ namespace Umbraco.Web.Search
 
             // bind to distributed cache events - this ensures that this logic occurs on ALL servers
             // that are taking part in a load balanced environment.
-		    CacheRefresherBase<ContentCacheRefresher>.CacheUpdated += ContentCacheRefresherUpdated;
-            CacheRefresherBase<MediaCacheRefresher>.CacheUpdated += MediaCacheRefresherUpdated;
-            CacheRefresherBase<MemberCacheRefresher>.CacheUpdated += MemberCacheRefresherUpdated;
-            CacheRefresherBase<ContentTypeCacheRefresher>.CacheUpdated += ContentTypeCacheRefresherUpdated;
+		    ContentCacheRefresher.CacheUpdated += ContentCacheRefresherUpdated;
+            MediaCacheRefresher.CacheUpdated += MediaCacheRefresherUpdated;
+            MemberCacheRefresher.CacheUpdated += MemberCacheRefresherUpdated;
+            ContentTypeCacheRefresher.CacheUpdated += ContentTypeCacheRefresherUpdated;
             
 			var contentIndexer = ExamineManager.Instance.IndexProviderCollection["InternalIndexer"] as UmbracoContentIndexer;
 			if (contentIndexer != null)

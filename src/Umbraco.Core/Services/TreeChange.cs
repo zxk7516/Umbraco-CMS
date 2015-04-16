@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Umbraco.Core.Services
 {
@@ -72,13 +73,12 @@ namespace Umbraco.Core.Services
         {
             public EventArgs(IEnumerable<TreeChange<TItem>> changes)
             {
-                Changes = changes;
+                Changes = changes.ToArray();
             }
 
             public EventArgs(TreeChange<TItem> change)
-            {
-                Changes = new[] { change };
-            }
+                : this(new[] { change })
+            { }
 
             public IEnumerable<TreeChange<TItem>> Changes { get; private set; }
         }

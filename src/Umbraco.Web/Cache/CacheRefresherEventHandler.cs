@@ -73,9 +73,9 @@ namespace Umbraco.Web.Cache
             //MediaTypeService.Deleted += MediaTypeServiceDeleted;
             //MemberTypeService.Saved += MemberTypeServiceSaved;
             //MemberTypeService.Deleted += MemberTypeServiceDeleted;
-            ContentTypeService.TreeChanged += ContentTypeServiceChanged;
-            MediaTypeService.TreeChanged += ContentTypeServiceChanged;
-            MemberTypeService.TreeChanged += ContentTypeServiceChanged;
+            ContentTypeService.Changed += ContentTypeServiceChanged;
+            MediaTypeService.Changed += ContentTypeServiceChanged;
+            MemberTypeService.Changed += ContentTypeServiceChanged;
 
             //Bind to permission events
 
@@ -170,9 +170,9 @@ namespace Umbraco.Web.Cache
             //MediaTypeService.Deleted -= MediaTypeServiceDeleted;
             //MemberTypeService.Saved -= MemberTypeServiceSaved;
             //MemberTypeService.Deleted -= MemberTypeServiceDeleted;
-            ContentTypeService.TreeChanged -= ContentTypeServiceChanged;
-            MediaTypeService.TreeChanged -= ContentTypeServiceChanged;
-            MemberTypeService.TreeChanged -= ContentTypeServiceChanged;
+            ContentTypeService.Changed -= ContentTypeServiceChanged;
+            MediaTypeService.Changed -= ContentTypeServiceChanged;
+            MemberTypeService.Changed -= ContentTypeServiceChanged;
 
             Permission.New -= PermissionNew;
             Permission.Updated -= PermissionUpdated;
@@ -419,17 +419,20 @@ namespace Umbraco.Web.Cache
 
         #region Content/media/member Type event handlers
 
-        private void ContentTypeServiceChanged(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, TreeChange<IContentType>.EventArgs args)
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<IContentType> sender,
+            ContentTypeServiceBase<IContentType>.Change.EventArgs args)
         {
             DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
 
-        private void ContentTypeServiceChanged(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, TreeChange<IMediaType>.EventArgs args)
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<IMediaType> sender,
+            ContentTypeServiceBase<IMediaType>.Change.EventArgs args)
         {
             DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
 
-        private void ContentTypeServiceChanged(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, TreeChange<IMemberType>.EventArgs args)
+        private void ContentTypeServiceChanged(ContentTypeServiceBase<IMemberType> sender,
+            ContentTypeServiceBase<IMemberType>.Change.EventArgs args)
         {
             DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }

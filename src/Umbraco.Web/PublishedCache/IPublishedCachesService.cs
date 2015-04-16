@@ -1,16 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Umbraco.Core.Models;
+using System.Web.Services.Description;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache
 {
+    /// <summary>
+    /// Creates and manages IPublishedCaches.
+    /// </summary>
     interface IPublishedCachesService : IDisposable
     {
+        #region PublishedCaches
+
         /* Various places (such as Node) want to access the XML content, today as an XmlDocument
          * but to migrate to a new cache, they're migrating to an XPathNavigator. Still, they need
          * to find out how to get that navigator.
@@ -19,14 +20,14 @@ namespace Umbraco.Web.PublishedCache
          * and remains consistent over the snapshot, the navigator should come from the "current"
          * snapshot.
          * 
-         * The factory creates those snapshots in IPublishedCaches objects.
+         * The service creates those snapshots in IPublishedCaches objects.
          * 
          * Places such as Node need to be able to find the "current" one so the factory has a
          * notion of what is "current". In most cases, the IPublishedCaches object is created
          * and registered against an UmbracoContext, and that context is then used as "current".
          * 
          * But for tests we need to have a way to specify what's the "current" object & preview.
-         * Which is defined in PublishedCacheFactoryBase.
+         * Which is defined in PublishedCachesServiceBase.
          * 
          */
 
@@ -43,6 +44,10 @@ namespace Umbraco.Web.PublishedCache
         /// <returns>The current set of published caches.</returns>
         /// <remarks></remarks>
         IPublishedCaches GetPublishedCaches();
+
+        #endregion
+
+        #region Preview
 
         /* Later on we can imagine that EnterPreview would handle a "level" that would be either
          * the content only, or the content's branch, or the whole tree + it could be possible
@@ -90,19 +95,42 @@ namespace Umbraco.Web.PublishedCache
         /// </remarks>
         void ExitPreview(string previewToken);
 
+        #endregion
+
+        #region Changes
+
+        /* An IPublishedCachesService implementation can rely on transaction-level events to update
+         * its internal, database-level data, as these events are purely internal. However, it cannot
+         * rely on cache refreshers CacheUpdated events to update itself, as these events are external
+         * and the order-of-execution of the handlers cannot be guaranteed, which means that some
+         * user code may run before Umbraco is finished updating itself. Instead, the cache refreshers
+         * explicitely notify the service of changes.
+         * 
+         */
+
         /// <summary>
         /// Notifies of content cache refresher changes.
         /// </summary>
         /// <param name="payloads">The changes.</param>
         /// <param name="draftChanged">A value indicating whether draft contents have been changed in the cache.</param>
         /// <param name="publishedChanged">A value indicating whether published contents have been changed in the cache.</param>
-        void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged);
+        void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged);
 
         /// <summary>
         /// Notifies of media cache refresher changes.
         /// </summary>
         /// <param name="payloads">The changes.</param>
         /// <param name="anythingChanged">A value indicating whether medias have been changed in the cache.</param>
-        void NotifyChanges(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged);
+        void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged);
+
+        // there is no NotifyChanges for MemberCacheRefresher because we're not caching members.
+
+        /// <summary>
+        /// Notifies of content type refresher changes.
+        /// </summary>
+        /// <param name="payloads">The changes.</param>
+        void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads);
+
+        #endregion
     }
 }

@@ -6,6 +6,7 @@ using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using umbraco;
 using umbraco.cms.businesslogic.web;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Web.Cache
@@ -358,7 +359,7 @@ namespace Umbraco.Web.Cache
             }
         }
 
-        public static void RefreshContentTypeCache(this DistributedCache dc, TreeChange<IContentType>[] changes)
+        public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<ContentTypeRepository, IContentType>.Change[] changes)
         {
             if (changes.Length == 0) return;
 
@@ -368,7 +369,7 @@ namespace Umbraco.Web.Cache
             dc.RefreshContentTypeCacheByJson(payloads);
         }
 
-        public static void RefreshContentTypeCache(this DistributedCache dc, TreeChange<IMediaType>[] changes)
+        public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MediaTypeRepository, IMediaType>.Change[] changes)
         {
             if (changes.Length == 0) return;
 
@@ -378,7 +379,7 @@ namespace Umbraco.Web.Cache
             dc.RefreshContentTypeCacheByJson(payloads);
         }
 
-        public static void RefreshContentTypeCache(this DistributedCache dc, TreeChange<IMemberType>[] changes)
+        public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MemberTypeRepository, IMemberType>.Change[] changes)
         {
             if (changes.Length == 0) return;
 

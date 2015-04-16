@@ -46,14 +46,19 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             // nothing
         }
 
-        public override void NotifyChanges(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
+        public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
             draftChanged = publishedChanged = true;
         }
 
-        public override void NotifyChanges(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
+        public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
             anythingChanged = true;
+        }
+
+        public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
+        {
+            // nothing
         }
     }
 }

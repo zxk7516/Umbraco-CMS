@@ -87,7 +87,7 @@ namespace Umbraco.Web.Cache
 
             var svce = PublishedCachesServiceResolver.Current.Service;
             bool draftChanged, publishedChanged;
-            svce.NotifyChanges(payloads, out draftChanged, out publishedChanged);
+            svce.Notify(payloads, out draftChanged, out publishedChanged);
 
             if (payloads.Any(x => x.ChangeTypes.HasType(TreeChangeTypes.RefreshAll)) || publishedChanged)
             {
@@ -127,13 +127,11 @@ namespace Umbraco.Web.Cache
 
         #region Indirect
 
-        public void RefreshContentTypes(IEnumerable<int> ids)
+        public void RefreshContentTypes()
         {
             // we could try to have a mechanism to notify the PublishedCachesService
             // and figure out whether published items were modified or not... keep it
             // simple for now, just clear the whole thing
-
-            // fixme - but HOW does the PublishedCachesService knows about modified types?!
 
             ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
             MacroCacheRefresher.ClearMacroContentCache(); // just the content

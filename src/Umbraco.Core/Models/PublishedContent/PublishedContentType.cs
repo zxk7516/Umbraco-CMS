@@ -23,10 +23,23 @@ namespace Umbraco.Core.Models.PublishedContent
         // internal so it can be used by PublishedNoCache which does _not_ want to cache anything and so will never
         // use the static cache getter PublishedContentType.GetPublishedContentType(alias) below - anything else
         // should use it.
-        internal PublishedContentType(IContentTypeComposition contentType)
+        internal PublishedContentType(IContentType contentType)
+            : this(PublishedItemType.Content, contentType)
+        { }
+
+        internal PublishedContentType(IMediaType mediaType)
+            : this(PublishedItemType.Media, mediaType)
+        { }
+
+        internal PublishedContentType(IMemberType memberType)
+            : this(PublishedItemType.Member, memberType)
+        { }
+
+        internal PublishedContentType(PublishedItemType itemType, IContentTypeComposition contentType)
         {
             Id = contentType.Id;
             Alias = contentType.Alias;
+            ItemType = itemType;
             _propertyTypes = contentType.CompositionPropertyTypes
                 .Select(x => new PublishedPropertyType(this, x))
                 .ToArray();
@@ -35,9 +48,15 @@ namespace Umbraco.Core.Models.PublishedContent
 
         // internal so it can be used for unit tests
         internal PublishedContentType(int id, string alias, IEnumerable<PublishedPropertyType> propertyTypes)
+            : this(id, alias, PublishedItemType.Content, propertyTypes)
+        { }
+
+        // internal so it can be used for unit tests
+        internal PublishedContentType(int id, string alias, PublishedItemType itemType, IEnumerable<PublishedPropertyType> propertyTypes)
         {
             Id = id;
             Alias = alias;
+            ItemType = itemType;
             _propertyTypes = propertyTypes.ToArray();
             foreach (var propertyType in _propertyTypes)
                 propertyType.ContentType = this;
@@ -63,6 +82,7 @@ namespace Umbraco.Core.Models.PublishedContent
 
         public int Id { get; private set; }
         public string Alias { get; private set; }
+        public PublishedItemType ItemType { get; private set; }
 
         #endregion
 
