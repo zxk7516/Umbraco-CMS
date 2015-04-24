@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Umbraco.Core.Events;
 
-namespace Umbraco.Core.Services
+namespace Umbraco.Core.Cache
 {
     /// <summary>
     /// Aggregates a set of changes against the distributed cache.
@@ -12,6 +12,10 @@ namespace Umbraco.Core.Services
     /// different events (eg, save several content items), as one distributed event payload,
     /// so that they can be processed as a whole by refreshers (eg, prevent the content
     /// cache from being in a state where some changes have been made, but not all).</para>
+    /// <para>The changes will be flushed as one payload when the last reference to the change
+    /// set is disposed, or when the change set is explicitely flushed, or when changes for a
+    /// different cache refresher are added (a change set can contain changes for only one
+    /// refresher at a time).</para>
     /// <para>Not thread safe!</para>
     /// <para>User code can only get references to the ambient change set via
     /// using (ChangeSet.WithAmbient) {...}</para>
@@ -19,16 +23,45 @@ namespace Umbraco.Core.Services
     internal class ChangeSet
     {
         private int _refsCount;
-        private readonly Dictionary<string, object> _items = new Dictionary<string, object>();
+        private Guid _refresherGuid;
+        private List<object> _items; 
         private const string ContextKey = "Umbraco.Core.Services.AmbientChangeSet";
 
         /// <summary>
         /// Gets the change set items.
         /// </summary>
-        public IDictionary<string, object> Items { get { return _items; } }
+        public IList<object> Items { get { return _items; } }
+
+        /// <summary>
+        /// Gets the current refresher identifier.
+        /// </summary>
+        public Guid RefresherGuid { get { return _refresherGuid; } }
+
+        /// <summary>
+        /// Gets a value indicating whether the change set is empty.
+        /// </summary>
+        public bool IsEmpty { get { return _items == null || _items.Count == 0; } }
 
         private ChangeSet()
         { }
+
+        /// <summary>
+        /// Adds a change item for a specified refresher.
+        /// </summary>
+        /// <param name="refresherGuid">The unique identifier of the refresher.</param>
+        /// <param name="items">The change item to add.</param>
+        /// <remarks>If the refresher is not the current refresher, then the change set
+        /// is flushed before the change item is added to it.</remarks>
+        public void Add(Guid refresherGuid, IEnumerable<object> items)
+        {
+            if (refresherGuid != _refresherGuid)
+            {
+                Flush();
+                _refresherGuid = refresherGuid;
+            }
+            if (_items == null) _items = new List<object>();
+            _items.AddRange(items);
+        }
 
         /// <summary>
         /// Represents a reference to a <see cref="ChangeSet"/>.
@@ -63,9 +96,6 @@ namespace Umbraco.Core.Services
         //
         // must dispose to flush and for events to trigger
         // no way to prevent flush & events at the moment (no rollback)
-        //
-        // if (ChangeSet.HasAmbient)
-        //   ChangeSet.Ambient.Items[...] = ...;
         //
         // bad idea to use a ChangeSet while handling Committed!
 
@@ -126,6 +156,9 @@ namespace Umbraco.Core.Services
         /// </summary>
         private void Flush()
         {
+            if (IsEmpty)
+                return;
+
             // make sure we remove the ChangeSet even if the handler throws
             try
             {
@@ -133,7 +166,7 @@ namespace Umbraco.Core.Services
             }
             finally
             {
-                CurrentContextItems.Clear(ContextKey);
+                _items.Clear();
             }
         }
 
@@ -162,8 +195,15 @@ namespace Umbraco.Core.Services
             // _refsCount == 0, set to -1 to lock the ChangeSet
             _refsCount = -1;
 
-            // and flush
-            Flush();
+            // flush and remove ambient
+            try
+            {
+                Flush();
+            }
+            finally 
+            {
+                CurrentContextItems.Clear(ContextKey);
+            }
         }
     }
 }

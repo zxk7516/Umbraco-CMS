@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Models;
 using umbraco;
@@ -18,103 +20,35 @@ namespace Umbraco.Web.Cache
     {
         #region ChangeSet
 
-        // fixme - issue!
-        //
-        // however, as soon as more than one refresher is impacted, things become complicated,
-        // because buffering all events mean that they will not be processed in an ordered way,
-        // eg: change content A, change type 1, change content B
-        // will be processed as (A,B) then 1, or 1 then (A,B) but cannot be A then 1 then B.
-        //
-        // must fix FlushChangeSet and RefreshCacheByPayload<T> - but how?
-        //
-        // the way the distributed cache works, the only way to get atomic changes is to group
-        // these changes in one payload, which will be processed as one event by the remote
-        // refresher - no way we can tell one remote that a payload is part of a greater thing.
-        //
-        // must let ppl do something like...
-        // using (ChangeSet.WithAmbient)
-        // {
-        //   ...
-        //   ChangeSet.FlushAmbient();
-        //   ...
-        //   ChangeSet.FlushAmbient();
-        //   ...
-        // }
-        //
-        // example:
-        // delete a content type
-        // = delete all content of that type, then delete the content type
-        // WHEN would we have more than 1 buffer?
-        //
-        // fixme OR should a changeset auto-commit soon as we switch to another service?!
-
         public static void FlushChangeSet(this DistributedCache dc, ChangeSet changeSet)
         {
-            if (changeSet == null) return;
+            if (changeSet == null || changeSet.IsEmpty) return;
 
-            var key = DistributedCache.ContentCacheRefresherGuid.ToString();
-            if (changeSet.Items.ContainsKey(key))
+            if (changeSet.RefresherGuid == DistributedCache.ContentCacheRefresherGuid
+                || changeSet.RefresherGuid == DistributedCache.ContentTypeCacheRefresherGuid
+                || changeSet.RefresherGuid == DistributedCache.DataTypeCacheRefresherGuid)
             {
-                var buffer = (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[key];
-                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, buffer.ToArray());
-                changeSet.Items.Remove(key);
+                dc.RefreshByPayload(changeSet.RefresherGuid, changeSet.Items.ToArray());
+                return;
             }
 
-            key = DistributedCache.MediaCacheRefresherGuid.ToString();
-            if (changeSet.Items.ContainsKey(key))
+            if (changeSet.RefresherGuid == DistributedCache.MediaCacheRefresherGuid)
             {
-                var buffer = (List<MediaCacheRefresher.JsonPayload>) changeSet.Items[key];
-                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(buffer.ToArray()));
-                changeSet.Items.Remove(key);
+                dc.RefreshByJson(changeSet.RefresherGuid, JsonConvert.SerializeObject(changeSet.Items.ToArray()));
+                return;
             }
 
-            key = DistributedCache.MemberCacheRefresherGuid.ToString();
-            if (changeSet.Items.ContainsKey(key))
-            {
-                throw new NotImplementedException("ChangeSet does not support members?");
-                //var buffer = (List<MemberCacheRefresher.JsonPayload>) changeSet.Items[MemberCacheBufferKey];
-                //dc.RefreshByJson(DistributedCache.MemberCacheRefresherGuid, MemberCacheRefresher.Serialize(buffer));
-                //changeSet.Items.Remove(MemberCacheBufferKey);
-            }
-
-            key = DistributedCache.ContentTypeCacheRefresherGuid.ToString();
-            if (changeSet.Items.ContainsKey(key))
-            {
-                var buffer = (List<ContentTypeCacheRefresher.JsonPayload>) changeSet.Items[key];
-                dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, buffer.ToArray());
-                changeSet.Items.Remove(key);
-            }
-
-            key = DistributedCache.DataTypeCacheRefresherGuid.ToString();
-            if (changeSet.Items.ContainsKey(key))
-            {
-                var buffer = (List<DataTypeCacheRefresher.JsonPayload>) changeSet.Items[key];
-                dc.RefreshByPayload(DistributedCache.DataTypeCacheRefresherGuid, buffer.ToArray());
-                changeSet.Items.Remove(key);
-            }
+            throw new NotSupportedException("ChangeSet does not support refresher {{{0}}}.".FormatWith(changeSet.RefresherGuid));
         }
 
         private static void RefreshCacheByPayload<T>(this DistributedCache dc, Guid refresherId, IEnumerable<T> payloads)
+            where T : class // else cannot add to IEnumerable<object>
         {
             var changeSet = ChangeSet.Ambient;
             if (changeSet == null)
-            {
                 dc.RefreshByPayload(refresherId, payloads);
-            }
             else
-            {
-                var key = refresherId.ToString();
-
-                // fixme
-                // OR just do
-                // changeSet.Add(refresherId, payloads)
-                // AND if refresherId != changeSet.RefresherId
-                // it will first flush itself?
-
-                var buffer = changeSet.Items.ContainsKey(key) ? (List<T>)changeSet.Items[key] : null;
-                if (buffer == null) changeSet.Items[key] = buffer = new List<T>();
-                buffer.AddRange(payloads);
-            }
+                changeSet.Add(refresherId, payloads);
         }
 
         #endregion
