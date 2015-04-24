@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Sync;
 using umbraco.interfaces;
 
@@ -96,19 +98,19 @@ namespace Umbraco.Web.Cache
         /// Notifies the distributed cache of specifieds item invalidation, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
         /// <typeparam name="T">The type of the invalidated items.</typeparam>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="getNumericId">A function returning the unique identifier of items.</param>
         /// <param name="instances">The invalidated items.</param>
         /// <remarks>
         /// This method is much better for performance because it does not need to re-lookup object instances.
         /// </remarks>
-        public void Refresh<T>(Guid factoryGuid, Func<T, int> getNumericId, params T[] instances)
+        public void Refresh<T>(Guid refresherGuid, Func<T, int> getNumericId, params T[] instances)
         {
-            if (factoryGuid == Guid.Empty || instances.Length == 0 || getNumericId == null) return;
+            if (refresherGuid == Guid.Empty || instances.Length == 0 || getNumericId == null) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefresh(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 getNumericId,
                 instances);
         }
@@ -116,55 +118,81 @@ namespace Umbraco.Web.Cache
         /// <summary>
         /// Notifies the distributed cache of a specified item invalidation, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="id">The unique identifier of the invalidated item.</param>
-        public void Refresh(Guid factoryGuid, int id)
+        public void Refresh(Guid refresherGuid, int id)
         {
-            if (factoryGuid == Guid.Empty || id == default(int)) return;
+            if (refresherGuid == Guid.Empty || id == default(int)) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefresh(
                 ServerRegistrarResolver.Current.Registrar.Registrations, 
-                GetRefresherById(factoryGuid), 
+                GetRefresherById(refresherGuid), 
                 id);
         }
 
         /// <summary>
         /// Notifies the distributed cache of a specified item invalidation, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="id">The unique identifier of the invalidated item.</param>
-        public void Refresh(Guid factoryGuid, Guid id)
+        public void Refresh(Guid refresherGuid, Guid id)
         {
-            if (factoryGuid == Guid.Empty || id == Guid.Empty) return;
+            if (refresherGuid == Guid.Empty || id == Guid.Empty) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefresh(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 id);
         }
 
-        public void RefreshByPayload(Guid factoryGuid, object payload)
+        // payload should be an object, or array of objects, NOT a
+        // Linq enumerable of some sort (IEnumerable, query...) 
+        public void RefreshByPayload(Guid refresherGuid, object payload)
         {
-            if (factoryGuid == Guid.Empty || payload == null) return;
+            if (refresherGuid == Guid.Empty || payload == null) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefresh(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 payload);
+        }
+
+        public void RefreshByPayload<T>(Guid refresherGuid, IEnumerable<T> payloads)
+            where T : class
+        {
+            if (refresherGuid == Guid.Empty || payloads == null) return;
+
+            var payloadsA = payloads.GetType().IsArray
+                ? payloads
+                : payloads.ToArray();
+
+            RefreshByPayload(refresherGuid, (object) payloadsA);
+        }
+
+        public void RefreshSetByPayload<T>(Guid refresherGuid, IEnumerable<T> payloads)
+            where T : class // else cannot add to changeSet IEnumerable<object>
+        {
+            if (refresherGuid == Guid.Empty || payloads == null) return;
+
+            var changeSet = ChangeSet.Ambient;
+            if (changeSet == null)
+                RefreshByPayload(refresherGuid, payloads);
+            else
+                changeSet.Add(refresherGuid, payloads);
         }
 
         /// <summary>
         /// Notifies the distributed cache, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="jsonPayload">The notification content.</param>
-        public void RefreshByJson(Guid factoryGuid, string jsonPayload)
+        public void RefreshByJson(Guid refresherGuid, string jsonPayload)
         {
-            if (factoryGuid == Guid.Empty || jsonPayload.IsNullOrWhiteSpace()) return;
+            if (refresherGuid == Guid.Empty || jsonPayload.IsNullOrWhiteSpace()) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefresh(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 jsonPayload);
         }
 
@@ -186,28 +214,28 @@ namespace Umbraco.Web.Cache
         /// <summary>
         /// Notifies the distributed cache of a global invalidation for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
-        public void RefreshAll(Guid factoryGuid)
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
+        public void RefreshAll(Guid refresherGuid)
         {
-            if (factoryGuid == Guid.Empty) return;
+            if (refresherGuid == Guid.Empty) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRefreshAll(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid));
+                GetRefresherById(refresherGuid));
         }
 
         /// <summary>
         /// Notifies the distributed cache of a specified item removal, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="id">The unique identifier of the removed item.</param>
-        public void Remove(Guid factoryGuid, int id)
+        public void Remove(Guid refresherGuid, int id)
         {
-            if (factoryGuid == Guid.Empty || id == default(int)) return;
+            if (refresherGuid == Guid.Empty || id == default(int)) return;
 
             ServerMessengerResolver.Current.Messenger.PerformRemove(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 id);
         }
 
@@ -215,17 +243,17 @@ namespace Umbraco.Web.Cache
         /// Notifies the distributed cache of specifieds item removal, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
         /// <typeparam name="T">The type of the removed items.</typeparam>
-        /// <param name="factoryGuid">The unique identifier of the ICacheRefresher.</param>
+        /// <param name="refresherGuid">The unique identifier of the ICacheRefresher.</param>
         /// <param name="getNumericId">A function returning the unique identifier of items.</param>
         /// <param name="instances">The removed items.</param>
         /// <remarks>
         /// This method is much better for performance because it does not need to re-lookup object instances.
         /// </remarks>
-        public void Remove<T>(Guid factoryGuid, Func<T, int> getNumericId, params T[] instances)
+        public void Remove<T>(Guid refresherGuid, Func<T, int> getNumericId, params T[] instances)
         {
             ServerMessengerResolver.Current.Messenger.PerformRemove(
                 ServerRegistrarResolver.Current.Registrar.Registrations,
-                GetRefresherById(factoryGuid),
+                GetRefresherById(refresherGuid),
                 getNumericId,
                 instances);
         }
@@ -233,11 +261,11 @@ namespace Umbraco.Web.Cache
         #endregion
 
         // helper method to get an ICacheRefresher by its unique identifier
-        private static ICacheRefresher GetRefresherById(Guid uniqueIdentifier)
+        private static ICacheRefresher GetRefresherById(Guid refresherGuid)
         {
-            var refresher = CacheRefreshersResolver.Current.GetById(uniqueIdentifier);
+            var refresher = CacheRefreshersResolver.Current.GetById(refresherGuid);
             if (refresher == null)
-                throw new ArgumentException("Not a registered cache refresher UID: {0}".FormatWith(uniqueIdentifier));
+                throw new ArgumentException("Not a registered cache refresher UID: {0}".FormatWith(refresherGuid));
             return refresher;
         }
     }

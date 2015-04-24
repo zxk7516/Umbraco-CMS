@@ -28,7 +28,16 @@ namespace Umbraco.Web.Cache
                 || changeSet.RefresherGuid == DistributedCache.ContentTypeCacheRefresherGuid
                 || changeSet.RefresherGuid == DistributedCache.DataTypeCacheRefresherGuid)
             {
-                dc.RefreshByPayload(changeSet.RefresherGuid, changeSet.Items.ToArray());
+                // note - can we optimize this?
+                var items = changeSet.Items; // we know it's not empty
+                var itemsA = Array.CreateInstance(items[0].GetType(), items.Count);
+                for (var j = 0; j < itemsA.Length; j++)
+                    itemsA.SetValue(items[j], j);
+                //var i = 0;
+                //foreach (var item in items)
+                //    itemsA.SetValue(item, i++);
+
+                dc.RefreshByPayload(changeSet.RefresherGuid, itemsA);
                 return;
             }
 
@@ -39,16 +48,6 @@ namespace Umbraco.Web.Cache
             }
 
             throw new NotSupportedException("ChangeSet does not support refresher {{{0}}}.".FormatWith(changeSet.RefresherGuid));
-        }
-
-        private static void RefreshCacheByPayload<T>(this DistributedCache dc, Guid refresherId, IEnumerable<T> payloads)
-            where T : class // else cannot add to IEnumerable<object>
-        {
-            var changeSet = ChangeSet.Ambient;
-            if (changeSet == null)
-                dc.RefreshByPayload(refresherId, payloads);
-            else
-                changeSet.Add(refresherId, payloads);
         }
 
         #endregion
@@ -171,28 +170,28 @@ namespace Umbraco.Web.Cache
         {
             if (dataType == null) return;
             var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.UniqueId, false) };
-            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RemoveDataTypeCache(this DistributedCache dc, global::umbraco.cms.businesslogic.datatype.DataTypeDefinition dataType)
         {
             if (dataType == null) return;
             var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.UniqueId, true) };
-            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshDataTypeCache(this DistributedCache dc, IDataTypeDefinition dataType)
         {
             if (dataType == null) return;
             var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.Key, false) };
-            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RemoveDataTypeCache(this DistributedCache dc, IDataTypeDefinition dataType)
         {
             if (dataType == null) return;
             var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.Key, true) };
-            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         #endregion
@@ -207,7 +206,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
-            dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentCache(this DistributedCache dc, TreeChange<IContent>[] changes)
@@ -217,7 +216,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
         }
 
         #endregion
@@ -271,7 +270,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new MediaCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshCacheByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
         }
 
         #endregion
@@ -319,7 +318,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof (IContentType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MediaTypeRepository, IMediaType>.Change[] changes)
@@ -329,7 +328,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof(IMediaType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MemberTypeRepository, IMemberType>.Change[] changes)
@@ -339,7 +338,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof(IMemberType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
+            dc.RefreshSetByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         #endregion
