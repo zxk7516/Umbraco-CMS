@@ -1396,10 +1396,26 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 .ToArray();
 
             foreach (var payload in payloads)
-                LogHelper.Debug<XmlStore>("Notified {0} for type {1}".FormatWith(payload.ChangeTypes, payload.Id));
+                LogHelper.Debug<XmlStore>("Notified {0} for content type {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
             if (ids.Length > 0) // must have refreshes, not only removes
                 RefreshContentTypes(ids);
+
+            // ignore media and member types - we're not caching them
+        }
+
+        public void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
+        {
+            // see above
+            // in all cases we just want to clear the content type cache
+            // the types will be reloaded if/when needed
+            foreach (var payload in payloads)
+                _contentTypeCache.ClearDataType(payload.Id);
+
+            foreach (var payload in payloads)
+                LogHelper.Debug<XmlStore>("Notified {0} for data type {1}".FormatWith(payload.Removed ? "Removed" : "Refreshed", payload.Id));
+
+            // that's all we need to do as the changes have NO impact whatsoever on the Xml content
 
             // ignore media and member types - we're not caching them
         }

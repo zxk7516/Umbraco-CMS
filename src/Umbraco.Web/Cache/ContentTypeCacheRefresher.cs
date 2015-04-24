@@ -16,7 +16,7 @@ namespace Umbraco.Web.Cache
     /// <remarks>
     /// This is not intended to be used directly in your code
     /// </remarks>
-    public sealed class ContentTypeCacheRefresher : JsonCacheRefresherBase<ContentTypeCacheRefresher>
+    public sealed class ContentTypeCacheRefresher : PayloadCacheRefresherBase<ContentTypeCacheRefresher>
     {
         #region Json
 
@@ -34,16 +34,18 @@ namespace Umbraco.Web.Cache
             public ContentTypeServiceBase.ChangeTypes ChangeTypes { get; private set; }
         }
 
-        internal static string Serialize(IEnumerable<JsonPayload> payloads)
-        {
-            return Newtonsoft.Json.JsonConvert.SerializeObject(payloads.ToArray());
-        }
-
-        internal static JsonPayload[] Deserialize(string json)
+        protected override object Deserialize(string json)
         {
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
-        
+
+        internal JsonPayload[] GetPayload(object o)
+        {
+            if ((o is JsonPayload[]) == false)
+                throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
+            return (JsonPayload[]) o;
+        }
+
         #endregion
 
         #region Define
@@ -67,9 +69,9 @@ namespace Umbraco.Web.Cache
 
         #region Events
 
-        public override void Refresh(string json)
+        public override void Refresh(object o)
         {
-            var payloads = Deserialize(json);
+            var payloads = GetPayload(o);
 
             // TODO: refactor
             // we should NOT directly clear caches here, but instead ask whatever class
@@ -105,11 +107,12 @@ namespace Umbraco.Web.Cache
             if (payloads.Any(x => x.ItemType == typeof(IMemberType).Name))
                 RefreshMemberCache();
 
+            // notify
             var svce = PublishedCachesServiceResolver.Current.Service;
             svce.Notify(payloads);
             
             // now we can trigger the event
-            base.Refresh(json);
+            base.Refresh(o);
         }
 
         public override void RefreshAll()

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using Umbraco.Core.Auditing;
 using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
@@ -20,34 +18,11 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class DataTypeService : RepositoryService, IDataTypeService
     {
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public DataTypeService()
-            : this(new RepositoryFactory())
-        {}
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public DataTypeService(RepositoryFactory repositoryFactory)
-			: this(new PetaPocoUnitOfWorkProvider(), repositoryFactory)
-        {
-        }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-        public DataTypeService(IDatabaseUnitOfWorkProvider provider)
-            : this(provider, new RepositoryFactory())
-        {
-        }
-
-        [Obsolete("Use the constructors that specify all dependencies instead")]
-		public DataTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory)
-            : this(provider, repositoryFactory, LoggerResolver.Current.Logger)
-        {
-        }
-
         public DataTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
             : base(provider, repositoryFactory, logger)
-        {
-        }
+        { }
+
+        #region Get, Has, Is
 
         /// <summary>
         /// Gets a <see cref="IDataTypeDefinition"/> by its Name
@@ -177,6 +152,31 @@ namespace Umbraco.Core.Services
         }
 
         /// <summary>
+        /// Gets the <see cref="IDataType"/> specified by it's unique ID
+        /// </summary>
+        /// <param name="id">Id of the DataType, which corresponds to the Guid Id of the control</param>
+        /// <returns><see cref="IDataType"/> object</returns>
+        [Obsolete("IDataType is obsolete and is no longer used, it will be removed from the codebase in future versions")]
+        public IDataType GetDataTypeById(Guid id)
+        {
+            return DataTypesResolver.Current.GetById(id);
+        }
+
+        /// <summary>
+        /// Gets a complete list of all registered <see cref="IDataType"/>'s
+        /// </summary>
+        /// <returns>An enumerable list of <see cref="IDataType"/> objects</returns>
+        [Obsolete("IDataType is obsolete and is no longer used, it will be removed from the codebase in future versions")]
+        public IEnumerable<IDataType> GetAllDataTypes()
+        {
+            return DataTypesResolver.Current.DataTypes;
+        }
+
+        #endregion
+
+        #region Save
+
+        /// <summary>
         /// Saves an <see cref="IDataTypeDefinition"/>
         /// </summary>
         /// <param name="dataTypeDefinition"><see cref="IDataTypeDefinition"/> to save</param>
@@ -217,16 +217,18 @@ namespace Umbraco.Core.Services
         /// <param name="raiseEvents">Boolean indicating whether or not to raise events</param>
         public void Save(IEnumerable<IDataTypeDefinition> dataTypeDefinitions, int userId, bool raiseEvents)
         {
+            var dataTypeDefinitionsA = dataTypeDefinitions.ToArray();
+
             if (raiseEvents)
             {
-                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IDataTypeDefinition>(dataTypeDefinitions), this))
+                if (Saving.IsRaisedEventCancelled(new SaveEventArgs<IDataTypeDefinition>(dataTypeDefinitionsA), this))
                     return;
             }
 
             var uow = UowProvider.GetUnitOfWork();
             using (var repository = RepositoryFactory.CreateDataTypeDefinitionRepository(uow))
             {
-                foreach (var dataTypeDefinition in dataTypeDefinitions)
+                foreach (var dataTypeDefinition in dataTypeDefinitionsA)
                 {
                     dataTypeDefinition.CreatorId = userId;
                     repository.AddOrUpdate(dataTypeDefinition);
@@ -234,7 +236,7 @@ namespace Umbraco.Core.Services
                 uow.Commit();
 
                 if (raiseEvents)
-                    Saved.RaiseEvent(new SaveEventArgs<IDataTypeDefinition>(dataTypeDefinitions, false), this);
+                    Saved.RaiseEvent(new SaveEventArgs<IDataTypeDefinition>(dataTypeDefinitionsA, false), this);
             }
 
             Audit(AuditType.Save, string.Format("Save DataTypeDefinition performed by user"), userId, -1);
@@ -286,7 +288,7 @@ namespace Umbraco.Core.Services
         /// </remarks>
         public void SavePreValues(int dataTypeId, IDictionary<string, PreValue> values)
         {
-            var dtd = this.GetDataTypeDefinitionById(dataTypeId);
+            var dtd = GetDataTypeDefinitionById(dataTypeId);
             if (dtd == null)
             {
                 throw new InvalidOperationException("No data type found for id " + dataTypeId);
@@ -345,6 +347,9 @@ namespace Umbraco.Core.Services
             Audit(AuditType.Save, string.Format("Save DataTypeDefinition performed by user"), userId, dataTypeDefinition.Id);
         }
 
+        #endregion
+
+        #region Delete
 
         /// <summary>
         /// Deletes an <see cref="IDataTypeDefinition"/>
@@ -373,26 +378,9 @@ namespace Umbraco.Core.Services
 	        Audit(AuditType.Delete, string.Format("Delete DataTypeDefinition performed by user"), userId, dataTypeDefinition.Id);
         }
 
-        /// <summary>
-        /// Gets the <see cref="IDataType"/> specified by it's unique ID
-        /// </summary>
-        /// <param name="id">Id of the DataType, which corresponds to the Guid Id of the control</param>
-        /// <returns><see cref="IDataType"/> object</returns>
-        [Obsolete("IDataType is obsolete and is no longer used, it will be removed from the codebase in future versions")]
-        public IDataType GetDataTypeById(Guid id)
-        {
-            return DataTypesResolver.Current.GetById(id);
-        }
+        #endregion
 
-        /// <summary>
-        /// Gets a complete list of all registered <see cref="IDataType"/>'s
-        /// </summary>
-        /// <returns>An enumerable list of <see cref="IDataType"/> objects</returns>
-        [Obsolete("IDataType is obsolete and is no longer used, it will be removed from the codebase in future versions")]
-        public IEnumerable<IDataType> GetAllDataTypes()
-        {
-            return DataTypesResolver.Current.DataTypes;
-        }
+        #region Audit
 
         private void Audit(AuditType type, string message, int userId, int objectId)
         {
@@ -404,7 +392,10 @@ namespace Umbraco.Core.Services
             }
         }
 
-        #region Event Handlers
+        #endregion
+
+        #region Events
+
         /// <summary>
         /// Occurs before Delete
         /// </summary>
@@ -424,8 +415,7 @@ namespace Umbraco.Core.Services
         /// Occurs after Save
         /// </summary>
 		public static event TypedEventHandler<IDataTypeService, SaveEventArgs<IDataTypeDefinition>> Saved;
-        #endregion
 
-        
+        #endregion
     }
 }

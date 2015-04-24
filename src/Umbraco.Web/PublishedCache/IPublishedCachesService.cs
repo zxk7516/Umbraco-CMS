@@ -131,6 +131,12 @@ namespace Umbraco.Web.PublishedCache
         /// <param name="payloads">The changes.</param>
         void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads);
 
+        /// <summary>
+        /// Notifies of data type refresher changes.
+        /// </summary>
+        /// <param name="payloads">The changes.</param>
+        void Notify(DataTypeCacheRefresher.JsonPayload[] payloads);
+
         #endregion
     }
 }

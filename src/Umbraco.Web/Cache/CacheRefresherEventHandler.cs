@@ -125,7 +125,7 @@ namespace Umbraco.Web.Cache
             // ContentService.Changed will queue things in a ChangeSet, and when that
             // ChangeSet is committed we need to send all the events to the distributed
             // cache as one message (that will be processed sort-of atomically)
-            ChangeSet.Committed += ChangeSetCommitted;
+            ChangeSet.Flushed += ChangeSetFlushed;
 
             //public access events
             PublicAccessService.Saved += PublicAccessService_Saved;
@@ -206,12 +206,12 @@ namespace Umbraco.Web.Cache
             //ContentService.RolledBack -= ContentServiceRolledBack;
             ContentService.TreeChanged -= ContentServiceChanged;
 
-            ChangeSet.Committed -= ChangeSetCommitted;
+            ChangeSet.Flushed -= ChangeSetFlushed;
 
             PublicAccessService.Saved -= PublicAccessService_Saved;
         }
 
-        private static void ChangeSetCommitted(ChangeSet sender, EventArgs args)
+        private static void ChangeSetFlushed(ChangeSet sender, EventArgs args)
         {
             DistributedCache.Instance.FlushChangeSet(sender);
         }
@@ -345,6 +345,7 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region DataType event handlers
+
         static void DataTypeServiceSaved(IDataTypeService sender, SaveEventArgs<IDataTypeDefinition> e)
         {
             e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshDataTypeCache(x));
@@ -364,6 +365,7 @@ namespace Umbraco.Web.Cache
         {
             DistributedCache.Instance.RemoveDataTypeCache(sender);
         } 
+
         #endregion
 
         #region Stylesheet and stylesheet property event handlers

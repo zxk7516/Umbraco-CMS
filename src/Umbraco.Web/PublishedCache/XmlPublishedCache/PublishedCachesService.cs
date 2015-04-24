@@ -166,6 +166,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xmlStore.Notify(payloads);
         }
 
+        public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
+        {
+            _xmlStore.Notify(payloads);
+        }
+
         #endregion
     }
 }

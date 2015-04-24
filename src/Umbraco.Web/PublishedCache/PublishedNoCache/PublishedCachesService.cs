@@ -60,5 +60,10 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             // nothing
         }
+
+        public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
+        {
+            // nothing
+        }
     }
 }

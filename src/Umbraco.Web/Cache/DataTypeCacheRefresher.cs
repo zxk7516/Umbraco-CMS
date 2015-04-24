@@ -4,98 +4,46 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using System.Linq;
 using Umbraco.Core.Models;
-using Umbraco.Core.Models.PublishedContent;
-
+using Umbraco.Web.PublishedCache;
 
 namespace Umbraco.Web.Cache
 {
     /// <summary>
     /// A cache refresher to ensure member cache is updated when members change
     /// </summary>    
-    public sealed class DataTypeCacheRefresher : JsonCacheRefresherBase<DataTypeCacheRefresher>
+    public sealed class DataTypeCacheRefresher : PayloadCacheRefresherBase<DataTypeCacheRefresher>
     {
+        #region Json
 
-        #region Static helpers
-        
-        /// <summary>
-        /// Converts the json to a JsonPayload object
-        /// </summary>
-        /// <param name="json"></param>
-        /// <returns></returns>
-        private static JsonPayload[] DeserializeFromJsonPayload(string json)
+        internal class JsonPayload
         {
-            var serializer = new JavaScriptSerializer();
-            var jsonObject = serializer.Deserialize<JsonPayload[]>(json);
-            return jsonObject;
-        }
-
-        /// <summary>
-        /// Creates the custom Json payload used to refresh cache amongst the servers
-        /// </summary>
-        /// <param name="dataTypes"></param>
-        /// <returns></returns>
-        internal static string SerializeToJsonPayload(params global::umbraco.cms.businesslogic.datatype.DataTypeDefinition[] dataTypes)
-        {
-            var serializer = new JavaScriptSerializer();
-            var items = dataTypes.Select(FromDataTypeDefinition).ToArray();
-            var json = serializer.Serialize(items);
-            return json;
-        }
-
-        /// <summary>
-        /// Creates the custom Json payload used to refresh cache amongst the servers
-        /// </summary>
-        /// <param name="dataTypes"></param>
-        /// <returns></returns>
-        internal static string SerializeToJsonPayload(params IDataTypeDefinition[] dataTypes)
-        {
-            var serializer = new JavaScriptSerializer();
-            var items = dataTypes.Select(FromDataTypeDefinition).ToArray();
-            var json = serializer.Serialize(items);
-            return json;
-        }
-
-        /// <summary>
-        /// Converts a macro to a jsonPayload object
-        /// </summary>
-        /// <param name="dataType"></param>
-        /// <returns></returns>
-        private static JsonPayload FromDataTypeDefinition(global::umbraco.cms.businesslogic.datatype.DataTypeDefinition dataType)
-        {
-            var payload = new JsonPayload
+            public JsonPayload(int id, Guid uniqueId, bool removed)
             {
-                UniqueId = dataType.UniqueId,
-                Id = dataType.Id
-            };
-            return payload;
+                Id = id;
+                UniqueId = uniqueId;
+                Removed = removed;
+            }
+
+            public int Id { get; private set; }
+            public Guid UniqueId { get; private set; }
+            public bool Removed { get; private set; }
         }
 
-        /// <summary>
-        /// Converts a macro to a jsonPayload object
-        /// </summary>
-        /// <param name="dataType"></param>
-        /// <returns></returns>
-        private static JsonPayload FromDataTypeDefinition(IDataTypeDefinition dataType)
+        protected override object Deserialize(string json)
         {
-            var payload = new JsonPayload
-            {
-                UniqueId = dataType.Key,
-                Id = dataType.Id
-            };
-            return payload;
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
-        
-        #endregion
 
-        #region Sub classes
-
-        private class JsonPayload
+        internal JsonPayload[] GetPayload(object o)
         {
-            public Guid UniqueId { get; set; }
-            public int Id { get; set; }
+            if ((o is JsonPayload[]) == false)
+                throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
+            return (JsonPayload[]) o;
         }
 
         #endregion
+
+        #region Define
 
         protected override DataTypeCacheRefresher Instance
         {
@@ -109,12 +57,16 @@ namespace Umbraco.Web.Cache
 
         public override string Name
         {
-            get { return "Clears data type cache"; }
+            get { return "DataTypeCacheRefresher"; }
         }
 
-        public override void Refresh(string jsonPayload)
+        #endregion
+
+        #region Events
+
+        public override void Refresh(object o)
         {
-            var payloads = DeserializeFromJsonPayload(jsonPayload);
+            var payloads = GetPayload(o);
 
             //we need to clear the ContentType runtime cache since that is what caches the
             // db data type to store the value against and anytime a datatype changes, this also might change
@@ -139,11 +91,39 @@ namespace Umbraco.Web.Cache
                 ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(
                     string.Format("{0}{1}", CacheKeys.DataTypePreValuesCacheKey, payload.Id));
 
-                //FIXME - notify the PublishedCachesService!!
-                //PublishedContentType.ClearDataType(payload.Id);
             });
 
-            base.Refresh(jsonPayload);
+            // notify
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            svce.Notify(payloads);
+
+            // now we can trigger the event
+            base.Refresh(o);
         }
+
+        // these events should never trigger
+        // everything should be PAYLOAD/JSON
+
+        public override void RefreshAll()
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Refresh(int id)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Refresh(Guid id)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Remove(int id)
+        {
+            throw new NotSupportedException();
+        }
+
+        #endregion
     }
 }

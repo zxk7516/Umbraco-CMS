@@ -18,42 +18,102 @@ namespace Umbraco.Web.Cache
     {
         #region ChangeSet
 
-        private const string ContentCacheBufferKey = "DistributedCache.ContentCacheBuffer";
-        private const string MediaCacheBufferKey = "DistributedCache.MediaCacheBuffer";
-        private const string MemberCacheBufferKey = "DistributedCache.MemberCacheBuffer";
-        private const string ContentTypeCacheBufferKey = "DistributedCache.ContentTypeCacheBuffer";
+        // fixme - issue!
+        //
+        // however, as soon as more than one refresher is impacted, things become complicated,
+        // because buffering all events mean that they will not be processed in an ordered way,
+        // eg: change content A, change type 1, change content B
+        // will be processed as (A,B) then 1, or 1 then (A,B) but cannot be A then 1 then B.
+        //
+        // must fix FlushChangeSet and RefreshCacheByPayload<T> - but how?
+        //
+        // the way the distributed cache works, the only way to get atomic changes is to group
+        // these changes in one payload, which will be processed as one event by the remote
+        // refresher - no way we can tell one remote that a payload is part of a greater thing.
+        //
+        // must let ppl do something like...
+        // using (ChangeSet.WithAmbient)
+        // {
+        //   ...
+        //   ChangeSet.FlushAmbient();
+        //   ...
+        //   ChangeSet.FlushAmbient();
+        //   ...
+        // }
+        //
+        // example:
+        // delete a content type
+        // = delete all content of that type, then delete the content type
+        // WHEN would we have more than 1 buffer?
+        //
+        // fixme OR should a changeset auto-commit soon as we switch to another service?!
 
         public static void FlushChangeSet(this DistributedCache dc, ChangeSet changeSet)
         {
             if (changeSet == null) return;
 
-            if (changeSet.Items.ContainsKey(ContentCacheBufferKey))
+            var key = DistributedCache.ContentCacheRefresherGuid.ToString();
+            if (changeSet.Items.ContainsKey(key))
             {
-                var buffer = (List<ContentCacheRefresher.JsonPayload>)changeSet.Items[ContentCacheBufferKey];
+                var buffer = (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[key];
                 dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, buffer.ToArray());
-                changeSet.Items.Remove(ContentCacheBufferKey);
+                changeSet.Items.Remove(key);
             }
 
-            if (changeSet.Items.ContainsKey(MediaCacheBufferKey))
+            key = DistributedCache.MediaCacheRefresherGuid.ToString();
+            if (changeSet.Items.ContainsKey(key))
             {
-                var buffer = (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey];
+                var buffer = (List<MediaCacheRefresher.JsonPayload>) changeSet.Items[key];
                 dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(buffer.ToArray()));
-                changeSet.Items.Remove(MediaCacheBufferKey);
+                changeSet.Items.Remove(key);
             }
 
-            if (changeSet.Items.ContainsKey(MemberCacheBufferKey))
+            key = DistributedCache.MemberCacheRefresherGuid.ToString();
+            if (changeSet.Items.ContainsKey(key))
             {
                 throw new NotImplementedException("ChangeSet does not support members?");
-                //var buffer = (List<MemberCacheRefresher.JsonPayload>)changeSet.Items[MemberCacheBufferKey];
+                //var buffer = (List<MemberCacheRefresher.JsonPayload>) changeSet.Items[MemberCacheBufferKey];
                 //dc.RefreshByJson(DistributedCache.MemberCacheRefresherGuid, MemberCacheRefresher.Serialize(buffer));
                 //changeSet.Items.Remove(MemberCacheBufferKey);
             }
 
-            if (changeSet.Items.ContainsKey(ContentTypeCacheBufferKey))
+            key = DistributedCache.ContentTypeCacheRefresherGuid.ToString();
+            if (changeSet.Items.ContainsKey(key))
             {
-                var buffer = (List<ContentTypeCacheRefresher.JsonPayload>)changeSet.Items[ContentTypeCacheBufferKey];
-                dc.RefreshByJson(DistributedCache.ContentTypeCacheRefresherGuid, ContentTypeCacheRefresher.Serialize(buffer.ToArray()));
-                changeSet.Items.Remove(ContentTypeCacheBufferKey);
+                var buffer = (List<ContentTypeCacheRefresher.JsonPayload>) changeSet.Items[key];
+                dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, buffer.ToArray());
+                changeSet.Items.Remove(key);
+            }
+
+            key = DistributedCache.DataTypeCacheRefresherGuid.ToString();
+            if (changeSet.Items.ContainsKey(key))
+            {
+                var buffer = (List<DataTypeCacheRefresher.JsonPayload>) changeSet.Items[key];
+                dc.RefreshByPayload(DistributedCache.DataTypeCacheRefresherGuid, buffer.ToArray());
+                changeSet.Items.Remove(key);
+            }
+        }
+
+        private static void RefreshCacheByPayload<T>(this DistributedCache dc, Guid refresherId, IEnumerable<T> payloads)
+        {
+            var changeSet = ChangeSet.Ambient;
+            if (changeSet == null)
+            {
+                dc.RefreshByPayload(refresherId, payloads);
+            }
+            else
+            {
+                var key = refresherId.ToString();
+
+                // fixme
+                // OR just do
+                // changeSet.Add(refresherId, payloads)
+                // AND if refresherId != changeSet.RefresherId
+                // it will first flush itself?
+
+                var buffer = changeSet.Items.ContainsKey(key) ? (List<T>)changeSet.Items[key] : null;
+                if (buffer == null) changeSet.Items[key] = buffer = new List<T>();
+                buffer.AddRange(payloads);
             }
         }
 
@@ -176,45 +236,34 @@ namespace Umbraco.Web.Cache
         public static void RefreshDataTypeCache(this DistributedCache dc, global::umbraco.cms.businesslogic.datatype.DataTypeDefinition dataType)
         {
             if (dataType == null) return;
-            dc.RefreshByJson(DistributedCache.DataTypeCacheRefresherGuid, DataTypeCacheRefresher.SerializeToJsonPayload(dataType));
+            var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.UniqueId, false) };
+            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RemoveDataTypeCache(this DistributedCache dc, global::umbraco.cms.businesslogic.datatype.DataTypeDefinition dataType)
         {
             if (dataType == null) return;
-            dc.RefreshByJson(DistributedCache.DataTypeCacheRefresherGuid, DataTypeCacheRefresher.SerializeToJsonPayload(dataType));
+            var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.UniqueId, true) };
+            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshDataTypeCache(this DistributedCache dc, IDataTypeDefinition dataType)
         {
             if (dataType == null) return;
-            dc.RefreshByJson(DistributedCache.DataTypeCacheRefresherGuid, DataTypeCacheRefresher.SerializeToJsonPayload(dataType));
+            var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.Key, false) };
+            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         public static void RemoveDataTypeCache(this DistributedCache dc, IDataTypeDefinition dataType)
         {
             if (dataType == null) return;
-            dc.RefreshByJson(DistributedCache.DataTypeCacheRefresherGuid, DataTypeCacheRefresher.SerializeToJsonPayload(dataType));
+            var payloads = new[] { new DataTypeCacheRefresher.JsonPayload(dataType.Id, dataType.Key, true) };
+            dc.RefreshCacheByPayload(DistributedCache.DataTypeCacheRefresherGuid, payloads);
         }
 
         #endregion
 
         #region Content cache
-
-        private static void RefreshContentCacheByPayload(this DistributedCache dc, IEnumerable<ContentCacheRefresher.JsonPayload> payloads)
-        {
-            var changeSet = ChangeSet.Ambient;
-            if (changeSet == null)
-            {
-                dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads.ToArray());
-            }
-            else
-            {
-                var buffer = changeSet.Items.ContainsKey(ContentCacheBufferKey) ? (List<ContentCacheRefresher.JsonPayload>) changeSet.Items[ContentCacheBufferKey] : null;
-                if (buffer == null) changeSet.Items[ContentCacheBufferKey] = buffer = new List<ContentCacheRefresher.JsonPayload>();
-                buffer.AddRange(payloads);
-            }
-        }
 
         /// <summary>
         /// Refreshes all published content.
@@ -224,7 +273,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
-            dc.RefreshContentCacheByPayload(payloads);
+            dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentCache(this DistributedCache dc, TreeChange<IContent>[] changes)
@@ -234,7 +283,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshContentCacheByPayload(payloads);
+            dc.RefreshByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
         }
 
         #endregion
@@ -281,21 +330,6 @@ namespace Umbraco.Web.Cache
 
         #region Media Cache
 
-        private static void RefreshMediaCacheByJson(this DistributedCache dc, IEnumerable<MediaCacheRefresher.JsonPayload> payloads)
-        {
-            var changeSet = ChangeSet.Ambient;
-            if (changeSet == null)
-            {
-                dc.RefreshByJson(DistributedCache.MediaCacheRefresherGuid, MediaCacheRefresher.Serialize(payloads));
-            }
-            else
-            {
-                var buffer = changeSet.Items.ContainsKey(MediaCacheBufferKey) ? (List<MediaCacheRefresher.JsonPayload>)changeSet.Items[MediaCacheBufferKey] : null;
-                if (buffer == null) changeSet.Items[MediaCacheBufferKey] = buffer = new List<MediaCacheRefresher.JsonPayload>();
-                buffer.AddRange(payloads);
-            }
-        }
-
         public static void RefreshMediaCache(this DistributedCache dc, TreeChange<IMedia>[] changes)
         {
             if (changes.Length == 0) return;
@@ -303,7 +337,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new MediaCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshMediaCacheByJson(payloads);
+            dc.RefreshCacheByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
         }
 
         #endregion
@@ -344,21 +378,6 @@ namespace Umbraco.Web.Cache
 
         #region Content/Media/Member type cache
 
-        private static void RefreshContentTypeCacheByJson(this DistributedCache dc, IEnumerable<ContentTypeCacheRefresher.JsonPayload> payloads)
-        {
-            var changeSet = ChangeSet.Ambient;
-            if (changeSet == null)
-            {
-                dc.RefreshByJson(DistributedCache.ContentTypeCacheRefresherGuid, ContentTypeCacheRefresher.Serialize(payloads));
-            }
-            else
-            {
-                var buffer = changeSet.Items.ContainsKey(ContentTypeCacheBufferKey) ? (List<ContentTypeCacheRefresher.JsonPayload>)changeSet.Items[ContentTypeCacheBufferKey] : null;
-                if (buffer == null) changeSet.Items[ContentTypeCacheBufferKey] = buffer = new List<ContentTypeCacheRefresher.JsonPayload>();
-                buffer.AddRange(payloads);
-            }
-        }
-
         public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<ContentTypeRepository, IContentType>.Change[] changes)
         {
             if (changes.Length == 0) return;
@@ -366,7 +385,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof (IContentType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshContentTypeCacheByJson(payloads);
+            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MediaTypeRepository, IMediaType>.Change[] changes)
@@ -376,7 +395,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof(IMediaType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshContentTypeCacheByJson(payloads);
+            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         public static void RefreshContentTypeCache(this DistributedCache dc, ContentTypeServiceBase<MemberTypeRepository, IMemberType>.Change[] changes)
@@ -386,7 +405,7 @@ namespace Umbraco.Web.Cache
             var payloads = changes
                 .Select(x => new ContentTypeCacheRefresher.JsonPayload(typeof(IMemberType).Name, x.Item.Id, x.ChangeTypes));
 
-            dc.RefreshContentTypeCacheByJson(payloads);
+            dc.RefreshByPayload(DistributedCache.ContentTypeCacheRefresherGuid, payloads);
         }
 
         #endregion
