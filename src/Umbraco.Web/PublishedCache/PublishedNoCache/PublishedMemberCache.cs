@@ -21,11 +21,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         private readonly IDataTypeService _dataTypeService;
         private readonly IMemberService _memberService;
         private readonly IMemberTypeService _memberTypeService;
+        private readonly IContentTypeService _contentTypeService;
 
-        public PublishedMemberCache(IDataTypeService dataTypeService, IMemberService memberService)
+        public PublishedMemberCache(IDataTypeService dataTypeService, IMemberService memberService, IContentTypeService contentTypeService)
         {
             _dataTypeService = dataTypeService;
             _memberService = memberService;
+            _contentTypeService = contentTypeService;
         }
 
         public IPublishedContent GetByProviderKey(object key)
@@ -135,5 +137,21 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             var n = s.GetXmlNode();
             return n.CreateNavigator();
         }
+
+        #region Content types
+
+        public PublishedContentType GetContentType(int id)
+        {
+            var contentType = _contentTypeService.Get(id);
+            return contentType == null ? null : new PublishedContentType(contentType);
+        }
+
+        public PublishedContentType GetContentType(string alias)
+        {
+            var contentType = _contentTypeService.Get(alias);
+            return contentType == null ? null : new PublishedContentType(contentType);
+        }
+
+        #endregion
     }
 }

@@ -130,5 +130,19 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             }
             return sb.ToString();
         }
+
+        #region Content types
+
+        public PublishedContentType GetContentType(int id)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Media, id);
+        }
+
+        public PublishedContentType GetContentType(string alias)
+        {
+            return _contentTypeCache.Get(PublishedItemType.Media, alias);
+        }
+
+        #endregion
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Xml.XPath;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.PublishedContent;
 
 namespace Umbraco.Web.PublishedCache
 {
@@ -15,5 +16,20 @@ namespace Umbraco.Web.PublishedCache
 
         // fixme - what-if the node does not exist?
         XPathNavigator CreateNodeNavigator(int id, bool preview);
+
+        /// <summary>
+        /// Gets a content type identified by its unique identifier.
+        /// </summary>
+        /// <param name="id">The content type unique identifier.</param>
+        /// <returns>The content type, or null.</returns>
+        PublishedContentType GetContentType(int id);
+
+        /// <summary>
+        /// Gets a content type identified by its alias.
+        /// </summary>
+        /// <param name="alias">The content type alias.</param>
+        /// <returns>The content type, or null.</returns>
+        /// <remarks>The alias is case-insensitive.</remarks>
+        PublishedContentType GetContentType(string alias);
     }
 }

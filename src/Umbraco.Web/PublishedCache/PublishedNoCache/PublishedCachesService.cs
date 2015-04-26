@@ -27,7 +27,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             var preview = previewToken.IsNullOrWhiteSpace() == false;
             var contentCache = new PublishedContentCache(previewToken, _services.DomainService, _services.ContentService, _services.ContentTypeService);
             var mediaCache = new PublishedMediaCache(preview, _services.MediaService, _services.MediaTypeService);
-            var memberCache = new PublishedMemberCache(_services.DataTypeService, _services.MemberService);
+            var memberCache = new PublishedMemberCache(_services.DataTypeService, _services.MemberService, _services.ContentTypeService);
             return new PublishedCaches(contentCache, mediaCache, memberCache);
         }
 
