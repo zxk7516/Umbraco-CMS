@@ -6,6 +6,7 @@ using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin;
 using Microsoft.Owin.Extensions;
+using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
 using Owin;
@@ -20,6 +21,15 @@ namespace Umbraco.Web.Security.Identity
 {
     public static class AppBuilderExtensions
     {
+        /// <summary>
+        /// Sets the OWIN logger to use Umbraco's logging system
+        /// </summary>
+        /// <param name="app"></param>
+        public static void SetUmbracoLoggerFactory(this IAppBuilder app)
+        {
+            app.SetLoggerFactory(new OwinLoggerFactory());
+        } 
+
         #region Backoffice
 
         /// <summary>
@@ -106,13 +116,13 @@ namespace Umbraco.Web.Security.Identity
             if (app == null) throw new ArgumentNullException("app");
 
 
-            app.UseCookieAuthentication(new UmbracoBackOfficeCookieAuthenticationOptions(
+            app.UseCookieAuthentication(new UmbracoBackOfficeCookieAuthOptions(
                     UmbracoConfig.For.UmbracoSettings().Security,
                     GlobalSettings.TimeOutInMinutes,
                     GlobalSettings.UseSSL)
             {
                 Provider = new CookieAuthenticationProvider
-                {
+                {                    
                     // Enables the application to validate the security stamp when the user 
                     // logs in. This is a security feature which is used when you 
                     // change a password or add an external login to your account.  

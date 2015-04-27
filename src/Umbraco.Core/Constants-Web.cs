@@ -25,6 +25,7 @@
             public const string BackOfficeAuthenticationType = "UmbracoBackOffice";
 	        public const string BackOfficeExternalAuthenticationType = "UmbracoExternalCookie";
             public const string BackOfficeExternalCookieName = "UMB_EXTLOGIN";
+            public const string BackOfficeTokenAuthenticationType = "UmbracoBackOfficeToken";
 
             /// <summary>
             /// The prefix used for external identity providers for their authentication type
@@ -37,9 +38,7 @@
 
 	        public const string StartContentNodeIdClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/startcontentnode";
             public const string StartMediaNodeIdClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/startmedianode";
-            public const string AllowedApplicationsClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/allowedapps";
-            //public const string UserIdClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/userid";
-            public const string CultureClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/culture";
+            public const string AllowedApplicationsClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/allowedapp";
             public const string SessionIdClaimType = "http://umbraco.org/2015/02/identity/claims/backoffice/sessionid";
 
 	    }

@@ -183,6 +183,7 @@
     <Compile Include="Resolvers\ResolverBaseTest.cs" />
     <Compile Include="Routing\UrlRoutingTestBase.cs" />
     <Compile Include="CoreXml\RenamedRootNavigatorTests.cs" />
+    <Compile Include="Security\UmbracoBackOfficeIdentityTests.cs" />
     <Compile Include="StringNewlineExtensions.cs" />
     <Compile Include="Strings\StylesheetHelperTests.cs" />
     <Compile Include="Strings\StringValidationTests.cs" />
@@ -359,7 +360,7 @@
     <Compile Include="TestHelpers\BaseSeleniumTest.cs" />
     <Compile Include="Integration\InstallPackage.cs" />
     <Compile Include="CoreXml\NavigableNavigatorTests.cs" />
-    <Compile Include="PublishedCache\PublishedMediaCacheTests.cs" />
+    <Compile Include="Cache\PublishedCache\PublishedMediaCacheTests.cs" />
     <Compile Include="Strings\CmsHelperCasingTests.cs" />
     <Compile Include="Strings\ShortStringHelperResolverTest.cs" />
     <Compile Include="Strings\LegacyShortStringHelperTests.cs" />
@@ -468,7 +469,7 @@
     <Compile Include="PublishedContent\DynamicDocumentTestsBase.cs" />
     <Compile Include="PublishedContent\DynamicNodeTests.cs" />
     <Compile Include="ObjectExtensionsTests.cs" />
-    <Compile Include="PublishedCache\PublishedContentCacheTests.cs" />
+    <Compile Include="Cache\PublishedCache\PublishedContentCacheTests.cs" />
     <Compile Include="Resolvers\LazyManyObjectResolverTests.cs" />
     <Compile Include="Resolvers\ManyResolverTests.cs" />
     <Compile Include="Resolvers\SingleResolverTests.cs" />
@@ -494,7 +495,7 @@
     </Compile>
     <Compile Include="Services\ThreadSafetyServiceTest.cs" />
     <Compile Include="Controllers\PluginControllerAreaTests.cs" />
-    <Compile Include="DistributedCache\DistributedCacheTests.cs" />
+    <Compile Include="Cache\DistributedCache\DistributedCacheTests.cs" />
     <Compile Include="Templates\MasterPageHelperTests.cs" />
     <Compile Include="TestHelpers\BaseDatabaseFactoryTest.cs" />
     <Compile Include="TestHelpers\BaseRoutingTest.cs" />

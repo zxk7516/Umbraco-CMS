@@ -15,7 +15,7 @@ using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using umbraco.BusinessLogic;
 
-namespace Umbraco.Tests.PublishedCache
+namespace Umbraco.Tests.Cache.PublishedCache
 {
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
 	[TestFixture]
