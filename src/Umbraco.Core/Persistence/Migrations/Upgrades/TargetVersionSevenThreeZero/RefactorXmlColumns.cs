@@ -72,7 +72,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
         private void RemoveDuplicates()
         {
             const string sql = @"delete from cmsPreviewXml where versionId in (
-select versionId from cmsPreviewXml
+select cmsPreviewXml.versionId from cmsPreviewXml
 join cmsDocument on cmsPreviewXml.versionId=cmsDocument.versionId
 where cmsDocument.newest <> 1)";
 
