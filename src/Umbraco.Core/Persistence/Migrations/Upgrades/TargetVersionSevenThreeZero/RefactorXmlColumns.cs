@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core.Configuration;
 
@@ -26,8 +27,16 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
             else
             {
                 var constraints = SqlSyntax.GetConstraintsPerColumn(Context.Database).Distinct().ToArray();
+                var dups = new List<string>();
                 foreach (var c in constraints.Where(x => x.Item1.InvariantEquals("cmsPreviewXml") && x.Item3.InvariantStartsWith("PK_")))
                 {
+                    var keyName = c.Item3.ToLowerInvariant();
+                    if (dups.Contains(keyName))
+                    {
+                        Logger.Warn(this.GetType(), "Duplicate constraint " + c.Item3);
+                        continue;
+                    }
+                    dups.Add(keyName);
                     Delete.PrimaryKey(c.Item3).FromTable(c.Item1);
                 }
                 foreach (var c in constraints.Where(x => x.Item1.InvariantEquals("cmsPreviewXml") && x.Item3.InvariantStartsWith("FK_cmsPreviewXml_cmsContentVersion")))

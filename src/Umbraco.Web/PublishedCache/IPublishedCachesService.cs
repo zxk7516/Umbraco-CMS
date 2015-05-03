@@ -8,7 +8,7 @@ namespace Umbraco.Web.PublishedCache
     /// <summary>
     /// Creates and manages IPublishedCaches.
     /// </summary>
-    interface IPublishedCachesService : IDisposable
+    internal interface IPublishedCachesService : IDisposable
     {
         #region PublishedCaches
 
@@ -74,7 +74,7 @@ namespace Umbraco.Web.PublishedCache
         string EnterPreview(IUser user, int contentId);
 
         /// <summary>
-        /// Refreshes preview for a specifiedcontent.
+        /// Refreshes preview for a specified content.
         /// </summary>
         /// <param name="previewToken">The preview token.</param>
         /// <param name="contentId">The content identifier.</param>

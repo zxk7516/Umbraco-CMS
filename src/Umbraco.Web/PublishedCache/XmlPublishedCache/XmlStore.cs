@@ -1058,7 +1058,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
     cmsPreviewXml.xml, cmsPreviewXml.rv, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
-JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id AND cmsPreviewXml.versionId=cmsDocument.versionId)
+JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
 AND (umbracoNode.path=@path OR @path LIKE concat(umbracoNode.path, ',%')";
         const string ReadCmsPreviewXmlSql2 = @")
