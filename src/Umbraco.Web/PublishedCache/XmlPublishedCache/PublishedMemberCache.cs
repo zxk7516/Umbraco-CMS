@@ -135,12 +135,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public PublishedContentType GetContentType(int id)
         {
-            return _contentTypeCache.Get(PublishedItemType.Media, id);
+            return _contentTypeCache.Get(PublishedItemType.Member, id);
         }
 
         public PublishedContentType GetContentType(string alias)
         {
-            return _contentTypeCache.Get(PublishedItemType.Media, alias);
+            return _contentTypeCache.Get(PublishedItemType.Member, alias);
         }
 
         #endregion
