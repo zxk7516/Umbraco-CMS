@@ -1985,6 +1985,9 @@
     <Content Include="umbraco.presentation\umbraco\dialogs\AssignDomain2.aspx">
       <SubType>ASPXCodeBehind</SubType>
     </Content>
+    <Compile Include="umbraco.presentation\umbraco\endPreview.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Content Include="umbraco.presentation\umbraco\members\MemberSearch.ascx">
       <SubType>ASPXCodeBehind</SubType>
     </Content>

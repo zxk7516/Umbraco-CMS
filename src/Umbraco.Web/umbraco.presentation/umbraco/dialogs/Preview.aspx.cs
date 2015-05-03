@@ -1,24 +1,12 @@
 ﻿using System;
-using System.Collections;
-using System.Configuration;
-using System.Data;
-using System.Globalization;
-using System.Linq;
-using System.Web;
-using System.Web.Security;
-using System.Web.UI;
-using System.Web.UI.HtmlControls;
-using System.Web.UI.WebControls;
-using System.Web.UI.WebControls.WebParts;
-using System.Xml.Linq;
-using Umbraco.Web;
-using umbraco.cms.businesslogic.web;
+using umbraco.BasePages;
 using umbraco.BusinessLogic;
+using Umbraco.Web;
 using Umbraco.Web.PublishedCache;
 
 namespace umbraco.presentation.dialogs
 {
-    public partial class Preview : BasePages.UmbracoEnsuredPage
+    public partial class Preview : UmbracoEnsuredPage
     {
         public Preview()
         {
@@ -27,10 +15,12 @@ namespace umbraco.presentation.dialogs
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            var factory = PublishedCachesServiceResolver.Current.Service;
-            var contentId = Request.GetItemAs<int>("id");
             var user = Umbraco.Web.UmbracoContext.Current.Security.CurrentUser;
-            var previewToken = factory.EnterPreview(user, contentId);
+            var contentId = Request.GetItemAs<int>("id");
+
+            var service = PublishedCachesServiceResolver.Current.Service;
+            var previewToken = service.EnterPreview(user, contentId);
+
             StateHelper.Cookies.Preview.SetValue(previewToken);
 
             //var previewContent = new PreviewContent(user, Guid.NewGuid(), false);
