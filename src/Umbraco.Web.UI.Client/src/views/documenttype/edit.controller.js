@@ -80,7 +80,8 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		$scope.dialogModel.property = property;
 		$scope.dialogModel.dataTypes = $scope.dataTypes;
 		$scope.dialogModel.view = "views/documentType/dialogs/property.html";
-
+		$scope.showDialog = true;
+		
 		$scope.dialogModel.submit = function(dt){
 			contentTypeResource.getPropertyTypeScaffold(dt.id)
 				.then(function(pt){
@@ -88,14 +89,15 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 					property.editor = pt.editor;
 					property.view = pt.view;
 					$scope.dialogModel = null;
+					$scope.showDialog = false;
 				});	
 		};
 
 		$scope.dialogModel.close = function(model){
-			$scope.showDialog = true;
+			$scope.showDialog = false;
 			$scope.dialogModel = null;
 		};
-	}
+	};
 
 	$scope.addItems = function(tab){
 		$scope.showDialog = true;
@@ -111,7 +113,7 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 
 		$scope.dialogModel.close = function(model){
 			$scope.dialogModel = null;
-			$scope.showDialog = true;
+			$scope.showDialog = false;
 		};
 
 		$scope.dialogModel.submit = function(dt){
