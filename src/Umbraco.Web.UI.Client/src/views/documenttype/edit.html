@@ -1,0 +1,154 @@
+<form novalidate name="contentTypeForm"
+ng-controller="Umbraco.Editors.DocumentType.EditController"
+ng-submit="save()"
+val-form-manager>
+
+<umb-editor-view>
+
+    <umb-editor-header 
+        name="contentType.name" 
+        menu="page.menu"
+        actions="actions">
+    </umb-editor-header>
+
+    <umb-editor-container class="editors-document-type-container">
+    
+        <div class="editors-document-type-canvas">
+    
+                <ul ui-sortable="sortableOptionsTab" ng-model="contentType.groups" class="no-style-list">
+                    <li ng-repeat="tab in contentType.groups">
+    
+                        <div class="edt-tab umb-card" ng-class="{'hide-preview':tab.$showPreview}">
+    
+                            <h4 class="tab-title">
+                                <i class="icon icon-navigation handle"></i><span contenteditable="true" ng-model="tab.name"></span>
+                            </h4>
+    
+                            <a href class="btn btn-link toggle-preview" title="Toggle preview" ng-click="tab.$showPreview = !tab.$showPreview" >
+                                <i class="icon-eye"></i>
+                            </a>
+    
+                            <div class="tab-placeholder" ng-if="tab.properties.length == 0 && tab.groups.length == 0">
+                                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis lectus arcu.<br>
+                                    <a href class="umb-btn-round" ng-click="addItems(tab)">
+                                        <i class="icon-add"></i>
+                                    </a>
+                            </div>
+    
+                            
+                            <div class="edt-property-group">
+                                <ul class="edt-props-sortable" ui-sortable="sortableOptionsEditor" 
+                                    ng-model="tab.properties" class="no-style-list">
+                                    <li ng-repeat="property in tab.properties">
+    
+                                        <div class="edt-property">
+                                            <h5 class="item-title">
+                                                <i class="icon icon-navigation handle"></i> 
+                                                <span contenteditable="true" ng-model="property.label"></span>:
+                                                <span class="item-alias">{{property.alias}}</span>    
+                                            </h5>
+    
+                                            <a href ng-click="editProperty(property)" tabindex="-1" style="position: absolute; top: 0px; right: 0;">
+                                                <i class="icon-settings"></i>
+                                            </a>
+    
+                                            <div tabindex="-1" class="edt-property-inner" ng-click="changePropertyEditor(property)" style="clear: both">
+                                                <span class="edt-property-label">{{property.view}}</span>    
+                                                
+                                                <umb-property-editor 
+                                                    model="property">
+                                                </umb-property-editor>
+                                                
+                                            </div>
+                                        </div>
+    
+                                    </li>
+    
+                                    <li ng-if="tab.groups.length > 0 || tab.properties.length > 0">
+                                        <div class="edt-property">
+                                            <button class="btn" ng-click="addItems(tab)"><i class="icon icon-add"></i> Add...</button>
+                                        </div>   
+                                    </li>      
+                                </ul>
+                            </div>
+                           
+    
+                            <ul ui-sortable="sortableOptionsFieldset" ng-model="tab.groups" class="no-style-list">
+                                <li class="span{{group.columns}}" ng-repeat="group in tab.groups">
+    
+                                    <div class="edt-property-group">
+    
+                                        <div class="edt-property-group-sizer" ng-click="toggleGroupSize(group)"></div>
+    
+                                        <h5 class="fieldset-title">
+                                            <i class="icon icon-navigation handle"></i> 
+                                            <span contenteditable="true" ng-model="group.name"></span>
+                                        </h5>
+    
+                                        <ul class="edt-props-sortable" ui-sortable="sortableOptionsEditor" ng-model="group.properties" class="no-style-list">
+                                            <li ng-repeat="property in group.properties">
+    
+                                                <div class="edt-property">
+                                                    <h5 class="item-title">
+                                                        <i class="icon icon-navigation handle"></i> 
+                                                        <span contenteditable="true" ng-model="property.label"></span>:
+                                                        <span class="item-alias">{{property.alias}}</span>    
+                                                    </h5>
+    
+                                                    <a href tabindex="-1" ng-click="editProperty(property)" style="position: absolute; top: 0px; right: 0;">
+                                                        <i class="icon-settings"></i>
+                                                    </a>
+    
+                                                    <div tabindex="-1" class="edt-property-inner" ng-click="changePropertyEditor(property)" style="clear: both">
+                                                        <span class="edt-property-label">{{property.view}}</span>    
+                                                        <umb-property-editor  
+                                                            model="property">
+                                                        </umb-property-editor>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <div class="edt-property">
+                                                    <button>Add...</button>
+                                                </div>   
+                                            </li> 
+                                        </ul>
+                                    </div>
+    
+                                </li>
+                            </ul>
+    
+                            <br style="clear: both;" />
+                        </div>
+    
+                    </li>
+                </ul>
+        </div>
+        
+        <pre>{{dialogModel | json}}</pre>
+    </umb-editor-container>
+
+
+    <umb-editor-footer>
+    <button type="submit" data-hotkey="ctrl+s" class="btn btn-success">
+        <localize key="buttons_save">Save</localize>
+    </button>
+    </umb-editor-footer>
+
+</umb-editor-view>
+
+
+
+
+<!-- overlay for change type -->
+<umb-overlay
+    ng-style="{'width': '400px'}" 
+    ng-if="showDialog" 
+    model="dialogModel"
+    animation="slide-in-right"
+    position="right" 
+    view="dialogModel.view">
+</umb-overlay> 
+
+
+</form>

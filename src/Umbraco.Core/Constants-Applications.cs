@@ -78,7 +78,16 @@
 			/// </summary>
 			public const string Dictionary = "dictionary";
 
-            //TODO: Fill in the rest!
+            /// <summary>
+            /// alias for the document type tree.
+            /// </summary>
+            public const string DocumentTypes = "documenttype";
+
+            /// <summary>
+            /// alias for the media type tree.
+            /// </summary>
+            public const string MediaTypes = "mediatype";
+
 
             /// <summary>
             /// alias for the media tree.

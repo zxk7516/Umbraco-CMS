@@ -5,6 +5,7 @@
     val-form-manager>
     
     <umb-panel ng-class="'editor-breadcrumb'">
+    
         <umb-header tabs="content.tabs">
 
             <div class="span7">
@@ -31,10 +32,11 @@
         <umb-tab-view>
             <umb-tab id="tab{{tab.id}}" rel="{{tab.id}}" ng-repeat="tab in content.tabs">
                 <div class="umb-pane">
+                    
                     <umb-property 
                         property="property"
                         ng-repeat="property in tab.properties">
-                        <umb-editor model="property"></umb-editor>
+                        <umb-property-editor model="property"></umb-property-editor>
                     </umb-property>
 
 

@@ -35,3 +35,51 @@ li.dragged {
 	border-left-color: red;
 	border-right: none;
 }
+
+
+// Sortabel
+ // -------------------------
+
+.ui-sortable-helper  {
+     position:absolute !important;
+     border: dashed 1px #000 !important;
+     background: #ccc;
+     opacity: 0.4;
+     height: 80px !important;
+     width: 160px !important;
+     overflow: hidden;
+     padding: 5px;
+     border-radius:5px;
+     -webkit-box-shadow: 3px 3px 12px 0px rgba(50, 50, 50, 0.45);
+     -moz-box-shadow:    3px 3px 12px 0px rgba(50, 50, 50, 0.45);
+     box-shadow:         3px 3px 12px 0px rgba(50, 50, 50, 0.45);
+ }
+
+.ui-sortable-helper *{
+     border: none !important;
+     background: none !important;
+     color: #999 !important;
+     padding: 0 !important;
+     margin: 0 !important;
+ }
+
+
+.ui-sortable-placeholder{
+     border: 2px dashed @grayLight;
+     padding: 20px;
+     font-family: icomoon;
+     text-align: center;
+     font-size: 85px;
+     line-height: 65px;
+     color: @gray;
+     vertical-align: middle;
+     background-color:@grayLighter;
+ }
+
+ .ui-sortable-placeholder:hover{
+     border-color: @gray;
+ }
+
+ .ui-sortable-placeholder:before{
+     content: "\e1bd";
+ }
