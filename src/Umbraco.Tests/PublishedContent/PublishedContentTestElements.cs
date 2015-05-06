@@ -202,8 +202,8 @@ namespace Umbraco.Tests.PublishedContent
         public int ParentId { get; set; }
         public IEnumerable<int> ChildIds { get; set; }
 
-        public IPublishedContent Parent { get { return UmbracoContext.Current.ContentCache.GetById(ParentId); } }
-        public IEnumerable<IPublishedContent> Children { get { return ChildIds.Select(id => UmbracoContext.Current.ContentCache.GetById(id)); } }
+        public IPublishedContent Parent { get; set; }
+        public IEnumerable<IPublishedContent> Children { get; set; }
 
         #endregion
 
