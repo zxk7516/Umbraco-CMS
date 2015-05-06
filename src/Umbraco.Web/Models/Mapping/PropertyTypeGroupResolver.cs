@@ -18,14 +18,14 @@ namespace Umbraco.Web.Models.Mapping
 
             var propGroups = source.CompositionPropertyGroups;
             var genericGroup = new PropertyTypeGroupDisplay() { Name = "properties", Id = 0, ParentGroupId = 0 };
-            genericGroup.Properties = mapProperties(source.PropertyTypes);
+            genericGroup.Properties = MapProperties(source.PropertyTypes);
             genericGroup.Groups = new List<PropertyTypeGroupDisplay>();
 
             foreach (var group in propGroups.Where(pg => pg.ParentId.HasValue == false))
             {
                 var mapped = new PropertyTypeGroupDisplay() {  Id = group.Id, ParentGroupId = 0, Name = group.Name, SortOrder = group.SortOrder };
-                mapped.Properties = mapProperties(group.PropertyTypes);
-                mapped.Groups = mapChildGroups(mapped, propGroups);
+                mapped.Properties = MapProperties(group.PropertyTypes);
+                mapped.Groups = MapChildGroups(mapped, propGroups);
                 groups.Add(mapped);
             }
 
@@ -33,7 +33,7 @@ namespace Umbraco.Web.Models.Mapping
             return groups;
         }
 
-        private IEnumerable<PropertyTypeGroupDisplay> mapChildGroups(PropertyTypeGroupDisplay parent, IEnumerable<PropertyGroup> groups)
+        private IEnumerable<PropertyTypeGroupDisplay> MapChildGroups(PropertyTypeGroupDisplay parent, IEnumerable<PropertyGroup> groups)
         {
             var mappedGroups = new List<PropertyTypeGroupDisplay>();
             
@@ -41,15 +41,15 @@ namespace Umbraco.Web.Models.Mapping
             {
                 var mapped = new PropertyTypeGroupDisplay() { Id = child.Id, ParentGroupId = child.ParentId.Value, Name = child.Name, SortOrder = child.SortOrder };
                 mapped.Name += child.PropertyTypes.Count.ToString();
-                mapped.Properties = mapProperties(child.PropertyTypes);               
-                mapped.Groups = mapChildGroups(mapped, groups);
+                mapped.Properties = MapProperties(child.PropertyTypes);               
+                mapped.Groups = MapChildGroups(mapped, groups);
                 mappedGroups.Add(mapped);
             }
 
             return mappedGroups;
         }
 
-        private IEnumerable<PropertyTypeDisplay> mapProperties(IEnumerable<PropertyType> properties)
+        private IEnumerable<PropertyTypeDisplay> MapProperties(IEnumerable<PropertyType> properties)
         {
             var mappedProperties = new List<PropertyTypeDisplay>();
             foreach (var p in properties)
