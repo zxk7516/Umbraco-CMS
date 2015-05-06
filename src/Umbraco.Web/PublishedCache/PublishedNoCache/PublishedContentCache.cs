@@ -35,7 +35,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public IPublishedContent GetByRoute(string route, bool? hideTopLevelNode = null)
         {
-            return GetByRoute(CurrentPreview, route, hideTopLevelNode);
+            return GetByRoute(PreviewDefault, route, hideTopLevelNode);
         }
 
         public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
@@ -109,7 +109,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
 
         public string GetRouteById(int contentId)
         {
-            return GetRouteById(CurrentPreview, contentId);
+            return GetRouteById(PreviewDefault, contentId);
         }
 
         public string GetRouteById(bool preview, int contentId)

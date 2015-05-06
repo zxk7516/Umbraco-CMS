@@ -8,68 +8,67 @@ namespace Umbraco.Web.PublishedCache
 {
     abstract class PublishedCacheBase :IPublishedCache
     {
-        // fixme - need a better name
-        public bool CurrentPreview { get; private set; }
+        public bool PreviewDefault { get; private set; }
 
-        protected PublishedCacheBase(bool preview)
+        protected PublishedCacheBase(bool previewDefault)
         {
-            CurrentPreview = preview;
+            PreviewDefault = previewDefault;
         }
 
         public abstract IPublishedContent GetById(bool preview, int contentId);
 
         public IPublishedContent GetById(int contentId)
         {
-            return GetById(CurrentPreview, contentId);
+            return GetById(PreviewDefault, contentId);
         }
 
         public abstract bool HasById(bool preview, int contentId);
 
         public bool HasById(int contentId)
         {
-            return HasById(CurrentPreview, contentId);
+            return HasById(PreviewDefault, contentId);
         }
 
         public abstract IEnumerable<IPublishedContent> GetAtRoot(bool preview);
 
         public IEnumerable<IPublishedContent> GetAtRoot()
         {
-            return GetAtRoot(CurrentPreview);
+            return GetAtRoot(PreviewDefault);
         }
 
         public abstract IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars);
 
         public IPublishedContent GetSingleByXPath(string xpath, XPathVariable[] vars)
         {
-            return GetSingleByXPath(CurrentPreview, xpath, vars);
+            return GetSingleByXPath(PreviewDefault, xpath, vars);
         }
 
         public abstract IPublishedContent GetSingleByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars);
 
         public IPublishedContent GetSingleByXPath(XPathExpression xpath, XPathVariable[] vars)
         {
-            return GetSingleByXPath(CurrentPreview, xpath, vars);
+            return GetSingleByXPath(PreviewDefault, xpath, vars);
         }
 
         public abstract IEnumerable<IPublishedContent> GetByXPath(bool preview, string xpath, XPathVariable[] vars);
 
         public IEnumerable<IPublishedContent> GetByXPath(string xpath, XPathVariable[] vars)
         {
-            return GetByXPath(CurrentPreview, xpath, vars);
+            return GetByXPath(PreviewDefault, xpath, vars);
         }
 
         public abstract IEnumerable<IPublishedContent> GetByXPath(bool preview, XPathExpression xpath, XPathVariable[] vars);
 
         public IEnumerable<IPublishedContent> GetByXPath(XPathExpression xpath, XPathVariable[] vars)
         {
-            return GetByXPath(CurrentPreview, xpath, vars);
+            return GetByXPath(PreviewDefault, xpath, vars);
         }
 
         public abstract XPathNavigator CreateNavigator(bool preview);
 
         public XPathNavigator CreateNavigator()
         {
-            return CreateNavigator(CurrentPreview);
+            return CreateNavigator(PreviewDefault);
         }
 
         public abstract XPathNavigator CreateNodeNavigator(int id, bool preview);
@@ -78,7 +77,7 @@ namespace Umbraco.Web.PublishedCache
 
         public bool HasContent()
         {
-            return HasContent(CurrentPreview);
+            return HasContent(PreviewDefault);
         }
 
         public abstract PublishedContentType GetContentType(int id);
