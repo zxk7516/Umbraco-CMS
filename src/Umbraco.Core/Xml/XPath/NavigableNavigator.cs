@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -83,8 +84,11 @@ namespace Umbraco.Core.Xml.XPath
             if (content == null)
                 throw new ArgumentException("Not the identifier of a content within the source.", "rootId");
             _state = new State(content, null, null, 0, StatePosition.Root);
+
+            _contents = new ConcurrentDictionary<int, INavigableContent>();
         }
 
+        /*
         /// <summary>
         /// Initializes a new instance of the <see cref="NavigableNavigator"/> class with a content source, a name table and a state.
         /// </summary>
@@ -98,6 +102,27 @@ namespace Umbraco.Core.Xml.XPath
         {
             _nameTable = nameTable;
             _state = state;
+        }
+        */
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="NavigableNavigator"/> class as a clone.
+        /// </summary>
+        /// <param name="orig">The cloned navigator.</param>
+        /// <param name="state">The clone state.</param>
+        /// <param name="maxDepth">The clone maximum depth.</param>
+        /// <remarks>Privately used for cloning a navigator.</remarks>
+        private NavigableNavigator(NavigableNavigator orig, State state = null, int maxDepth = -1)
+            : this(orig._source, rootId: 0, maxDepth: orig._maxDepth)
+        {
+            _nameTable = orig._nameTable;
+
+            _state = state ?? orig._state.Clone();
+            if (state != null && maxDepth < 0)
+                throw new ArgumentException("Both state and maxDepth are required.");
+            _maxDepth = maxDepth < 0 ? orig._maxDepth : maxDepth;
+
+            _contents = orig._contents;
         }
 
         #endregion
@@ -225,6 +250,21 @@ namespace Umbraco.Core.Xml.XPath
 
         #endregion
 
+        #region Source management
+
+        private readonly ConcurrentDictionary<int, INavigableContent> _contents;
+
+        private INavigableContent SourceGet(int id)
+        {
+            // original version, would keep creating INavigableContent objects
+            //return _source.Get(id);
+
+            // improved version, uses a cache, shared with clones
+            return _contents.GetOrAdd(id, x => _source.Get(x));
+        }
+
+        #endregion
+
         /// <summary>
         /// Gets the underlying content object.
         /// </summary>
@@ -240,7 +280,7 @@ namespace Umbraco.Core.Xml.XPath
         public override XPathNavigator Clone()
         {
             DebugEnter("Clone");
-            var nav = new NavigableNavigator(_source, _nameTable, _state.Clone(), _maxDepth);
+            var nav = new NavigableNavigator(this);
             DebugCreate(nav);
             DebugReturn("[XPathNavigator]");
             return nav;
@@ -276,7 +316,7 @@ namespace Umbraco.Core.Xml.XPath
             }
             else
             {
-                var content = _source.Get(id);
+                var content = SourceGet(id);
                 if (content != null)
                 {
                     state = new State(content, null, null, 0, StatePosition.Root);
@@ -287,7 +327,7 @@ namespace Umbraco.Core.Xml.XPath
 
             if (state != null)
             {
-                clone = new NavigableNavigator(_source, _nameTable, state, maxDepth);
+                clone = new NavigableNavigator(this, state, maxDepth);
                 DebugCreate(clone);
                 DebugReturn("[XPathNavigator]");
             }
@@ -534,7 +574,7 @@ namespace Umbraco.Core.Xml.XPath
                 // children may contain IDs that does not correspond to some content in source
                 // because children contains all child IDs including unpublished children - and
                 // then if we're not previewing, the source will return null.
-                var child = children.Select(id => _source.Get(id)).FirstOrDefault(c => c != null);
+                var child = children.Select(id => SourceGet(id)).FirstOrDefault(c => c != null);
                 if (child != null)
                 {
                     _state.Position = StatePosition.Element;
@@ -639,7 +679,7 @@ namespace Umbraco.Core.Xml.XPath
                 }
                 else
                 {
-                    var content = _source.Get(contentId);
+                    var content = SourceGet(contentId);
                     if (content != null)
                     {
                         // walk up to the navigator's root - or the source's root
@@ -647,7 +687,7 @@ namespace Umbraco.Core.Xml.XPath
                         while (content != null && content.ParentId != navRootId)
                         {
                             s.Push(content);
-                            content = _source.Get(content.ParentId);
+                            content = SourceGet(content.ParentId);
                         }
 
                         if (content != null && s.Count < _maxDepth)
@@ -692,7 +732,7 @@ namespace Umbraco.Core.Xml.XPath
                         // Siblings may contain IDs that does not correspond to some content in source
                         // because children contains all child IDs including unpublished children - and
                         // then if we're not previewing, the source will return null.
-                        var node = _source.Get(_state.Siblings[++_state.SiblingIndex]);
+                        var node = SourceGet(_state.Siblings[++_state.SiblingIndex]);
                         if (node == null) continue;
 
                         _state.Content = node;
@@ -751,7 +791,7 @@ namespace Umbraco.Core.Xml.XPath
                         // children may contain IDs that does not correspond to some content in source
                         // because children contains all child IDs including unpublished children - and
                         // then if we're not previewing, the source will return null.
-                        var content = _source.Get(_state.Siblings[--_state.SiblingIndex]);
+                        var content = SourceGet(_state.Siblings[--_state.SiblingIndex]);
                         if (content == null) continue;
 
                         _state.Content = content;
