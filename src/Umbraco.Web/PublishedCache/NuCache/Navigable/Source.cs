@@ -1,7 +1,4 @@
-﻿using System;
-using System.Linq;
-using Umbraco.Core.Models;
-using Umbraco.Core.Models.PublishedContent;
+﻿using System.Linq;
 using Umbraco.Core.Xml.XPath;
 
 namespace Umbraco.Web.PublishedCache.NuCache.Navigable

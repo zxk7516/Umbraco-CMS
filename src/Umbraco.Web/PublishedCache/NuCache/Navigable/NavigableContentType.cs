@@ -20,9 +20,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 
         // note - PublishedContentType are immutable ie they do not _change_ when the actual IContentTypeComposition
         // changes, but they are replaced by a new instance, so our map here will clean itself automatically and
-        // we don't have to manage cache.
-
-        // fixme - do we really need this?
+        // we don't have to manage cache - ConditionalWeakTable does not prevent keys from beeing GCed
 
         static private readonly ConditionalWeakTable<PublishedContentType, NavigableContentType> TypesMap
              = new ConditionalWeakTable<PublishedContentType,NavigableContentType>();
@@ -46,7 +44,8 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
                         new NavigablePropertyType("templateId"), 
                         new NavigablePropertyType("writerId"), 
                         new NavigablePropertyType("creatorId"), 
-                        new NavigablePropertyType("urlName")
+                        new NavigablePropertyType("urlName"),
+                        new NavigablePropertyType("isDraft", v => XmlConvert.ToString((bool)v))
                     };
         }
 
