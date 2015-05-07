@@ -11,7 +11,6 @@ using Umbraco.Core.Security;
 using Umbraco.Core.Services;
 using Umbraco.Core.Xml.XPath;
 using Umbraco.Web.PublishedCache.NuCache.Navigable;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Security;
 
 namespace Umbraco.Web.PublishedCache.NuCache
@@ -20,26 +19,22 @@ namespace Umbraco.Web.PublishedCache.NuCache
     {
         private readonly IMemberService _memberService;
         private readonly IDataTypeService _dataTypeService;
+        private readonly PublishedContentTypeCache _contentTypeCache;
 
         public MemberCache(IMemberService memberService, IDataTypeService dataTypeService, PublishedContentTypeCache contentTypeCache)
         {
             _memberService = memberService;
             _dataTypeService = dataTypeService;
-
-            // fixme temp
             _contentTypeCache = contentTypeCache;
         }
 
-        // FIXME obviously temp!
-        private readonly PublishedContentTypeCache _contentTypeCache;
-
-        private T GetCacheItem<T>(string cacheKey, Func<T> getCacheItem)
+        private static T GetCacheItem<T>(string cacheKey, Func<T> getCacheItem)
         {
             var facade = Facade.Current;
             var cache = facade == null ? null : facade.FacadeCache;
             return cache == null
                 ? getCacheItem()
-                : cache.GetCacheItem<T>(cacheKey, getCacheItem);
+                : cache.GetCacheItem(cacheKey, getCacheItem);
         }
 
         public IPublishedContent GetByProviderKey(object key)
@@ -181,14 +176,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public PublishedContentType GetContentType(int id)
         {
-            throw new NotImplementedException();
-            //return _contentTypeCache.Get(PublishedItemType.Member, id);
+            return _contentTypeCache.Get(PublishedItemType.Member, id);
         }
 
         public PublishedContentType GetContentType(string alias)
         {
-            throw new NotImplementedException();
-            //return _contentTypeCache.Get(PublishedItemType.Member, alias);
+            return _contentTypeCache.Get(PublishedItemType.Member, alias);
         }
 
         #endregion
