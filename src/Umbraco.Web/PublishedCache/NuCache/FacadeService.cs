@@ -118,7 +118,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         Version = content2.Version,
                         VersionDate = content2.UpdateDate,
                         WriterId =  content2.WriterId,
-                        TemplateId = content2.Template.Id,
+                        TemplateId = content2.Template == null ? -1 : content2.Template.Id,
                         Properties = GetPropertyValues(content2)
                     };
                 }
@@ -130,6 +130,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 draftData, publishedData);
 
             _contentStore.Set(contentNode);
+
+            foreach (var child in content.Children())
+                LoadContent(child);
         }
 
         private void LoadMedia()
@@ -164,6 +167,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 null, mediaData);
 
             _mediaStore.Set(mediaNode);
+
+            foreach (var child in media.Children())
+                LoadMedia(child);
         }
 
         private Dictionary<string, object> GetPropertyValues(IContentBase content)

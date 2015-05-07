@@ -133,7 +133,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private IPublishedContent GetMediaById(bool previewing, int id)
         {
             EnsureGetMediaById();
-            return GetContentByIdOverride(previewing, id);
+            return GetMediaByIdOverride(previewing, id);
         }
 
         private IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
