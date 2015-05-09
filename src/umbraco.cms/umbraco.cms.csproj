@@ -200,7 +200,6 @@
     <Compile Include="Actions\ActionPublish.cs" />
     <Compile Include="Actions\ActionQuit.cs" />
     <Compile Include="Actions\ActionRefresh.cs" />
-    <Compile Include="Actions\ActionRePublish.cs" />
     <Compile Include="Actions\ActionRights.cs" />
     <Compile Include="Actions\ActionRollback.cs" />
     <Compile Include="Actions\ActionSendToTranslate.cs" />

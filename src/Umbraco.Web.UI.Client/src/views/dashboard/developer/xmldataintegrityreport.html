@@ -9,7 +9,7 @@
     <p>
         This checks that content, media and members have appropriate corresponding structures in the
         cmsContentXml and cmsPreviewXml tables. It does not check the data integrity of those structures,
-        not of the Xml cache file.
+        nor of the Xml cache (in-memory and file).
     </p>
     <div ng-repeat="(key, value) in items" class="umb-pane">
         <span class="">{{value.label}}&nbsp;...</span>
@@ -26,5 +26,15 @@
             <div class="umb-loader"></div>
         </div>
     </div>
-
+    <p>
+        This lets you do what the former "<em>republish all</em>" menu item did, ie refresh the Xml
+        cache (in-memory and file) by entirely reloading it from the structures in the cmsContentXml
+        and cmsPreviewXml tables.
+    </p>
+    <button type="button" ng-click="reload()" class="btn btn-warning">
+        <span>Reload</span>
+    </button>
+    <div class="umb-loader-wrapper" ng-show="reloading">
+        <div class="umb-loader"></div>
+    </div>
 </div>

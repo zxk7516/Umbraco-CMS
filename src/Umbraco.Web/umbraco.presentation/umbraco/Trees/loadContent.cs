@@ -104,8 +104,6 @@ namespace umbraco
                     actions.Add(ContextMenuSeperator.Instance);
 
                 // default actions for all users
-                actions.Add(ActionRePublish.Instance);
-                actions.Add(ContextMenuSeperator.Instance);
                 actions.Add(ActionRefresh.Instance);
                 //actions.Add(ActionTreeEditMode.Instance);
             }

@@ -1878,7 +1878,6 @@
     <Content Include="Umbraco\Dialogs\empty.htm" />
     <Content Include="Umbraco\Dialogs\insertMasterpageContent.aspx" />
     <Content Include="Umbraco\Dialogs\insertMasterpagePlaceholder.aspx" />
-    <Content Include="Umbraco\Dialogs\republish.aspx" />
     <Content Include="Umbraco\Dialogs\search.aspx" />
     <Content Include="Umbraco\Dialogs\SendPublish.aspx" />
     <Content Include="Umbraco\Create\script.ascx" />

@@ -54,6 +54,20 @@ function xmlDataIntegrityReportController($scope, umbRequestHelper, $log, $http,
         }
     };
 
+    $scope.reload = function() {
+        if (confirm("This will trigger an Xml cache reload from database on all servers.")) {
+            $scope.reloading = true;
+            umbRequestHelper.resourcePromise(
+                $http.post(umbRequestHelper.getApiUrl("xmlDataIntegrityBaseUrl", "ReloadXmlCache")),
+                'Failed to trigger an Xml cache reload')
+            .then(function (result) {
+                $scope.reloading = false;
+            });
+        }
+    };
+
+    $scope.reloading = false;
+
     for (var i in $scope.items) {
         check($scope.items[i]);
     }
