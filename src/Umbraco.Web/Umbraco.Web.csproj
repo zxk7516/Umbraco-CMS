@@ -771,7 +771,6 @@
     <Compile Include="PublishedCache\NuCache\Navigable\NavigableContentType.cs" />
     <Compile Include="PublishedCache\NuCache\Navigable\NavigablePropertyType.cs" />
     <Compile Include="PublishedCache\NuCache\Navigable\RootContent.cs" />
-    <Compile Include="PublishedCache\NuCache\_UnionExtensions.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\IPublishedContentOrMedia.cs" />
     <Compile Include="Standalone\StandaloneApplication.cs" />
     <Compile Include="Standalone\StandaloneBootManager.cs" />
@@ -827,9 +826,6 @@
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMedia.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMediaCache.cs" />
     <Compile Include="PublishedCache\NuCache\PublishedContent.cs" />
-    <Compile Include="PublishedCache\NuCache\_ContentDrop.cs" />
-    <Compile Include="PublishedCache\NuCache\_ContentBucket.cs" />
-    <Compile Include="PublishedCache\NuCache\_ContentRoot.cs" />
     <Compile Include="PublishedCache\NuCache\Navigable\Source.cs" />
     <Compile Include="PublishedCache\NuCache\Facade.cs" />
     <Compile Include="PublishedCache\IPublishedCaches.cs" />

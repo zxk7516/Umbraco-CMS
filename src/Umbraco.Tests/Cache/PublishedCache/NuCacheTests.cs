@@ -18,17 +18,8 @@ namespace Umbraco.Tests.Cache.PublishedCache
     [TestFixture]
     public class NuCacheTests : BaseUmbracoApplicationTest
     {
-        //[SetUp]
-        //public void Setup()
-        //{
-        //    ContentBucket.EnableDropsTracking();
-        //    PropertyValueConvertersResolver.Current = new PropertyValueConvertersResolver(new ActivatorServiceProvider(), Logger);
-        //    Resolution.Freeze();
-        //}
-
         public override void Initialize()
         {
-            ContentBucket.EnableDropsTracking();
             PropertyValueConvertersResolver.Current = new PropertyValueConvertersResolver(new ActivatorServiceProvider(), Logger);
             base.Initialize();
         }
