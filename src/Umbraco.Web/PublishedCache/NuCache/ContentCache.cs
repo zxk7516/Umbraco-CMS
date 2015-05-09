@@ -138,19 +138,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // or a model inheriting from PublishedContentExtended - in which
             // case we need to unwrap to get to the original IPublishedContentOrMedia.
 
-            // fixme - what exactly are we doing here?!
-            var source = content as IPublishedContentOrMedia;
-            if (source == null)
-            {
-                var extend = content as PublishedContentExtended;
-                if (extend == null) // check
-                    throw new Exception("Content in cache is neither IPublishedContentOrMedia nor PublishedContentExtended.");
-                var wrapped = extend.Unwrap();
-                source = wrapped as IPublishedContentOrMedia; // models are wrapped only once
-                if (source == null) // but better check
-                    throw new Exception(string.Format("Content in cache is PublishedContentExtended, should wrap IPublishedContentOrMedia but wraps {0}", wrapped.GetType().FullName));
-            }
-            return source.AsPreviewingModel();
+            var inner = PublishedContent.UnwrapIPublishedContent(content);
+            return inner.AsPreviewingModel();
         }
 
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)

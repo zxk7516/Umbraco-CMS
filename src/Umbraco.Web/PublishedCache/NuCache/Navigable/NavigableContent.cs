@@ -6,10 +6,10 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 {
     class NavigableContent : INavigableContent
     {
-        private readonly IPublishedContentOrMedia _content;
+        private readonly PublishedContent _content;
         private readonly object[] _builtInValues;
 
-        public NavigableContent(IPublishedContentOrMedia content)
+        public NavigableContent(PublishedContent content)
         {
             _content = content;
 
@@ -32,7 +32,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 
         #region INavigableContent
 
-        public IPublishedContentOrMedia InnerContent
+        public PublishedContent InnerContent
         {
             get { return _content; }
         }
@@ -49,7 +49,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 
         public INavigableContentType Type
         {
-            get { return _content.NavigableContentType; }
+            get { return NavigableContentType.GetContentType(_content.ContentType); }
         }
 
         // fixme - beware, preview vs published?!

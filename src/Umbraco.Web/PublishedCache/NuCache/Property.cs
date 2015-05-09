@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Xml.Serialization;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.PropertyEditors;
 
@@ -21,21 +22,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private string _recurseCacheKey;
 
         // initializes a published content property with no value
-        public Property(PublishedPropertyType propertyType, PublishedContent content)
-            : base(propertyType)
-        {
-            _dataValue = null;
-            _contentId = content.Id;
-            _isPreviewing = ((IPublishedContentOrMedia) content).IsPreviewing;
-        }
+        public Property(PublishedPropertyType propertyType, IPublishedContent content)
+            : this(propertyType, content, null)
+        { }
 
         // initializes a published content property with a value
-        public Property(PublishedPropertyType propertyType, PublishedContent content, object valueSource)
+        public Property(PublishedPropertyType propertyType, IPublishedContent content, object valueSource)
             : base(propertyType)
         {
             _dataValue = valueSource;
             _contentId = content.Id;
-            _isPreviewing = ((IPublishedContentOrMedia) content).IsPreviewing;
+            var inner = PublishedContent.UnwrapIPublishedContent(content);
+            _isPreviewing = inner.IsPreviewing;
         }
 
         // clone for previewing as draft a published content that is published and has no draft

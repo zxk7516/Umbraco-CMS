@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml.XPath;
 
@@ -28,14 +29,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
             if (content == null) return null;
 
             // content may be a strongly typed model, have to unwrap first
-
-            PublishedContentWrapped wrapped;
-            while ((wrapped = content as PublishedContentWrapped) != null)
-                content = wrapped.Unwrap();
-            var published = content as IPublishedContentOrMedia;
-            if (published == null)
-                throw new InvalidOperationException("Innermost content is not IPublishedContentOrMedia.");
-            return new NavigableContent(published);
+            return new NavigableContent(PublishedContent.UnwrapIPublishedContent(content));
         }
 
         public int LastAttributeIndex

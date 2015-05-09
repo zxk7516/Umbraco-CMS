@@ -11,9 +11,7 @@ using Umbraco.Web.PublishedCache.NuCache.Navigable;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    // fixme - sort out PublishedContent class vs IPublishedContentOrMedia interface
-
-    internal class PublishedContent : PublishedContentBase, IPublishedContentOrMedia
+    internal class PublishedContent : PublishedContentBase
     {
         private readonly ContentNode _contentNode;
         private readonly ContentData _contentData;
@@ -240,24 +238,31 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Internal
 
-        IPublishedProperty[] IPublishedContentOrMedia.PropertiesArray { get { return _properties; } }
+        // used by navigable content - ok
+        internal IPublishedProperty[] PropertiesArray { get { return _properties; } }
 
-        int IPublishedContentOrMedia.ParentId { get { return _contentNode.ParentContentId; } }
+        // used by navigable content - ok
+        internal int ParentId { get { return _contentNode.ParentContentId; } }
 
-        IList<int> IPublishedContentOrMedia.ChildIds { get { return _contentNode.ChildContentIds; } }
+        // used by navigable content - with an issue with preview!
+        // includes all children, published or unpublished
+        internal IList<int> ChildIds { get { return _contentNode.ChildContentIds; } }
 
-        INavigableContentType IPublishedContentOrMedia.NavigableContentType { get { return NavigableContentType.GetContentType(_contentNode.ContentType); } }
-
-        bool IPublishedContentOrMedia.IsPreviewing { get { return _isPreviewing; } }
+        // used by Property
+        // gets a value indicating whether the content or media exists in
+        // a previewing context or not, ie whether its Parent, Children, and
+        // properties should refer to published, or draft content
+        internal bool IsPreviewing { get { return _isPreviewing; } }
 
         private string _asPreviewingCacheKey;
 
-        internal string AsPreviewingCacheKey
+        private string AsPreviewingCacheKey
         {
             get { return _asPreviewingCacheKey ?? (_asPreviewingCacheKey = "NuCache.APR[" + Id + "]"); }
         }
 
-        IPublishedContent IPublishedContentOrMedia.AsPreviewingModel()
+        // used by ContentCache
+        internal IPublishedContent AsPreviewingModel()
         {
             if (_isPreviewing)
                 return this;
@@ -266,6 +271,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var cache = facade == null ? null : facade.FacadeCache;
             if (cache == null) return new PublishedContent(this).CreateModel();
             return (IPublishedContent) cache.GetCacheItem(AsPreviewingCacheKey, () => new PublishedContent(this).CreateModel());
+        }
+
+        // used by Navigable.Source,...
+        internal static PublishedContent UnwrapIPublishedContent(IPublishedContent content)
+        {
+            PublishedContentWrapped wrapped;
+            while ((wrapped = content as PublishedContentWrapped) != null)
+                content = wrapped.Unwrap();
+            var inner = content as PublishedContent;
+            if (inner == null)
+                throw new InvalidOperationException("Innermost content is not PublishedContent.");
+            return inner;
         }
 
         #endregion

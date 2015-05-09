@@ -671,7 +671,6 @@
     <Compile Include="Controllers\UmbRegisterController.cs" />
     <Compile Include="Models\ProfileModel.cs" />
     <Compile Include="Models\LoginStatusModel.cs" />
-    <Compile Include="PublishedCache\NuCache\IPublishedContentOrMedia.cs" />
     <Compile Include="PublishedCache\NuCache\_UmbracoContextCache.cs" />
     <Compile Include="PropertyEditors\ValueConverters\MarkdownEditorValueConverter.cs" />
     <Compile Include="PropertyEditors\ValueConverters\TextStringValueConverter.cs" />

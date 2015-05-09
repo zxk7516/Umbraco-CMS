@@ -22,6 +22,8 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
         // changes, but they are replaced by a new instance, so our map here will clean itself automatically and
         // we don't have to manage cache.
 
+        // fixme - do we really need this?
+
         static private readonly ConditionalWeakTable<PublishedContentType, NavigableContentType> TypesMap
              = new ConditionalWeakTable<PublishedContentType,NavigableContentType>();
 
