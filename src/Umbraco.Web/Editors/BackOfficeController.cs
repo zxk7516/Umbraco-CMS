@@ -222,8 +222,8 @@ namespace Umbraco.Web.Editors
                     {
                         "umbracoUrls", new Dictionary<string, object>
                         {
-                        {"externalLoginsUrl", Url.Action("ExternalLogin", "BackOffice")},
-                        {"externalLinkLoginsUrl", Url.Action("LinkLogin", "BackOffice")},
+                            {"externalLoginsUrl", Url.Action("ExternalLogin", "BackOffice")},
+                            {"externalLinkLoginsUrl", Url.Action("LinkLogin", "BackOffice")},
                             {"legacyTreeJs", Url.Action("LegacyTreeJs", "BackOffice")},
                             {"manifestAssetList", Url.Action("GetManifestAssetList", "BackOffice")},
                             {"gridConfig", Url.Action("GetGridConfig", "BackOffice")},
@@ -308,8 +308,8 @@ namespace Umbraco.Web.Editors
                             {
                             "relationApiBaseUrl", Url.GetUmbracoApiServiceBaseUrl<RelationController>(
                                 controller => controller.GetById(0))
-                        },
-                        {
+                            },
+                            {
                                 "rteApiBaseUrl", Url.GetUmbracoApiServiceBaseUrl<RichTextPreValueController>(
                                     controller => controller.GetConfiguration())
                             },
@@ -352,6 +352,10 @@ namespace Umbraco.Web.Editors
                             {
                                 "xmlDataIntegrityBaseUrl", Url.GetUmbracoApiServiceBaseUrl<XmlDataIntegrityController>(
                                     controller => controller.CheckContentXmlTable())
+                            },
+                            {
+                                "facadeStatusBaseUrl", Url.GetUmbracoApiServiceBaseUrl<FacadeStatusController>(
+                                    controller => controller.GetFacadeStatusUrl())
                             }
                         }
                     },

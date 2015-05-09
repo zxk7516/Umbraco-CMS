@@ -1946,6 +1946,7 @@
     <Compile Include="WebServices\DomainsApiController.cs" />
     <Compile Include="WebServices\EmbedMediaService.cs" />
     <Compile Include="WebServices\ExamineManagementApiController.cs" />
+    <Compile Include="WebServices\FacadeStatusController.cs" />
     <Compile Include="WebServices\FolderBrowserService.cs" />
     <Compile Include="WebServices\TagsController.cs" />
     <Compile Include="WebServices\ScheduledPublishController.cs" />

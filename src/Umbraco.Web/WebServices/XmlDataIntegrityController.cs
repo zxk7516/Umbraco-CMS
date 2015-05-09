@@ -10,7 +10,6 @@ using Umbraco.Web.WebApi;
 
 namespace Umbraco.Web.WebServices
 {
-
     public class XmlDataIntegrityController : UmbracoAuthorizedApiController
     {
         private static PublishedCachesService PublishedCachesService
