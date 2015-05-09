@@ -2192,7 +2192,7 @@ WHERE cmsContentXml.nodeId IN (
         {
             var svc = _serviceContext.ContentService as ContentService;
             if (svc == null) throw new Exception("oops");
-            return svc.WithReadLocked(VerifyContentAndPreviewXmlLocked);
+            return svc.WithReadLocked(x => VerifyContentAndPreviewXmlLocked(x));
         }
 
         // assumes content tree lock
@@ -2228,7 +2228,7 @@ AND cmsPreviewXml.nodeId IS NULL
         {
             var svc = _serviceContext.MediaService as MediaService;
             if (svc == null) throw new Exception("oops");
-            return svc.WithReadLocked(VerifyMediaXmlLocked);
+            return svc.WithReadLocked(x => VerifyMediaXmlLocked(x));
         }
 
         // assumes media tree lock

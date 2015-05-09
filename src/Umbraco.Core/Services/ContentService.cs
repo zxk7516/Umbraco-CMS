@@ -63,7 +63,7 @@ namespace Umbraco.Core.Services
 
         private readonly LockingRepository<ContentRepository> _lrepo;
 
-        private void WithReadLocked(Action<ContentRepository> action, bool autoCommit = true)
+        internal void WithReadLocked(Action<ContentRepository> action, bool autoCommit = true)
         {
             _lrepo.WithReadLocked(xr => action(xr.Repository), autoCommit);
         }
