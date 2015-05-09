@@ -65,6 +65,24 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
+        #region Has
+
+        public bool Has(int id)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                return AllContent.ContainsKey(id);
+            }
+            finally
+            {
+                
+                Locker.ExitReadLock();
+            }
+        }
+
+        #endregion
+
         #region Set, Clear
 
         public void Set(ContentNode content)

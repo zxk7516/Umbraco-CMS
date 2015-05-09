@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.ObjectResolution;
@@ -52,21 +53,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
             };
         }
 
-        // fixme - just so that the rest builds, then kill
-        #region Buckets
-
-        private readonly ContentBucket _publishedBucket;
-        private readonly ContentBucket _draftBucket;
-        private readonly ContentBucket _mediaBucket;
-        private readonly object _bucketsLock = new object();
-
-        public ContentBucket PublishedBucket { get { return _publishedBucket; } }
-        public ContentBucket DraftBucket { get { return _draftBucket; } }
-        public ContentBucket MediaBucket { get { return _mediaBucket; } }
-
-        #endregion
-
-
         // FIXME obviously temp!
         private PublishedContentTypeCache _contentTypeCache;
 
@@ -81,58 +67,61 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // but really we should have our own cmsContentNu table
             var rootContent = ApplicationContext.Current.Services.ContentService.GetRootContent();
             foreach (var content in rootContent)
-                LoadContent(content);
+                LoadContentBranch(content);
+        }
+
+        private void LoadContentBranch(IContent content)
+        {
+            LoadContent(content);
+
+            foreach (var child in content.Children())
+                LoadContent(child);
         }
 
         private void LoadContent(IContent content)
         {
-            var contentType = _contentTypeCache.Get(PublishedItemType.Content, content.ContentTypeId);
-            
-            var contentData = new ContentData
+            var contentService = ApplicationContext.Current.Services.ContentService; // fixme inject
+            var newest = content;
+            var published = newest.Published
+                ? newest
+                : (newest.HasPublishedVersion ? contentService.GetByVersion(newest.PublishedVersionGuid) : null);
+
+            var contentNode = CreateContentNode(newest, published);
+            _contentStore.Set(contentNode);
+        }
+
+        private ContentData CreateContentData(IContent content)
+        {
+            return new ContentData
             {
                 Name = content.Name,
                 Published = content.Published,
                 Version = content.Version,
                 VersionDate = content.UpdateDate,
-                WriterId =  content.WriterId,
+                WriterId = content.WriterId,
                 TemplateId = content.Template == null ? -1 : content.Template.Id,
                 Properties = GetPropertyValues(content)
             };
+        }
 
-            ContentData draftData = null, publishedData = null;
+        private ContentNode CreateContentNode(IContent newest, IContent published)
+        {
+            var contentType = _contentTypeCache.Get(PublishedItemType.Content, newest.ContentTypeId);
 
-            if (content.Published)
-            {
-                publishedData = contentData;
-            }
-            else
-            {
-                draftData = contentData;
-                if (content.HasPublishedVersion)
-                {
-                    var content2 = ApplicationContext.Current.Services.ContentService.GetByVersion(content.PublishedVersionGuid);
-                    publishedData = new ContentData
-                    {
-                        Name = content2.Name,
-                        Published = content2.Published,
-                        Version = content2.Version,
-                        VersionDate = content2.UpdateDate,
-                        WriterId =  content2.WriterId,
-                        TemplateId = content2.Template == null ? -1 : content2.Template.Id,
-                        Properties = GetPropertyValues(content2)
-                    };
-                }
-            }
+            var draftData = newest.Published 
+                ? null 
+                : CreateContentData(newest);
 
-            var contentNode = new ContentNode(content.Id, contentType,
-                content.Level, content.Path, content.SortOrder,
-                content.ParentId, content.CreateDate, content.CreatorId,
+            var publishedData = newest.Published 
+                ? CreateContentData(newest) 
+                : (published == null ? null : CreateContentData(published));
+
+            var contentNode = new ContentNode(newest.Id, contentType,
+                newest.Level, newest.Path, newest.SortOrder,
+                newest.ParentId, newest.CreateDate, newest.CreatorId,
                 draftData, publishedData);
 
-            _contentStore.Set(contentNode);
-
-            foreach (var child in content.Children())
-                LoadContent(child);
+            return contentNode;
         }
 
         private void LoadMedia()
@@ -143,7 +132,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // but really we should have our own cmsContentNu table
             var rootMedia = ApplicationContext.Current.Services.MediaService.GetRootMedia();
             foreach (var media in rootMedia)
-                LoadMedia(media);
+                LoadMediaBranch(media);
+        }
+
+        private void LoadMediaBranch(IMedia media)
+        {
+            LoadMedia(media);
+
+            foreach (var child in media.Children())
+                LoadMedia(child);
         }
 
         private void LoadMedia(IMedia media)
@@ -167,9 +164,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 null, mediaData);
 
             _mediaStore.Set(mediaNode);
-
-            foreach (var child in media.Children())
-                LoadMedia(child);
         }
 
         private Dictionary<string, object> GetPropertyValues(IContentBase content)
@@ -191,247 +185,243 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        // fixme - builds but Completely Broken
-        #region Maintain Buckets
-
-        // fixme
-        // at the moment these methods are not plugged anywhere so they won't run
-        //  must plug them into the right events
-        // at the moment these methods are not really efficient for example when listing
-        //  children... we may want to have something better (one single SQL query...)
-
-        // fixme - need to make sense of events here ;-((((
-
-        private void PlugEvents()
-        {
-            // handle medias save/delete + move
-            // beware! refreshByJson has an "operation" parameter which indicates whether the media was refreshed, trashed or deleted
-            // fixme: moves? sorts? can be sort-of erratic?
-            // fixme: in addition, MediaCache is Completely Broken, still using some old code from Library + XML, must rewrite
-            MediaCacheRefresher.CacheUpdated += (sender, args) => Debugger.Break();
-
-            // fixme - migrate to ContentCacheRefresher
-            // handle page save/...
-            // fixme - when exactly?
-            //UnpublishedPageCacheRefresher.CacheUpdated += (sender, args) =>
-            //{
-            //    UnpublishedPageCacheUpdated(sender, args);
-            //    System.Diagnostics.Debugger.Break();
-            //};
-
-            // fixme - migrate to ContentCacheRefresher
-            // handle page publish/unpublish + move
-            // move: triggers for all moved children
-            // fixme: recurse for publish?
-            // fixme: what about sort?
-            //PageCacheRefresher.CacheUpdated += (sender, args) =>
-            //{
-            //    PageCacheUpdated(sender, args);
-            //    System.Diagnostics.Debugger.Break();
-
-            //};
-
-            MediaCacheRefresher.CacheUpdated += (sender, args) =>
-            {
-                MediaCacheUpdated(sender, args);
-                Debugger.Break();
-            };
-
-            // should only trigger a rebuild of the published content, not its inner content data
-            // at the moment, a content type change also triggers a full PageCache refresh (why?)
-            ContentTypeCacheRefresher.CacheUpdated += (sender, args) => Debugger.Break();
-
-            // should only trigger a rebuild of the published content, not its inner content data
-            // also triggers when prevalues change
-            DataTypeCacheRefresher.CacheUpdated += (sender, args) => Debugger.Break();
-        }
-
-        void Save(IContent content)
-        {
-            //lock (_bucketsLock)
-            //{
-            //    // fixme wtf?
-            //    //if (content.Published)
-            //    //    throw new InvalidOperationException("Cannot save a published content.");
-
-            //    var contentType = _contentTypeCache.GetPublishedContentTypeById(content.ContentTypeId);
-            //    var publishedContent = new PublishedContent(content, contentType /*, content.Children().Select(x => x.Id).ToArray()*/);
-            //    _draftBucket.Set(publishedContent);
-            //}
-        }
-
-        void Save(IMedia media)
-        {
-            //lock (_bucketsLock)
-            //{
-            //    var publishedContent = new PublishedContent(media, media.Children().Select(x => x.Id).ToArray());
-            //    _mediaBucket.Set(publishedContent);
-            //}
-        }
-
-        void PublishContent(int id)
-        {
-            lock (_bucketsLock)
-            {
-                var content = _draftBucket.Get(id);
-                if (content == null) return;
-                _draftBucket.Remove(id);
-                _publishedBucket.Set(content);
-
-            }
-        }
-
-        void UnPublishContent(int id)
-        {
-            lock (_bucketsLock)
-            {
-                var content = _publishedBucket.Get(id);
-                if (content == null) return;
-                _publishedBucket.Remove(content.Id);
-                _draftBucket.Set(content);
-            }
-        }
-
-        void RemoveContent(int id)
-        {
-            lock (_bucketsLock)
-            {
-                _publishedBucket.Remove(id);
-                _draftBucket.Remove(id);
-            }
-        }
-
-        void RemoveMedia(int id)
-        {
-            lock (_bucketsLock)
-            {
-                _mediaBucket.Remove(id);
-            }
-        }
+        #region Maintain Stores
 
         public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            throw new NotImplementedException();
+            _contentStore.Freeze(true);
+            try
+            {
+                NotifyFrozen(payloads, out draftChanged, out publishedChanged);
+            }
+            finally
+            {
+                _contentStore.Freeze(false);
+            }
+        }
+
+        private void NotifyFrozen(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
+        {
+            publishedChanged = false;
+            draftChanged = false;
+
+            foreach (var payload in payloads)
+            {
+                // fixme - inject logger
+                LogHelper.Debug<FacadeService>("Notified {0} for content {1}".FormatWith(payload.ChangeTypes, payload.Id));
+
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
+                {
+                    // fixme - we don't have a "reload all" method at the moment
+                    throw new NotImplementedException();
+                    draftChanged = publishedChanged = true;
+                    continue;
+                }
+
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
+                {
+                    if (_contentStore.Has(payload.Id))
+                        draftChanged = publishedChanged = true;                        
+                    _contentStore.Clear(payload.Id); // fixme missing locks obviously
+                    continue;
+                }
+
+                if (payload.ChangeTypes.HasTypesNone(TreeChangeTypes.RefreshNode | TreeChangeTypes.RefreshBranch))
+                {
+                    // ?!
+                    continue;
+                }
+
+                var contentService = ApplicationContext.Current.Services.ContentService as ContentService; // fixme inject
+                if (contentService == null) throw new Exception("oops");
+                var capture = payload;
+                contentService.WithReadLocked(repository =>
+                {
+                    if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
+                        LoadContentBranch(contentService.GetById(capture.Id));
+                    else
+                        LoadContent(contentService.GetById(capture.Id));
+                });
+
+                // fixme
+                // at the moment we have no way to tell, really, because we have no ROW VERSION of
+                // any sort - that will come when we have the cmsContentNu table - l8tr
+                draftChanged = publishedChanged = true;
+            }
         }
 
         public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
-            throw new NotImplementedException();
+            _mediaStore.Freeze(true);
+            try
+            {
+                NotifyFrozen(payloads, out anythingChanged);
+            }
+            finally
+            {
+                _mediaStore.Freeze(false);
+            }
+        }
+
+        private void NotifyFrozen(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
+        {
+            anythingChanged = false;
+
+            foreach (var payload in payloads)
+            {
+                // fixme - inject logger
+                LogHelper.Debug<FacadeService>("Notified {0} for media {1}".FormatWith(payload.ChangeTypes, payload.Id));
+
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
+                {
+                    // fixme - we don't have a "reload all" method at the moment
+                    throw new NotImplementedException();
+                    anythingChanged = true;
+                    continue;
+                }
+
+                if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
+                {
+                    if (_mediaStore.Has(payload.Id))
+                        anythingChanged = true;
+                    _mediaStore.Clear(payload.Id); // fixme missing locks obviously
+                    continue;
+                }
+
+                if (payload.ChangeTypes.HasTypesNone(TreeChangeTypes.RefreshNode | TreeChangeTypes.RefreshBranch))
+                {
+                    // ?!
+                    continue;
+                }
+
+                var mediaService = ApplicationContext.Current.Services.MediaService as MediaService; // fixme inject
+                if (mediaService == null) throw new Exception("oops");
+                var capture = payload;
+                mediaService.WithReadLocked(repository =>
+                {
+                    if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
+                        LoadMediaBranch(mediaService.GetById(capture.Id));
+                    else
+                        LoadMedia(mediaService.GetById(capture.Id));
+                });
+
+                // fixme
+                // at the moment we have no way to tell, really, because we have no ROW VERSION of
+                // any sort - that will come when we have the cmsContentNu table - l8tr
+                anythingChanged = true;
+            }
         }
 
         public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
-            throw new NotImplementedException();
+            // see ContentTypeServiceBase
+            // in all cases we just want to clear the content type cache
+            // the type will be reloaded if/when needed
+            foreach (var payload in payloads)
+                _contentTypeCache.ClearContentType(payload.Id);
+
+            // process content types / content cache
+            // only those that have been changed - with impact on content - RefreshMain
+            // for those that have been removed, content is removed already
+            var ids = payloads
+                .Where(x => x.ItemType == typeof(IContentType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
+                .Select(x => x.Id)
+                .ToArray();
+
+            foreach (var payload in payloads)
+                LogHelper.Debug<XmlStore>("Notified {0} for content type {1}".FormatWith(payload.ChangeTypes, payload.Id));
+
+            if (ids.Length > 0) // must have refreshes, not only removes
+                RefreshContentTypes(ids);
+
+            ids = payloads
+                .Where(x => x.ItemType == typeof(IMediaType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
+                .Select(x => x.Id)
+                .ToArray();
+
+            foreach (var payload in payloads)
+                LogHelper.Debug<FacadeService>("Notified {0} for media type {1}".FormatWith(payload.ChangeTypes, payload.Id));
+
+            if (ids.Length > 0) // must have refreshes, not only removes
+                RefreshMediaTypes(ids);
+
+            // fixme - members? (what about XmlStore?)
         }
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
         {
-            throw new NotImplementedException();
+            // see above
+            // in all cases we just want to clear the content type cache
+            // the types will be reloaded if/when needed
+            foreach (var payload in payloads)
+                _contentTypeCache.ClearDataType(payload.Id);
+
+            foreach (var payload in payloads)
+                LogHelper.Debug<FacadeService>("Notified {0} for data type {1}".FormatWith(payload.Removed ? "Removed" : "Refreshed", payload.Id));
+
+            // fixme - so we've cleared out internal cache BUT what about content?
+            // will change ONLY when a content is changed and THEN we'll have an issue because of bad REFRESH of content type?!
+            // we DONT need to reload content from database because it has not changed BUT we need to update it anyways!!
+
+            // fixme XmlStore says... BUT what's refreshing the caches then?!
+            // ignore media and member types - we're not caching them
         }
         
         #endregion
 
-        // fixme - builds but Completely Broken
-        #region Handle Distributed Events for cache management
+        #region Manage change
 
-        // fixme - what about medias?!
-
-        private void UnpublishedPageCacheUpdated(object sender, CacheRefresherEventArgs args)
+        private void RefreshContentTypes(IEnumerable<int> ids)
         {
-            switch (args.MessageType)
+            // fixme locks
+
+            var contentService = ApplicationContext.Current.Services.ContentService as ContentService; // fixme inject
+            if (contentService == null) throw new Exception("oops");
+
+            _contentStore.Freeze(true);
+            try
             {
-                case MessageType.RefreshAll:
-                    // ignore
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    var content = ApplicationContext.Current.Services.ContentService.GetById(refreshedId);
-                    if (content != null)
-                        Save(content);
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IContent)args.MessageObject;
-                    Save(refreshedInstance);
-                    break;
-                case MessageType.RefreshByJson:
-                    var json = (string)args.MessageObject;
-                    //var contentService = ApplicationContext.Current.Services.ContentService;
-                    //foreach (var c in UnpublishedPageCacheRefresher.DeserializeFromJsonPayload(json)
-                    //    .Select(x => contentService.GetById(x.Id))
-                    //    .Where(x => x != null))
-                    //{
-                    //    Save(c);
-                    //}
-                    break;
-                case MessageType.RemoveById:
-                    var removedId = (int)args.MessageObject;
-                    RemoveContent(removedId);
-                    break;
-                case MessageType.RemoveByInstance:
-                    var removedInstance = (IContent)args.MessageObject;
-                    RemoveContent(removedInstance.Id);
-                    break;
+                foreach (var id in ids)
+                {
+                    var capture = id;
+                    contentService.WithReadLocked(repository =>
+                    {
+                        var contents = contentService.GetContentOfContentType(capture); // fixme - use repository query IN (ids)
+                        foreach (var content in contents)
+                            LoadContent(content);
+                    });
+                }
+            }
+            finally
+            {
+                _contentStore.Freeze(false);
             }
         }
 
-        private void PageCacheUpdated(object sender, CacheRefresherEventArgs args)
+        private void RefreshMediaTypes(IEnumerable<int> ids)
         {
-            switch (args.MessageType)
-            {
-                case MessageType.RefreshAll:
-                    // fixme - not supported at the moment
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    PublishContent(refreshedId);
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IContent)args.MessageObject;
-                    PublishContent(refreshedInstance.Id);
-                    break;
-                case MessageType.RefreshByJson:
-                    // not implemented - not a JSON cache refresher
-                    break;
-                case MessageType.RemoveById:
-                    var removedId = (int)args.MessageObject;
-                    UnPublishContent(removedId);
-                    break;
-                case MessageType.RemoveByInstance:
-                    var removedInstance = (IContent)args.MessageObject;
-                    UnPublishContent(removedInstance.Id);
-                    break;
-            }
-        }
+            // fixme locks
 
-        private void MediaCacheUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs args)
-        {
-            switch (args.MessageType)
+            var mediaService = ApplicationContext.Current.Services.MediaService as MediaService; // fixme inject
+            if (mediaService == null) throw new Exception("oops");
+
+            _mediaStore.Freeze(true);
+            try
             {
-                case MessageType.RefreshAll:
-                    // fixme - not supported at the moment
-                    break;
-                case MessageType.RefreshById:
-                    var refreshedId = (int)args.MessageObject;
-                    var media = ApplicationContext.Current.Services.MediaService.GetById(refreshedId);
-                    if (media != null)
-                        Save(media);
-                    Save(media);
-                    break;
-                case MessageType.RefreshByInstance:
-                    var refreshedInstance = (IMedia)args.MessageObject;
-                    Save(refreshedInstance);
-                    break;
-                case MessageType.RefreshByJson:
-                    // not implemented - not a JSON cache refresher
-                    break;
-                case MessageType.RemoveById:
-                    var removedId = (int)args.MessageObject;
-                    RemoveMedia(removedId);
-                    break;
-                case MessageType.RemoveByInstance:
-                    var removedInstance = (IContent)args.MessageObject;
-                    RemoveMedia(removedInstance.Id);
-                    break;
+                foreach (var id in ids)
+                {
+                    var capture = id;
+                    mediaService.WithReadLocked(repository =>
+                    {
+                        var medias = mediaService.GetMediaOfMediaType(capture); // fixme - use repository query IN (ids)
+                        foreach (var media in medias)
+                            LoadMedia(media);
+                    });
+                }
+            }
+            finally
+            {
+                _mediaStore.Freeze(false);
             }
         }
 
@@ -439,9 +429,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Create, Get PublishedCaches
 
-        // fixme keeping a ref on latest view = bad?!
-        private ContentView _contentView;
-        private ContentView _mediaView;
+        // use weak refs so nothing prevents the views from being GC
+        private readonly WeakReference<ContentView> _contentViewRef = new WeakReference<ContentView>(null);
+        private readonly WeakReference<ContentView> _mediaViewRef = new WeakReference<ContentView>(null);
         private ICacheProvider _snapshotCache;
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
@@ -454,11 +444,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 contentView = _contentStore.GetView();
                 mediaView = _mediaStore.GetView();
 
-                if (ReferenceEquals(contentView, _contentView) == false || ReferenceEquals(mediaView, _mediaView) == false)
-                {
+                // create a new snapshot cache if the views have been GC, or have changed
+                ContentView prevContentView, prevMediaView;
+                if (_contentViewRef.TryGetTarget(out prevContentView) == false
+                    || ReferenceEquals(prevContentView, contentView) == false
+                    || _mediaViewRef.TryGetTarget(out prevMediaView) == false
+                    || ReferenceEquals(prevMediaView, mediaView) == false)
+                {                   
                     _snapshotCache = new ObjectCacheRuntimeCacheProvider();
-                    _contentView = contentView;
-                    _mediaView = mediaView;
+                    _contentViewRef.SetTarget(contentView);
+                    _mediaViewRef.SetTarget(mediaView);
                 }
             }
 
