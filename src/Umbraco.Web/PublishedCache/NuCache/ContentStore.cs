@@ -52,9 +52,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public class Options
         {
             // note: what is the appropriate MinViewsInterval?
-            // if it's too long then changes will NOT become visible, and that's bad
-            // so setting it to 0 here - might require experimenting
-
+            //
+            // "0" means we create a lot of views, so we might thing about setting
+            // it to something like 250ms... but if new views are created it's because
+            // something has changed, and anytime something changes we want a view
+            // anyway because eg the DefaultUrlProvider needs the content in the cache
+            // in order to build its url... so in the end, we'd need a mechanism
+            // to force a new views on those situations.
+            //
+            // so... MinViewsInterval better be "0" after all.
             public int MinViewsInterval = 0;
 
             // beware! tracking views has an impact on performances!
