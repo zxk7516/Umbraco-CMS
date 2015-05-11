@@ -1,4 +1,6 @@
-﻿namespace Umbraco.Web.PublishedCache.XmlPublishedCache
+﻿using Umbraco.Core;
+
+namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     /// <summary>
     /// Provides caches (content and media).
@@ -44,15 +46,19 @@
             get { return _memberCache; }
         }
 
-        /// <summary>
-        /// Resynchronizes caches with their corresponding repositories.
-        /// </summary>
-        public void Resync()
+        public static void ResyncCurrent()
         {
+            if (PublishedCachesServiceResolver.HasCurrent == false) return;
+            var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            if (service == null) return;
+            var facade = service.GetPublishedCaches() as PublishedCaches;
+            if (facade == null) return;
+            facade._contentCache.Resync();
+            facade._mediaCache.Resync();
+
             // note: the media cache does not resync because it is fully sync
+            // note: the member cache does not resync...
             // not very consistent but we're not trying to fix it at that point
-            _contentCache.Resync();
-            _mediaCache.Resync();
         }
     }
 }

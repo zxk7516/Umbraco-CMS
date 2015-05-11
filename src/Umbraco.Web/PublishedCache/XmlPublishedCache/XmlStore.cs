@@ -1412,7 +1412,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 if (publishedChanged)
                 {
                     safeXml.Commit(); // not auto!
-                    ResyncCurrentPublishedCaches();
+                    PublishedCaches.ResyncCurrent();
                 }
             }
         }
@@ -1440,6 +1440,8 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 RefreshContentTypes(ids);
 
             // ignore media and member types - we're not caching them
+
+            PublishedCaches.ResyncCurrent();
         }
 
         public void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
@@ -1456,24 +1458,13 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // that's all we need to do as the changes have NO impact whatsoever on the Xml content
 
             // ignore media and member types - we're not caching them
+
+            PublishedCaches.ResyncCurrent();
         }
 
         #endregion
 
         #region Manage change
-
-        private static void ResyncCurrentPublishedCaches()
-        {
-            // note: here we do not respect the isolation level of PublishedCaches.Content
-            // because we do a full resync, but that maintains backward compatibility with
-            // legacy cache...
-
-            var caches = PublishedCachesServiceResolver.HasCurrent
-                ? PublishedCachesServiceResolver.Current.Service.GetPublishedCaches()
-                : null;
-            if (caches != null)
-                caches.Resync();
-        }
 
         private void RefreshContentTypes(IEnumerable<int> ids)
         {
