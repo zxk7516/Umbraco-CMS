@@ -75,7 +75,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             LoadContent(content);
 
             foreach (var child in content.Children())
-                LoadContent(child);
+                LoadContentBranch(child);
         }
 
         private void LoadContent(IContent content)
@@ -140,7 +140,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             LoadMedia(media);
 
             foreach (var child in media.Children())
-                LoadMedia(child);
+                LoadMediaBranch(child);
         }
 
         private void LoadMedia(IMedia media)

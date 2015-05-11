@@ -132,7 +132,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 
         private void SetGetContentByIdOverride(ContentView view)
         {
-            Web.PublishedCache.NuCache.PublishedContent.GetContentByIdOverride = ((preview, id) =>
+            Web.PublishedCache.NuCache.PublishedContent.GetContentByIdOverride = ((cache, preview, id) =>
             {
                 var n = view.Get(id);
                 if (preview == false) return n.Published;

@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using Umbraco.Core.Models;
 using Umbraco.Core.Xml.XPath;
 
 namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 {
     class NavigableContent : INavigableContent
     {
+        private readonly IPublishedContent _icontent;
         private readonly PublishedContent _content;
         //private readonly object[] _builtInValues1;
         private readonly string[] _builtInValues;
 
-        public NavigableContent(PublishedContent content)
+        public NavigableContent(IPublishedContent content)
         {
-            _content = content;
+            _icontent = content;
+            _content = PublishedContent.UnwrapIPublishedContent(_icontent);
 
             // built-in properties (attributes)
             //_builtInValues1 = new object[]
@@ -57,9 +60,9 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
 
         #region INavigableContent
 
-        public PublishedContent InnerContent
+        public IPublishedContent InnerContent
         {
-            get { return _content; }
+            get { return _icontent; }
         }
 
         public int Id

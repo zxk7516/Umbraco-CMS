@@ -23,10 +23,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.Navigable
             // wrap in a navigable content
 
             var content = _data.GetById(_preview, id);
-            if (content == null) return null;
-
-            // content may be a strongly typed model, have to unwrap first
-            return new NavigableContent(PublishedContent.UnwrapIPublishedContent(content));
+            return content == null ? null : new NavigableContent(content);
         }
 
         public int LastAttributeIndex

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Xml.XPath;
 using Umbraco.Core.Dynamics;
@@ -10,6 +11,7 @@ using Umbraco.Core.Xml.XPath;
 using umbraco;
 using Umbraco.Core;
 using Umbraco.Web.PublishedCache.NuCache.Navigable;
+using Umbraco.Web.Routing;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
@@ -78,20 +80,55 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public string GetRouteById(bool preview, int contentId)
         {
-            // fixme - this is not optimized at all
-            // and does not implement domains, nothing
+            //// fixme - this is not optimized at all
+            //// and does not implement domains, nothing
 
-            var segments = new List<string>();
-            var c = GetById(preview, contentId);
-            while (c != null)
+            //var segments = new List<string>();
+            //var c = GetById(preview, contentId);
+            //while (c != null)
+            //{
+            //    segments.Add(c.UrlName);
+            //    c = c.Parent;
+            //}
+            //segments.Reverse();
+            //var s = "/" + string.Join("/", segments);
+
+            //return s; 
+
+            var node = GetById(preview, contentId);
+            if (node == null)
+                return null;
+
+            var _domainService = ApplicationContext.Current.Services.DomainService; // FIXME inject
+            var domainHelper = new DomainHelper(_domainService);
+
+            // walk up from that node until we hit a node with a domain,
+            // or we reach the content root, collecting urls in the way
+            var pathParts = new List<string>();
+            var n = node;
+            var hasDomains = domainHelper.NodeHasDomains(n.Id);
+            while (hasDomains == false && n != null) // n is null at root
             {
-                segments.Add(c.UrlName);
-                c = c.Parent;
-            }
-            segments.Reverse();
-            var s = "/" + string.Join("/", segments);
+                // get the url
+                var urlName = n.UrlName;
+                pathParts.Add(urlName);
 
-            return s; 
+                // move to parent node
+                n = n.Parent;
+                hasDomains = n != null && domainHelper.NodeHasDomains(n.Id);
+            }
+
+            // no domain, respect HideTopLevelNodeFromPath for legacy purposes
+            // fixme - no we don't
+            //if (hasDomains == false && Core.Configuration.GlobalSettings.HideTopLevelNodeFromPath)
+            //    ApplyHideTopLevelNodeFromPath(node, pathParts, preview);
+
+            // assemble the route
+            pathParts.Reverse();
+            var path = "/" + string.Join("/", pathParts); // will be "/" or "/foo" or "/foo/bar" etc
+            var route = (n == null ? "" : n.Id.ToString(CultureInfo.InvariantCulture)) + path;
+
+            return route;
         }
 
         public string GetRouteById(int contentId)

@@ -34,9 +34,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 throw new ArgumentException("Both draftData and publishedData cannot be null at the same time.");
 
             if (draftData != null)
-                Draft = new PublishedContent(this, draftData);
+                Draft = new PublishedContent(this, draftData).CreateModel();
             if (publishedData != null)
-                Published = new PublishedContent(this, publishedData);
+                Published = new PublishedContent(this, publishedData).CreateModel();
         }
 
         // clone parent
@@ -54,8 +54,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
             CreateDate = origin.CreateDate;
             CreatorId = origin.CreatorId;
 
-            Draft = origin.Draft == null ? null : new PublishedContent(this, origin.Draft);
-            Published = origin.Published == null ? null : new PublishedContent(this, origin.Published);
+            var originDraft = origin.Draft == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Draft);
+            var originPublished = origin.Published == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Published);
+
+            Draft = originDraft == null ? null : new PublishedContent(this, originDraft);
+            Published = originPublished == null ? null : new PublishedContent(this, originPublished);
 
             ChildContentIds = new List<int>(origin.ChildContentIds);
         }
@@ -72,8 +75,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public int CreatorId;
 
         // draft and published version (either can be null, but not both)
-        public PublishedContent Draft;
-        public PublishedContent Published;
+        public IPublishedContent Draft;
+        public IPublishedContent Published;
 
         public ContentNode CloneParent()
         {

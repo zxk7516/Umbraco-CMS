@@ -94,37 +94,32 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Get Content/Media for Parent/Children
 
-        internal static Func<bool, int, IPublishedContent> GetContentByIdOverride;
-        internal static Func<bool, int, IPublishedContent> GetMediaByIdOverride;
+        // this is for tests purposes
+        internal static Func<IPublishedContentCache, bool, int, IPublishedContent> GetContentByIdOverride;
+        internal static Func<IPublishedMediaCache, bool, int, IPublishedContent> GetMediaByIdOverride;
 
-        private void EnsureGetContentById()
+        private static void EnsureGetContentById()
         {
             if (GetContentByIdOverride == null)
-            {
-                var cache = Facade.Current.ContentCache;
-                GetContentByIdOverride = ((p, i) => cache.GetById(p, i));
-            }
+                GetContentByIdOverride = ((cache, previewing, id) => cache.GetById(previewing, id));
         }
 
-        private void EnsureGetMediaById()
+        private static void EnsureGetMediaById()
         {
             if (GetMediaByIdOverride == null)
-            {
-                var cache = Facade.Current.MediaCache;
-                GetMediaByIdOverride = ((p, i) => cache.GetById(p, i));
-            }
+                GetMediaByIdOverride = ((cache, previewing, id) => cache.GetById(previewing, id));
         }
 
         private IPublishedContent GetContentById(bool previewing, int id)
         {
             EnsureGetContentById();
-            return GetContentByIdOverride(previewing, id);
+            return GetContentByIdOverride(Facade.Current.ContentCache, previewing, id);
         }
 
         private IEnumerable<IPublishedContent> GetContentByIds(bool previewing, IEnumerable<int> ids)
         {
             EnsureGetContentById();
-            var content = ids.Select(x => GetContentByIdOverride(previewing, x));
+            var content = ids.Select(x => GetContentByIdOverride(Facade.Current.ContentCache, previewing, x));
             if (previewing == false)
                 content = content.Where(x => x != null);
             return content;
@@ -133,13 +128,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private IPublishedContent GetMediaById(bool previewing, int id)
         {
             EnsureGetMediaById();
-            return GetMediaByIdOverride(previewing, id);
+            return GetMediaByIdOverride(Facade.Current.MediaCache, previewing, id);
         }
 
         private IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
         {
             EnsureGetMediaById();
-            return ids.Select(x => GetMediaByIdOverride(previewing, x));
+            return ids.Select(x => GetMediaByIdOverride(Facade.Current.MediaCache, previewing, x));
         }
 
         #endregion
