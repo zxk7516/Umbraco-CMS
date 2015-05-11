@@ -55,9 +55,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var service = PublishedCachesServiceResolver.Current.Service as FacadeService;
             if (service == null) return null;
             return (Facade) service.GetPublishedCachesFunc();
-#endif
-#if RELEASE
-            return (Facade) ((FacadeService) PublishedCachesServiceResolver.Current.Service).GetPublishedCaches();
+#else
+            return (Facade)((FacadeService)PublishedCachesServiceResolver.Current.Service).GetPublishedCaches();
 #endif
         };
 
