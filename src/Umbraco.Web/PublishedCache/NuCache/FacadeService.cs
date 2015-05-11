@@ -198,6 +198,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
             {
                 _contentStore.Freeze(false);
             }
+
+            if (draftChanged || publishedChanged)
+                Facade.Current.Resync();
         }
 
         private void NotifyFrozen(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
@@ -261,6 +264,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
             {
                 _mediaStore.Freeze(false);
             }
+
+            if (anythingChanged)
+                Facade.Current.Resync();
         }
 
         private void NotifyFrozen(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
@@ -346,6 +352,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 RefreshMediaTypes(ids);
 
             // fixme - members? (what about XmlStore?)
+
+            Facade.Current.Resync();
         }
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
@@ -362,9 +370,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // fixme - so we've cleared out internal cache BUT what about content?
             // will change ONLY when a content is changed and THEN we'll have an issue because of bad REFRESH of content type?!
             // we DONT need to reload content from database because it has not changed BUT we need to update it anyways!!
+            throw new NotImplementedException("this is bad");
 
             // fixme XmlStore says... BUT what's refreshing the caches then?!
             // ignore media and member types - we're not caching them
+
+            // ???
+            //Facade.Current.Resync();
         }
         
         #endregion
@@ -427,7 +439,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        #region Create, Get PublishedCaches
+        #region Create, Get Facade
 
         // use weak refs so nothing prevents the views from being GC
         private readonly WeakReference<ContentView> _contentViewRef = new WeakReference<ContentView>(null);
@@ -437,12 +449,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
             var preview = previewToken.IsNullOrWhiteSpace() == false;
-            
+            return new Facade(this, preview);
+        }
+
+        public Facade.FacadeElements GetElements(bool defaultPreview)
+        {
             ContentView contentView, mediaView;
+            ICacheProvider snapshotCache;
             lock (_storesLock)
             {
                 contentView = _contentStore.GetView();
                 mediaView = _mediaStore.GetView();
+                snapshotCache = _snapshotCache;
 
                 // create a new snapshot cache if the views have been GC, or have changed
                 ContentView prevContentView, prevMediaView;
@@ -450,15 +468,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     || ReferenceEquals(prevContentView, contentView) == false
                     || _mediaViewRef.TryGetTarget(out prevMediaView) == false
                     || ReferenceEquals(prevMediaView, mediaView) == false)
-                {                   
-                    _snapshotCache = new ObjectCacheRuntimeCacheProvider();
+                {
                     _contentViewRef.SetTarget(contentView);
                     _mediaViewRef.SetTarget(mediaView);
+                    snapshotCache = _snapshotCache = new ObjectCacheRuntimeCacheProvider();
                 }
             }
 
-            var memberCache = new MemberCache(_memberService, _dataTypeService, _contentTypeCache);
-            return new Facade(preview, memberCache, contentView, mediaView, _snapshotCache);
+            return new Facade.FacadeElements
+            {
+                ContentCache = new ContentCache(defaultPreview, contentView),
+                MediaCache = new MediaCache(defaultPreview, mediaView),
+                MemberCache = new MemberCache(_memberService, _dataTypeService, _contentTypeCache), // fixme preview?!
+                SnapshotCache = snapshotCache
+            };
         }
 
         #endregion

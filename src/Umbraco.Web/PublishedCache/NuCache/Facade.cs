@@ -7,18 +7,41 @@ namespace Umbraco.Web.PublishedCache.NuCache
     // implements the facade
     class Facade : IPublishedCaches
     {
+        private readonly FacadeService _service;
+        private readonly bool _defaultPreview;
+        private FacadeElements _elements;
+
         #region Constructors
 
-        public Facade(bool defaultPreview, IPublishedMemberCache memberCache,
-            ContentView contentView, ContentView mediaView,
-            ICacheProvider snapshotCache)
+        // fixme - revert: get a FacadeService as param, + service.GetFacadeWhatever()
+        public Facade(FacadeService service, bool defaultPreview)
         {
-            ContentCache = new ContentCache(defaultPreview, contentView);
-            MediaCache = new MediaCache(defaultPreview, mediaView);
-            MemberCache = memberCache;
-
+            _service = service;
+            _defaultPreview = defaultPreview;
             FacadeCache = new ObjectCacheRuntimeCacheProvider();
-            SnapshotCache = snapshotCache;
+        }
+
+        public class FacadeElements
+        {
+            public ContentCache ContentCache;
+            public MediaCache MediaCache;
+            public MemberCache MemberCache;
+            public ICacheProvider SnapshotCache;
+        }
+
+        private FacadeElements Elements
+        {
+            get
+            {
+                // no lock - facades are single-thread
+                return _elements ?? (_elements = _service.GetElements(_defaultPreview));
+            }
+        }
+
+        public void Resync()
+        {
+            // no lock - facades are single-thread
+            _elements = null;
         }
 
         #endregion
@@ -61,27 +84,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public ICacheProvider FacadeCache { get; private set; }
 
-        public ICacheProvider SnapshotCache { get; private set; }
+        public ICacheProvider SnapshotCache { get { return Elements.SnapshotCache; } }
 
         #endregion
 
         #region IFacade
 
-        public IPublishedContentCache ContentCache { get; private set; }
+        public IPublishedContentCache ContentCache { get { return Elements.ContentCache; } }
 
-        public IPublishedMediaCache MediaCache { get; private set; }
+        public IPublishedMediaCache MediaCache { get { return Elements.MediaCache; } }
 
-        public IPublishedMemberCache MemberCache { get; private set; }
-
-        public void Resync()
-        {
-            // fixme - implement!
-            throw new NotImplementedException();
-
-            // we want
-            // - new snapshots
-            // - new caches
-        }
+        public IPublishedMemberCache MemberCache { get { return Elements.MemberCache; } }
 
         #endregion
     }
