@@ -11,13 +11,20 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 	//$rootScope.emptySection = true; 
 
 	contentTypeResource.getById($routeParams.id).then(function(dt){
+
 		$scope.contentType = dt;
+
+		// set first tab to active
+		if( $scope.contentType.groups.length !== 0 ) {
+			$scope.contentType.groups[0].tabIsActive = true;
+		}
+
 	});
 
 	//hacking datatypes and their icons
 	dataTypeResource.getAll().then(function(data){
 
-		data = _.groupBy(data, function(dt){ 
+		data = _.groupBy(data, function(dt){
 			dt.icon = "icon-autofill";
 
 			if(dt.name.indexOf("Dropdown") > -1 || dt.name.indexOf("Checkbox") > -1){
@@ -31,16 +38,16 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 			}
 
 			if(dt.name.indexOf("picker") > -1){
-				dt.icon ="icon-hand-pointer-alt"
+				dt.icon ="icon-hand-pointer-alt";
 				return "Pickers";
 			}
 
 			if(dt.name.indexOf("media") > -1 || dt.name.indexOf("Upload") > -1 || dt.name.indexOf("Crop") > -1){
-				dt.icon ="icon-picture"
+				dt.icon ="icon-picture";
 				return "Media";
 			}
 
-			return "Fields";				
+			return "Fields";
 		});
 
 		$scope.dataTypes = data;
@@ -49,9 +56,48 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 	$scope.actions = [{name: "Structure", cssClass: "list"},{name: "Structure", cssClass: "list"},{name: "Structure", cssClass: "list"}];
 
 
-	$scope.addTab = function(groups){
-		groups.push({groups: [], properties:[]});
+	/* ---------- TABS ---------- */
+
+	$scope.addTab = function(){
+
+		// set all tabs to inactive
+		angular.forEach($scope.contentType.groups, function(group){
+			group.tabIsActive = false;
+		});
+
+		// push tab
+		$scope.contentType.groups.push({
+			groups: [],
+			properties:[],
+			tabIsActive: true
+		});
+
 	};
+
+	$scope.deleteTab = function(tabIndex) {
+
+		$scope.contentType.groups.splice(tabIndex, 1);
+
+		// activate previous tab
+		if( $scope.contentType.groups.length === 1 ) {
+			$scope.contentType.groups[0].tabIsActive = true;
+		}
+
+	};
+
+	$scope.activateTab = function(tab) {
+
+		// set all tabs to inactive
+		angular.forEach($scope.contentType.groups, function(group){
+			group.tabIsActive = false;
+		});
+
+		// activate tab
+		tab.tabIsActive = true;
+
+	};
+
+	/* ---------- PROPERTIES ---------- */
 
 	$scope.addProperty = function(properties){
 		$scope.dialogModel = {};
@@ -63,7 +109,21 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		$scope.dialogModel.close = function(model){
 			properties.push(model.property);
 			$scope.dialogModel = null;
-		};	
+		};
+	};
+
+	$scope.changePropertyName = function(property) {
+
+		var str = property.label;
+
+		// capitalize all words
+		str = str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+
+		// remove spaces
+		str = str.replace(/\s/g, '');
+
+		property.alias = str;
+
 	};
 
 	$scope.toggleGroupSize = function(group){
@@ -74,15 +134,20 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		}
 	};
 
-	$scope.changePropertyEditor = function(property){
+	$scope.editPropertyTypeSettings = function(property) {
 		$scope.dialogModel = {};
-		$scope.dialogModel.title = "Change property type";
+		$scope.dialogModel.title = "Edit property type settings";
 		$scope.dialogModel.property = property;
 		$scope.dialogModel.dataTypes = $scope.dataTypes;
-		$scope.dialogModel.view = "views/documentType/dialogs/property.html";
+		$scope.dialogModel.view = "views/documentType/dialogs/editPropertySettings/editPropertySettings.html";
 		$scope.showDialog = true;
-		
+
+		// set indicator on property to tell the dialog is open - is used to set focus on the element
+		property.dialogIsOpen = true;
+
 		$scope.dialogModel.submit = function(dt){
+
+			/*
 			contentTypeResource.getPropertyTypeScaffold(dt.id)
 				.then(function(pt){
 					property.config = pt.config;
@@ -90,16 +155,32 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 					property.view = pt.view;
 					$scope.dialogModel = null;
 					$scope.showDialog = false;
-				});	
+				});
+			*/
+
+			property.dialogIsOpen = false;
+
+			$scope.showDialog = false;
+			$scope.dialogModel = null;
+
 		};
+
+		/*
+		$scope.dialogModel.submit = function(){
+			$scope.showDialog = false;
+			$scope.dialogModel = null;
+		};
+		*/
 
 		$scope.dialogModel.close = function(model){
 			$scope.showDialog = false;
 			$scope.dialogModel = null;
 		};
+
 	};
 
 	$scope.addItems = function(tab){
+
 		$scope.showDialog = true;
 		$scope.dialogModel = {};
 		$scope.dialogModel.title = "Add some stuff";
@@ -118,24 +199,20 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 
 		$scope.dialogModel.submit = function(dt){
 			contentTypeResource.getPropertyTypeScaffold(dt.id).then(function(pt){
-				pt.label = dt.name +" field";
+
+				pt.label = dt.name + " field";
+				pt.dataType = dt;
 				target.properties.push(pt);
+
+				// open settings dialog
+				$scope.editPropertyTypeSettings(pt);
+
 			});
 		};
+	};
 
-		$scope.dialogModel.addTab = function(){
-			var newTab = {name: "New tab", properties:[], groups:[]};
-			var index = $scope.contentType.groups.indexOf(tab);
-			$scope.contentType.groups.splice(index+1, 0, newTab);
-			tab = newTab;
-			target = newTab
-		};
-
-		$scope.dialogModel.addGroup = function(){
-			var newGroup = {name: "New fieldset", properties:[]};
-			tab.groups.push(newGroup);
-			target = newGroup;
-		};
+	$scope.deleteProperty = function(tab, propertyIndex) {
+		tab.properties.splice(propertyIndex, 1);
 	};
 
 
@@ -182,11 +259,27 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		tolerance: "pointer",
 		connectWith: ".edt-props-sortable",
 		opacity: 0.7,
-		scroll:true,
-		cursor:"move",
-		handle: ".handle",
+		scroll: true,
+		cursor: "move",
+		handle: ".edt-property-handle",
 		placeholder: "ui-sortable-placeholder",
-		zIndex: 6000
+		zIndex: 6000,
+		start: function (e, ui) {
+
+			// set all tabs to inactive to collapse all content
+			angular.forEach($scope.contentType.groups, function(tab){
+				$scope.$apply(function () {
+
+					tab.tabIsActive = false;
+
+				});
+			});
+
+		},
+		stop: function(e, ui){
+			console.log(e);
+			console.log(ui);
+		}
 	};
 
 	$scope.sortableOptionsTab = {
@@ -198,7 +291,23 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		cursor:"move",
 		placeholder: "ui-sortable-placeholder",
 		zIndex: 6000,
-		handle: ".handle"
+		handle: ".edt-tab-handle",
+		start: function (e, ui) {
+
+			// set all tabs to inactive to collapse all content
+			angular.forEach($scope.contentType.groups, function(tab){
+				$scope.$apply(function () {
+
+					tab.tabIsActive = false;
+
+				});
+			});
+
+		},
+		stop: function(e, ui){
+			console.log(e);
+			console.log(ui);
+		}
 	};
             
 }
