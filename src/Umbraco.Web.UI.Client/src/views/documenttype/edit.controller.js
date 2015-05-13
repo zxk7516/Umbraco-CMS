@@ -14,10 +14,14 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 
 		$scope.contentType = dt;
 
-		// set first tab to active
+		// set all tab to active
 		if( $scope.contentType.groups.length !== 0 ) {
-			$scope.contentType.groups[0].tabIsActive = true;
+			angular.forEach($scope.contentType.groups, function(group){
+				group.tabState = "active";
+			});
 		}
+
+		addInitTab();
 
 	});
 
@@ -58,47 +62,58 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 
 	/* ---------- TABS ---------- */
 
-	$scope.addTab = function(){
+	$scope.addTab = function(tab){
 
-		// set all tabs to inactive
-		angular.forEach($scope.contentType.groups, function(group){
-			group.tabIsActive = false;
-		});
+		tab.tabState = "active";
 
-		// push tab
-		$scope.contentType.groups.push({
-			groups: [],
-			properties:[],
-			tabIsActive: true
-		});
+		// push new init tab to the scope
+		addInitTab;
 
 	};
 
 	$scope.deleteTab = function(tabIndex) {
-
 		$scope.contentType.groups.splice(tabIndex, 1);
-
-		// activate previous tab
-		if( $scope.contentType.groups.length === 1 ) {
-			$scope.contentType.groups[0].tabIsActive = true;
-		}
-
 	};
 
 	$scope.activateTab = function(tab) {
+		tab.tabState = "active";
+	};
 
-		// set all tabs to inactive
+	$scope.updateTabTitle = function(tab) {
+		if(tab.properties.length === 0) {
+			addInitProperty(tab);
+		}
+	};
+
+	function addInitTab() {
+
+		// check i init tab already exists
+		var addTab = true;
+
 		angular.forEach($scope.contentType.groups, function(group){
-			group.tabIsActive = false;
+			if(group.tabState === "init") {
+				addTab = false;
+			}
 		});
 
-		// activate tab
-		tab.tabIsActive = true;
+		if(addTab) {
+			$scope.contentType.groups.push({
+				groups: [],
+				properties:[],
+				tabState: "init"
+			});
+		}
+	}
 
-	};
+	function addInitProperty(tab) {
+		tab.properties.push({
+			propertyState: "init"
+		});
+	}
 
 	/* ---------- PROPERTIES ---------- */
 
+	/*
 	$scope.addProperty = function(properties){
 		$scope.dialogModel = {};
 		$scope.dialogModel.title = "Add property type";
@@ -111,6 +126,7 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 			$scope.dialogModel = null;
 		};
 	};
+	*/
 
 	$scope.changePropertyName = function(property) {
 
@@ -179,6 +195,45 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 
 	};
 
+	$scope.choosePropertyType = function(property, tab) {
+
+		console.log(tab);
+
+		$scope.showDialog = true;
+		$scope.dialogModel = {};
+		$scope.dialogModel.title = "Choose property type";
+		$scope.dialogModel.dataTypes = $scope.dataTypes;
+		$scope.dialogModel.view = "views/documentType/dialogs/property.html";
+
+		$scope.dialogModel.close = function(model){
+			$scope.dialogModel = null;
+			$scope.showDialog = false;
+		};
+
+		$scope.dialogModel.submit = function(dt){
+			contentTypeResource.getPropertyTypeScaffold(dt.id).then(function(pt){
+
+				property.config = pt.config;
+				property.editor = pt.editor;
+				property.view = pt.view;
+				property.dataType = dt;
+
+				property.propertyState = "active";
+
+				// open settings dialog
+				$scope.editPropertyTypeSettings(property);
+
+				// push new init property to scope
+				//addInitProperty(tab);
+
+				// push new init tab to scope
+				addInitTab();
+
+			});
+		};
+
+	};
+
 	$scope.addItems = function(tab){
 
 		$scope.showDialog = true;
@@ -215,7 +270,7 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 		tab.properties.splice(propertyIndex, 1);
 	};
 
-
+	/*
 	$scope.addProperty = function(group){
 		$log.log("open dialog");
 
@@ -228,6 +283,7 @@ function DocumentTypeEditController($scope, $rootScope, $routeParams, $log, cont
 			$scope.dialogModel = null;
 		};
 	};
+	*/
 
 
 
