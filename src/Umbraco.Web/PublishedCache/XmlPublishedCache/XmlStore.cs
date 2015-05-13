@@ -587,12 +587,14 @@ AND (umbracoNode.id=@id)";
         public XmlDocument GetPreviewXml(int contentId, bool includeSubs)
         {
             var content = _serviceContext.ContentService.GetById(contentId);
+            var sqlSyntax = _databaseContext.SqlSyntax;
 
             var doc = (XmlDocument)Xml.Clone();
             if (content == null) return doc;
 
             var sql = ReadCmsPreviewXmlSql1;
-            if (includeSubs) sql += " OR umbracoNode.path LIKE concat(@path, ',%')";
+            sql += " @path LIKE " + sqlSyntax.GetConcat("umbracoNode.Path", "',%"); // concat(umbracoNode.path, ',%')
+            if (includeSubs) sql += " OR umbracoNode.path LIKE " + sqlSyntax.GetConcat("@path", "',%"); // concat(@path, ',%')
             sql += ReadCmsPreviewXmlSql2;
             var xmlDtos = _databaseContext.Database.Query<XmlDto>(sql,
                 new
@@ -1053,14 +1055,14 @@ JOIN cmsContentXml ON (cmsContentXml.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
-        const string ReadCmsPreviewXmlSql1 = @"SELECT
+        private const string ReadCmsPreviewXmlSql1 = @"SELECT
     umbracoNode.id, umbracoNode.parentId, umbracoNode.sortOrder, umbracoNode.level, umbracoNode.path,
     cmsPreviewXml.xml, cmsPreviewXml.rv, cmsDocument.published
 FROM umbracoNode 
 JOIN cmsPreviewXml ON (cmsPreviewXml.nodeId=umbracoNode.id)
 JOIN cmsDocument ON (cmsDocument.nodeId=umbracoNode.id)
 WHERE umbracoNode.nodeObjectType = @nodeObjectType AND cmsDocument.newest=1
-AND (umbracoNode.path=@path OR @path LIKE concat(umbracoNode.path, ',%')";
+AND (umbracoNode.path=@path OR"; // @path LIKE concat(umbracoNode.path, ',%')"; 
         const string ReadCmsPreviewXmlSql2 = @")
 ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
