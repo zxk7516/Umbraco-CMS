@@ -59,8 +59,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 lock (_storesLock)
                 {
-                    LoadContentFromDatabase();
-                    LoadMediaFromDatabase();
+                    try
+                    {
+                        LoadContentFromDatabase();
+                        LoadMediaFromDatabase();
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Error<FacadeService>("Panic, exception while loading cache data.", e);
+                    }
                 }
             };
         }
@@ -269,7 +276,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (dto.DraftVersion != Guid.Empty)
             {
                 if (dto.DraftData == null)
-                    throw new Exception("oops");
+                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
                 d = new ContentData
                 {
                     Name = dto.DraftName,
@@ -285,7 +292,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (dto.PubVersion != Guid.Empty)
             {
                 if (dto.PubData == null)
-                    throw new Exception("oops");
+                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
                 p = new ContentData
                 {
                     Name = dto.PubName,

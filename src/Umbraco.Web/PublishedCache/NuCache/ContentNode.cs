@@ -57,8 +57,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var originDraft = origin.Draft == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Draft);
             var originPublished = origin.Published == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Published);
 
-            Draft = originDraft == null ? null : new PublishedContent(this, originDraft);
-            Published = originPublished == null ? null : new PublishedContent(this, originPublished);
+            Draft = originDraft == null ? null : new PublishedContent(this, originDraft).CreateModel();
+            Published = originPublished == null ? null : new PublishedContent(this, originPublished).CreateModel();
 
             ChildContentIds = new List<int>(origin.ChildContentIds);
         }
