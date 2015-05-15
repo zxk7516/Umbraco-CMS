@@ -859,12 +859,14 @@ AND (umbracoNode.id=@id)";
         internal void SaveXmlToFile()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
-            EnsureFileLock();
-
-            var xml = _xml; // capture (atomic + volatile), immutable anyway
 
             try
             {
+                var xml = _xml; // capture (atomic + volatile), immutable anyway
+                if (xml == null) return;
+
+                EnsureFileLock();
+
                 // delete existing file, if any
                 DeleteXmlFile();
 
@@ -882,7 +884,7 @@ AND (umbracoNode.id=@id)";
                     fs.Write(bytes, 0, bytes.Length);
                 }
 
-                LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                LogHelper.Info<XmlStore>("Saved Xml to file.");
             }
             catch (Exception e)
             {
@@ -897,12 +899,14 @@ AND (umbracoNode.id=@id)";
         internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
-            EnsureFileLock();
-
-            var xml = _xml; // capture (atomic + volatile), immutable anyway
 
             try
             {
+                var xml = _xml; // capture (atomic + volatile), immutable anyway
+                if (xml == null) return;
+
+                EnsureFileLock();
+
                 // delete existing file, if any
                 DeleteXmlFile();
 
@@ -920,7 +924,7 @@ AND (umbracoNode.id=@id)";
                     await fs.WriteAsync(bytes, 0, bytes.Length);
                 }
 
-                LogHelper.Debug<XmlStore>("Saved Xml to file.");
+                LogHelper.Info<XmlStore>("Saved Xml to file.");
             }
             catch (Exception e)
             {
@@ -963,18 +967,24 @@ AND (umbracoNode.id=@id)";
         private XmlDocument LoadXmlFromFile()
         {
             LogHelper.Info<XmlStore>("Load Xml from file...");
-            EnsureFileLock();
 
             try
             {
+                EnsureFileLock();
+
                 var xml = new XmlDocument();
                 using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     xml.Load(fs);
                 }
                 _lastFileRead = DateTime.UtcNow;
-                LogHelper.Info<XmlStore>("Successfully loaded Xml from file.");
+                LogHelper.Info<XmlStore>("Loaded Xml from file.");
                 return xml;
+            }
+            catch (FileNotFoundException)
+            {
+                LogHelper.Warn<XmlStore>("Failed to load Xml, file does not exist.");
+                return null;
             }
             catch (Exception e)
             {
