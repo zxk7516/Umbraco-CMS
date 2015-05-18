@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -76,92 +77,6 @@ namespace Umbraco.Core.Services
         {
             _lrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
         }
-
-        // fixme - remove
-        /*
-        // provide a locked repository within a RepeatableRead Transaction and a UnitOfWork
-        // depending on autoCommit, the Transaction & UnitOfWork can be auto-commited (default)
-        //
-        // the locks are database locks, re-entrant (recursive), and are released when the
-        // transaction completes - it is possible to acquire a read lock while holding a write
-        // lock, and a write lock while holding a read lock, within the same transaction
-        //
-        // we might want to try and see how this can be factored for other repos?
-
-        private void WithReadLocked(Action<ContentRepository> action, bool autoCommit = true)
-        {
-            _lrepo.WithReadLocked(x => action(x.Repository), autoCommit);
-
-            //var uow = UowProvider.GetUnitOfWork();
-            //using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            //using (var irepository = RepositoryFactory.CreateContentRepository(uow))
-            //{
-            //    var repository = irepository as ContentRepository;
-            //    if (repository == null) throw new Exception("oops");
-            //    repository.AcquireReadLock();
-            //    action(repository);
-                
-            //    if (autoCommit == false) return;
-
-            //    // commit the UnitOfWork... will get a transaction from the database
-            //    // and obtain the current one, which it will complete, which will do
-            //    // nothing because of transaction nesting, so it's only back here that
-            //    // the real complete will take place
-            //    repository.UnitOfWork.Commit();
-            //    transaction.Complete();
-            //}
-        }
-
-        internal T WithReadLocked<T>(Func<ContentRepository, T> func, bool autoCommit = true)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateContentRepository(uow))
-            {
-                var repository = irepository as ContentRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireReadLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
-        }
-
-        internal void WithWriteLocked(Action<ContentRepository> action, bool autoCommit = true)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateContentRepository(uow))
-            {
-                var repository = irepository as ContentRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                action(repository);
-                if (autoCommit == false) return;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-            }
-        }
-
-        private T WithWriteLocked<T>(Func<ContentRepository, T> func, bool autoCommit = true)
-        {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var transaction = uow.Database.GetTransaction(IsolationLevel.RepeatableRead))
-            using (var irepository = RepositoryFactory.CreateContentRepository(uow))
-            {
-                var repository = irepository as ContentRepository;
-                if (repository == null) throw new Exception("oops");
-                repository.AcquireWriteLock();
-                var ret = func(repository);
-                if (autoCommit == false) return ret;
-                repository.UnitOfWork.Commit();
-                transaction.Complete();
-                return ret;
-            }
-        }
-        */
 
         #endregion
 
@@ -484,6 +399,17 @@ namespace Umbraco.Core.Services
             return _lrepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).OrderBy(x => x.SortOrder));
         }
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IContent> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren,
+            string orderBy, Direction orderDirection, string filter = "")
+        {
+            long totalChildren2;
+            var ret = GetPagedChildren(id, Convert.ToInt64(pageIndex), pageSize, out totalChildren2, orderBy, orderDirection, filter);
+            totalChildren = Convert.ToInt32(totalChildren2);
+            return ret;
+        }
+
         /// <summary>
         /// Gets a collection of <see cref="IContent"/> objects by Parent Id
         /// </summary>
@@ -495,7 +421,7 @@ namespace Umbraco.Core.Services
         /// <param name="orderDirection">Direction to order by</param>
         /// <param name="filter">Search text filter</param>
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
-        public IEnumerable<IContent> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren,
+        public IEnumerable<IContent> GetPagedChildren(int id, long pageIndex, int pageSize, out long totalChildren,
             string orderBy, Direction orderDirection, string filter = "")
         {
             Mandate.ParameterCondition(pageIndex >= 0, "pageIndex");
@@ -507,12 +433,22 @@ namespace Umbraco.Core.Services
                 query.Where(x => x.ParentId == id);
 
             IEnumerable<IContent> ret = null;
-            var totalChildren2 = 0;
+            long totalChildren2 = 0;
             _lrepo.WithReadLocked(xr =>
             {
                 ret = xr.Repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
             });
             totalChildren = totalChildren2;
+            return ret;
+        }
+
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IContent> GetPagedDescendants(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
+        {
+            long totalChildren2;
+            var ret = GetPagedDescendants(id, Convert.ToInt64(pageIndex), pageSize, out totalChildren2, orderBy, orderDirection, filter);
+            totalChildren = Convert.ToInt32(totalChildren2);
             return ret;
         }
 
@@ -527,7 +463,7 @@ namespace Umbraco.Core.Services
         /// <param name="orderDirection">Direction to order by</param>
         /// <param name="filter">Search text filter</param>
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
-        public IEnumerable<IContent> GetPagedDescendants(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
+        public IEnumerable<IContent> GetPagedDescendants(int id, long pageIndex, int pageSize, out long totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
         {
             Mandate.ParameterCondition(pageIndex >= 0, "pageIndex");
             Mandate.ParameterCondition(pageSize > 0, "pageSize");
@@ -538,7 +474,7 @@ namespace Umbraco.Core.Services
                 query.Where(x => x.Path.SqlContains(string.Format(",{0},", id), TextColumnType.NVarchar));
             
             IEnumerable<IContent> ret = null;
-            var totalChildren2 = 0;
+            long totalChildren2 = 0;
             _lrepo.WithReadLocked(xr =>
             {
                 ret = xr.Repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);

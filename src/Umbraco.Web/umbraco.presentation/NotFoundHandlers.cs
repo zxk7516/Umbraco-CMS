@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Web;
 using System.Xml;
@@ -14,6 +15,8 @@ using umbraco.interfaces;
 using Umbraco.Core.IO;
 using umbraco.NodeFactory;
 using Umbraco.Core;
+using Umbraco.Web;
+using Umbraco.Web.Routing;
 
 namespace umbraco {
 

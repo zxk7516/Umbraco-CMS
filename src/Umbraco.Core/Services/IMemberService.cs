@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
@@ -12,7 +13,11 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IMemberService : IMembershipMemberService
     {
-        /// <summary>
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords,
+            string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "");
+
         /// Gets a list of paged <see cref="IMember"/> objects
         /// </summary>
         /// <remarks>An <see cref="IMember"/> can be of type <see cref="IMember"/> </remarks>
@@ -24,7 +29,7 @@ namespace Umbraco.Core.Services
         /// <param name="memberTypeAlias"></param>
         /// <param name="filter"></param>
         /// <returns><see cref="IEnumerable{T}"/></returns>
-        IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords,
+        IEnumerable<IMember> GetAll(long pageIndex, int pageSize, out long totalRecords,
             string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "");
         
         /// <summary>
@@ -152,6 +157,10 @@ namespace Umbraco.Core.Services
         /// <param name="memberTypeId">Id of the MemberType</param>
         void DeleteMembersOfType(int memberTypeId);
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith);
+
         /// <summary>
         /// Finds Members based on their display name
         /// </summary>
@@ -161,7 +170,7 @@ namespace Umbraco.Core.Services
         /// <param name="totalRecords">Total number of records found (out)</param>
         /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
         /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith);
+        IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, long pageIndex, int pageSize, out long totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith);
 
         /// <summary>
         /// Gets a list of Members based on a property search

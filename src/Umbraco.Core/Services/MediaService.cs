@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -337,6 +338,16 @@ namespace Umbraco.Core.Services
             return WithReadLocked(repository => repository.GetByQuery(query).OrderBy(x => x.SortOrder));
         }
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMedia> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy, Direction orderDirection, string filter = "")
+        {
+            long totalChildren2;
+            var ret = GetPagedChildren(id, Convert.ToInt64(pageIndex), pageSize, out totalChildren2, orderBy, orderDirection, filter);
+            totalChildren = Convert.ToInt32(totalChildren2);
+            return ret;
+        }
+
         /// <summary>
         /// Gets a collection of <see cref="IMedia"/> objects by Parent Id
         /// </summary>
@@ -348,7 +359,7 @@ namespace Umbraco.Core.Services
         /// <param name="orderDirection">Direction to order by</param>
         /// <param name="filter">Search text filter</param>
         /// <returns>An Enumerable list of <see cref="IMedia"/> objects</returns>
-        public IEnumerable<IMedia> GetPagedChildren(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy, Direction orderDirection, string filter = "")
+        public IEnumerable<IMedia> GetPagedChildren(int id, long pageIndex, int pageSize, out long totalChildren, string orderBy, Direction orderDirection, string filter = "")
         {
             Mandate.ParameterCondition(pageIndex >= 0, "pageIndex");
             Mandate.ParameterCondition(pageSize > 0, "pageSize");
@@ -359,12 +370,22 @@ namespace Umbraco.Core.Services
                 query.Where(x => x.ParentId == id);
 
             IEnumerable<IMedia> ret = null;
-            var totalChildren2 = 0;
+            long totalChildren2 = 0;
             WithReadLocked(repository =>
             {
                 ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);
             });
             totalChildren = totalChildren2;
+            return ret;
+        }
+
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMedia> GetPagedDescendants(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
+        {
+            long totalChildren2;
+            var ret = GetPagedDescendants(id, Convert.ToInt64(pageIndex), pageSize, out totalChildren2, orderBy, orderDirection, filter);
+            totalChildren = Convert.ToInt32(totalChildren2);
             return ret;
         }
 
@@ -379,7 +400,7 @@ namespace Umbraco.Core.Services
         /// <param name="orderDirection">Direction to order by</param>
         /// <param name="filter">Search text filter</param>
         /// <returns>An Enumerable list of <see cref="IMedia"/> objects</returns>
-        public IEnumerable<IMedia> GetPagedDescendants(int id, int pageIndex, int pageSize, out int totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
+        public IEnumerable<IMedia> GetPagedDescendants(int id, long pageIndex, int pageSize, out long totalChildren, string orderBy = "Path", Direction orderDirection = Direction.Ascending, string filter = "")
         {
             Mandate.ParameterCondition(pageIndex >= 0, "pageIndex");
             Mandate.ParameterCondition(pageSize > 0, "pageSize");
@@ -390,7 +411,7 @@ namespace Umbraco.Core.Services
                 query.Where(x => x.Path.SqlContains(string.Format(",{0},", id), TextColumnType.NVarchar));
             
             IEnumerable<IMedia> ret = null;
-            var totalChildren2 = 0;
+            long totalChildren2 = 0;
             WithReadLocked(repository =>
             {
                 ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalChildren2, orderBy, orderDirection, filter);

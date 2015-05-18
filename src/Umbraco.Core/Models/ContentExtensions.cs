@@ -61,7 +61,7 @@ namespace Umbraco.Core.Models
         {
             // note: publishedState is always the entity's PublishedState except for tests
 
-            var content = (Content)entity;
+            var content = (Content) entity;
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
             //var contentPropertyChanged = content.IsEntityDirty();
@@ -121,7 +121,7 @@ namespace Umbraco.Core.Models
             if (hasLanguageChanged)
                 return true; // language change => new version
 
-            var content = (Content)entity;
+            var content = (Content) entity;
             //var contentPropertyChanged = content2.IsEntityDirty();
             var userPropertyChanged = content.IsAnyUserPropertyDirty();
             var dirtyProps = content.GetDirtyProperties();
@@ -912,6 +912,25 @@ namespace Umbraco.Core.Models
         {
             return ((PackagingService)(packagingService)).Export(member);
         }
+        #endregion
+
+        #region Dirty
+
+        public static IEnumerable<string> GetDirtyUserProperties(this IContentBase entity)
+        {
+            return entity.Properties.Where(x => x.IsDirty()).Select(x => x.Alias);
+        }
+
+        public static bool IsAnyUserPropertyDirty(this IContentBase entity)
+        {
+            return entity.Properties.Any(x => x.IsDirty());
+        }
+
+        public static bool WasAnyUserPropertyDirty(this IContentBase entity)
+        {
+            return entity.Properties.Any(x => x.WasDirty());
+        }
+
         #endregion
     }
 }

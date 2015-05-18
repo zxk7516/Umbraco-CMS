@@ -1973,9 +1973,9 @@ WHERE cmsContentXml.nodeId IN (
             if (contentTypeIds != null && contentTypeIdsA.Length > 0)
                 query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
 
-            var pageIndex = 0;
-            var processed = 0;
-            int total;
+            long pageIndex = 0;
+            long processed = 0;
+            long total;
             do
             {
                 // must use .GetPagedResultsByQuery2 which does NOT implicitely add (cmsDocument.newest = 1)
@@ -2040,9 +2040,9 @@ WHERE cmsPreviewXml.nodeId IN (
             if (contentTypeIds != null && contentTypeIdsA.Length > 0)
                 query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
 
-            var pageIndex = 0;
-            var processed = 0;
-            int total;
+            long pageIndex = 0;
+            long processed = 0;
+            long total;
             do
             {
                 // .GetPagedResultsByQuery implicitely adds (cmsDocument.newest = 1) which
@@ -2111,9 +2111,9 @@ WHERE cmsContentXml.nodeId IN (
             if (contentTypeIds != null && contentTypeIdsA.Length > 0)
                 query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
 
-            var pageIndex = 0;
-            var processed = 0;
-            int total;
+            long pageIndex = 0;
+            long processed = 0;
+            long total;
             do
             {
                 var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
@@ -2176,9 +2176,9 @@ WHERE cmsContentXml.nodeId IN (
             if (contentTypeIds != null && contentTypeIdsA.Length > 0)
                 query = query.WhereIn(x => x.ContentTypeId, contentTypeIdsA); // assume number of ctypes won't blow IN(...)
 
-            var pageIndex = 0;
-            var processed = 0;
-            int total;
+            long pageIndex = 0;
+            long processed = 0;
+            long total;
             do
             {
                 var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);

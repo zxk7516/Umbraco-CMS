@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.ComponentModel;
 using System.Threading;
 using System.Web.Security;
 using System.Xml.Linq;
@@ -326,6 +327,27 @@ namespace Umbraco.Core.Services
             return WithReadLocked(repository => repository.GetByQuery(query).FirstOrDefault());
         }
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords)
+        {
+            long total;
+            var result = GetAll(Convert.ToInt64(pageIndex), pageSize, out total);
+            totalRecords = Convert.ToInt32(total);
+            return result;
+        }
+
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords,
+            string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "")
+        {
+            long total;
+            var result = GetAll(Convert.ToInt64(pageIndex), pageSize, out total, orderBy, orderDirection, memberTypeAlias, filter);
+            totalRecords = Convert.ToInt32(total);
+            return result;
+        }
+
         /// <summary>
         /// Gets a list of paged <see cref="IMember"/> objects
         /// </summary>
@@ -333,10 +355,10 @@ namespace Umbraco.Core.Services
         /// <param name="pageSize">Size of the page</param>
         /// <param name="totalRecords">Total number of records found (out)</param>
         /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords)
+        public IEnumerable<IMember> GetAll(long pageIndex, int pageSize, out long totalRecords)
         {
             IEnumerable<IMember> ret = null;
-            var totalRecords2 = 0;
+            long totalRecords2 = 0;
             WithReadLocked(repository =>
             {
                 ret = repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords2, "LoginName", Direction.Ascending);
@@ -345,17 +367,21 @@ namespace Umbraco.Core.Services
             return ret;
         }
 
-        public IEnumerable<IMember> GetAll(int pageIndex, int pageSize, out int totalRecords, string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "")
+        public IEnumerable<IMember> GetAll(long pageIndex, int pageSize, out long totalRecords, string orderBy, Direction orderDirection, string memberTypeAlias = null, string filter = "")
         {
             IEnumerable<IMember> ret = null;
-            var totalRecords2 = 0;
+            long totalRecords2 = 0;
             WithReadLocked(repository =>
             {
                 if (memberTypeAlias == null)
+                {
                     ret = repository.GetPagedResultsByQuery(null, pageIndex, pageSize, out totalRecords2, orderBy, orderDirection, filter);
-
-                var query = new Query<IMember>().Where(x => x.ContentTypeAlias == memberTypeAlias);
-                ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords2, orderBy, orderDirection, filter);
+                }
+                else
+                {
+                    var query = new Query<IMember>().Where(x => x.ContentTypeAlias == memberTypeAlias);
+                    ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords2, orderBy, orderDirection, filter);
+                }
             });
             totalRecords = totalRecords2;
             return ret;
@@ -448,16 +474,26 @@ namespace Umbraco.Core.Services
             return WithReadLocked(repository => repository.GetAll(ids));
         }
 
-        private IEnumerable<IMember> FindMembersByQuery(Query<IMember> query, int pageIndex, int pageSize, out int totalRecords, string orderBy, Direction direction)
+        private IEnumerable<IMember> FindMembersByQuery(Query<IMember> query, long pageIndex, int pageSize, out long totalRecords, string orderBy, Direction direction)
         {
             IEnumerable<IMember> ret = null;
-            var totalRecords2 = 0;
+            long totalRecords2 = 0;
             WithReadLocked(repository =>
             {
                 ret = repository.GetPagedResultsByQuery(query, pageIndex, pageSize, out totalRecords2, orderBy, direction);
             });
             totalRecords = totalRecords2;
             return ret;
+        }
+
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            long total;
+            var result = FindMembersByDisplayName(displayNameToMatch, Convert.ToInt64(pageIndex), pageSize, out total, matchType);
+            totalRecords = Convert.ToInt32(total);
+            return result;
         }
 
         /// <summary>
@@ -469,7 +505,7 @@ namespace Umbraco.Core.Services
         /// <param name="totalRecords">Total number of records found (out)</param>
         /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
         /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        public IEnumerable<IMember> FindMembersByDisplayName(string displayNameToMatch, long pageIndex, int pageSize, out long totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
         {
             var query = new Query<IMember>();
 
@@ -497,6 +533,16 @@ namespace Umbraco.Core.Services
             return FindMembersByQuery(query, pageIndex, pageSize, out totalRecords, "Name", Direction.Ascending);
         }
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMember> FindByEmail(string emailStringToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            long total;
+            var result = FindByEmail(emailStringToMatch, Convert.ToInt64(pageIndex), pageSize, out total, matchType);
+            totalRecords = Convert.ToInt32(total);
+            return result;
+        }
+
         /// <summary>
         /// Finds a list of <see cref="IMember"/> objects by a partial email string
         /// </summary>
@@ -506,7 +552,7 @@ namespace Umbraco.Core.Services
         /// <param name="totalRecords">Total number of records found (out)</param>
         /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
         /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindByEmail(string emailStringToMatch, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        public IEnumerable<IMember> FindByEmail(string emailStringToMatch, long pageIndex, int pageSize, out long totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
         {
             var query = new Query<IMember>();
 
@@ -534,6 +580,16 @@ namespace Umbraco.Core.Services
             return FindMembersByQuery(query, pageIndex, pageSize, out totalRecords, "Email", Direction.Ascending);
         }
 
+        [Obsolete("Use the overload with 'long' parameter types instead")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IEnumerable<IMember> FindByUsername(string login, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        {
+            long total;
+            var result = FindByUsername(login, Convert.ToInt64(pageIndex), pageSize, out total, matchType);
+            totalRecords = Convert.ToInt32(total);
+            return result;
+        }
+
         /// <summary>
         /// Finds a list of <see cref="IMember"/> objects by a partial username
         /// </summary>
@@ -543,7 +599,7 @@ namespace Umbraco.Core.Services
         /// <param name="totalRecords">Total number of records found (out)</param>
         /// <param name="matchType">The type of match to make as <see cref="StringPropertyMatchType"/>. Default is <see cref="StringPropertyMatchType.StartsWith"/></param>
         /// <returns><see cref="IEnumerable{IMember}"/></returns>
-        public IEnumerable<IMember> FindByUsername(string login, int pageIndex, int pageSize, out int totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
+        public IEnumerable<IMember> FindByUsername(string login, long pageIndex, int pageSize, out long totalRecords, StringPropertyMatchType matchType = StringPropertyMatchType.StartsWith)
         {
             var query = new Query<IMember>();
 

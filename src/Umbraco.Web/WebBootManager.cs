@@ -39,7 +39,7 @@ using Umbraco.Web.UI.JavaScript;
 using Umbraco.Web.WebApi;
 using umbraco.BusinessLogic;
 using GlobalSettings = Umbraco.Core.Configuration.GlobalSettings;
-using ProfilingViewEngine = Umbraco.Core.Profiling.ProfilingViewEngine;
+using ProfilingViewEngine = Umbraco.Web.Mvc.ProfilingViewEngine;
 
 
 namespace Umbraco.Web
@@ -191,6 +191,9 @@ namespace Umbraco.Web
                     indexer.RebuildIndex();
                 }
             }
+
+            //Now ensure webapi is initialized after everything
+            GlobalConfiguration.Configuration.EnsureInitialized();
 
             return this;
         }

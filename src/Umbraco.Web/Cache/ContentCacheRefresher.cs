@@ -95,6 +95,9 @@ namespace Umbraco.Web.Cache
                 ApplicationContext.Current.ApplicationCache.ClearPartialViewCache();
                 MacroCacheRefresher.ClearMacroContentCache(); // just the content
                 ClearXsltCache();
+
+                ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(CacheKeys.IdToKeyCacheKey);
+                ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(CacheKeys.KeyToIdCacheKey);
             }
 
             base.Refresh(o);

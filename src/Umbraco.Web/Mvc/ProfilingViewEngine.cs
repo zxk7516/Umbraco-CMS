@@ -1,6 +1,7 @@
-﻿using System.Web.Mvc;
+using System.Web.Mvc;
+using Umbraco.Core.Profiling;
 
-namespace Umbraco.Core.Profiling
+namespace Umbraco.Web.Mvc
 {
 	public class ProfilingViewEngine: IViewEngine
 	{

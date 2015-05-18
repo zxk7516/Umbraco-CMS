@@ -44,9 +44,7 @@ namespace Umbraco.Web.Cache
 
             //Bind to data type events
             //NOTE: we need to bind to legacy and new API events currently: http://issues.umbraco.org/issue/U4-1979
-            //TODO: Wrap as much of this api as possible so that we don't need to listen to legacy events!
-            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.AfterDelete += DataTypeDefinitionDeleting;
-            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.Saving += DataTypeDefinitionSaving;
+
             DataTypeService.Deleted += DataTypeServiceDeleted;
             DataTypeService.Saved += DataTypeServiceSaved;
 
@@ -151,8 +149,6 @@ namespace Umbraco.Web.Cache
             LocalizationService.DeletedDictionaryItem -= LocalizationServiceDeletedDictionaryItem;
             LocalizationService.SavedDictionaryItem -= LocalizationServiceSavedDictionaryItem;
 
-            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.AfterDelete -= DataTypeDefinitionDeleting;
-            global::umbraco.cms.businesslogic.datatype.DataTypeDefinition.Saving -= DataTypeDefinitionSaving;
             DataTypeService.Deleted -= DataTypeServiceDeleted;
             DataTypeService.Saved -= DataTypeServiceSaved;
 
@@ -357,16 +353,7 @@ namespace Umbraco.Web.Cache
             e.DeletedEntities.ForEach(x => DistributedCache.Instance.RemoveDataTypeCache(x));
         }
 
-        static void DataTypeDefinitionSaving(global::umbraco.cms.businesslogic.datatype.DataTypeDefinition sender, System.EventArgs e)
-        {
-            DistributedCache.Instance.RefreshDataTypeCache(sender);
-        }
-
-        static void DataTypeDefinitionDeleting(global::umbraco.cms.businesslogic.datatype.DataTypeDefinition sender, System.EventArgs e)
-        {
-            DistributedCache.Instance.RemoveDataTypeCache(sender);
-        } 
-
+   
         #endregion
 
         #region Stylesheet and stylesheet property event handlers

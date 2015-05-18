@@ -1,7 +1,8 @@
-﻿using System.IO;
+using System.IO;
 using System.Web.Mvc;
+using Umbraco.Core.Profiling;
 
-namespace Umbraco.Core.Profiling
+namespace Umbraco.Web.Mvc
 {
 	public class ProfilingView : IView
 	{

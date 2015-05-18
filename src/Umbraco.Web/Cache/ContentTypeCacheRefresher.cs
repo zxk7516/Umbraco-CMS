@@ -68,7 +68,7 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region Events
-
+        
         public override void Refresh(object o)
         {
             var payloads = GetPayload(o);
@@ -95,6 +95,9 @@ namespace Umbraco.Web.Cache
                 ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IMemberType>();
             }
 
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(CacheKeys.IdToKeyCacheKey);
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(CacheKeys.KeyToIdCacheKey);
+
             foreach (var id in payloads.Select(x => x.Id))
                 ClearLegacyCaches(id);
 
@@ -110,7 +113,6 @@ namespace Umbraco.Web.Cache
             // notify
             var svce = PublishedCachesServiceResolver.Current.Service;
             svce.Notify(payloads);
-            
             // now we can trigger the event
             base.Refresh(o);
         }
