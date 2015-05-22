@@ -78,6 +78,14 @@ namespace Umbraco.Core.Services
             _lrepo.WithWriteLocked(xr => action(xr.Repository), autoCommit);
         }
 
+        public void DenyCurrentAppDomainAccess()
+        {
+            _lrepo.WithWriteLocked(xr =>
+            {
+                xr.UnitOfWork.Database.DenyCurrentAppDomainAccessToLockNode(Constants.System.ContentTreeLock);
+            });
+        }
+
         #endregion
 
         #region Count
