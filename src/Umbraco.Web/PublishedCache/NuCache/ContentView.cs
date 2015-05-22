@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Umbraco.Core;
-using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 
 namespace Umbraco.Web.PublishedCache.NuCache
@@ -13,7 +11,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly ContentStore _store;
         private readonly bool _hasContent;
         private readonly int[] _rootContentIds;
+        private readonly Lazy<IEnumerable<ContentNode>> _rootContents;
         private readonly Dictionary<int, PublishedContentType> _contentTypes;
+        private readonly Dictionary<string, PublishedContentType> _contentTypesByAlias;
         private ContentView _parentView;
         private Dictionary<int, ContentNode> _viewContent;
         private bool _zombie;
@@ -31,7 +31,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // this is safe because the ctor is called from within a lock
             _rootContentIds = _store.GetRootContent();
             _hasContent = _rootContentIds.Length > 0;
+            _rootContents = new Lazy<IEnumerable<ContentNode>>(() => _rootContentIds.Select(Get).OrderBy(x => x.SortOrder).ToArray());
             _contentTypes = store.GetContentTypes();
+            _contentTypesByAlias = _contentTypes.Values.ToDictionary(x => x.Alias.ToLowerInvariant(), x => x);
+
+            // notes:
+            // _rootContentIds is an unordered int[]
+            // _rootContents needs to fetch & sort - do it only once, lazyily, though
+            // Q: perfs-wise, is it better than having the store managed an ordered list
         }
 
         #endregion
@@ -65,17 +72,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // get content at root (in sort order)
         public IEnumerable<ContentNode> GetAtRoot()
         {
-            // FIXME refactor
-            // - currently storing an unordered int[] so need to fetch & sort each time
-            // - the int[] is created by store, changes ONLY if a content is added/removed
-            // - this is efficient, memory-wise, but what about perfs?
-            // - if the store manages an ordered int[] then it needs to refresh ALSO when sortOrder changes
-            //   but the cost is only on write, and can boost reads
-            // - if the store manages an ordered IPublishedContent[] then it CANNOT be used for draft/pub
-            //   so we need two so that's bad so - we should do everything with IDs
-            // - in the end the question is... where should sort take place
-            // - should be consistent with how we manage children (int[], sorted?)
-            return _rootContentIds.Select(Get).OrderBy(x => x.SortOrder);
+            return _rootContents.Value;
         }
 
         // gets a content type
@@ -89,8 +86,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // gets a content type
         public PublishedContentType GetContentType(string alias)
         {
-            // fixme: could optimize & use an index?
-            return _contentTypes.Values.FirstOrDefault(x => x.Alias.InvariantEquals(alias));
+            PublishedContentType contentType;
+            _contentTypesByAlias.TryGetValue(alias.ToLowerInvariant(), out contentType); // else null
+            return contentType;
         }
 
         // gets a value indicating whether the store has content (for this view)

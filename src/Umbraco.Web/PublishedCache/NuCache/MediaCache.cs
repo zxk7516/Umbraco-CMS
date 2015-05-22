@@ -13,11 +13,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
     {
         private readonly ContentView _view;
 
+        #region Constructors
+
         public MediaCache(bool previewDefault, ContentView view)
             : base(previewDefault)
         {
             _view = view;
         }
+
+        #endregion
+
+        #region Get, Has
 
         public override IPublishedContent GetById(bool preview, int contentId)
         {
@@ -35,6 +41,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             return _view.GetAtRoot().Select(n => n.Published);
         }
+
+        public override bool HasContent(bool preview)
+        {
+            return _view.HasContent;
+        }
+
+        #endregion
+
+        #region XPath
 
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
@@ -103,10 +118,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return navigator.CloneWithNewRoot(id, 0);
         }
 
-        public override bool HasContent(bool preview)
-        {
-            return _view.HasContent;
-        }
+        #endregion
 
         #region Content types
 

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Persistence;
-using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Web.PublishedCache.NuCache.DataSource
 {
@@ -13,7 +12,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.DataSource
         // though these should be system constants too!
         private readonly static Guid ContentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
         private readonly static Guid MediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
-        private readonly static Guid MemberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
+        //private readonly static Guid MemberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
         private readonly DatabaseContext _databaseContext;
 
@@ -25,7 +24,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.DataSource
         public ContentSourceDto GetContentSource(int id)
         {
             return _databaseContext.Database.Fetch<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -48,7 +47,7 @@ WHERE n.nodeObjectType=@objType AND n.id=@id
             // should be only 1 version for medias
 
             return _databaseContext.Database.Fetch<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -65,7 +64,7 @@ WHERE n.nodeObjectType=@objType AND n.id=@id
         public IEnumerable<ContentSourceDto> GetAllContentSources()
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -89,7 +88,7 @@ ORDER BY n.level, n.sortOrder
             // should be only 1 version for medias
 
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -107,7 +106,7 @@ ORDER BY n.level, n.sortOrder
         public IEnumerable<ContentSourceDto> GetBranchContentSources(int id)
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -132,7 +131,7 @@ ORDER BY n.level, n.sortOrder
             // should be only 1 version for medias
 
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -151,7 +150,7 @@ ORDER BY n.level, n.sortOrder
         public IEnumerable<ContentSourceDto> GetTypeContentSources(IEnumerable<int> ids)
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,
@@ -175,7 +174,7 @@ ORDER BY n.level, n.sortOrder
             // should be only 1 version for medias
 
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
-n.id Id,
+n.id Id, n.uniqueId Uid,
 cmsContent.contentType ContentTypeId,
 n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
 n.createDate CreateDate, n.nodeUser CreatorId,

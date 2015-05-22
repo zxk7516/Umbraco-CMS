@@ -2,9 +2,11 @@
 
 namespace Umbraco.Web.PublishedCache.NuCache.DataSource
 {
+    // read-only dto
     internal class ContentSourceDto
     {
         public int Id { get; set; }
+        public Guid Uid { get; set; }
         public int ContentTypeId { get; set; }
 
         public int Level { get; set; }

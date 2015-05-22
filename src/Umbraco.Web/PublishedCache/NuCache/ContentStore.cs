@@ -17,8 +17,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly FrozenLock _freezeLock;
         private bool _frozen;
 
-        // fixme - see node in ContentView re. root content & children
-        private readonly HashSet<int> _rootContentIds = new HashSet<int>();
+        // if we do it properly there should be no duplicates and a list is OK
+        //private readonly HashSet<int> _rootContentIds = new HashSet<int>();
+        private readonly List<int> _rootContentIds = new List<int>(); 
         private int[] _rootContentIdsSnap = {};
         private bool _rootContentIdsDirty;
 
@@ -202,20 +203,33 @@ namespace Umbraco.Web.PublishedCache.NuCache
             Locker.EnterUpgradeableReadLock();
             try
             {
-                var remove = AllContent.Select(x => x.Key).ToList();
+                // just reading, no write-lock needed
+                var orphanContents = AllContent.Select(x => x.Key).ToList();
+                var orphanTypes = _contentTypes.Keys.ToList();
 
                 foreach (var content in contents)
                 {
                     Set(content); // upgrades to WriteLock
-                    remove.Remove(content.Id);
+                    orphanContents.Remove(content.Id);
+                    orphanTypes.Remove(content.ContentType.Id);
                 }
 
-                foreach (var id in remove)
-                {
+                // because we have the read lock nothing else
+                // can add/remove content and mess with orphans
+
+                foreach (var id in orphanContents)
                     Clear(id); // upgrades to WriteLock
-                }
 
-                // fixme - should we _also_ take care of content types?
+                Locker.EnterWriteLock();
+                try
+                {
+                    foreach (var id in orphanTypes)
+                        _contentTypes.Remove(id);
+                }
+                finally
+                {
+                    Locker.ExitWriteLock();
+                }
             }
             finally
             {
@@ -287,19 +301,25 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return parent;
         }
 
-        public void ClearContentType(int id)
-        {
-            Locker.EnterWriteLock();
-            try
-            {
-                _contentTypes.Remove(id);
-                _contentTypesDirty = true;
-            }
-            finally
-            {
-                Locker.ExitWriteLock();
-            }
-        }
+        // clears a content type
+        // each published content has a reference to each content type.
+        // when a content type is set, it comes with each content type,
+        // and _contentTypes is updated accordingly.
+        // so clearing a content type is... still a bit weirdish, what
+        // about the content?!
+        //public void ClearContentType(int id)
+        //{
+        //    Locker.EnterWriteLock();
+        //    try
+        //    {
+        //        _contentTypes.Remove(id);
+        //        _contentTypesDirty = true;
+        //    }
+        //    finally
+        //    {
+        //        Locker.ExitWriteLock();
+        //    }
+        //}
 
         #endregion
 

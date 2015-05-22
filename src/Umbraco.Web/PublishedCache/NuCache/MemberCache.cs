@@ -15,17 +15,24 @@ using Umbraco.Web.Security;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
+    // fixme - this is NOT very efficient...
+    // fixme - NOT managing PREVIEW here?!
+    // caching in the FacadeCache is OK but then...
+    // we should INDEX them not create several entries for several members?
+
     class MemberCache : IPublishedMemberCache, INavigableData
     {
         private readonly IMemberService _memberService;
         private readonly IDataTypeService _dataTypeService;
         private readonly PublishedContentTypeCache _contentTypeCache;
+        private readonly bool _previewDefault;
 
-        public MemberCache(IMemberService memberService, IDataTypeService dataTypeService, PublishedContentTypeCache contentTypeCache)
+        public MemberCache(bool previewDefault, IMemberService memberService, IDataTypeService dataTypeService, PublishedContentTypeCache contentTypeCache)
         {
             _memberService = memberService;
             _dataTypeService = dataTypeService;
             _contentTypeCache = contentTypeCache;
+            _previewDefault = previewDefault;
         }
 
         private static T GetCacheItem<T>(string cacheKey, Func<T> getCacheItem)
@@ -48,10 +55,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
                     }
 
-                    var result = _memberService.GetByProviderKey(key);
-                    if (result == null) return null;
-                    var type = _contentTypeCache.Get(PublishedItemType.Member, result.ContentTypeId); 
-                    return new PublishedMember(result, type).CreateModel();
+                    var member = _memberService.GetByProviderKey(key);
+                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
                 });
         }
 
@@ -71,10 +76,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
                     }
 
-                    var result = _memberService.GetById(memberId);
-                    if (result == null) return null;
-                    var type = _contentTypeCache.Get(PublishedItemType.Member, result.ContentTypeId);
-                    return new PublishedMember(result, type).CreateModel();
+                    var member = _memberService.GetById(memberId);
+                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
                 });
         }
 
@@ -89,10 +92,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
                     }
 
-                    var result = _memberService.GetByUsername(username);
-                    if (result == null) return null;
-                    var type = _contentTypeCache.Get(PublishedItemType.Member, result.ContentTypeId);
-                    return new PublishedMember(result, type).CreateModel();
+                    var member = _memberService.GetByUsername(username);
+                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
                 });
         }
 
@@ -107,17 +108,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
                     }
 
-                    var result = _memberService.GetByEmail(email);
-                    if (result == null) return null;
-                    var type = _contentTypeCache.Get(PublishedItemType.Member, result.ContentTypeId);
-                    return new PublishedMember(result, type).CreateModel();
+                    var member = _memberService.GetByEmail(email);
+                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
                 });
         }
 
         public IPublishedContent GetByMember(IMember member)
         {
-            var type = _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId);
-            return new PublishedMember(member, type).CreateModel();
+            return PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
         }
 
         public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
@@ -125,11 +123,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // because members are flat (not a tree) everything is at root
             // because we're loading everything... let's just not cache?
             var members = _memberService.GetAllMembers();
-            return members.Select(m =>
-            {
-                var type = _contentTypeCache.Get(PublishedItemType.Member, m.ContentTypeId);
-                return (new PublishedMember(m, type)).CreateModel();
-            });
+            return members.Select(m => PublishedMember.Create(m, _contentTypeCache.Get(PublishedItemType.Member, m.ContentTypeId)));
         }
 
         public XPathNavigator CreateNavigator()

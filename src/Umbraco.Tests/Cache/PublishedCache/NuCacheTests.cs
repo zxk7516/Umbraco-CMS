@@ -550,7 +550,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
                     {"prop1", value}
                 }
             };
-            var n = new ContentNode(id, contentType,
+            var n = new ContentNode(id, Guid.NewGuid(), contentType,
                 (parent == null ? 0 : parent.Level) + 1, (parent == null ? "" : parent.Path) + "/" + id, 0,
                 (parent == null ? -1 : parent.Id),
                 DateTime.Now, -1,

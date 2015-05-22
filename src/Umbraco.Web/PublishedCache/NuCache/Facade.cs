@@ -13,7 +13,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Constructors
 
-        // fixme - revert: get a FacadeService as param, + service.GetFacadeWhatever()
         public Facade(FacadeService service, bool defaultPreview)
         {
             _service = service;
@@ -26,6 +25,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             public ContentCache ContentCache;
             public MediaCache MediaCache;
             public MemberCache MemberCache;
+            public ICacheProvider FacadeCache;
             public ICacheProvider SnapshotCache;
         }
 
@@ -74,7 +74,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public static Facade Current
         {
-            get { return _getCurrentFacadeFunc(); }
+            get { return GetCurrentFacadeFunc(); }
         }
 
         #endregion

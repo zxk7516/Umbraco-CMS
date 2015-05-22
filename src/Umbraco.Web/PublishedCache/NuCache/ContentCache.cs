@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Xml.XPath;
-using Umbraco.Core.Dynamics;
-using Umbraco.Core.Models;
-using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.Xml;
-using Umbraco.Core.Xml.XPath;
 using umbraco;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
+using Umbraco.Core.Models;
+using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.Services;
+using Umbraco.Core.Xml;
+using Umbraco.Core.Xml.XPath;
 using Umbraco.Web.PublishedCache.NuCache.Navigable;
 using Umbraco.Web.Routing;
 
@@ -18,95 +19,124 @@ namespace Umbraco.Web.PublishedCache.NuCache
     class ContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
     {
         private readonly ContentView _view;
+        private readonly ICacheProvider _facadeCache;
+        private readonly ICacheProvider _snapshotCache;
+        private readonly DomainHelper _domainHelper;
 
-        public ContentCache(bool previewDefault, ContentView view)
+        #region Constructor
+
+        public ContentCache(bool previewDefault, ContentView view, ICacheProvider facadeCache, ICacheProvider snapshotCache, IDomainService domainService)
             : base(previewDefault)
         {
             _view = view;
+            _facadeCache = facadeCache;
+            _snapshotCache = snapshotCache;
+            _domainHelper = new DomainHelper(domainService);
         }
 
-        // fixme - the whole GetByRoute / GetRouteById must be refactored
+        #endregion
 
-        public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
-        {
-            if (route == null) throw new ArgumentNullException("route");
+        #region Routes
 
-            // fixme - this is not optimized at all
+        // routes can be
+        // "/"
+        // "123/"
+        // "/path/to/node"
+        // "123/path/to/node"
 
-            hideTopLevelNode = hideTopLevelNode ?? GlobalSettings.HideTopLevelNodeFromPath; // default = settings
-
-            //the route always needs to be lower case because we only store the urlName attribute in lower case
-            route = route.ToLowerInvariant();
-
-            var pos = route.IndexOf('/');
-            var path = pos == 0 ? route : route.Substring(pos);
-            var startNodeId = pos == 0 ? 0 : int.Parse(route.Substring(0, pos));
-
-            var parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-            if (startNodeId > 0)
-            {
-                var c = GetById(preview, startNodeId);
-                if (parts.Length == 0) return c;
-                var i = 0;
-                while (c != null && i < parts.Length)
-                {
-                    c = c.Children.FirstOrDefault(x => x.UrlName == parts[i]);
-                    i++;
-                }
-                if (c != null) return c;
-            }
-            else
-            {
-                if (parts.Length == 0) return GetAtRoot(preview).FirstOrDefault();
-                var c = GetAtRoot(preview).FirstOrDefault(x => x.UrlName == parts[0]);
-                var i = 1;
-                while (c != null && i < parts.Length)
-                {
-                    c = c.Children.FirstOrDefault(x => x.UrlName == parts[i]);
-                    i++;
-                }
-                if (c != null) return c;
-            }
-
-            // fixme - and not even complete...
-
-            return null;
-        }
+        // at the moment we try our best to be backward compatible, but really,
+        // should get rid of hideTopLevelNode and other oddities entirely, eventually
 
         public IPublishedContent GetByRoute(string route, bool? hideTopLevelNode = null)
         {
             return GetByRoute(PreviewDefault, route, hideTopLevelNode);
         }
 
+        public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
+        {
+            if (route == null) throw new ArgumentNullException("route");
+
+            var cache = (preview == false || FacadeService.FullCacheWhenPreviewing) ? _snapshotCache : _facadeCache;
+            var key = CacheKeys.ContentCacheContentByRoute(route, preview);
+            return cache.GetCacheItem<IPublishedContent>(key, () => GetByRouteInternal(preview, route, hideTopLevelNode));
+        }
+
+        private IPublishedContent GetByRouteInternal(bool preview, string route, bool? hideTopLevelNode)
+        {
+            hideTopLevelNode = hideTopLevelNode ?? GlobalSettings.HideTopLevelNodeFromPath; // default = settings
+
+            // the route always needs to be lower case because we only store the urlName attribute in lower case
+            route = route.ToLowerInvariant();
+
+            var pos = route.IndexOf('/');
+            var path = pos == 0 ? route : route.Substring(pos);
+            var startNodeId = pos == 0 ? 0 : int.Parse(route.Substring(0, pos));
+            var parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+            IPublishedContent content;
+
+            if (startNodeId > 0)
+            {
+                // if in a domain then start with the root node of the domain
+                // and follow the path
+                // note: if domain has a path (eg example.com/en) which is not recommended anymore
+                //  then then /en part of the domain is basically ignored here...
+                content = GetById(preview, startNodeId);
+                content = FollowRoute(content, parts, 0);
+            }
+            else if (parts.Length == 0)
+            {
+                // if not in a domain, and path is empty - what is the default page?
+                // let's say it is the first one in the tree, if any -- order by sortOrder
+                content = GetAtRoot(preview).FirstOrDefault();
+            }
+            else
+            {
+                // if not in a domain...
+                // hideTopLevelNode = support legacy stuff, look for /*/path/to/node
+                // else normal, look for /path/to/node
+                content = hideTopLevelNode.Value
+                    ? GetAtRoot(preview).SelectMany(x => x.Children).FirstOrDefault(x => x.UrlName == parts[0])
+                    : GetAtRoot(preview).FirstOrDefault(x => x.UrlName == parts[0]);
+                content = FollowRoute(content, parts, 1);
+            }
+
+            // if hideTopLevelNodePath is true then for url /foo we looked for /*/foo
+            // but maybe that was the url of a non-default top-level node, so we also
+            // have to look for /foo (see note in ApplyHideTopLevelNodeFromPath).
+            if (content == null && hideTopLevelNode.Value && parts.Length == 1)
+            {
+                content = GetAtRoot(preview).FirstOrDefault(x => x.UrlName == parts[0]);
+            }
+
+            return content;
+        }
+
+        public string GetRouteById(int contentId)
+        {
+            return GetRouteById(PreviewDefault, contentId);
+        }
+
         public string GetRouteById(bool preview, int contentId)
         {
-            //// fixme - this is not optimized at all
-            //// and does not implement domains, nothing
+            var cache = (preview == false || FacadeService.FullCacheWhenPreviewing) ? _snapshotCache : _facadeCache;
+            var key = CacheKeys.ContentCacheRouteByContent(contentId, preview);
+            return cache.GetCacheItem<string>(key, () => GetRouteByIdInternal(preview, contentId, null));
+        }
 
-            //var segments = new List<string>();
-            //var c = GetById(preview, contentId);
-            //while (c != null)
-            //{
-            //    segments.Add(c.UrlName);
-            //    c = c.Parent;
-            //}
-            //segments.Reverse();
-            //var s = "/" + string.Join("/", segments);
-
-            //return s; 
-
+        private string GetRouteByIdInternal(bool preview, int contentId, bool? hideTopLevelNode)
+        {
             var node = GetById(preview, contentId);
             if (node == null)
                 return null;
 
-            var _domainService = ApplicationContext.Current.Services.DomainService; // FIXME inject
-            var domainHelper = new DomainHelper(_domainService);
+            hideTopLevelNode = hideTopLevelNode ?? GlobalSettings.HideTopLevelNodeFromPath; // default = settings
 
             // walk up from that node until we hit a node with a domain,
             // or we reach the content root, collecting urls in the way
             var pathParts = new List<string>();
             var n = node;
-            var hasDomains = domainHelper.NodeHasDomains(n.Id);
+            var hasDomains = _domainHelper.NodeHasDomains(n.Id);
             while (hasDomains == false && n != null) // n is null at root
             {
                 // get the url
@@ -115,13 +145,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 // move to parent node
                 n = n.Parent;
-                hasDomains = n != null && domainHelper.NodeHasDomains(n.Id);
+                hasDomains = n != null && _domainHelper.NodeHasDomains(n.Id);
             }
 
             // no domain, respect HideTopLevelNodeFromPath for legacy purposes
-            // fixme - no we don't
-            //if (hasDomains == false && Core.Configuration.GlobalSettings.HideTopLevelNodeFromPath)
-            //    ApplyHideTopLevelNodeFromPath(node, pathParts, preview);
+            if (hasDomains == false && hideTopLevelNode.Value)
+                ApplyHideTopLevelNodeFromPath(node, pathParts, preview);
 
             // assemble the route
             pathParts.Reverse();
@@ -131,10 +160,44 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return route;
         }
 
-        public string GetRouteById(int contentId)
+        private static IPublishedContent FollowRoute(IPublishedContent content, IReadOnlyList<string> parts, int start)
         {
-            return GetRouteById(PreviewDefault, contentId);
+            var i = start;
+            while (content != null && i < parts.Count)
+            {
+                var part = parts[i++];
+                content = content.Children.FirstOrDefault(x => x.UrlName == part);
+            }
+            return content;
         }
+
+        private void ApplyHideTopLevelNodeFromPath(IPublishedContent content, IList<string> segments, bool preview)
+        {
+            // in theory if hideTopLevelNodeFromPath is true, then there should be only one
+            // top-level node, or else domains should be assigned. but for backward compatibility
+            // we add this check - we look for the document matching "/" and if it's not us, then
+            // we do not hide the top level path
+            // it has to be taken care of in GetByRoute too so if
+            // "/foo" fails (looking for "/*/foo") we try also "/foo". 
+            // this does not make much sense anyway esp. if both "/foo/" and "/bar/foo" exist, but
+            // that's the way it works pre-4.10 and we try to be backward compat for the time being
+            if (content.Parent == null)
+            {
+                var rootNode = GetByRoute(preview, "/", true);
+                if (rootNode == null)
+                    throw new Exception("Failed to get node at /.");
+                if (rootNode.Id == content.Id) // remove only if we're the default node
+                    segments.RemoveAt(segments.Count - 1);
+            }
+            else
+            {
+                segments.RemoveAt(segments.Count - 1);
+            }
+        }
+
+        #endregion
+
+        #region Get, Has
 
         public override IPublishedContent GetById(bool preview, int contentId)
         {
@@ -178,6 +241,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var inner = PublishedContent.UnwrapIPublishedContent(content);
             return inner.AsPreviewingModel();
         }
+
+        public override bool HasContent(bool preview)
+        {
+            return preview
+                ? _view.HasContent
+                : _view.GetAtRoot().Any(x => x.Published != null);
+        }
+
+        #endregion
+
+        #region XPath
 
         public override IPublishedContent GetSingleByXPath(bool preview, string xpath, XPathVariable[] vars)
         {
@@ -246,17 +320,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return navigator.CloneWithNewRoot(id, 0);
         }
 
-        public override bool HasContent(bool preview)
-        {
-            return preview 
-                ? _view.HasContent 
-                : _view.GetAtRoot().Any(x => x.Published != null);
-        }
+        #endregion
+
+        #region Detached - TO BE REFACTORED EVENTUALLY
 
         public IPublishedProperty CreateDetachedProperty(PublishedPropertyType propertyType, object value, bool isPreviewing)
         {
-            return new Property(propertyType, value, isPreviewing);
+            // fixme - re-thing & re-factor Detached IF WE HAVE GUIDS?!
+            var contentGuid = Guid.Empty;
+            var isMember = false;
+            return new Property(propertyType, contentGuid, value, isPreviewing, isMember);
         }
+
+        #endregion
 
         #region Content types
 

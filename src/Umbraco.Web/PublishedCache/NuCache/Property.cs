@@ -12,8 +12,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
     class Property : PublishedPropertyBase
     {
         private readonly object _dataValue;
-        private readonly int _contentId;
+        private readonly Guid _contentUid;
         private readonly bool _isPreviewing;
+        private readonly bool _isMember;
 
         readonly object _locko = new object();
 
@@ -22,18 +23,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private string _recurseCacheKey;
 
         // initializes a published content property with no value
-        public Property(PublishedPropertyType propertyType, IPublishedContent content)
+        public Property(PublishedPropertyType propertyType, PublishedContent content)
             : this(propertyType, content, null)
         { }
 
         // initializes a published content property with a value
-        public Property(PublishedPropertyType propertyType, IPublishedContent content, object valueSource)
+        public Property(PublishedPropertyType propertyType, PublishedContent content, object valueSource)
             : base(propertyType)
         {
             _dataValue = valueSource;
-            _contentId = content.Id;
+            _contentUid = content.Uid;
             var inner = PublishedContent.UnwrapIPublishedContent(content);
             _isPreviewing = inner.IsPreviewing;
+            _isMember = content.ContentType.ItemType == PublishedItemType.Member;
         }
 
         // clone for previewing as draft a published content that is published and has no draft
@@ -41,18 +43,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             : base(origin.PropertyType)
         {
             _dataValue = origin._dataValue;
-            _contentId = origin._contentId;
+            _contentUid = origin._contentUid;
             _isPreviewing = true;
+            _isMember = origin._isMember;
         }
 
         // detached
-        internal Property(PublishedPropertyType propertyType, object valueSource, bool isPreviewing)
+        internal Property(PublishedPropertyType propertyType, Guid contentUid, object valueSource, bool isPreviewing, bool isMember)
             : base(propertyType)
         {
-            throw new NotImplementedException("no content id?");
-            //_dataValue = valueSource;
-            //_content = null;
-            //_isPreviewing = isPreviewing;
+            _dataValue = valueSource;
+            _contentUid = contentUid;
+            _isPreviewing = isPreviewing;
+            _isMember = isMember;
         }
 
         public override bool HasValue
@@ -72,18 +75,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         internal string RecurseCacheKey
         {
-            get { return _recurseCacheKey ?? (_recurseCacheKey = CreateCacheKey("REC")); }
+            get { return _recurseCacheKey ?? (_recurseCacheKey = CacheKeys.PropertyRecurse(_contentUid, PropertyTypeAlias, _isPreviewing)); }
         }
 
         internal string ValueSetCacheKey
         {
-            get { return _valueSetCacheKey ?? (_valueSetCacheKey = CreateCacheKey("SET")); }
-        }
-
-        private string CreateCacheKey(string name)
-        {
-            // FIXME - detached property has no _contentId?
-            return "NuCache." + name + "[" + _contentId + ":" + PropertyTypeAlias + (_isPreviewing ? ":DFT" : ":PUB") + "]";
+            get { return _valueSetCacheKey ?? (_valueSetCacheKey = CacheKeys.PropertyValueSet(_contentUid, PropertyTypeAlias, _isPreviewing)); }
         }
 
         private ValueSet GetValueSet(PropertyCacheLevel cacheLevel)
@@ -102,12 +99,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     valueSet = _valueSet ?? (_valueSet = new ValueSet());
                     break;
                 case PropertyCacheLevel.ContentCache:
-                    // cache within the snapshot cache, unless previewing, then use the facade cache
-                    // because we do not want to pollute the snapshot cache with short-lived data
+                    // cache within the snapshot cache, unless previewing, then use the facade or
+                    // snapshot cache (if we don't want to pollute the snapshot cache with short-lived
+                    // data) depending on settings
+                    // for members, always cache in the facade cache - never pollute snapshot cache
                     facade = Facade.Current;
-                    cache = facade == null 
+                    cache = facade == null
                         ? null 
-                        : (_isPreviewing ? facade.FacadeCache : facade.SnapshotCache);
+                        : ((_isPreviewing == false || FacadeService.FullCacheWhenPreviewing) && (_isMember == false)
+                            ? facade.SnapshotCache 
+                            : facade.FacadeCache);
                     valueSet = GetValueSet(cache);
                     break;
                 case PropertyCacheLevel.Request:

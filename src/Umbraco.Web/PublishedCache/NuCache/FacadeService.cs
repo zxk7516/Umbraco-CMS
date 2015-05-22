@@ -34,8 +34,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly ContentStore _mediaStore;
         private readonly object _storesLock = new object();
 
-        // FIXME obviously temp! *** WHY?!
         private PublishedContentTypeCache _contentTypeCache;
+
+        // define constant - determines whether to use cache when previewing
+        // to store eg routes, property converted values, anything - caching
+        // means faster execution, but uses memory - not sure if we want it
+        // so making it configureable
+        public static readonly bool FullCacheWhenPreviewing = true;
+
+        #region Constructors
 
         public FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
         {
@@ -46,30 +53,38 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _contentStore = new ContentStore();
             _mediaStore = new ContentStore();
 
-            // fixme is that ok?
-            Resolution.Frozen += (sender, args) =>
+            if (Resolution.IsFrozen)
+                OnResolutionFrozen();
+            else 
+                Resolution.Frozen += (sender, args) => OnResolutionFrozen();
+        }
+
+        private void OnResolutionFrozen()
+        {
+            _contentTypeCache = new PublishedContentTypeCache(
+                _serviceContext.ContentTypeService,
+                _serviceContext.MediaTypeService,
+                _serviceContext.MemberTypeService);
+
+            InitializeRepositoryEvents();
+
+            lock (_storesLock)
             {
-                // fixme temp
-                _contentTypeCache = new PublishedContentTypeCache(
-                    _serviceContext.ContentTypeService,
-                    _serviceContext.MediaTypeService,
-                    _serviceContext.MemberTypeService);
-
-                InitializeRepositoryEvents();
-
-                lock (_storesLock)
+                try
                 {
-                    try
-                    {
-                        LoadContentFromDatabase();
-                        LoadMediaFromDatabase();
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.Error<FacadeService>("Panic, exception while loading cache data.", e);
-                    }
+                    LoadContentFromDatabase();
+                    LoadMediaFromDatabase();
                 }
-            };
+                catch (Exception e)
+                {
+                    _logger.Error<FacadeService>("Panic, exception while loading cache data.", e);
+                }
+            }
+
+            // temp - until we get rid of Content
+#pragma warning disable 618
+            global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+#pragma warning restore 618
         }
 
         private void InitializeRepositoryEvents()
@@ -97,17 +112,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
             MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
         }
 
+        #endregion
+
         #region Populate Stores
 
-        // fixme - needs to be improved of course!
-        // what happens if rebuilding while loading? fine because rebuilding is in a trx and we do RepeatableRead (not ReadCommited)
-        // or... is it really OK? what if everything is removed before I read it => won't see it?!
+        // sudden panic... but in RepeatableRead can a content that I haven't already read, be removed
+        // before I read it? NO! because the WHOLE content tree is read-locked using WithReadLocked.
+        // don't panic.
 
         private void LoadContentFromDatabase()
         {
-            // locks:
-            // fixme - document
-
             using (_contentStore.Frozen)
             {
                 var contentService = _serviceContext.ContentService as ContentService;
@@ -122,11 +136,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // locks:
             // contentStore is frozen (1 thread)
             // content (and types) are read-locked
-            // ResetFrozen will upgr. lock contentStore fixme why? frozen!
-            // and then write-lock on each, so that it stil is possible (in theory) to readN
+            // ResetFrozen read-locks the store, and write-locks on each change
+            // so it should be possible to reload from DB while serving pages
 
             // prefetch all the types because we cannot hit the database while reading dtos
-            // and CreateContentNode gets the types from _contentTypeCache
+            // and CreateContentNode gets the types from _contentTypeCache - content service
+            // is read-locked so no race condition such as types appearing afterwards
             _contentTypeCache.PrefetchAll(PublishedItemType.Content);
 
             var dtos = _dataSource.GetAllContentSources();
@@ -307,7 +322,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             var contentType = _contentTypeCache.Get(PublishedItemType.Content, dto.ContentTypeId);
 
-            var n = new ContentNode(dto.Id,
+            var n = new ContentNode(dto.Id, dto.Uid,
                 contentType,
                 dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
                 d, p);
@@ -333,7 +348,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             var contentType = _contentTypeCache.Get(PublishedItemType.Media, dto.ContentTypeId);
 
-            var n = new ContentNode(dto.Id,
+            var n = new ContentNode(dto.Id, dto.Uid,
                 contentType,
                 dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
                 null, p);
@@ -374,21 +389,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // being ReaderWriterLockSlim favorites writer so we might have some
             // sort of contention / reader starvation?
 
-            // fixme
-            // issue with content types HOW?
-
             foreach (var payload in payloads)
             {
                 _logger.Debug<FacadeService>("Notified {0} for content {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                 {
-                    contentService.WithReadLocked(repository =>
-                    {
-                        var contents = _dataSource.GetAllContentSources().Select(CreateContentNode);
-                        _contentStore.ResetFrozen(contents);
-                    });
-
+                    contentService.WithReadLocked(_ => LoadContentFromDatabaseLocked());
                     draftChanged = publishedChanged = true;
                     continue;
                 }
@@ -407,26 +414,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     continue;
                 }
 
+                // fixme - should we do some RV check here?
+
                 var capture = payload;
                 contentService.WithReadLocked(repository =>
                 {
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
-                        // fixme - should we do some RV check here?
+                        // ?? should we do some RV check here?
                         var dtos = _dataSource.GetBranchContentSources(capture.Id);
-                        _contentStore.Clear(capture.Id);
+                        _contentStore.Clear(capture.Id); // fixme - does not remove the type
+                        // fixme should we prefetch the types?!
                         foreach (var dto in dtos)
                             _contentStore.Set(CreateContentNode(dto));
                     }
                     else
                     {
-                        // fixme - should we do some RV check here?
+                        // ?? should we do some RV check here?
                         var dto = _dataSource.GetContentSource(capture.Id);
                         _contentStore.Set(CreateContentNode(dto));
                     }
                 });
 
-                // fixme - cannot tell really because we're not doing RV checks
+                // ?? cannot tell really because we're not doing RV checks
                 draftChanged = publishedChanged = true;
             }
         }
@@ -458,12 +468,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.RefreshAll))
                 {
-                    mediaService.WithReadLocked(repository =>
-                    {
-                        var medias = _dataSource.GetAllMediaSources().Select(CreateMediaNode);
-                        _mediaStore.ResetFrozen(medias);
-                    });
-
+                    mediaService.WithReadLocked(_ => LoadMediaFromDatabaseLocked());
                     anythingChanged = true;
                     continue;
                 }
@@ -482,12 +487,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     continue;
                 }
 
+                // fixme - should we do some RV checks here?
+
                 var capture = payload;
                 mediaService.WithReadLocked(repository =>
                 {
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
-                        // fixme - should we do some RV check here?
+                        // ?? should we do some RV check here?
                         var dtos = _dataSource.GetBranchMediaSources(capture.Id);
                         _mediaStore.Clear(capture.Id);
                         foreach (var dto in dtos)
@@ -495,13 +502,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     }
                     else
                     {
-                        // fixme - should we do some RV check here?
+                        // ?? should we do some RV check here?
                         var dto = _dataSource.GetMediaSource(capture.Id);
                         _mediaStore.Set(CreateMediaNode(dto));
                     }
                 });
 
-                // fixme - cannot tell really because we're not doing RV checks
+                // ?? cannot tell really because we're not doing RV checks
                 anythingChanged = true;
             }
         }
@@ -628,7 +635,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return new Facade(this, preview);
         }
 
-        public Facade.FacadeElements GetElements(bool defaultPreview)
+        public Facade.FacadeElements GetElements(bool previewDefault)
         {
             ContentView contentView, mediaView;
             ICacheProvider snapshotCache;
@@ -651,11 +658,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 }
             }
 
+            var facadeCache = new ObjectCacheRuntimeCacheProvider();
+
             return new Facade.FacadeElements
             {
-                ContentCache = new ContentCache(defaultPreview, contentView),
-                MediaCache = new MediaCache(defaultPreview, mediaView),
-                MemberCache = new MemberCache(_serviceContext.MemberService, _serviceContext.DataTypeService, _contentTypeCache), // fixme preview?!
+                ContentCache = new ContentCache(previewDefault, contentView, facadeCache, snapshotCache, _serviceContext.DomainService),
+                MediaCache = new MediaCache(previewDefault, mediaView),
+                MemberCache = new MemberCache(previewDefault, _serviceContext.MemberService, _serviceContext.DataTypeService, _contentTypeCache),
+                FacadeCache = facadeCache,
                 SnapshotCache = snapshotCache
             };
         }
@@ -808,18 +818,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 });
         }
 
-        private void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)
+        private static void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
 
-        private void OnEmptiedRecycleBin(object sender, MediaRepository.RecycleBinEventArgs args)
+        private static void OnEmptiedRecycleBin(object sender, MediaRepository.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
 
         // mostly to be sure - each node should have been deleted beforehand
-        private void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
+        private static void OnEmptiedRecycleBin(UmbracoDatabase db, Guid nodeObjectType)
         {
             // required by SQL-CE
             const string sql = @"DELETE FROM cmsContentNu
@@ -875,7 +885,7 @@ WHERE cmsContentNu.nodeId IN (
                 RebuildMemberDbCache(contentTypeIds: memberTypeIds);
         }
 
-        private ContentNuDto GetDto(IContentBase content, bool published)
+        private static ContentNuDto GetDto(IContentBase content, bool published)
         {
             var data = new Dictionary<string, object>();
             foreach (var prop in content.Properties)
@@ -955,6 +965,7 @@ WHERE cmsContentNu.nodeId IN (
                 }
                 items.AddRange(guids.Select(x => GetDto(repository.GetByVersion(x), true)));
 
+                // ReSharper disable once RedundantArgumentDefaultValue
                 db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
                 processed += items.Count;
             } while (processed < total);
@@ -1010,6 +1021,7 @@ WHERE cmsContentNu.nodeId IN (
             {
                 var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
                 var items = descendants.Select(m => GetDto(m, true)).ToArray();
+                // ReSharper disable once RedundantArgumentDefaultValue
                 db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
                 processed += items.Length;
             } while (processed < total);
@@ -1065,6 +1077,7 @@ WHERE cmsContentNu.nodeId IN (
             {
                 var descendants = repository.GetPagedResultsByQuery(query, pageIndex++, groupSize, out total, "Path", Direction.Ascending);
                 var items = descendants.Select(m => GetDto(m, true)).ToArray();
+                // ReSharper disable once RedundantArgumentDefaultValue
                 db.BulkInsertRecords(items, null, false); // run within the current transaction and do NOT commit
                 processed += items.Length;
             } while (processed < total);

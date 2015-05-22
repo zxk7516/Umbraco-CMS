@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.PropertyEditors;
-using Umbraco.Core.Services;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
 namespace Umbraco.Web.PublishedCache.NuCache
@@ -13,13 +10,33 @@ namespace Umbraco.Web.PublishedCache.NuCache
     // internal, never exposed, to be accessed from ContentStore (only!)
     internal class ContentNode
     {
-        public ContentNode(int id, PublishedContentType contentType,
+        // fixme - special for member?
+        public ContentNode(int id, Guid uid, PublishedContentType contentType,
+            int level, string path, int sortOrder,
+            int parentContentId,
+            DateTime createDate, int creatorId)
+        {
+            Id = id;
+            Uid = uid;
+            ContentType = contentType;
+            Level = level;
+            Path = path;
+            SortOrder = sortOrder;
+            ParentContentId = parentContentId;
+            CreateDate = createDate;
+            CreatorId = creatorId;
+
+            ChildContentIds = new List<int>();
+        }
+
+        public ContentNode(int id, Guid uid, PublishedContentType contentType,
             int level, string path, int sortOrder,
             int parentContentId,
             DateTime createDate, int creatorId,
             ContentData draftData, ContentData publishedData)
         {
             Id = id;
+            Uid = uid;
             ContentType = contentType;
             Level = level;
             Path = path;
@@ -46,6 +63,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // list which is a clone of the original list
 
             Id = origin.Id;
+            Uid = origin.Uid;
             ContentType = origin.ContentType;
             Level = origin.Level;
             Path = origin.Path;
@@ -65,6 +83,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         // everything that is common to both draft and published versions
         public int Id;
+        public Guid Uid;
         public PublishedContentType ContentType;
         public int Level;
         public string Path;
