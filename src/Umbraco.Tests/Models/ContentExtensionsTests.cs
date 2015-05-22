@@ -627,12 +627,14 @@ namespace Umbraco.Tests.Models
             prop.Value = "b";
             content.ResetDirtyProperties(true); // what PersistUpdatedItem does
             Assert.IsFalse(content.IsDirty());
-            Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+            //Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+            Assert.IsTrue(content.WasDirty()); // now it is!
             prop.Value = "a";
             prop.Value = "b";
             content.ResetDirtyProperties(); // what PersistUpdatedItem does
             Assert.IsFalse(content.IsDirty());
-            Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+            //Assert.IsFalse(content.WasDirty()); // not impacted by user properties
+            Assert.IsTrue(content.WasDirty()); // now it is!
         }
 
         #endregion

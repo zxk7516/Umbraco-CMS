@@ -131,9 +131,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 }
             }
 
+            // note: this comes from 7.2.x where it was not possible to lock the entire content service
+            // in our case, the XmlStore configures everything so that it is not possible to access content
+            // when going down, so this should never happen.
+
             if (runNow)
                 //Run();
-                LogHelper.Warn<XmlCacheFilePersister>("Cannot write now because we are going down, changes may be lost.");
+                LogHelper.Warn<XmlStoreFilePersister>("Cannot write now because we are going down, changes may be lost.");
 
             return ret; // this, by default, unless we created a new one
         }

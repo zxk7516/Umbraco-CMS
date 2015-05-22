@@ -17,7 +17,8 @@ namespace Umbraco.Core.Models.PublishedContent
             if (content == null)
                 return null;
 
-            if (PublishedContentModelFactoryResolver.Current.HasValue == false)
+            if (PublishedContentModelFactoryResolver.HasCurrent == false
+                || PublishedContentModelFactoryResolver.Current.HasValue == false)
                 return content;
 
             // get model
