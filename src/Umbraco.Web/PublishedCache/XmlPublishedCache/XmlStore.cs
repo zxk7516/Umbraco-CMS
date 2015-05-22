@@ -178,6 +178,21 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 KeepAlive = true
             }, logger);
 
+            runner.Terminating += (sender, args) =>
+            {
+                // terminating, make sure we do NOT make any more changes to content
+                var contentService = _serviceContext.ContentService as ContentService;
+                if (contentService == null)
+                    throw new Exception("oops");
+                contentService.DenyCurrentAppDomainAccess();
+            };
+
+            runner.Terminated += (sender, args) =>
+            {
+                // terminated, release the lock now
+                ReleaseFileLock();
+            };
+
             // create (and add to runner)
             _persisterTask = new XmlStoreFilePersister(runner, this, logger);
         }
@@ -774,17 +789,22 @@ AND (umbracoNode.id=@id)";
             // where the semaphore has been disposed of before it's been released, and then
             // we'd need to GC-pin the semaphore... better dispose the locker explicitely
             // when the app domain unloads.
-
-            if (AppDomain.CurrentDomain.IsDefaultAppDomain())
-            {
-                LogHelper.Debug<XmlStore>("Registering Unload handler for default app domain.");
-                AppDomain.CurrentDomain.ProcessExit += OnDomainUnloadReleaseFileLock;
-            }
-            else
-            {
-                LogHelper.Debug<XmlStore>("Registering Unload handler for non-default app domain.");
-                AppDomain.CurrentDomain.DomainUnload += OnDomainUnloadReleaseFileLock;
-            }
+            //
+            // however... some app domains take ages to die and then the new app domains time
+            // out and it's ugly... trying another approach: when the hosting environment
+            // stops the file writer background task runner, we lock the content service for
+            // all and ever, and release the lock - so no need to that code anymore
+            //
+            //if (AppDomain.CurrentDomain.IsDefaultAppDomain())
+            //{
+            //    LogHelper.Debug<XmlStore>("Registering Unload handler for default app domain.");
+            //    AppDomain.CurrentDomain.ProcessExit += OnDomainUnloadReleaseFileLock;
+            //}
+            //else
+            //{
+            //    LogHelper.Debug<XmlStore>("Registering Unload handler for non-default app domain.");
+            //    AppDomain.CurrentDomain.DomainUnload += OnDomainUnloadReleaseFileLock;
+            //}
         }
 
         private void EnsureFileLock()
@@ -807,16 +827,8 @@ AND (umbracoNode.id=@id)";
             }
         }
 
-        private void OnDomainUnloadReleaseFileLock(object sender, EventArgs args)
+        private void ReleaseFileLock()
         {
-            // the unload event triggers AFTER all hosted objects (eg the file persister
-            // background task runner) have been stopped, so we should NOT be accessing
-            // the file from now one - release the lock
-
-            // NOTE
-            // trying to write to the log via LogHelper at that point is a BAD idea
-            // it can lead to ugly deadlocks with the named semaphore - DONT do it
-
             if (_fileLock == null) return; // not locking (testing?)
             if (_fileLocked == null) return; // not locked
 
@@ -834,6 +846,20 @@ AND (umbracoNode.id=@id)";
                 _fileLock = null; // ensure we don't lock again
             }
         }
+
+        // see note above
+        //private void OnDomainUnloadReleaseFileLock(object sender, EventArgs args)
+        //{
+        //    // the unload event triggers AFTER all hosted objects (eg the file persister
+        //    // background task runner) have been stopped, so we should NOT be accessing
+        //    // the file from now one - release the lock
+
+        //    // NOTE
+        //    // trying to write to the log via LogHelper at that point is a BAD idea
+        //    // it can lead to ugly deadlocks with the named semaphore - DONT do it
+
+        //    ReleaseFileLock();
+        //}
 
         // not used - just try to read the file
         //private bool XmlFileExists
