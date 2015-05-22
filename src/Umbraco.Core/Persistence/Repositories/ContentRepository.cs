@@ -582,7 +582,7 @@ namespace Umbraco.Core.Persistence.Repositories
             {
                 // check cache first, if it exists and is published, use it
                 // it may exist and not be published as the cache has 'latest version used'
-                var fromCache = RepositoryCache.RuntimeCache.GetCacheItem<IContent>(GetCacheIdKey<IContent>(dto.NodeId));
+                var fromCache = RuntimeCache.GetCacheItem<IContent>(GetCacheIdKey<IContent>(dto.NodeId));
 
                 return fromCache != null && fromCache.Published
                     ? fromCache

@@ -144,24 +144,17 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns></returns>
         public TEntity Get(TId id)
         {
-            var key = GetCacheIdKey<TEntity>(id);
-            if (CacheEnabled)
-                return RuntimeCache.GetCacheItem<TEntity>(key, () => GetInternal(id));
-            RuntimeCache.ClearCacheItem(key); // don't keep old stuff in the cache
-            return GetInternal(id);
-        }
+			if (CacheEnabled == false)
+				return PerformGet(id);
+				
+            var cacheKey = GetCacheIdKey<TEntity>(id);
+            var fromCache = RuntimeCache.GetCacheItem<TEntity>(cacheKey);
+            if (fromCache != null) return fromCache;
 
-        private TEntity GetInternal(TId id)
-        {
             var entity = PerformGet(id);
             if (entity == null) return null;
-            //on initial construction we don't want to have dirty properties tracked
-            // http://issues.umbraco.org/issue/U4-1946
-            var asEntity = entity as TracksChangesEntityBase;
-            if (asEntity != null)
-            {
-                asEntity.ResetDirtyProperties(false);
-            }
+            
+            RuntimeCache.InsertCacheItem(cacheKey, () => entity);
             return entity;
         }
 
