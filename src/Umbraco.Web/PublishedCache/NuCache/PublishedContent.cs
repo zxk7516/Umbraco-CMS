@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Web.Models;
@@ -173,6 +174,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override bool IsDraft { get { return _contentData.Published == false; } }
 
+        private ICacheProvider GetAppropriateFacadeCache()
+        {
+            var facade = Facade.Current;
+            var cache = facade == null
+                ? null
+                : ((_isPreviewing == false || FacadeService.FullCacheWhenPreviewing) && (ItemType != PublishedItemType.Member)
+                    ? facade.SnapshotCache
+                    : facade.FacadeCache);
+            return cache;
+        }
+
         public override IPublishedContent Parent
         {
             get
@@ -202,12 +214,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             get
             {
-                var facade = Facade.Current;
-                var cache = facade == null
-                    ? null
-                    : (_isPreviewing == false || FacadeService.FullCacheWhenPreviewing
-                        ? facade.SnapshotCache
-                        : facade.FacadeCache);
+                var cache = GetAppropriateFacadeCache();
                 if (cache == null)
                     return GetChildren();
                 return (IEnumerable<IPublishedContent>) cache.GetCacheItem(ChildrenCacheKey, GetChildren);
@@ -246,17 +253,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var property = GetProperty(alias);
             if (recurse == false) return property;
 
-            var facade = Facade.Current;
-            var cache = facade == null
-                ? null
-                : ((_isPreviewing == false || FacadeService.FullCacheWhenPreviewing) && (ItemType != PublishedItemType.Member)
-                    ? facade.SnapshotCache
-                    : facade.FacadeCache);
+            var cache = GetAppropriateFacadeCache();
             if (cache == null)
                 return base.GetProperty(alias, true);
 
             var key = ((Property) property).RecurseCacheKey;
-            return (Property) facade.SnapshotCache.GetCacheItem(key, () => base.GetProperty(alias, true));
+            return (Property) cache.GetCacheItem(key, () => base.GetProperty(alias, true));
         }
 
         public override PublishedContentType ContentType
@@ -298,8 +300,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (_isPreviewing)
                 return this;
 
-            var facade = Facade.Current;
-            var cache = facade == null ? null : facade.FacadeCache;
+            var cache = GetAppropriateFacadeCache();
             if (cache == null) return new PublishedContent(this).CreateModel();
             return (IPublishedContent) cache.GetCacheItem(AsPreviewingCacheKey, () => new PublishedContent(this).CreateModel());
         }
