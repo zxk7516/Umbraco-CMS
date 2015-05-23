@@ -49,14 +49,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
         }
 
         // detached
-        internal Property(PublishedPropertyType propertyType, Guid contentUid, object valueSource, bool isPreviewing, bool isMember)
-            : base(propertyType)
-        {
-            _dataValue = valueSource;
-            _contentUid = contentUid;
-            _isPreviewing = isPreviewing;
-            _isMember = isMember;
-        }
+        //internal Property(PublishedPropertyType propertyType, Guid contentUid, object valueSource, bool isPreviewing, bool isMember)
+        //    : base(propertyType)
+        //{
+        //    _dataValue = valueSource;
+        //    _contentUid = contentUid;
+        //    _isPreviewing = isPreviewing;
+        //    _isMember = isMember;
+        //}
 
         public override bool HasValue
         {

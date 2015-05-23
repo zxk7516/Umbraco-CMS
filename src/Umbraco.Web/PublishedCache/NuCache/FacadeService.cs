@@ -1,33 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Xml.Linq;
 using Newtonsoft.Json;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
-using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
-using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Services;
-using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
+#pragma warning disable 618
+using Content = umbraco.cms.businesslogic.Content;
+#pragma warning restore 618
+using Database = Umbraco.Web.PublishedCache.NuCache.DataSource.Database;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
     class FacadeService : PublishedCachesServiceBase
     {
         private readonly ServiceContext _serviceContext;
-        private readonly DataSource.Database _dataSource;
+        private readonly Database _dataSource;
         private readonly ILogger _logger;
 
         private readonly ContentStore _contentStore;
@@ -47,11 +46,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
         {
             _serviceContext = serviceContext;
-            _dataSource = new DataSource.Database(databaseContext);
+            _dataSource = new Database(databaseContext);
             _logger = logger;
 
-            _contentStore = new ContentStore();
-            _mediaStore = new ContentStore();
+            _contentStore = new ContentStore(logger);
+            _mediaStore = new ContentStore(logger);
 
             if (Resolution.IsFrozen)
                 OnResolutionFrozen();
@@ -83,7 +82,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             // temp - until we get rid of Content
 #pragma warning disable 618
-            global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+            Content.DeletedContent += OnDeletedContent;
 #pragma warning restore 618
         }
 
@@ -139,13 +138,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // ResetFrozen read-locks the store, and write-locks on each change
             // so it should be possible to reload from DB while serving pages
 
-            // prefetch all the types because we cannot hit the database while reading dtos
-            // and CreateContentNode gets the types from _contentTypeCache - content service
-            // is read-locked so no race condition such as types appearing afterwards
-            _contentTypeCache.PrefetchAll(PublishedItemType.Content);
-
-            var dtos = _dataSource.GetAllContentSources();
-            _contentStore.ResetFrozen(dtos.Select(CreateContentNode));
+            // two-phases prevents loading content and types in // on same db connection
+            var nodes = _dataSource.GetAllContentSources();
+            SetContentType(PublishedItemType.Content, nodes);
+            _contentStore.SetAll(nodes);
         }
 
         // keep these around - might be useful
@@ -188,12 +184,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             // locks & notes: see content
 
-            // prefetch all the types because we cannot hit the database while reading dtos
-            // and CreateMediaNode gets the types from _contentTypeCache
-            _contentTypeCache.PrefetchAll(PublishedItemType.Media);
-
-            var dtos = _dataSource.GetAllMediaSources();
-            _mediaStore.ResetFrozen(dtos.Select(CreateMediaNode));
+            // two-phases prevents loading content and types in // on same db connection
+            var nodes = _dataSource.GetAllMediaSources();
+            SetContentType(PublishedItemType.Media, nodes);
+            _mediaStore.SetAll(nodes);
         }
 
         // keep these around - might be useful
@@ -280,80 +274,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    return contentNode;
         //}
 
-        private ContentNode CreateContentNode(ContentSourceDto dto)
+        private void SetContentType(PublishedItemType itemType, params ContentNode[] nodes)
         {
-            if (dto.DraftVersion != Guid.Empty && dto.DraftData == null)
-                throw new Exception();
-
-            ContentData d = null;
-            ContentData p = null;
-
-            if (dto.DraftVersion != Guid.Empty)
-            {
-                if (dto.DraftData == null)
-                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
-                d = new ContentData
-                {
-                    Name = dto.DraftName,
-                    Published = false,
-                    TemplateId = dto.DraftTemplateId,
-                    Version = dto.DraftVersion,
-                    VersionDate = dto.DraftVersionDate,
-                    WriterId = dto.DraftWriterId,
-                    Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.DraftData)
-                };
-            }
-
-            if (dto.PubVersion != Guid.Empty)
-            {
-                if (dto.PubData == null)
-                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
-                p = new ContentData
-                {
-                    Name = dto.PubName,
-                    Published = true,
-                    TemplateId = dto.PubTemplateId,
-                    Version = dto.PubVersion,
-                    VersionDate = dto.PubVersionDate,
-                    WriterId = dto.PubWriterId,
-                    Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
-                };
-            }
-
-            var contentType = _contentTypeCache.Get(PublishedItemType.Content, dto.ContentTypeId);
-
-            var n = new ContentNode(dto.Id, dto.Uid,
-                contentType,
-                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
-                d, p);
-
-            return n;
-        }
-
-        private ContentNode CreateMediaNode(ContentSourceDto dto)
-        {
-            if (dto.PubData == null)
-                throw new Exception("No data for media " + dto.Id);
-
-            var p = new ContentData
-                {
-                    Name = dto.PubName,
-                    Published = true,
-                    TemplateId = -1,
-                    Version = dto.PubVersion,
-                    VersionDate = dto.PubVersionDate,
-                    WriterId = dto.CreatorId, // what-else?
-                    Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
-                };
-
-            var contentType = _contentTypeCache.Get(PublishedItemType.Media, dto.ContentTypeId);
-
-            var n = new ContentNode(dto.Id, dto.Uid,
-                contentType,
-                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
-                null, p);
-
-            return n;
+            foreach (var node in nodes)
+                node.SetContentType(_contentTypeCache.Get(itemType, node.ContentTypeId));
         }
 
         #endregion
@@ -383,11 +307,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // content (and content types) are read-locked while reading content
             // contentStore is frozen (so readable, only no new views)
             // and it can be frozen by 1 thread only at a time
-            //
-            // content is write-locked only when setting individual items so in
-            // theory it is still possible to read content, but in practice the locker
-            // being ReaderWriterLockSlim favorites writer so we might have some
-            // sort of contention / reader starvation?
+            // contentStore is write-locked during changes
 
             foreach (var payload in payloads)
             {
@@ -402,9 +322,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
                 {
-                    if (_contentStore.Has(payload.Id))
-                        draftChanged = publishedChanged = true;                        
-                    _contentStore.Clear(payload.Id);
+                    if (_contentStore.Clear(payload.Id))
+                        draftChanged = publishedChanged = true;
                     continue;
                 }
 
@@ -422,17 +341,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var dtos = _dataSource.GetBranchContentSources(capture.Id);
-                        _contentStore.Clear(capture.Id); // fixme - does not remove the type
-                        // fixme should we prefetch the types?!
-                        foreach (var dto in dtos)
-                            _contentStore.Set(CreateContentNode(dto));
+                        var nodes = _dataSource.GetBranchContentSources(capture.Id);
+                        SetContentType(PublishedItemType.Content, nodes);
+                        _contentStore.SetBranch(capture.Id, nodes);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var dto = _dataSource.GetContentSource(capture.Id);
-                        _contentStore.Set(CreateContentNode(dto));
+                        var node = _dataSource.GetContentSource(capture.Id);
+                        SetContentType(PublishedItemType.Content, node);
+                        _contentStore.Set(node);
                     }
                 });
 
@@ -475,9 +393,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
                 {
-                    if (_mediaStore.Has(payload.Id))
+                    if (_mediaStore.Clear(payload.Id))
                         anythingChanged = true;
-                    _mediaStore.Clear(payload.Id);
                     continue;
                 }
 
@@ -495,16 +412,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var dtos = _dataSource.GetBranchMediaSources(capture.Id);
-                        _mediaStore.Clear(capture.Id);
-                        foreach (var dto in dtos)
-                            _mediaStore.Set(CreateMediaNode(dto));
+                        var nodes = _dataSource.GetBranchMediaSources(capture.Id);
+                        SetContentType(PublishedItemType.Media, nodes);
+                        _mediaStore.SetBranch(capture.Id, nodes);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var dto = _dataSource.GetMediaSource(capture.Id);
-                        _mediaStore.Set(CreateMediaNode(dto));
+                        var node = _dataSource.GetMediaSource(capture.Id);
+                        SetContentType(PublishedItemType.Media, node);
+                        _mediaStore.Set(node);
                     }
                 });
 
@@ -515,9 +432,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
-            // see ContentTypeServiceBase
-            // in all cases we just want to clear the content type cache
-            // the type will be reloaded if/when needed
+            // remove, those that are refreshed will be reloaded
             foreach (var payload in payloads)
                 _contentTypeCache.ClearContentType(payload.Id);
 
@@ -532,9 +447,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
             foreach (var payload in payloads)
                 LogHelper.Debug<XmlStore>("Notified {0} for content type {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
-            if (ids.Length > 0) // must have refreshes, not only removes
-                RefreshContentTypes(ids);
+            if (ids.Length > 0)
+                using (_contentStore.Frozen)
+                {
+                    RefreshContentTypesFrozen(ids);
+                }
 
+            // same for media cache
             ids = payloads
                 .Where(x => x.ItemType == typeof(IMediaType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
                 .Select(x => x.Id)
@@ -543,42 +462,50 @@ namespace Umbraco.Web.PublishedCache.NuCache
             foreach (var payload in payloads)
                 LogHelper.Debug<FacadeService>("Notified {0} for media type {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
-            if (ids.Length > 0) // must have refreshes, not only removes
-                RefreshMediaTypes(ids);
-
-            // fixme - members? (what about XmlStore?)
+            if (ids.Length > 0)
+                using (_mediaStore.Frozen)
+                {
+                    RefreshMediaTypesFrozen(ids);
+                }
 
             Facade.Current.Resync();
         }
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
         {
-            // see above
-            // in all cases we just want to clear the content type cache
-            // the types will be reloaded if/when needed
-            foreach (var payload in payloads)
-                _contentTypeCache.ClearDataType(payload.Id);
+            var ids = payloads.Select(x => x.Id).ToArray();
+
+            // remove, those that are refreshed will be reloaded
+            foreach (var id in ids)
+                _contentTypeCache.ClearDataType(id);
 
             foreach (var payload in payloads)
                 LogHelper.Debug<FacadeService>("Notified {0} for data type {1}".FormatWith(payload.Removed ? "Removed" : "Refreshed", payload.Id));
 
-            // fixme - so we've cleared out internal cache BUT what about content?
-            // will change ONLY when a content is changed and THEN we'll have an issue because of bad REFRESH of content type?!
-            // we DONT need to reload content from database because it has not changed BUT we need to update it anyways!!
-            throw new NotImplementedException("this is bad");
+            using (_contentStore.Frozen)
+            using (_mediaStore.Frozen)
+            {
+                var contentService = _serviceContext.ContentService as ContentService;
+                if (contentService == null) throw new Exception("oops");
 
-            // fixme XmlStore says... BUT what's refreshing the caches then?!
-            // ignore media and member types - we're not caching them
+                contentService.WithReadLocked(
+                    _ => _contentStore.SetDataTypes(ids, id => _contentTypeCache.Get(PublishedItemType.Content, id)));
 
-            // ???
-            //Facade.Current.Resync();
+                var mediaService = _serviceContext.MediaService as MediaService;
+                if (mediaService == null) throw new Exception("oops");
+                
+                mediaService.WithReadLocked(
+                    _ => _mediaStore.SetDataTypes(ids, id => _contentTypeCache.Get(PublishedItemType.Media, id)));
+            }
+
+            Facade.Current.Resync();
         }
         
         #endregion
 
         #region Manage change
 
-        private void RefreshContentTypes(IEnumerable<int> ids)
+        private void RefreshContentTypesFrozen(IEnumerable<int> ids)
         {
             // locks:
             // content (and content types) are read-locked while reading content
@@ -588,18 +515,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var contentService = _serviceContext.ContentService as ContentService;
             if (contentService == null) throw new Exception("oops");
 
-            using (_contentStore.Frozen)
+            var idsA = ids.ToArray();
+
+            contentService.WithReadLocked(repository =>
             {
-                contentService.WithReadLocked(repository =>
-                {
-                    var dtos = _dataSource.GetTypeContentSources(ids);
-                    foreach (var dto in dtos)
-                        _contentStore.Set(CreateContentNode(dto));
-                });
-            }
+                var nodes = _dataSource.GetTypeContentSources(idsA);
+                SetContentType(PublishedItemType.Content, nodes);
+                _contentStore.SetTypes(idsA, nodes);
+            });
         }
 
-        private void RefreshMediaTypes(IEnumerable<int> ids)
+        private void RefreshMediaTypesFrozen(IEnumerable<int> ids)
         {
             // locks:
             // media (and content types) are read-locked while reading media
@@ -609,15 +535,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var mediaService = _serviceContext.MediaService as MediaService;
             if (mediaService == null) throw new Exception("oops");
 
-            using (_mediaStore.Frozen)
+            var idsA = ids.ToArray();
+
+            mediaService.WithReadLocked(repository =>
             {
-                mediaService.WithReadLocked(repository =>
-                {
-                    var dtos = _dataSource.GetTypeMediaSources(ids);
-                    foreach (var dto in dtos)
-                        _mediaStore.Set(CreateMediaNode(dto));
-                });
-            }
+                var nodes = _dataSource.GetTypeMediaSources(idsA);
+                SetContentType(PublishedItemType.Media, nodes);
+                _mediaStore.SetTypes(idsA, nodes);
+            });
         }
 
         #endregion
@@ -697,17 +622,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // because they need to be consistent with the content that is being refreshed/removed - and that
         // should be guaranteed by a DB transaction
 
-        private void OnContentRemovedEntity(object sender, ContentRepository.EntityChangeEventArgs args)
+        private void OnContentRemovedEntity(object sender, VersionableRepositoryBase<int, IContent>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
 
-        private void OnMediaRemovedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        private void OnMediaRemovedEntity(object sender, VersionableRepositoryBase<int, IMedia>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
 
-        private void OnMemberRemovedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        private void OnMemberRemovedEntity(object sender, VersionableRepositoryBase<int, IMember>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
@@ -727,7 +652,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private static bool HasChangesImpactingAllVersions(IContent icontent)
         {
-            var content = (Content)icontent;
+            var content = (Core.Models.Content)icontent;
 
             // UpdateDate will be dirty
             // Published may be dirty if saving a Published entity
@@ -738,7 +663,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return PropertiesImpactingAllVersions.Any(content.IsPropertyDirty);
         }
 
-        private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
+        private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, VersionableRepositoryBase<int, IContent>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -747,7 +672,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 OnRepositoryRefreshed(db, c, false);
 
                 // if unpublishing, remove from table
-                if (((Content)c).PublishedState == PublishedState.Unpublishing)
+                if (((Core.Models.Content)c).PublishedState == PublishedState.Unpublishing)
                 {
                     db.Execute("DELETE FROM cmsContentNu WHERE nodeId=@id AND published=1", new { id = c.Id });
                     continue;
@@ -777,7 +702,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        private void OnMediaRefreshedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        private void OnMediaRefreshedEntity(object sender, VersionableRepositoryBase<int, IMedia>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -792,7 +717,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        private void OnMemberRefreshedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        private void OnMemberRefreshedEntity(object sender, VersionableRepositoryBase<int, IMember>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -818,12 +743,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 });
         }
 
-        private static void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)
+        private static void OnEmptiedRecycleBin(object sender, RecycleBinRepository<int, IContent>.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
 
-        private static void OnEmptiedRecycleBin(object sender, MediaRepository.RecycleBinEventArgs args)
+        private static void OnEmptiedRecycleBin(object sender, RecycleBinRepository<int, IMedia>.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
@@ -842,7 +767,9 @@ WHERE cmsContentNu.nodeId IN (
             db.Execute(sql, parms);
         }
 
-        private void OnDeletedContent(object sender, global::umbraco.cms.businesslogic.Content.ContentDeleteEventArgs args)
+#pragma warning disable 618
+        private static void OnDeletedContent(object sender, Content.ContentDeleteEventArgs args)
+#pragma warning restore 618
         {
             var db = args.Database;
             var parms = new { @nodeId = args.Id };

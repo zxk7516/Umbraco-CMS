@@ -18,6 +18,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             Id = id;
             Uid = uid;
+            ContentTypeId = contentType.Id;
             ContentType = contentType;
             Level = level;
             Path = path;
@@ -34,10 +35,21 @@ namespace Umbraco.Web.PublishedCache.NuCache
             int parentContentId,
             DateTime createDate, int creatorId,
             ContentData draftData, ContentData publishedData)
+            : this(id, uid, contentType.Id, level, path, sortOrder, parentContentId, createDate, creatorId, draftData, publishedData)
+        {
+            SetContentType(contentType);
+        }
+
+        // 2-phases ctor, must set the content type later
+        public ContentNode(int id, Guid uid, int contentTypeId,
+            int level, string path, int sortOrder,
+            int parentContentId,
+            DateTime createDate, int creatorId,
+            ContentData draftData, ContentData publishedData)
         {
             Id = id;
             Uid = uid;
-            ContentType = contentType;
+            ContentTypeId = contentTypeId;
             Level = level;
             Path = path;
             SortOrder = sortOrder;
@@ -50,10 +62,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (draftData == null && publishedData == null)
                 throw new ArgumentException("Both draftData and publishedData cannot be null at the same time.");
 
-            if (draftData != null)
-                Draft = new PublishedContent(this, draftData).CreateModel();
-            if (publishedData != null)
-                Published = new PublishedContent(this, publishedData).CreateModel();
+            _draftData = draftData;
+            _publishedData = publishedData;
+        }
+
+        // two-phase ctor
+        public void SetContentType(PublishedContentType contentType)
+        {
+            ContentType = contentType;
+
+            if (_draftData != null)
+                Draft = new PublishedContent(this, _draftData).CreateModel();
+            if (_publishedData != null)
+                Published = new PublishedContent(this, _publishedData).CreateModel();
         }
 
         // clone parent
@@ -64,6 +85,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             Id = origin.Id;
             Uid = origin.Uid;
+            ContentTypeId = origin.ContentTypeId;
             ContentType = origin.ContentType;
             Level = origin.Level;
             Path = origin.Path;
@@ -71,6 +93,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
             ParentContentId = origin.ParentContentId;
             CreateDate = origin.CreateDate;
             CreatorId = origin.CreatorId;
+
+            _draftData = origin._draftData;
+            _publishedData = origin._publishedData;
 
             var originDraft = origin.Draft == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Draft);
             var originPublished = origin.Published == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Published);
@@ -81,19 +106,43 @@ namespace Umbraco.Web.PublishedCache.NuCache
             ChildContentIds = new List<int>(origin.ChildContentIds);
         }
 
+        // clone with new content type
+        public ContentNode(ContentNode origin, PublishedContentType contentType)
+        {
+            Id = origin.Id;
+            Uid = origin.Uid;
+            ContentType = origin.ContentType;
+            Level = origin.Level;
+            Path = origin.Path;
+            SortOrder = origin.SortOrder;
+            ParentContentId = origin.ParentContentId;
+            CreateDate = origin.CreateDate;
+            CreatorId = origin.CreatorId;
+
+            ChildContentIds = origin.ChildContentIds;
+
+            _draftData = origin._draftData;
+            _publishedData = origin._publishedData;
+
+            SetContentType(contentType);
+        }
+
         // everything that is common to both draft and published versions
-        public int Id;
-        public Guid Uid;
+        public readonly int Id;
+        public readonly Guid Uid;
+        public readonly int ContentTypeId;
         public PublishedContentType ContentType;
-        public int Level;
-        public string Path;
-        public int SortOrder;
-        public int ParentContentId;
+        public readonly int Level;
+        public readonly string Path;
+        public readonly int SortOrder;
+        public readonly int ParentContentId;
         public List<int> ChildContentIds;
-        public DateTime CreateDate;
-        public int CreatorId;
+        public readonly DateTime CreateDate;
+        public readonly int CreatorId;
 
         // draft and published version (either can be null, but not both)
+        private readonly ContentData _draftData;
+        private readonly ContentData _publishedData;
         public IPublishedContent Draft;
         public IPublishedContent Published;
 

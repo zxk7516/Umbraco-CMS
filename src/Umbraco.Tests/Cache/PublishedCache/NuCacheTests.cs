@@ -1,27 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using Umbraco.Core;
-using Umbraco.Core.Models;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.Profiling;
 using Umbraco.Core.PropertyEditors;
-using Umbraco.Tests.PublishedContent;
 using Umbraco.Tests.TestHelpers;
-using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.NuCache;
+using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
 namespace Umbraco.Tests.Cache.PublishedCache
 {
     [TestFixture]
     public class NuCacheTests : BaseUmbracoApplicationTest
     {
+        private ILogger _logger;
+
         public override void Initialize()
-        {
+        {            
             PropertyValueConvertersResolver.Current = new PropertyValueConvertersResolver(new ActivatorServiceProvider(), Logger);
             base.Initialize();
+            var logger = new Logger(new FileInfo(TestHelper.MapPathForTest("~/unit-test-log4net.config")));
+            _logger = new ProfilingLogger(logger, new LogProfiler(logger)).Logger;
         }
 
         [TearDown]
@@ -37,7 +41,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -67,7 +71,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -99,7 +103,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -149,7 +153,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -199,7 +203,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
             {
@@ -250,7 +254,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
             {
@@ -306,7 +310,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -433,7 +437,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
                 TrackViews = true,
                 MinViewsInterval = 1000
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -486,7 +490,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
             {
                 TrackViews = true
             };
-            var store = new ContentStore(options);
+            var store = new ContentStore(_logger, options);
 
             var props = new[]
                     {
@@ -537,7 +541,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 
         private static ContentNode CreateContentNode(PublishedContentType contentType, int id, ContentNode parent, int value)
         {
-            var d = new Web.PublishedCache.NuCache.DataSource.ContentData
+            var d = new ContentData
             {
                 Published = true,
                 Name = "Content " + id,

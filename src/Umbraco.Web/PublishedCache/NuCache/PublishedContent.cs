@@ -117,13 +117,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 GetMediaByIdOverride = ((facade, previewing, id) => facade.MediaCache.GetById(previewing, id));
         }
 
-        private IPublishedContent GetContentById(bool previewing, int id)
+        private static IPublishedContent GetContentById(bool previewing, int id)
         {
             EnsureGetContentById();
             return GetContentByIdOverride(Facade.Current, previewing, id);
         }
 
-        private IEnumerable<IPublishedContent> GetContentByIds(bool previewing, IEnumerable<int> ids)
+        private static IEnumerable<IPublishedContent> GetContentByIds(bool previewing, IEnumerable<int> ids)
         {
             EnsureGetContentById();
             var content = ids.Select(x => GetContentByIdOverride(Facade.Current, previewing, x));
@@ -132,13 +132,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return content;
         }
 
-        private IPublishedContent GetMediaById(bool previewing, int id)
+        private static IPublishedContent GetMediaById(bool previewing, int id)
         {
             EnsureGetMediaById();
             return GetMediaByIdOverride(Facade.Current, previewing, id);
         }
 
-        private IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
+        private static IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
         {
             EnsureGetMediaById();
             return ids.Select(x => GetMediaByIdOverride(Facade.Current, previewing, x));
@@ -268,14 +268,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Internal
 
-        // used by navigable content - ok
+        // used by navigable content
         internal IPublishedProperty[] PropertiesArray { get { return _properties; } }
 
-        // used by navigable content - ok
+        // used by navigable content
         internal int ParentId { get { return _contentNode.ParentContentId; } }
 
-        // used by navigable content - with an issue with preview!
+        // used by navigable content
         // includes all children, published or unpublished
+        // NavigableNavigator takes care of selecting those it wants
         internal IList<int> ChildIds { get { return _contentNode.ChildContentIds; } }
 
         // used by Property

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Models.PublishedContent;
 
 namespace Umbraco.Web.PublishedCache.NuCache
@@ -14,18 +15,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
         internal readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim();
         internal readonly Dictionary<int, ContentNode> AllContent = new Dictionary<int, ContentNode>();
 
+        private readonly ILogger _logger;
         private readonly FrozenLock _freezeLock;
         private bool _frozen;
 
-        // if we do it properly there should be no duplicates and a list is OK
-        //private readonly HashSet<int> _rootContentIds = new HashSet<int>();
         private readonly List<int> _rootContentIds = new List<int>(); 
         private int[] _rootContentIdsSnap = {};
         private bool _rootContentIdsDirty;
 
-        private readonly Dictionary<int, PublishedContentType> _contentTypes = new Dictionary<int, PublishedContentType>();
+        private readonly Dictionary<int, PublishedContentTypeRef> _contentTypes = new Dictionary<int, PublishedContentTypeRef>();
         private Dictionary<int, PublishedContentType> _contentTypesSnap = new Dictionary<int, PublishedContentType>();
         private bool _contentTypesDirty;
+
+        private class PublishedContentTypeRef
+        {
+            public PublishedContentTypeRef(PublishedContentType contentType)
+            {
+                RefCount = 0;
+                ContentType = contentType;
+            }
+
+            public int RefCount;
+            public PublishedContentType ContentType;
+        }
 
         private ContentView _topView;
         private readonly int _minViewsInterval;
@@ -38,12 +50,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Constructors
 
-        public ContentStore()
-            : this(new Options())
+        public ContentStore(ILogger logger)
+            : this(logger, new Options())
         { }
 
-        public ContentStore(Options options)
+        public ContentStore(ILogger logger, Options options)
         {
+            _logger = logger;
             _freezeLock = new FrozenLock(this);
 
             _minViewsInterval = options.MinViewsInterval;
@@ -75,7 +88,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        #region Has
+        /*#region Has
 
         public bool Has(int id)
         {
@@ -91,7 +104,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        #endregion
+        #endregion*/
 
         #region Set, Clear
 
@@ -102,12 +115,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (content.ChildContentIds.Count > 0)
                 throw new ArgumentException("Content cannot have children.");
 
+            _logger.Debug<ContentStore>("Set content ID:" + content.Id);
+
             Locker.EnterWriteLock();
             try
             {
                 // get existing
                 ContentNode existing;
                 AllContent.TryGetValue(content.Id, out existing); // else null
+
+                // manage content type
+                if (EnsureContentType(content) == false)
+                    throw new Exception("Invalid content type object.");
+                if (existing == null)
+                    AddContentTypeReference(content.ContentTypeId);
 
                 // moving?
                 var moving = existing != null && existing.ParentContentId != content.ParentContentId;
@@ -116,7 +137,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 if (_topView != null)
                 {
                     if (existing == null)
-                        _topView.Clear(content.Id);
+                        _topView.SetNull(content.Id);
                     else if (moving)
                         CopyBranch(content, false); // the whole branch
                     else
@@ -140,28 +161,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     RemoveFromParent(existing);
                     AddToParent(content);
                 }
-
-                // manage the content type
-                PublishedContentType contentType;
-                if (_contentTypes.TryGetValue(content.ContentType.Id, out contentType))
-                {
-                    if (ReferenceEquals(contentType, content.ContentType) == false)
-                    {
-                        // existed, has changed, update
-                        // must be frozen because we are creating an inconsistent state where some
-                        // content point to the old content type and some point to the new one
-                        if (_frozen == false)
-                            throw new InvalidOperationException("Cannot replace a content type while not frozen.");
-                        _contentTypes[content.ContentType.Id] = content.ContentType;
-                        _contentTypesDirty = true;
-                    }
-                }
-                else
-                {
-                    // new, add
-                    _contentTypes[content.ContentType.Id] = content.ContentType;
-                    _contentTypesDirty = true;
-                }
             }
             finally
             {
@@ -169,7 +168,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        public void Clear(int id)
+        public bool Clear(int id)
         {
             Locker.EnterWriteLock();
             try
@@ -178,13 +177,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 // if it is not there, nothing to do
                 ContentNode content;
                 AllContent.TryGetValue(id, out content); // else null
-                if (content == null) return;
+                if (content == null) return false;
+
+                _logger.Debug<ContentStore>("Clear content ID:" + content.Id);
 
                 // update top view (to mask change) then remove
                 CopyBranch(content, true);
 
                 // manage the tree
                 RemoveFromParent(content);
+
+                return true;
             }
             finally
             {
@@ -192,48 +195,145 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        public void ResetFrozen(IEnumerable<ContentNode> contents)
+        // reload the store with new content for a branch
+        public void SetBranch(int rootContentId, ContentNode[] contents)
         {
-            // UpgradeableReadLock does not block other readers
-            // but blocks other upgradeable, so one 'reset' at a time
-
             if (_frozen == false)
-                throw new InvalidOperationException("Not frozen.");
+                throw new InvalidOperationException("Store is not frozen.");
 
-            Locker.EnterUpgradeableReadLock();
+            _logger.Debug<ContentStore>("Set branch ID:" + rootContentId);
+
+            Locker.EnterWriteLock();
             try
             {
-                // just reading, no write-lock needed
-                var orphanContents = AllContent.Select(x => x.Key).ToList();
-                var orphanTypes = _contentTypes.Keys.ToList();
+                // cannot accept a branch with out-of-sync content types
+                if (contents.Any(x => EnsureContentType(x) == false))
+                    throw new Exception("Invalid content type object.");
 
+                // get existing
+                ContentNode existing;
+                AllContent.TryGetValue(rootContentId, out existing); // else null
+
+                // if existing, shadow the branch
+                if (_topView != null && existing != null)
+                    CopyBranch(existing, true);
+
+                // manage tree
+                if (existing != null)
+                    RemoveFromParent(existing);
+
+                // now add them all back
                 foreach (var content in contents)
                 {
-                    Set(content); // upgrades to WriteLock
-                    orphanContents.Remove(content.Id);
-                    orphanTypes.Remove(content.ContentType.Id);
-                }
-
-                // because we have the read lock nothing else
-                // can add/remove content and mess with orphans
-
-                foreach (var id in orphanContents)
-                    Clear(id); // upgrades to WriteLock
-
-                Locker.EnterWriteLock();
-                try
-                {
-                    foreach (var id in orphanTypes)
-                        _contentTypes.Remove(id);
-                }
-                finally
-                {
-                    Locker.ExitWriteLock();
+                    AddContentTypeReference(content.ContentTypeId);
+                    if (_topView != null) // take care of orphans
+                        _topView.SetNull(content.Id); // if not already there
+                    AllContent[content.Id] = content;
+                    AddToParent(content);
                 }
             }
             finally
             {
-                Locker.ExitUpgradeableReadLock();
+                Locker.ExitWriteLock();
+            }
+        }
+
+        // reload the store entirely with new content
+        public void SetAll(ContentNode[] contents)
+        {
+            if (_frozen == false)
+                throw new InvalidOperationException("Not frozen.");
+
+            _logger.Debug<ContentStore>("Set all.");
+
+            Locker.EnterWriteLock();
+            try
+            {
+                // first, just shadow everything
+                foreach (var rootContent in _rootContentIds.Select(x => AllContent[x]))
+                    CopyBranch(rootContent, false);
+                AllContent.Clear();
+
+                _contentTypes.Clear();
+                _contentTypesDirty = true;
+                _rootContentIds.Clear();
+                _rootContentIdsDirty = true;
+
+                foreach (var content in contents)
+                {
+                    EnsureContentType(content); // rebuilding it all
+                    AddContentTypeReference(content.ContentTypeId);
+                    if (_topView != null) // take care of orphans
+                        _topView.SetNull(content.Id); // if not already there
+                    AllContent[content.Id] = content;
+                    AddToParent(content);
+                }
+            }
+            finally
+            {
+                Locker.ExitWriteLock();
+            }
+        }
+
+        // reload the store with new content for changed content types
+        public void SetTypes(IEnumerable<int> contentTypeIds, ContentNode[] contents)
+        {
+            if (_frozen == false)
+                throw new InvalidOperationException("Store is not frozen.");
+
+            _logger.Debug<ContentStore>("Set types.");
+
+            Locker.EnterWriteLock();
+            try
+            {
+                // ensure we are replacing all contents else we have a problem
+                var orphans = AllContent.Values
+                    .Where(x => contentTypeIds.Contains(x.ContentTypeId))
+                    .Select(x => x.Id)
+                    .ToList();
+                foreach (var content in contents)
+                    orphans.Remove(content.Id);
+                if (orphans.Count > 0)
+                    throw new Exception("Orphans.");
+
+                // shadow content
+                foreach (var content in contents)
+                {
+                    ContentNode existing;
+                    if (AllContent.TryGetValue(content.Id, out existing))
+                        CopyBranch(existing, true);
+                }
+
+                // clear, all refs to be recalculated
+                foreach (var id in contentTypeIds)
+                    _contentTypes.Remove(id);
+                _contentTypesDirty = true;
+
+                foreach (var content in contents)
+                {
+                    ContentNode existing;
+                    AllContent.TryGetValue(content.Id, out existing); // else null
+
+                    EnsureContentType(content); // rebuilding it all
+                    AddContentTypeReference(content.ContentTypeId);
+                    if (_topView != null) // take care of new
+                        _topView.SetNull(content.Id); // if not already there
+                    AllContent[content.Id] = content;
+
+                    if (existing == null)
+                    {
+                        AddToParent(content);
+                    }
+                    else if (existing.ParentContentId != content.ParentContentId)
+                    {
+                        RemoveFromParent(existing);
+                        AddToParent(content);
+                    }
+                }
+            }
+            finally
+            {
+                Locker.ExitWriteLock();                
             }
         }
 
@@ -269,12 +369,44 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
+        private bool EnsureContentType(ContentNode content)
+        {
+            PublishedContentTypeRef contentTypeRef;
+            if (_contentTypes.TryGetValue(content.ContentTypeId, out contentTypeRef))
+                return ReferenceEquals(content.ContentType, contentTypeRef.ContentType);
+
+            _contentTypes[content.ContentTypeId] = new PublishedContentTypeRef(content.ContentType);
+            _contentTypesDirty = true;
+            return true;
+        }
+
+        private void AddContentTypeReference(int contentTypeId)
+        {
+            var contentTypeRef = _contentTypes[contentTypeId];
+            contentTypeRef.RefCount += 1;
+        }
+
+        private void RemoveContentTypeReference(int contentTypeId)
+        {
+            var contentTypeRef = _contentTypes[contentTypeId];
+            contentTypeRef.RefCount -= 1;
+            if (contentTypeRef.RefCount == 0)
+            {
+                _contentTypes.Remove(contentTypeId);
+                _contentTypesDirty = true;
+            }
+        }
+
         private void CopyBranch(ContentNode content, bool clear)
         {
             if (_topView != null)
                 _topView.Set(content);
+
             if (clear)
+            {
                 AllContent.Remove(content.Id);
+                RemoveContentTypeReference(content.ContentType.Id);
+            }
 
             foreach (var childId in content.ChildContentIds)
             {
@@ -292,34 +424,52 @@ namespace Umbraco.Web.PublishedCache.NuCache
             ContentNode parent;
             if (AllContent.TryGetValue(content.ParentContentId, out parent) == false)
                 throw new Exception("oops: no parent.");
-            if (_topView != null)
-            {
-                _topView.Set(parent);
-                parent = parent.CloneParent();
-                AllContent[parent.Id] = parent;
-            }
+
+            // if there is no top view then it is safe to modify the original parent
+            if (_topView == null)
+                return parent;
+
+            // if it was already shadowed in the view then it is also fine to
+            // modify the parent we have because it is local only
+            if (_topView.Set(parent) == false)
+                return parent;
+
+            // else we need to shadow it in the view and create a new one locally
+            parent = parent.CloneParent();
+            AllContent[parent.Id] = parent;
             return parent;
         }
 
-        // clears a content type
-        // each published content has a reference to each content type.
-        // when a content type is set, it comes with each content type,
-        // and _contentTypes is updated accordingly.
-        // so clearing a content type is... still a bit weirdish, what
-        // about the content?!
-        //public void ClearContentType(int id)
-        //{
-        //    Locker.EnterWriteLock();
-        //    try
-        //    {
-        //        _contentTypes.Remove(id);
-        //        _contentTypesDirty = true;
-        //    }
-        //    finally
-        //    {
-        //        Locker.ExitWriteLock();
-        //    }
-        //}
+        // resets for new data types - just by cloning contents w/new type
+        public void SetDataTypes(IEnumerable<int> dataTypeIds, Func<int, PublishedContentType> getCache)
+        {
+            Locker.EnterWriteLock();
+            try
+            {
+                var contentTypeRefs = _contentTypes.Values
+                    .Where(x => x.ContentType.PropertyTypes.Any(p => dataTypeIds.Contains(p.DataTypeId)));
+
+                foreach (var contentTypeRef in contentTypeRefs)
+                {
+                    var contentTypeId = contentTypeRef.ContentType.Id;
+                    var newContentType = getCache(contentTypeId);
+                    contentTypeRef.ContentType = newContentType;
+                    foreach (var content in AllContent.Values.Where(x => x.ContentTypeId == contentTypeId))
+                    {
+                        if (_topView != null)
+                            _topView.Set(content);
+                        var node = new ContentNode(content, newContentType);
+                        AllContent[node.Id] = node;
+                    }
+                }
+
+                _contentTypesDirty = true;
+            }
+            finally
+            {
+                Locker.ExitWriteLock();                
+            }
+        }
 
         #endregion
 
@@ -400,7 +550,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             if (_contentTypesDirty)
             {
-                _contentTypesSnap = new Dictionary<int, PublishedContentType>(_contentTypes);
+                _contentTypesSnap = _contentTypes.ToDictionary(x => x.Key, x => x.Value.ContentType);
                 _contentTypesDirty = false;
             }
             return _contentTypesSnap;

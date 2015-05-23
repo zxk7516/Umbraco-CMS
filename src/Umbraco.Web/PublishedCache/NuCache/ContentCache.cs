@@ -322,14 +322,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        #region Detached - TO BE REFACTORED EVENTUALLY
+        #region Detached
+
+        // detached is something that needs to be refactored entirely eventually
+        // detached property should accept the "container content" guid
+        // etc
 
         public IPublishedProperty CreateDetachedProperty(PublishedPropertyType propertyType, object value, bool isPreviewing)
         {
-            // fixme - re-thing & re-factor Detached IF WE HAVE GUIDS?!
-            var contentGuid = Guid.Empty;
-            var isMember = false;
-            return new Property(propertyType, contentGuid, value, isPreviewing, isMember);
+            throw new NotImplementedException();
         }
 
         #endregion

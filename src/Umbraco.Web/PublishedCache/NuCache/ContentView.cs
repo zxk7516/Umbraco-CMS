@@ -107,7 +107,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // sets a content
         // only ContentStore can set a content
         // not thread-safe, invoked from within a lock
-        public void Set(ContentNode content)
+        public bool Set(ContentNode content)
         {
             if (content == null)
                 throw new ArgumentNullException("content");
@@ -116,22 +116,26 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             EnsureNotZombie();
             EnsureViewContent();
-            if (_viewContent.ContainsKey(content.Id) == false)
-                _viewContent[content.Id] = content;
+            if (_viewContent.ContainsKey(content.Id))
+                return false;
+            _viewContent[content.Id] = content;
+            return true;
         }
 
-        // clears a content
+        // sets a content to null - register that the content does not exist in that view
         // only ContentStore can clear a content
         // not thread-safe, invoked from within a lock
-        public void Clear(int id)
+        public bool SetNull(int id)
         {
             if (_parentView != null)
                 throw new InvalidOperationException("Not the top view.");
 
             EnsureNotZombie();
             EnsureViewContent();
-            if (_viewContent.ContainsKey(id) == false)
-                _viewContent[id] = null;
+            if (_viewContent.ContainsKey(id))
+                return false;
+            _viewContent[id] = null;
+            return true;
         }
 
         #endregion
