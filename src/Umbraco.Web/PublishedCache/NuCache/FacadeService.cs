@@ -12,6 +12,7 @@ using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
+using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Services;
 using Umbraco.Web.Cache;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
@@ -814,9 +815,35 @@ WHERE cmsContentNu.nodeId IN (
 
         private static ContentNuDto GetDto(IContentBase content, bool published)
         {
+            // should inject these in ctor
+            // BUT for the time being we decide not to support ConvertDbToXml/String
+            //var propertyEditorResolver = PropertyEditorResolver.Current;
+            //var dataTypeService = ApplicationContext.Current.Services.DataTypeService;
+
             var data = new Dictionary<string, object>();
             foreach (var prop in content.Properties)
-                data[prop.Alias] = prop.Value;
+            {
+                var value = prop.Value;
+                //if (value != null)
+                //{
+                //    var e = propertyEditorResolver.GetByAlias(prop.PropertyType.PropertyEditorAlias);
+
+                //    // We are converting to string, even for database values which are integer or
+                //    // DateTime, which is not optimum. Doing differently would require that we have a way to tell
+                //    // whether the conversion to XML string changes something or not... which we don't, and we
+                //    // don't want to implement it as PropertyValueEditor.ConvertDbToXml/String should die anyway.
+
+                //    // Don't think about improving the situation here: this is a corner case and the real
+                //    // thing to do is to get rig of PropertyValueEditor.ConvertDbToXml/String.
+
+                //    // Use ConvertDbToString to keep it simple, although everywhere we use ConvertDbToXml and
+                //    // nothing ensures that the two methods are consistent.
+
+                //    if (e != null)
+                //        value = e.ValueEditor.ConvertDbToString(prop, prop.PropertyType, dataTypeService);
+                //}
+                data[prop.Alias] = value;
+            }
 
             var dto = new ContentNuDto
             {
