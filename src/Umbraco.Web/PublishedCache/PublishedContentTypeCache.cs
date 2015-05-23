@@ -162,36 +162,6 @@ namespace Umbraco.Web.PublishedCache
             return new PublishedContentType(itemType, contentType);
         }
 
-        // do this while content & content types are locked to be sure you have them all
-        internal void PrefetchAll(PublishedItemType itemType)
-        {
-            if (GetPublishedContentTypeById != null || GetPublishedContentTypeByAlias != null)
-                throw new InvalidOperationException();
-
-            using (new UpgradeableReadLock(_lock))
-            {
-                IEnumerable<IContentTypeComposition> contentTypes;
-                switch (itemType)
-                {
-                    case PublishedItemType.Content:
-                        contentTypes = _contentTypeService.GetAll();
-                        break;
-                    case PublishedItemType.Media:
-                        contentTypes = _mediaTypeService.GetAll();
-                        break;
-                    case PublishedItemType.Member:
-                        contentTypes = _memberTypeService.GetAll();
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("itemType");
-                }
-
-                var types = contentTypes.Select(t => new PublishedContentType(itemType, t));
-                foreach (var type in types)
-                    _typesByAlias[GetAliasKey(type)] = _typesById[type.Id] = type;
-            }
-        }
-
         // for unit tests - changing the callback must reset the cache obviously
         private Func<string, PublishedContentType> _getPublishedContentTypeByAlias;
         internal Func<string, PublishedContentType> GetPublishedContentTypeByAlias
