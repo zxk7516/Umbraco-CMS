@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Xml.XPath;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
@@ -11,15 +10,9 @@ using Umbraco.Core.Security;
 using Umbraco.Core.Services;
 using Umbraco.Core.Xml.XPath;
 using Umbraco.Web.PublishedCache.NuCache.Navigable;
-using Umbraco.Web.Security;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    // fixme - this is NOT very efficient...
-    // fixme - NOT managing PREVIEW here?!
-    // caching in the FacadeCache is OK but then...
-    // we should INDEX them not create several entries for several members?
-
     class MemberCache : IPublishedMemberCache, INavigableData
     {
         private readonly IMemberService _memberService;
@@ -35,29 +28,31 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _previewDefault = previewDefault;
         }
 
+        //private static T GetCacheItem<T>(string cacheKey)
+        //    where T : class
+        //{
+        //    var facade = Facade.Current;
+        //    var cache = facade == null ? null : facade.FacadeCache;
+        //    return cache == null
+        //        ? null
+        //        : (T) cache.GetCacheItem(cacheKey);
+        //}
+
         private static T GetCacheItem<T>(string cacheKey, Func<T> getCacheItem)
+            where T : class
         {
             var facade = Facade.Current;
             var cache = facade == null ? null : facade.FacadeCache;
             return cache == null
                 ? getCacheItem()
-                : cache.GetCacheItem(cacheKey, getCacheItem);
+                : cache.GetCacheItem<T>(cacheKey, getCacheItem);
         }
 
-        public IPublishedContent GetByProviderKey(object key)
+        private static void EnsureProvider()
         {
-            return GetCacheItem(
-                GetCacheKey("GetByProviderKey", key), () =>
-                {
-                    var provider = Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
-                    var member = _memberService.GetByProviderKey(key);
-                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
-                });
+            var provider = Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider();
+            if (provider.IsUmbracoMembershipProvider() == false)
+                throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
         }
 
         public IPublishedContent GetById(bool preview, int memberId)
@@ -65,57 +60,57 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return GetById(memberId);
         }
 
-        public IPublishedContent GetById(int memberId)
+        public IPublishedContent /*IPublishedMember*/ GetById(int memberId)
         {
-            return GetCacheItem(
-                GetCacheKey("GetById", memberId), () =>
+            return GetCacheItem(CacheKeys.MemberCacheMember("ById", _previewDefault, memberId), () =>
                 {
-                    var provider = Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
+                    EnsureProvider();
                     var member = _memberService.GetById(memberId);
-                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
+                    return member == null 
+                        ? null 
+                        : PublishedMember.Create(member, GetContentType(member.ContentTypeId), _previewDefault);
                 });
         }
 
-        public IPublishedContent GetByUsername(string username)
+        private IPublishedContent /*IPublishedMember*/ GetById(IMember member, bool previewing)
         {
-            return GetCacheItem(
-                GetCacheKey("GetByUsername", username), () =>
-                {
-                    var provider = Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
+            return GetCacheItem(CacheKeys.MemberCacheMember("ById", _previewDefault, member.Id), () =>
+                PublishedMember.Create(member, GetContentType(member.ContentTypeId), previewing));
+        }
 
+        public IPublishedContent /*IPublishedMember*/ GetByProviderKey(object key)
+        {
+            return GetCacheItem(CacheKeys.MemberCacheMember("ByProviderKey", _previewDefault, key), () =>
+                {
+                    EnsureProvider();
+                    var member = _memberService.GetByProviderKey(key);
+                    return member == null ? null : GetById(member, _previewDefault);
+                });
+        }
+
+        public IPublishedContent /*IPublishedMember*/ GetByUsername(string username)
+        {
+            return GetCacheItem(CacheKeys.MemberCacheMember("ByUsername", _previewDefault, username), () =>
+                {
+                    EnsureProvider();
                     var member = _memberService.GetByUsername(username);
-                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
+                    return member == null ? null : GetById(member, _previewDefault);
                 });
         }
 
-        public IPublishedContent GetByEmail(string email)
+        public IPublishedContent /*IPublishedMember*/ GetByEmail(string email)
         {
-            return GetCacheItem(
-                GetCacheKey("GetByEmail", email), () =>
+            return GetCacheItem(CacheKeys.MemberCacheMember("ByEmail", _previewDefault, email), () =>
                 {
-                    var provider = Core.Security.MembershipProviderExtensions.GetMembersMembershipProvider();
-                    if (provider.IsUmbracoMembershipProvider() == false)
-                    {
-                        throw new NotSupportedException("Cannot access this method unless the Umbraco membership provider is active");
-                    }
-
+                    EnsureProvider();
                     var member = _memberService.GetByEmail(email);
-                    return member == null ? null : PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
+                    return member == null ? null : GetById(member, _previewDefault);
                 });
         }
 
-        public IPublishedContent GetByMember(IMember member)
+        public IPublishedContent /*IPublishedMember*/ GetByMember(IMember member)
         {
-            return PublishedMember.Create(member, _contentTypeCache.Get(PublishedItemType.Member, member.ContentTypeId));
+            return PublishedMember.Create(member, GetContentType(member.ContentTypeId), _previewDefault);
         }
 
         public IEnumerable<IPublishedContent> GetAtRoot(bool preview)
@@ -123,7 +118,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // because members are flat (not a tree) everything is at root
             // because we're loading everything... let's just not cache?
             var members = _memberService.GetAllMembers();
-            return members.Select(m => PublishedMember.Create(m, _contentTypeCache.Get(PublishedItemType.Member, m.ContentTypeId)));
+            return members.Select(m => PublishedMember.Create(m, GetContentType(m.ContentTypeId), preview));
         }
 
         public XPathNavigator CreateNavigator()
@@ -153,17 +148,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var s = exs.Serialize(_dataTypeService, result);
             var n = s.GetXmlNode();
             return n.CreateNavigator();
-        }
-
-        private static string GetCacheKey(string key, params object[] additional)
-        {
-            var sb = new StringBuilder(string.Format("{0}-{1}", typeof(MembershipHelper).Name, key));
-            foreach (var s in additional)
-            {
-                sb.Append("-");
-                sb.Append(s);
-            }
-            return sb.ToString();
         }
 
         #region Content types

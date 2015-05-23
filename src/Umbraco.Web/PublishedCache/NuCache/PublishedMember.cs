@@ -1,40 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Umbraco.Core;
 using Umbraco.Core.Models;
-using Umbraco.Core.Models.Membership;
 using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.PropertyEditors;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    // fixme - the whole concept is borked
-    // because as soon as we wrap... we're dead
-    // what is the cache returning? PublishedContent or PublishedMember?!
-    // plus soon as a model is created for a member... all it's native properties are lost?!!!
+    // note
+    // the whole PublishedMember thing should be refactored because as soon as a member
+    // is wrapped on in a model, the inner IMember and all associated properties are lost
 
-    class PublishedMember : PublishedContent
+    class PublishedMember : PublishedContent //, IPublishedMember
     {
-        //private readonly IMember _member;
-        private readonly IMembershipUser _membershipUser;
+        private readonly IMember _member;
 
-        public PublishedMember(IMember member, ContentNode contentNode, ContentData contentData)
+        private PublishedMember(IMember member, ContentNode contentNode, ContentData contentData)
             : base(contentNode, contentData)
         {
-            //_member = member;
-            _membershipUser = member;
+            _member = member;
         }
 
-        public static PublishedMember Create(IMember member, PublishedContentType contentType)
+        public static PublishedMember Create(IMember member, PublishedContentType contentType, bool previewing)
         {
             var d = new ContentData
             {
                 Name = member.Name,
-                Published = true,
+                Published = previewing,
                 TemplateId = -1,
                 Version = member.Version,
                 VersionDate = member.UpdateDate,
@@ -45,85 +37,91 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 contentType,
                 member.Level, member.Path, member.SortOrder,
                 member.ParentId,
-                member.CreateDate, member.CreatorId); // fixme - dirty
+                member.CreateDate, member.CreatorId);
             return new PublishedMember(member, n, d);
         }
 
-        // fixme temp
         private static Dictionary<string, object> GetPropertyValues(IContentBase content)
         {
-            var propertyEditorResolver = PropertyEditorResolver.Current; // FIXME inject
+            // see node in FacadeService
+            // we do not (want to) support ConvertDbToXml/String
+
+            //var propertyEditorResolver = PropertyEditorResolver.Current;
 
             return content
                 .Properties
-                .Select(property =>
-                {
-                    var e = propertyEditorResolver.GetByAlias(property.PropertyType.PropertyEditorAlias);
-                    var v = e == null
-                        ? property.Value
-                        : e.ValueEditor.ConvertDbToString(property, property.PropertyType, ApplicationContext.Current.Services.DataTypeService); // FIXME inject
-                    return new KeyValuePair<string, object>(property.Alias, v);
-                })
-                .ToDictionary(x => x.Key, x => x.Value);
+                //.Select(property =>
+                //{
+                //    var e = propertyEditorResolver.GetByAlias(property.PropertyType.PropertyEditorAlias);
+                //    var v = e == null
+                //        ? property.Value
+                //        : e.ValueEditor.ConvertDbToString(property, property.PropertyType, ApplicationContext.Current.Services.DataTypeService);
+                //    return new KeyValuePair<string, object>(property.Alias, v);
+                //})
+                //.ToDictionary(x => x.Key, x => x.Value);
+                .ToDictionary(x => x.Alias, x => x.Value);
         }
 
-        // fixme - 
+        #region IPublishedMember
 
-        #region Membership provider member properties
+        public IMember Member
+        {
+            get { return _member; }
+        }
 
         public string Email
         {
-            get { return _membershipUser.Email; }
+            get { return _member.Email; }
         }
 
         public string UserName
         {
-            get { return _membershipUser.Username; }
+            get { return _member.Username; }
         }
 
         public string PasswordQuestion
         {
-            get { return _membershipUser.PasswordQuestion; }
+            get { return _member.PasswordQuestion; }
         }
 
         public string Comments
         {
-            get { return _membershipUser.Comments; }
+            get { return _member.Comments; }
         }
 
         public bool IsApproved
         {
-            get { return _membershipUser.IsApproved; }
+            get { return _member.IsApproved; }
         }
 
         public bool IsLockedOut
         {
-            get { return _membershipUser.IsLockedOut; }
+            get { return _member.IsLockedOut; }
         }
 
         public DateTime LastLockoutDate
         {
-            get { return _membershipUser.LastLockoutDate; }
+            get { return _member.LastLockoutDate; }
         }
 
         public DateTime CreationDate
         {
-            get { return _membershipUser.CreateDate; }
+            get { return _member.CreateDate; }
         }
 
         public DateTime LastLoginDate
         {
-            get { return _membershipUser.LastLoginDate; }
+            get { return _member.LastLoginDate; }
         }
 
         public DateTime LastActivityDate
         {
-            get { return _membershipUser.LastLoginDate; }
+            get { return _member.LastLoginDate; }
         }
 
         public DateTime LastPasswordChangedDate
         {
-            get { return _membershipUser.LastPasswordChangeDate; }
+            get { return _member.LastPasswordChangeDate; }
         }
 
         #endregion

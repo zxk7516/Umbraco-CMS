@@ -10,7 +10,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
     // internal, never exposed, to be accessed from ContentStore (only!)
     internal class ContentNode
     {
-        // fixme - special for member?
+        // special ctor with no content data - for members
         public ContentNode(int id, Guid uid, PublishedContentType contentType,
             int level, string path, int sortOrder,
             int parentContentId,
