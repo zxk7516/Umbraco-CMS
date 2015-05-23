@@ -352,7 +352,10 @@ namespace Umbraco.Core.Xml.XPath
                 switch (_state.Position)
                 {
                     case StatePosition.Element:
-                        isEmpty = (_state.GetContentChildIds(_maxDepth).Count == 0) // no content child
+                        // must go through source because of preview/published ie there may be
+                        // ids but corresponding to preview elements that we don't see here
+                        var hasContentChild = _state.GetContentChildIds(_maxDepth).Any(x => SourceGet(x) != null);
+                        isEmpty = (hasContentChild == false) // no content child
                             && _state.FieldsCount - 1 == _lastAttributeIndex; // no property element child
                         break;
                     case StatePosition.PropertyElement:
