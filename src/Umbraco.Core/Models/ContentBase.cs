@@ -470,8 +470,6 @@ namespace Umbraco.Core.Models
             get { return _lastInvalidProperties; }
         }
 
-        public abstract void ChangeTrashedState(bool isTrashed, int parentId = -20);
-
         #region Dirty property handling
 
         /// <summary>

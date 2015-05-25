@@ -108,18 +108,6 @@ namespace Umbraco.Core.Models
         }
 
         /// <summary>
-        /// Changes the Trashed state of the content object
-        /// </summary>
-        /// <param name="isTrashed">Boolean indicating whether content is trashed (true) or not trashed (false)</param>
-        /// <param name="parentId"> </param>
-        public override void ChangeTrashedState(bool isTrashed, int parentId = -20)
-        {
-            Trashed = isTrashed;
-            //The Media Recycle Bin Id is -21 so we correct that here
-            ParentId = parentId == -20 ? -21 : parentId;
-        }
-
-        /// <summary>
         /// Method to call when Entity is being saved
         /// </summary>
         /// <remarks>Created date is set and a Unique key is assigned</remarks>

@@ -340,25 +340,6 @@ namespace Umbraco.Core.Models
         /// Gets a value indicating whether the content has a published version.
         /// </summary>
         public bool HasPublishedVersion { get { return PublishedVersionGuid != default(Guid); } }
-
-        /// <summary>
-        /// Changes the Trashed state of the content object
-        /// </summary>
-        /// <param name="isTrashed">Boolean indicating whether content is trashed (true) or not trashed (false)</param>
-        /// <param name="parentId"> </param>
-        public override void ChangeTrashedState(bool isTrashed, int parentId = -20)
-        {
-            Trashed = isTrashed;
-            ParentId = parentId;
-
-            //If the content is trashed and is published it should be marked as unpublished
-            // fixme - but it should be unpublished anyways?!
-            // fixme + precisely NOT we want to remember that it was published! it's just "masked"
-            if (isTrashed && Published)
-            {
-                ChangePublishedState(PublishedState.Unpublishing);
-            }
-        }
         
         public override void ResetDirtyProperties(bool rememberPreviouslyChangedProperties)
         {
