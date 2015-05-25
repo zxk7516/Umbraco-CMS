@@ -5,6 +5,7 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
+using Umbraco.Core.ObjectResolution;
 using Umbraco.Web.Models;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
@@ -103,31 +104,45 @@ namespace Umbraco.Web.PublishedCache.NuCache
         #region Get Content/Media for Parent/Children
 
         // this is for tests purposes
-        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetContentByIdOverride;
-        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetMediaByIdOverride;
+        // args are: current facade (may be null), previewing, content id - returns: content
+        private static Func<IPublishedCaches, bool, int, IPublishedContent> _getContentByIdFunc =
+            (facade, previewing, id) => facade.ContentCache.GetById(previewing, id);
+        private static Func<IPublishedCaches, bool, int, IPublishedContent> _getMediaByIdFunc =
+            (facade, previewing, id) => facade.MediaCache.GetById(previewing, id);
 
-        private static void EnsureGetContentById()
+        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetContentByIdFunc
         {
-            if (GetContentByIdOverride == null)
-                GetContentByIdOverride = ((facade, previewing, id) => facade.ContentCache.GetById(previewing, id));
+            get { return _getContentByIdFunc; }
+            set
+            {
+                using (Resolution.Configuration)
+                {
+                    _getContentByIdFunc = value;
+                }
+            }
         }
 
-        private static void EnsureGetMediaById()
+        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetMediaByIdFunc
         {
-            if (GetMediaByIdOverride == null)
-                GetMediaByIdOverride = ((facade, previewing, id) => facade.MediaCache.GetById(previewing, id));
+            get { return _getMediaByIdFunc; }
+            set
+            {
+                using (Resolution.Configuration)
+                {
+                    _getMediaByIdFunc = value;
+                }
+            }
         }
 
         private static IPublishedContent GetContentById(bool previewing, int id)
         {
-            EnsureGetContentById();
-            return GetContentByIdOverride(Facade.Current, previewing, id);
+            return _getContentByIdFunc(Facade.Current, previewing, id);
         }
 
         private static IEnumerable<IPublishedContent> GetContentByIds(bool previewing, IEnumerable<int> ids)
         {
-            EnsureGetContentById();
-            var content = ids.Select(x => GetContentByIdOverride(Facade.Current, previewing, x));
+            var facade = Facade.Current;
+            var content = ids.Select(x => _getContentByIdFunc(facade, previewing, x));
             if (previewing == false)
                 content = content.Where(x => x != null);
             return content;
@@ -135,14 +150,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private static IPublishedContent GetMediaById(bool previewing, int id)
         {
-            EnsureGetMediaById();
-            return GetMediaByIdOverride(Facade.Current, previewing, id);
+            return _getMediaByIdFunc(Facade.Current, previewing, id);
         }
 
         private static IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
         {
-            EnsureGetMediaById();
-            return ids.Select(x => GetMediaByIdOverride(Facade.Current, previewing, x));
+            var facade = Facade.Current;
+            return ids.Select(x => _getMediaByIdFunc(facade, previewing, x));
         }
 
         #endregion

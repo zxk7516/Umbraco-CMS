@@ -74,7 +74,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public static Facade Current
         {
-            get { return GetCurrentFacadeFunc(); }
+            get { return _getCurrentFacadeFunc(); }
         }
 
         #endregion

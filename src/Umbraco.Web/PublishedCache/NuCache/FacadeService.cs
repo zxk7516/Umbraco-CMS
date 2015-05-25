@@ -12,15 +12,14 @@ using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
-using Umbraco.Core.PropertyEditors;
 using Umbraco.Core.Services;
 using Umbraco.Web.Cache;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
+using Database = Umbraco.Web.PublishedCache.NuCache.DataSource.Database;
 #pragma warning disable 618
 using Content = umbraco.cms.businesslogic.Content;
 #pragma warning restore 618
-using Database = Umbraco.Web.PublishedCache.NuCache.DataSource.Database;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
