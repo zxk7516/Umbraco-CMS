@@ -31,6 +31,22 @@ namespace Umbraco.Core.Services
         }
 
         #endregion
+
+
+        #region Services
+
+        public static IContentTypeServiceBase<T> GetService<T>(ServiceContext services)
+        {
+            if (typeof(T).Implements<IContentType>())
+                return services.ContentTypeService as IContentTypeServiceBase<T>;
+            if (typeof(T).Implements<IMediaType>())
+                return services.MediaTypeService as IContentTypeServiceBase<T>;
+            if (typeof(T).Implements<IMemberType>())
+                return services.MediaTypeService as IContentTypeServiceBase<T>;
+            throw new ArgumentException("Type " + typeof(T).FullName + " does not have a service.");
+        }
+
+        #endregion
     }
 
     internal static class ContentTypeServiceBaseChangeExtensions
@@ -239,151 +255,6 @@ namespace Umbraco.Core.Services
         #endregion
 
         #region Composition
-
-        /*
-        internal IEnumerable<TreeChange<IContentTypeBase>> ComposeContentTypeChangesForDistributedCache(IEnumerable<IContentTypeBase> contentTypes)
-        {
-            var changes = new Dictionary<int, TreeChange<IContentTypeBase>>();
-
-            // handle changes:
-            // anything other that the alias =>  reload descendants
-            // FIXME should be ANYTHING that changes the PUBLISHED CONTENT TYPE
-            // ie ID, ALIAS, PROPERTIES
-            // and for each property, ALIAS, DATATYPEID, PROPERTYEDITORALIAS
-            //
-            // FIXME NOT! want them all because ContentTypeCacheRefresher refreshers MORE than the published cache
-            // FIXME reindexing all medias?!
-
-            // just the alias => reload just that one
-
-            foreach (var contentType in contentTypes)
-            {
-                var dirtyProperties = ((ContentType)contentType).GetDirtyProperties();
-                var hasOtherThanAliasChanged = dirtyProperties.Any(x => x.InvariantEquals("Alias") == false);
-                var hasAliasChanged = ((ContentType)contentType).IsPropertyDirty("Alias");
-
-                if (hasOtherThanAliasChanged)
-                {
-                    TreeChange<IContentTypeBase> change;
-                    if (changes.TryGetValue(contentType.Id, out change))
-                        change.ChangeTypes = TreeChangeTypes.RefreshBranch;
-                    else
-                        changes.Add(contentType.Id, new TreeChange<IContentTypeBase>(contentType, TreeChangeTypes.RefreshBranch));
-                }
-                else if (hasAliasChanged)
-                {
-                    if (changes.ContainsKey(contentType.Id) == false)
-                        changes.Add(contentType.Id, new TreeChange<IContentTypeBase>(contentType, TreeChangeTypes.RefreshNode));
-                }
-            }
-
-            return changes.Values;
-        }
-
-        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForDistributedEvent(IContentTypeBase contentType)
-        {
-            return ComposeContentTypeChangesForDistributedEvent(new[] { contentType });
-        }
-
-        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForDistributedEvent(IEnumerable<IContentTypeBase> contentTypes)
-        {
-            // see notes in _ForTransactionEvent below
-
-            // hash set handles duplicates
-            var changes = new HashSet<IContentTypeBase>(new DelegateEqualityComparer<IContentTypeBase>(
-                (x, y) => x.Id == y.Id,
-                x => x.Id.GetHashCode()));
-
-            // for a distributed event we want to signal EVERYTHING
-            // FIXME but then the content cache will refresh FAR MORE than needed?!
-            // so we'd need details about different types of changes?!
-
-            foreach (var contentType in contentTypes)
-            {
-                // add that one
-                changes.Add(contentType);
-
-                // add all of these that are directly or indirectly composed of that one
-                foreach (var c in contentType.ComposedOf())
-                    changes.Add(c);
-            }
-
-            return changes;
-        }
-
-        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForTransactionEvent(IContentTypeBase contentType)
-        {
-            return ComposeContentTypeChangesForTransactionEvent(new[] { contentType });
-        }
-
-        internal IEnumerable<IContentTypeBase> ComposeContentTypeChangesForTransactionEvent(IEnumerable<IContentTypeBase> contentTypes)
-        {
-            // find all content types impacted by the changes,
-            // - content type alias changed
-            // - content type property removed, or alias changed
-            // - content type composition removed (not testing if composition had properties...)
-            //
-            // because these are the changes that would impact the raw content data
-
-            // note
-            // this is meant to run *after* uow.Commit() so must use WasPropertyDirty() everywhere
-            // instead of IsPropertyDirty() since dirty properties have been resetted already
-
-            // hash set handles duplicates
-            var changes = new HashSet<IContentTypeBase>(new DelegateEqualityComparer<IContentTypeBase>(
-                (x, y) => x.Id == y.Id,
-                x => x.Id.GetHashCode()));
-
-            foreach (var contentType in contentTypes)
-            {
-                var dirty = contentType as IRememberBeingDirty;
-                if (dirty == null) throw new Exception("oops");
-
-                // skip new content types
-                var isNewContentType = dirty.WasPropertyDirty("HasIdentity");
-                if (isNewContentType) continue;
-
-                // alias change?
-                var hasAliasChanged = dirty.WasPropertyDirty("Alias");
-
-                // existing property alias change?
-                var hasAnyPropertyChangedAlias = contentType.PropertyTypes.Any(propertyType =>
-                {
-                    var dirtyProperty = propertyType as IRememberBeingDirty;
-                    if (dirtyProperty == null) throw new Exception("oops");
-
-                    // skip new properties
-                    var isNewProperty = dirtyProperty.WasPropertyDirty("HasIdentity");
-                    if (isNewProperty) return false;
-
-                    // alias change?
-                    var hasPropertyAliasBeenChanged = dirtyProperty.WasPropertyDirty("Alias");
-                    return hasPropertyAliasBeenChanged;
-                });
-
-                // removed properties?
-                var hasAnyPropertyBeenRemoved = dirty.WasPropertyDirty("HasPropertyTypeBeenRemoved");
-
-                // removed compositions?
-                var hasAnyCompositionBeenRemoved = dirty.WasPropertyDirty("HasCompositionTypeBeenRemoved");
-
-                if (hasAliasChanged || hasAnyCompositionBeenRemoved || hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias)
-                {
-                    // add that one
-                    changes.Add(contentType);
-                }
-
-                if (hasAnyCompositionBeenRemoved || hasAnyPropertyBeenRemoved || hasAnyPropertyChangedAlias)
-                {
-                    // add all of these that are directly or indirectly composed of that one
-                    foreach (var c in contentType.ComposedOf())
-                        changes.Add(c);
-                }
-            }
-
-            return changes;
-        }
-        */
 
         internal IEnumerable<Change> ComposeContentTypeChanges(params TItem[] contentTypes)
         {

@@ -92,7 +92,7 @@ namespace Umbraco.Core.Services
 
         public int CountPublished(string contentTypeAlias = null)
         {
-            return _lrepo.WithReadLocked(xr => xr.Repository.CountPublished(/*contentTypeAlias*/)); // fixme?!
+            return _lrepo.WithReadLocked(xr => xr.Repository.CountPublished(contentTypeAlias));
         }
 
         public int Count(string contentTypeAlias = null)

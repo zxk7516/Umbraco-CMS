@@ -1,8 +1,7 @@
 using System;
-using Umbraco.Core.Logging;
 using System.IO;
 using Umbraco.Core.IO;
-using Umbraco.Core.Models;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.UnitOfWork;
 
@@ -67,7 +66,7 @@ namespace Umbraco.Core.Services
         public ServiceContext(
             Tuple<IContentService, IContentTypeService> contentServices = null,
             Tuple<IMediaService, IMediaTypeService> mediaServices = null,
-            Tuple<IMemberService, IMemberTypeService> memberServices = null, // fixme and groups?
+            Tuple<IMemberService, IMemberTypeService> memberServices = null,
             IDataTypeService dataTypeService = null,
             IFileService fileService = null,
             ILocalizationService localizationService = null,
@@ -166,12 +165,10 @@ namespace Umbraco.Core.Services
             if (_userService == null)
                 _userService = new Lazy<IUserService>(() => new UserService(provider, repositoryFactory, logger));
 
-            // FIXME stop using _whateverService.Value everywhere!
-            // FIXME below: inject everything?!
-
             if (_memberServices == null)
                 _memberServices = new Lazy<Tuple<IMemberService, IMemberTypeService>>(() =>
                 {
+                    // need this before both services cross-reference each other
                     var memberService = new MemberService(provider, repositoryFactory, logger, _memberGroupService.Value, _dataTypeService.Value);
                     var memberTypeService = new MemberTypeService(provider, repositoryFactory, logger);
                     memberService.MemberTypeService = memberTypeService;
@@ -179,12 +176,14 @@ namespace Umbraco.Core.Services
                     return Tuple.Create((IMemberService) memberService, (IMemberTypeService) memberTypeService);
                 });
 
+            // that one is distinct from the two preview services (no cross-reference)
             if (_memberGroupService == null)
                 _memberGroupService = new Lazy<IMemberGroupService>(() => new MemberGroupService(provider, repositoryFactory, logger));
 
             if (_contentServices == null)
                 _contentServices = new Lazy<Tuple<IContentService, IContentTypeService>>(() =>
                 {
+                    // need this before both services cross-reference each other
                     var contentService = new ContentService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
                     var contentTypeService = new ContentTypeService(provider, repositoryFactory, logger);
                     contentService.ContentTypeService = contentTypeService;
@@ -195,6 +194,7 @@ namespace Umbraco.Core.Services
             if (_mediaServices == null)
                 _mediaServices = new Lazy<Tuple<IMediaService, IMediaTypeService>>(() =>
                 {
+                    // need this before both services cross-reference each other
                     var mediaService = new MediaService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
                     var mediaTypeService = new MediaTypeService(provider, repositoryFactory, logger);
                     mediaService.MediaTypeService = mediaTypeService;

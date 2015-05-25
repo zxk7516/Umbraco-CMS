@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Umbraco.Core.Services;
 
 namespace Umbraco.Core.Models
@@ -13,10 +14,11 @@ namespace Umbraco.Core.Models
         /// <remarks>Descendants corresponds to the parent-child relationship, and has
         /// nothing to do with compositions, though a child should always be composed
         /// of its parent.</remarks>
-        public static IEnumerable<IContentTypeBase> Descendants(this IContentTypeBase contentType)
+        public static IEnumerable<T> Descendants<T>(this T contentType)
+            where T : IContentTypeBase
         {
-            var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetDescendants(contentType.Id, false); // fixme - cast
+            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            return service.GetDescendants(contentType.Id, false);
         }
 
         /// <summary>
@@ -27,10 +29,11 @@ namespace Umbraco.Core.Models
         /// <remarks>Descendants corresponds to the parent-child relationship, and has
         /// nothing to do with compositions, though a child should always be composed
         /// of its parent.</remarks>
-        public static IEnumerable<IContentTypeBase> DescendantsAndSelf(this IContentTypeBase contentType)
+        public static IEnumerable<T> DescendantsAndSelf<T>(this T contentType)
+            where T : IContentTypeBase
         {
-            var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetDescendants(contentType.Id, true); // fixme - cast
+            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            return service.GetDescendants(contentType.Id, true);
         }
 
         /// <summary>
@@ -41,10 +44,11 @@ namespace Umbraco.Core.Models
         /// <remarks>This corresponds to the composition relationship and has nothing to do
         /// with the parent-child relationship, though a child should always be composed of
         /// its parent.</remarks>
-        public static IEnumerable<IContentTypeBase> ComposedOf(this IContentTypeBase contentType)
+        public static IEnumerable<T> ComposedOf<T>(this T contentType)
+            where T : IContentTypeBase
         {
-            var contentTypeService = ApplicationContext.Current.Services.ContentTypeService;
-            return ((ContentTypeService) contentTypeService).GetComposedOf(contentType.Id); // fixme - cast
+            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            return service.GetComposedOf(contentType.Id);
         }
     }
 }

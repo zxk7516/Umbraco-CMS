@@ -820,8 +820,7 @@ namespace Umbraco.Core.Services
 
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IMember>(member, false), this);
-            // fixme - distributed?
-            Audit(AuditType.Save, "Save Media performed by user", 0, member.Id);
+            Audit(AuditType.Save, "Save Member performed by user", 0, member.Id);
         }
 
         /// <summary>
@@ -848,7 +847,6 @@ namespace Umbraco.Core.Services
 
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IMember>(membersA, false), this);
-            // fixme - distributed?
             Audit(AuditType.Save, "Save Member items performed by user", 0, -1);
         }
 
@@ -866,9 +864,8 @@ namespace Umbraco.Core.Services
                 return;
 
             WithWriteLocked(repository => DeleteLocked(member, repository));
-            //fixme - distributed?
 
-            Audit(AuditType.Delete, "Delete Media performed by user", 0, member.Id);
+            Audit(AuditType.Delete, "Delete Member performed by user", 0, member.Id);
         }
 
         private void DeleteLocked(IMember member, IMemberRepository repository)
@@ -1146,8 +1143,6 @@ namespace Umbraco.Core.Services
                 foreach (var member in members)
                     DeleteLocked(member, repository);
             });
-
-            // fixme - distributed?
 
             Audit(AuditType.Delete,
                 string.Format("Delete Members of Type {0} performed by user", memberTypeId),
