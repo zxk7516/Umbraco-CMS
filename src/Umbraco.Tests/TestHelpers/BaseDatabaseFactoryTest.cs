@@ -219,19 +219,16 @@ namespace Umbraco.Tests.TestHelpers
                     };
                 }
 
-                // NOTE
-                // must ensure that XmlStore is not hitting the database right now because it's not
-                // been created yet - setting service "testing" to true should do it
-                // FIXME
-                // however in production... will XmlStore try to read from DB before it even has
-                // been created... and then what happens?
-
                 ContentTypesCache = new PublishedContentTypeCache(
                         ApplicationContext.Services.ContentTypeService,
                         ApplicationContext.Services.MediaTypeService, 
                         ApplicationContext.Services.MemberTypeService);
 
-                var service = new PublishedCachesService(ApplicationContext.Services, ApplicationContext.DatabaseContext, cache, ContentTypesCache, true, enableRepositoryEvents);
+                // testing=true so XmlStore will not use the file nor the database
+                var service = new PublishedCachesService(
+                    ApplicationContext.Services, 
+                    ApplicationContext.DatabaseContext, 
+                    cache, ContentTypesCache, true, enableRepositoryEvents);
 
                 // initialize PublishedCacheService content with an Xml source
                 service.XmlStore.GetXmlDocument = () => 

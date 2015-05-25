@@ -139,7 +139,6 @@ namespace Umbraco.Tests.PublishedContent
         }
 
         [Test]
-        [Ignore("Fails as long as PublishedContentModel is internal.")] // fixme
         public void OfType1()
         {
             var content = UmbracoContext.Current.ContentCache.GetAtRoot()
@@ -155,7 +154,6 @@ namespace Umbraco.Tests.PublishedContent
         }
 
         [Test]
-        [Ignore("Fails as long as PublishedContentModel is internal.")] // fixme
         public void OfType2()
         {
             var content = UmbracoContext.Current.ContentCache.GetAtRoot()
@@ -169,7 +167,6 @@ namespace Umbraco.Tests.PublishedContent
         }
 
         [Test]
-        [Ignore("Fails as long as PublishedContentModel is internal.")] // fixme
         public void OfType()
         {
             var content = UmbracoContext.Current.ContentCache.GetAtRoot()
@@ -196,7 +193,6 @@ namespace Umbraco.Tests.PublishedContent
         }
 
         [Test]
-        [Ignore("Fails as long as PublishedContentModel is internal.")] // fixme
         public void Issue()
         {
             var content = UmbracoContext.Current.ContentCache.GetAtRoot()

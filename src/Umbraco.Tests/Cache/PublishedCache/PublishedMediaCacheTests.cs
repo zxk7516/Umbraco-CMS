@@ -257,8 +257,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 					a => new List<IPublishedContent>(),
                     // callback to get a property
 					(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
-                    // fixme - cache provider
-                    null,
+                    null, // cache provider
                     ContentTypesCache,
                     // not from examine
 					false),
@@ -266,8 +265,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 				d => children,
                 // callback to get a property
 				(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
-                // fixme - cache provider
-                null,
+                null, // cache provider
                 ContentTypesCache,
                 // not from examine
 				false);

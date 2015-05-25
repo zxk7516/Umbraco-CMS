@@ -64,8 +64,10 @@ namespace Umbraco.Tests.TestHelpers
         {
             base.TearDown();
 
-            // rather dirty but the xml store does not exist anywhere else really
-            // fixme - in fact we should dispose of the service?
+            // we want to dispose the XmlStore because we want it to release its event handlers
+            // in production we never have to do this because when the XmlStore goes down, the
+            // entire application goes down - but for tests, we are creating more than one XmlStore
+            // this is hackish-but would require a much larger refactoring to be ok
             if (UmbracoContext.Current != null && UmbracoContext.Current.HasPublishedCaches)
             {
                 var pcc = UmbracoContext.Current.PublishedCaches.ContentCache as PublishedContentCache;
@@ -74,10 +76,10 @@ namespace Umbraco.Tests.TestHelpers
 
             LoggerResolver.Reset();
             //reset settings
-            SettingsForTests.Reset(); // fixme done by base
+            SettingsForTests.Reset();
             UmbracoContext.Current = null;
             TestHelper.CleanContentDirectories();
-            TestHelper.CleanUmbracoSettingsConfig(); // fixme should be done by base
+            TestHelper.CleanUmbracoSettingsConfig();
             //reset the app context, this should reset most things that require resetting like ALL resolvers
             ObjectExtensions.DisposeIfDisposable(ApplicationContext.Current);
             ApplicationContext.Current = null;
