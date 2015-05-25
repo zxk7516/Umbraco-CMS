@@ -173,7 +173,8 @@ namespace Umbraco.Core.Sync
             // (depending on what the cache refreshers are doing). I think it's best we do the one time check, process them and continue, if there are 
             // pending requests after being processed, they'll just be processed on the next poll.
             //
-            // FIXME not true if we're running on a background thread, assuming we can?
+            // we _could_ change this if we were to run on a background thread, but at the moment we sync on UmbracoModule.RouteAttempt so we have
+            // to make sure we do end processing instructions at some point
 
             var sql = new Sql().Select("*")
                 .From<CacheInstructionDto>()
