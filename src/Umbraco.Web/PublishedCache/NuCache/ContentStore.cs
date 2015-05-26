@@ -128,7 +128,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 if (EnsureContentType(content) == false)
                     throw new Exception("Invalid content type object.");
                 if (existing == null)
-                    AddContentTypeReference(content.ContentTypeId);
+                    AddContentTypeReference(content.ContentType.Id);
 
                 // moving?
                 var moving = existing != null && existing.ParentContentId != content.ParentContentId;
@@ -196,7 +196,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         }
 
         // reload the store with new content for a branch
-        public void SetBranch(int rootContentId, ContentNode[] contents)
+        public void SetBranch(int rootContentId, ContentNodeStruct[] contentStructs)
         {
             if (_frozen == false)
                 throw new InvalidOperationException("Store is not frozen.");
@@ -207,7 +207,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             try
             {
                 // cannot accept a branch with out-of-sync content types
-                if (contents.Any(x => EnsureContentType(x) == false))
+                if (contentStructs.Any(x => EnsureContentType(x.Node) == false))
                     throw new Exception("Invalid content type object.");
 
                 // get existing
@@ -223,13 +223,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     RemoveFromParent(existing);
 
                 // now add them all back
-                foreach (var content in contents)
+                foreach (var s in contentStructs)
                 {
-                    AddContentTypeReference(content.ContentTypeId);
+                    AddContentTypeReference(s.ContentTypeId);
                     if (_topView != null) // take care of orphans
-                        _topView.SetNull(content.Id); // if not already there
-                    AllContent[content.Id] = content;
-                    AddToParent(content);
+                        _topView.SetNull(s.Node.Id); // if not already there
+                    AllContent[s.Node.Id] = s.Node;
+                    AddToParent(s.Node);
                 }
             }
             finally
@@ -239,7 +239,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         }
 
         // reload the store entirely with new content
-        public void SetAll(ContentNode[] contents)
+        public void SetAll(ContentNodeStruct[] contentStructs)
         {
             if (_frozen == false)
                 throw new InvalidOperationException("Not frozen.");
@@ -259,14 +259,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 _rootContentIds.Clear();
                 _rootContentIdsDirty = true;
 
-                foreach (var content in contents)
+                foreach (var s in contentStructs)
                 {
-                    EnsureContentType(content); // rebuilding it all
-                    AddContentTypeReference(content.ContentTypeId);
+                    EnsureContentType(s.Node); // rebuilding it all
+                    AddContentTypeReference(s.ContentTypeId);
                     if (_topView != null) // take care of orphans
-                        _topView.SetNull(content.Id); // if not already there
-                    AllContent[content.Id] = content;
-                    AddToParent(content);
+                        _topView.SetNull(s.Node.Id); // if not already there
+                    AllContent[s.Node.Id] = s.Node;
+                    AddToParent(s.Node);
                 }
             }
             finally
@@ -276,7 +276,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         }
 
         // reload the store with new content for changed content types
-        public void SetTypes(IEnumerable<int> contentTypeIds, ContentNode[] contents)
+        public void SetTypes(IEnumerable<int> contentTypeIds, ContentNodeStruct[] contentStructs)
         {
             if (_frozen == false)
                 throw new InvalidOperationException("Store is not frozen.");
@@ -288,19 +288,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             {
                 // ensure we are replacing all contents else we have a problem
                 var orphans = AllContent.Values
-                    .Where(x => contentTypeIds.Contains(x.ContentTypeId))
+                    .Where(x => contentTypeIds.Contains(x.ContentType.Id))
                     .Select(x => x.Id)
                     .ToList();
-                foreach (var content in contents)
-                    orphans.Remove(content.Id);
+                foreach (var s in contentStructs)
+                    orphans.Remove(s.Node.Id);
                 if (orphans.Count > 0)
                     throw new Exception("Orphans.");
 
                 // shadow content
-                foreach (var content in contents)
+                foreach (var s in contentStructs)
                 {
                     ContentNode existing;
-                    if (AllContent.TryGetValue(content.Id, out existing))
+                    if (AllContent.TryGetValue(s.Node.Id, out existing))
                         CopyBranch(existing, true);
                 }
 
@@ -309,25 +309,25 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     _contentTypes.Remove(id);
                 _contentTypesDirty = true;
 
-                foreach (var content in contents)
+                foreach (var s in contentStructs)
                 {
                     ContentNode existing;
-                    AllContent.TryGetValue(content.Id, out existing); // else null
+                    AllContent.TryGetValue(s.Node.Id, out existing); // else null
 
-                    EnsureContentType(content); // rebuilding it all
-                    AddContentTypeReference(content.ContentTypeId);
+                    EnsureContentType(s.Node); // rebuilding it all
+                    AddContentTypeReference(s.ContentTypeId);
                     if (_topView != null) // take care of new
-                        _topView.SetNull(content.Id); // if not already there
-                    AllContent[content.Id] = content;
+                        _topView.SetNull(s.Node.Id); // if not already there
+                    AllContent[s.Node.Id] = s.Node;
 
                     if (existing == null)
                     {
-                        AddToParent(content);
+                        AddToParent(s.Node);
                     }
-                    else if (existing.ParentContentId != content.ParentContentId)
+                    else if (existing.ParentContentId != s.Node.ParentContentId)
                     {
                         RemoveFromParent(existing);
-                        AddToParent(content);
+                        AddToParent(s.Node);
                     }
                 }
             }
@@ -372,10 +372,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private bool EnsureContentType(ContentNode content)
         {
             PublishedContentTypeRef contentTypeRef;
-            if (_contentTypes.TryGetValue(content.ContentTypeId, out contentTypeRef))
+            if (_contentTypes.TryGetValue(content.ContentType.Id, out contentTypeRef))
                 return ReferenceEquals(content.ContentType, contentTypeRef.ContentType);
 
-            _contentTypes[content.ContentTypeId] = new PublishedContentTypeRef(content.ContentType);
+            _contentTypes[content.ContentType.Id] = new PublishedContentTypeRef(content.ContentType);
             _contentTypesDirty = true;
             return true;
         }
@@ -454,7 +454,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     var contentTypeId = contentTypeRef.ContentType.Id;
                     var newContentType = getCache(contentTypeId);
                     contentTypeRef.ContentType = newContentType;
-                    foreach (var content in AllContent.Values.Where(x => x.ContentTypeId == contentTypeId))
+                    foreach (var content in AllContent.Values.Where(x => x.ContentType.Id == contentTypeId))
                     {
                         if (_topView != null)
                             _topView.Set(content);

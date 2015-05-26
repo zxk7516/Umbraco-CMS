@@ -18,7 +18,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             Id = id;
             Uid = uid;
-            ContentTypeId = contentType.Id;
             ContentType = contentType;
             Level = level;
             Path = path;
@@ -35,21 +34,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             int parentContentId,
             DateTime createDate, int creatorId,
             ContentData draftData, ContentData publishedData)
-            : this(id, uid, contentType.Id, level, path, sortOrder, parentContentId, createDate, creatorId, draftData, publishedData)
+            : this(id, uid, level, path, sortOrder, parentContentId, createDate, creatorId)
         {
-            SetContentType(contentType);
+            SetContentTypeAndData(contentType, draftData, publishedData);
         }
 
-        // 2-phases ctor, must set the content type later
-        public ContentNode(int id, Guid uid, int contentTypeId,
+        // 2-phases ctor, phase 1
+        public ContentNode(int id, Guid uid,
             int level, string path, int sortOrder,
             int parentContentId,
-            DateTime createDate, int creatorId,
-            ContentData draftData, ContentData publishedData)
+            DateTime createDate, int creatorId)
         {
             Id = id;
             Uid = uid;
-            ContentTypeId = contentTypeId;
             Level = level;
             Path = path;
             SortOrder = sortOrder;
@@ -58,23 +55,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
             CreatorId = creatorId;
 
             ChildContentIds = new List<int>();
+        }
+
+        // two-phase ctor, phase 2
+        public void SetContentTypeAndData(PublishedContentType contentType, ContentData draftData, ContentData publishedData)
+        {
+            ContentType = contentType;
 
             if (draftData == null && publishedData == null)
                 throw new ArgumentException("Both draftData and publishedData cannot be null at the same time.");
 
-            _draftData = draftData;
-            _publishedData = publishedData;
-        }
-
-        // two-phase ctor
-        public void SetContentType(PublishedContentType contentType)
-        {
-            ContentType = contentType;
-
-            if (_draftData != null)
-                Draft = new PublishedContent(this, _draftData).CreateModel();
-            if (_publishedData != null)
-                Published = new PublishedContent(this, _publishedData).CreateModel();
+            if (draftData != null)
+                Draft = new PublishedContent(this, draftData).CreateModel();
+            if (publishedData != null)
+                Published = new PublishedContent(this, publishedData).CreateModel();
         }
 
         // clone parent
@@ -85,7 +79,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             Id = origin.Id;
             Uid = origin.Uid;
-            ContentTypeId = origin.ContentTypeId;
             ContentType = origin.ContentType;
             Level = origin.Level;
             Path = origin.Path;
@@ -93,9 +86,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
             ParentContentId = origin.ParentContentId;
             CreateDate = origin.CreateDate;
             CreatorId = origin.CreatorId;
-
-            _draftData = origin._draftData;
-            _publishedData = origin._publishedData;
 
             var originDraft = origin.Draft == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Draft);
             var originPublished = origin.Published == null ? null : PublishedContent.UnwrapIPublishedContent(origin.Published);
@@ -121,16 +111,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             ChildContentIds = origin.ChildContentIds;
 
-            _draftData = origin._draftData;
-            _publishedData = origin._publishedData;
+            // ReSharper disable MergeConditionalExpression
+            var draftData = origin.Draft == null ? null : ((PublishedContent) origin.Draft)._contentData;
+            var publishedData = origin.Published == null ? null : ((PublishedContent) origin.Published)._contentData;
+            // ReSharper restore MergeConditionalExpression
 
-            SetContentType(contentType);
+            SetContentTypeAndData(contentType, draftData, publishedData);
         }
 
         // everything that is common to both draft and published versions
+        // keep this as small as possible
         public readonly int Id;
         public readonly Guid Uid;
-        public readonly int ContentTypeId;
         public PublishedContentType ContentType;
         public readonly int Level;
         public readonly string Path;
@@ -141,8 +133,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public readonly int CreatorId;
 
         // draft and published version (either can be null, but not both)
-        private readonly ContentData _draftData;
-        private readonly ContentData _publishedData;
         public IPublishedContent Draft;
         public IPublishedContent Published;
 

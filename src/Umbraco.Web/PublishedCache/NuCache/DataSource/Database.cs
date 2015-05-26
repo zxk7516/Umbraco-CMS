@@ -22,7 +22,7 @@ namespace Umbraco.Web.PublishedCache.NuCache.DataSource
             _databaseContext = databaseContext;
         }
 
-        public ContentNode GetContentSource(int id)
+        public ContentNodeStruct GetContentSource(int id)
         {
             var dto = _databaseContext.Database.Fetch<ContentSourceDto>(new Sql(@"SELECT
 n.id Id, n.uniqueId Uid,
@@ -41,10 +41,10 @@ LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND n.id=@id
 ", new { objType = ContentObjectType, /*id =*/ id })).FirstOrDefault();
-            return dto == null ? null : CreateContentNode(dto);
+            return dto == null ? new ContentNodeStruct() : CreateContentNodeStruct(dto);
         }
 
-        public ContentNode GetMediaSource(int id)
+        public ContentNodeStruct GetMediaSource(int id)
         {
             // should be only 1 version for medias
 
@@ -61,12 +61,12 @@ JOIN cmsContentVersion ver ON (ver.contentId=n.id)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND n.id=@id
 ", new { objType = MediaObjectType, /*id =*/ id })).FirstOrDefault();
-            return dto == null ? null : CreateMediaNode(dto);
+            return dto == null ? new ContentNodeStruct() : CreateMediaNodeStruct(dto);
         }
 
         // we want arrays, we want them all loaded, not an enumerable
 
-        public ContentNode[] GetAllContentSources()
+        public ContentNodeStruct[] GetAllContentSources()
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
 n.id Id, n.uniqueId Uid,
@@ -85,10 +85,10 @@ LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType
 ORDER BY n.level, n.sortOrder
-", new { objType = ContentObjectType })).Select(CreateContentNode).ToArray();
+", new { objType = ContentObjectType })).Select(CreateContentNodeStruct).ToArray();
         }
 
-        public ContentNode[] GetAllMediaSources()
+        public ContentNodeStruct[] GetAllMediaSources()
         {
             // should be only 1 version for medias
 
@@ -105,10 +105,10 @@ JOIN cmsContentVersion ver ON (ver.contentId=n.id)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType
 ORDER BY n.level, n.sortOrder
-", new { objType = MediaObjectType })).Select(CreateMediaNode).ToArray();
+", new { objType = MediaObjectType })).Select(CreateMediaNodeStruct).ToArray();
         }
 
-        public ContentNode[] GetBranchContentSources(int id)
+        public ContentNodeStruct[] GetBranchContentSources(int id)
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
 n.id Id, n.uniqueId Uid,
@@ -128,10 +128,10 @@ LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND x.id=@id
 ORDER BY n.level, n.sortOrder
-", new { objType = ContentObjectType, /*id =*/ id })).Select(CreateContentNode).ToArray();
+", new { objType = ContentObjectType, /*id =*/ id })).Select(CreateContentNodeStruct).ToArray();
         }
 
-        public ContentNode[] GetBranchMediaSources(int id)
+        public ContentNodeStruct[] GetBranchMediaSources(int id)
         {
             // should be only 1 version for medias
 
@@ -149,10 +149,10 @@ JOIN cmsContentVersion ver ON (ver.contentId=n.id)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND x.id=@id
 ORDER BY n.level, n.sortOrder
-", new { objType = MediaObjectType, /*id =*/ id })).Select(CreateMediaNode).ToArray();
+", new { objType = MediaObjectType, /*id =*/ id })).Select(CreateMediaNodeStruct).ToArray();
         }
 
-        public ContentNode[] GetTypeContentSources(IEnumerable<int> ids)
+        public ContentNodeStruct[] GetTypeContentSources(IEnumerable<int> ids)
         {
             return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
 n.id Id, n.uniqueId Uid,
@@ -171,10 +171,10 @@ LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
 ORDER BY n.level, n.sortOrder
-", new { objType = ContentObjectType, /*id =*/ ids })).Select(CreateContentNode).ToArray();
+", new { objType = ContentObjectType, /*id =*/ ids })).Select(CreateContentNodeStruct).ToArray();
         }
 
-        public ContentNode[] GetTypeMediaSources(IEnumerable<int> ids)
+        public ContentNodeStruct[] GetTypeMediaSources(IEnumerable<int> ids)
         {
             // should be only 1 version for medias
 
@@ -191,10 +191,10 @@ JOIN cmsContentVersion ver ON (ver.contentId=n.id)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
 WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
 ORDER BY n.level, n.sortOrder
-", new { objType = MediaObjectType, /*id =*/ ids })).Select(CreateMediaNode).ToArray();
+", new { objType = MediaObjectType, /*id =*/ ids })).Select(CreateMediaNodeStruct).ToArray();
         }
 
-        private static ContentNode CreateContentNode(ContentSourceDto dto)
+        private static ContentNodeStruct CreateContentNodeStruct(ContentSourceDto dto)
         {
             if (dto.DraftVersion != Guid.Empty && dto.DraftData == null)
                 throw new Exception();
@@ -234,14 +234,21 @@ ORDER BY n.level, n.sortOrder
                 };
             }
 
-            var n = new ContentNode(dto.Id, dto.Uid, dto.ContentTypeId,
-                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
-                d, p);
+            var n = new ContentNode(dto.Id, dto.Uid,
+                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId);
 
-            return n;
+            var s = new ContentNodeStruct
+            {
+                Node = n,
+                ContentTypeId = dto.ContentTypeId,
+                DraftData = d,
+                PublishedData = p
+            };
+
+            return s;
         }
 
-        private static ContentNode CreateMediaNode(ContentSourceDto dto)
+        private static ContentNodeStruct CreateMediaNodeStruct(ContentSourceDto dto)
         {
             if (dto.PubData == null)
                 throw new Exception("No data for media " + dto.Id);
@@ -257,11 +264,17 @@ ORDER BY n.level, n.sortOrder
                 Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
             };
 
-            var n = new ContentNode(dto.Id, dto.Uid, dto.ContentTypeId,
-                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId,
-                null, p);
+            var n = new ContentNode(dto.Id, dto.Uid,
+                dto.Level, dto.Path, dto.SortOrder, dto.ParentId, dto.CreateDate, dto.CreatorId);
 
-            return n;
+            var s = new ContentNodeStruct
+            {
+                Node = n,
+                ContentTypeId = dto.ContentTypeId,
+                PublishedData = p
+            };
+
+            return s;
         }
     }
 }

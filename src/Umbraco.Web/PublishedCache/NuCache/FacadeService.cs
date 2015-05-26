@@ -140,8 +140,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             // two-phases prevents loading content and types in // on same db connection
             var nodeStructs = _dataSource.GetAllContentSources();
-            var nodes = Phase2(PublishedItemType.Content, nodeStructs);
-            _contentStore.SetAll(nodes);
+            Phase2(PublishedItemType.Content, nodeStructs);
+            _contentStore.SetAll(nodeStructs);
         }
 
         // keep these around - might be useful
@@ -186,8 +186,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             // two-phases prevents loading content and types in // on same db connection
             var nodeStructs = _dataSource.GetAllMediaSources();
-            var nodes = Phase2(PublishedItemType.Media, nodeStructs);
-            _mediaStore.SetAll(nodes);
+            Phase2(PublishedItemType.Media, nodeStructs);
+            _mediaStore.SetAll(nodeStructs);
         }
 
         // keep these around - might be useful
@@ -274,15 +274,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    return contentNode;
         //}
 
-        private IEnumerable<ContentNode> Phase2(PublishedItemType itemType, params ContentNodeStruct[] nodeStructs)
+        private void Phase2(PublishedItemType itemType, params ContentNodeStruct[] nodeStructs)
         {
-            return nodeStructs.Select(x =>
+            foreach (var nodeStruct in nodeStructs)
             {
-                var node = x.Node;
-                var contentType = _contentTypeCache.Get(itemType, x.ContentTypeId);
-                node.SetContentTypeAndData(contentType, x.DraftData, x.PublishedData);
-                return node;
-            });
+                var contentType = _contentTypeCache.Get(itemType, nodeStruct.ContentTypeId);
+                nodeStruct.Node.SetContentTypeAndData(contentType, nodeStruct.DraftData, nodeStruct.PublishedData);
+            }
         }
 
         #endregion
@@ -347,18 +345,22 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     {
                         // ?? should we do some RV check here?
                         var nodeStructs = _dataSource.GetBranchContentSources(capture.Id);
-                        // fixme - what if empty?!
-                        var nodes = Phase2(PublishedItemType.Content, nodeStructs);
-                        _contentStore.SetBranch(capture.Id, nodes);
+                        Phase2(PublishedItemType.Content, nodeStructs);
+                        _contentStore.SetBranch(capture.Id, nodeStructs);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
                         var nodeStruct = _dataSource.GetContentSource(capture.Id);
                         if (nodeStruct.IsEmpty)
+                        {
                             _contentStore.Clear(capture.Id);
+                        }
                         else
-                            _contentStore.Set(Phase2(PublishedItemType.Content, nodeStruct).First());
+                        {
+                            Phase2(PublishedItemType.Content, nodeStruct);
+                            _contentStore.Set(nodeStruct.Node);
+                        }
                     }
                 });
 
@@ -421,18 +423,22 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     {
                         // ?? should we do some RV check here?
                         var nodeStructs = _dataSource.GetBranchMediaSources(capture.Id);
-                        // fixme - empty?!
-                        var nodes = Phase2(PublishedItemType.Media, nodeStructs);
-                        _mediaStore.SetBranch(capture.Id, nodes);
+                        Phase2(PublishedItemType.Media, nodeStructs);
+                        _mediaStore.SetBranch(capture.Id, nodeStructs);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
                         var nodeStruct = _dataSource.GetMediaSource(capture.Id);
                         if (nodeStruct.IsEmpty)
+                        {
                             _mediaStore.Clear(capture.Id);
+                        }
                         else
-                            _mediaStore.Set(Phase2(PublishedItemType.Media, nodeStruct).First());
+                        {
+                            Phase2(PublishedItemType.Media, nodeStruct);
+                            _mediaStore.Set(nodeStruct.Node);                            
+                        }
                     }
                 });
 
@@ -539,8 +545,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             contentService.WithReadLocked(repository =>
             {
                 var nodeStructs = _dataSource.GetTypeContentSources(idsA);
-                var nodes = Phase2(PublishedItemType.Content, nodeStructs);
-                _contentStore.SetTypes(idsA, nodes);
+                Phase2(PublishedItemType.Content, nodeStructs);
+                _contentStore.SetTypes(idsA, nodeStructs);
             });
         }
 
@@ -559,8 +565,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             mediaService.WithReadLocked(repository =>
             {
                 var nodeStructs = _dataSource.GetTypeMediaSources(idsA);
-                var nodes = Phase2(PublishedItemType.Media, nodeStructs);
-                _mediaStore.SetTypes(idsA, nodes);
+                Phase2(PublishedItemType.Media, nodeStructs);
+                _mediaStore.SetTypes(idsA, nodeStructs);
             });
         }
 

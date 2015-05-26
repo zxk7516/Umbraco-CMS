@@ -311,6 +311,7 @@
     <Compile Include="Mvc\ProfilingView.cs" />
     <Compile Include="Mvc\ProfilingViewEngine.cs" />
     <Compile Include="Mvc\UrlHelperExtensions.cs" />
+    <Compile Include="PublishedCache\NuCache\ContentNodeStruct.cs" />
     <Compile Include="PublishedCache\NuCache\PublishedMember.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentNuDto.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentSourceDto.cs" />

@@ -14,7 +14,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
     internal class PublishedContent : PublishedContentBase
     {
         private readonly ContentNode _contentNode;
-        private readonly ContentData _contentData;
+        // ReSharper disable once InconsistentNaming
+        internal readonly ContentData _contentData; // internal for ContentNode cloning
 
         private readonly IPublishedProperty[] _properties;
         private readonly string _urlName;
