@@ -30,29 +30,26 @@ namespace Umbraco.Web.Cache
         public override void Refresh(int id)
         {
             ClearCache();
+            // notify
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            svce.NotifyDomain(id, false);
+            // then trigger event
             base.Refresh(id);
         }
 
         public override void Remove(int id)
         {
             ClearCache();
+            // notify
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            svce.NotifyDomain(id, true);
+            // then trigger event
             base.Remove(id);
         }
 
         private void ClearCache()
         {
             ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<DomainRepository.CacheableDomain>();
-
-            // SD: we need to clear the routes cache here!             
-            //
-            // zpqrtbnk: no, not here, in fact the caches should subsribe to refresh events else we
-            // are creating a nasty dependency - but keep it like that for the time being while
-            // SD is cleaning cache refreshers up.
-
-            // fixme - this is XML-cache specific!
-            var factory = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-            if (factory != null)
-                factory.RoutesCache.Clear();
         }
     }
 }

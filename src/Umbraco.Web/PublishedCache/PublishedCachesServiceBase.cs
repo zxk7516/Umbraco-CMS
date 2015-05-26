@@ -39,6 +39,7 @@ namespace Umbraco.Web.PublishedCache
         public abstract void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged);
         public abstract void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads);
         public abstract void Notify(DataTypeCacheRefresher.JsonPayload[] payloads);
+        public abstract void NotifyDomain(int id, bool removed);
 
         public virtual void Dispose()
         { }

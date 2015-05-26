@@ -65,5 +65,10 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         {
             // nothing
         }
+
+        public override void NotifyDomain(int id, bool removed)
+        {
+            // nothing
+        }
     }
 }

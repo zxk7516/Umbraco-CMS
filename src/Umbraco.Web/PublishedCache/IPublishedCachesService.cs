@@ -137,6 +137,13 @@ namespace Umbraco.Web.PublishedCache
         /// <param name="payloads">The changes.</param>
         void Notify(DataTypeCacheRefresher.JsonPayload[] payloads);
 
+        /// <summary>
+        /// Notifies of domain refresher changes.
+        /// </summary>
+        /// <param name="id">The id of the changed domain.</param>
+        /// <param name="removed">True if removed, otherwise false if refreshed.</param>
+        void NotifyDomain(int id, bool removed);
+
         #endregion
     }
 }

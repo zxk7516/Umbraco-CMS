@@ -72,7 +72,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache.Navigable
                 // built-in field, ie attribute
                 var value = _builtInValues[index];
                 var field = Type.FieldTypes[index];
-                // fixme - should do it once and only once
+                // hey, not caching anything!
                 return field.XmlStringConverter == null ? value.ToString() : field.XmlStringConverter(value);
             }
 

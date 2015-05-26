@@ -164,11 +164,18 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
             _xmlStore.Notify(payloads);
+            if (payloads.Any(x => x.ItemType == typeof (IContentType).Name))
+                _routesCache.Clear();
         }
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
         {
             _xmlStore.Notify(payloads);
+        }
+
+        public override void NotifyDomain(int id, bool removed)
+        {
+            _routesCache.Clear();
         }
 
         #endregion

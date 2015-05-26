@@ -144,11 +144,6 @@ namespace Umbraco.Web.Cache
 
             // don't try to be clever - refresh all
             contentCacheRefresher.RefreshContentTypes();
-
-            // fixme - this is xml-cache specific & should be handled by the PublishedCacheService itself!
-            var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-            if (service != null)
-                service.RoutesCache.Clear();
         }
 
         private static void RefreshMediaCache()

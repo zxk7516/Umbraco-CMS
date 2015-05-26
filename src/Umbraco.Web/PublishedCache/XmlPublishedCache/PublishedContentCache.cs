@@ -29,7 +29,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             IDomainService domainService, // an IDomainService implementation
             ICacheProvider cacheProvider, // an ICacheProvider that should be at request-level
             PublishedContentTypeCache contentTypeCache, // a PublishedContentType cache
-            RoutesCache routesCache, // a RoutesCache - FIXME need to cleanup that one
+            RoutesCache routesCache, // a RoutesCache
             string previewToken) // a preview token string (or null if not previewing)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {

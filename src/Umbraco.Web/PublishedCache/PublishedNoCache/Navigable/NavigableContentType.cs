@@ -39,31 +39,6 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache.Navigable
                 .ToArray();
         }
 
-        // fixme - delete
-        /*
-        public NavigableContentType(IContentBase content)
-        {
-            var contentContent = content as IContent;
-            var mediaContent = content as IMedia;
-
-            if (contentContent == null && mediaContent == null)
-                throw new ArgumentException("Should be either IContent or IMedia.", "content");
-
-            var type = contentContent != null
-                ? (IContentTypeBase)contentContent.ContentType
-                : (IContentTypeBase)mediaContent.ContentType;
-            Name = type.Alias;
-
-            var propertyTypes = contentContent != null
-                ? contentContent.ContentType.CompositionPropertyTypes
-                : mediaContent.ContentType.CompositionPropertyTypes;
-
-            FieldTypes = BuiltinProperties
-                .Union(propertyTypes.Select(propertyType => new NavigablePropertyType(propertyType.Alias)))
-                .ToArray();
-        }
-        */
-
         public string Name { get; private set; }
         public INavigableFieldType[] FieldTypes { get; protected set; }
     }
