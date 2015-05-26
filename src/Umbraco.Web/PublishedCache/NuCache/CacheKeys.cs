@@ -50,6 +50,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return "NuCache.ContentCache.ContentByRoute[" + DraftOrPub(previewing) + route + "]";
         }
 
+        // fixme - remove these !
+
+        public static string ContentCacheRouteByContentStartsWith()
+        {
+            return "NuCache.ContentCache.RouteByContent[";
+        }
+
+        public static string ContentCacheContentByRouteStartsWith()
+        {
+            return "NuCache.ContentCache.ContentByRoute[";
+        }
+
         public static string MemberCacheMember(string name, bool previewing, object p)
         {
             return "NuCache.MemberCache." + name + "[" + DraftOrPub(previewing) + p + "]";

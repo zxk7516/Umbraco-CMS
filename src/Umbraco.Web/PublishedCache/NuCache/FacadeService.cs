@@ -139,8 +139,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // so it should be possible to reload from DB while serving pages
 
             // two-phases prevents loading content and types in // on same db connection
-            var nodes = _dataSource.GetAllContentSources();
-            SetContentType(PublishedItemType.Content, nodes);
+            var nodeStructs = _dataSource.GetAllContentSources();
+            var nodes = Phase2(PublishedItemType.Content, nodeStructs);
             _contentStore.SetAll(nodes);
         }
 
@@ -185,8 +185,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // locks & notes: see content
 
             // two-phases prevents loading content and types in // on same db connection
-            var nodes = _dataSource.GetAllMediaSources();
-            SetContentType(PublishedItemType.Media, nodes);
+            var nodeStructs = _dataSource.GetAllMediaSources();
+            var nodes = Phase2(PublishedItemType.Media, nodeStructs);
             _mediaStore.SetAll(nodes);
         }
 
@@ -274,10 +274,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    return contentNode;
         //}
 
-        private void SetContentType(PublishedItemType itemType, params ContentNode[] nodes)
+        private IEnumerable<ContentNode> Phase2(PublishedItemType itemType, params ContentNodeStruct[] nodeStructs)
         {
-            foreach (var node in nodes)
-                node.SetContentType(_contentTypeCache.Get(itemType, node.ContentTypeId));
+            return nodeStructs.Select(x =>
+            {
+                var node = x.Node;
+                var contentType = _contentTypeCache.Get(itemType, x.ContentTypeId);
+                node.SetContentTypeAndData(contentType, x.DraftData, x.PublishedData);
+                return node;
+            });
         }
 
         #endregion
@@ -341,16 +346,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var nodes = _dataSource.GetBranchContentSources(capture.Id);
-                        SetContentType(PublishedItemType.Content, nodes);
+                        var nodeStructs = _dataSource.GetBranchContentSources(capture.Id);
+                        // fixme - what if empty?!
+                        var nodes = Phase2(PublishedItemType.Content, nodeStructs);
                         _contentStore.SetBranch(capture.Id, nodes);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var node = _dataSource.GetContentSource(capture.Id);
-                        SetContentType(PublishedItemType.Content, node);
-                        _contentStore.Set(node);
+                        var nodeStruct = _dataSource.GetContentSource(capture.Id);
+                        if (nodeStruct.IsEmpty)
+                            _contentStore.Clear(capture.Id);
+                        else
+                            _contentStore.Set(Phase2(PublishedItemType.Content, nodeStruct).First());
                     }
                 });
 
@@ -412,16 +420,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var nodes = _dataSource.GetBranchMediaSources(capture.Id);
-                        SetContentType(PublishedItemType.Media, nodes);
+                        var nodeStructs = _dataSource.GetBranchMediaSources(capture.Id);
+                        // fixme - empty?!
+                        var nodes = Phase2(PublishedItemType.Media, nodeStructs);
                         _mediaStore.SetBranch(capture.Id, nodes);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var node = _dataSource.GetMediaSource(capture.Id);
-                        SetContentType(PublishedItemType.Media, node);
-                        _mediaStore.Set(node);
+                        var nodeStruct = _dataSource.GetMediaSource(capture.Id);
+                        if (nodeStruct.IsEmpty)
+                            _mediaStore.Clear(capture.Id);
+                        else
+                            _mediaStore.Set(Phase2(PublishedItemType.Media, nodeStruct).First());
                     }
                 });
 
@@ -500,7 +511,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             Facade.Current.Resync();
         }
-        
+
+        public override void NotifyDomain(int id, bool removed)
+        {
+            // do not clear the facade cache - it's immutable
+            // fixme - and so, right way to do it is JUST to force-trigger a new snapshotcache!
+            _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheRouteByContentStartsWith());
+            _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheContentByRouteStartsWith());
+        }
+
         #endregion
 
         #region Manage change
@@ -519,8 +538,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             contentService.WithReadLocked(repository =>
             {
-                var nodes = _dataSource.GetTypeContentSources(idsA);
-                SetContentType(PublishedItemType.Content, nodes);
+                var nodeStructs = _dataSource.GetTypeContentSources(idsA);
+                var nodes = Phase2(PublishedItemType.Content, nodeStructs);
                 _contentStore.SetTypes(idsA, nodes);
             });
         }
@@ -539,8 +558,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             mediaService.WithReadLocked(repository =>
             {
-                var nodes = _dataSource.GetTypeMediaSources(idsA);
-                SetContentType(PublishedItemType.Media, nodes);
+                var nodeStructs = _dataSource.GetTypeMediaSources(idsA);
+                var nodes = Phase2(PublishedItemType.Media, nodeStructs);
                 _mediaStore.SetTypes(idsA, nodes);
             });
         }
