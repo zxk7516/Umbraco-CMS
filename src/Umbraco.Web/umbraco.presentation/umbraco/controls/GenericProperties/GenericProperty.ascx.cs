@@ -79,7 +79,7 @@ namespace umbraco.controls.GenericProperties
 
         public string Alias
         {
-            get { return tbAlias.Text; } // FIXME so we blindly trust the UI for safe aliases?!
+            get { return tbAlias.Text; } // FIXME so we blindly trust the UI for safe aliases (yes)
         }
 
         public string Description

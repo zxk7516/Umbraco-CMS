@@ -14,7 +14,5 @@ namespace Umbraco.Web.Scheduling
         bool IsCompleted { get; }
         void Add(T task);
         bool TryAdd(T task);
-
-        // fixme - complete the interface?
     }
 }

@@ -54,7 +54,7 @@ namespace umbraco.NodeFactory
         public Node()
         {
             var nav = ContentCache.CreateNavigator(); // safe (no need to clone)
-            if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"]
+            if (nav.MoveToId(HttpContext.Current.Items["pageID"].ToString())) // fixme - Items["pageID"] (ok)
                 _nodeNav = nav;
             // else it remains null
 
@@ -377,7 +377,7 @@ namespace umbraco.NodeFactory
 		{
 			// Load parent if it exists and is a node
 
-            if (_nodeNav == null) return; // fixme ?!
+            if (_nodeNav == null) return; // ?!
             var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
 
             if (nav.MoveToParent() 
@@ -389,7 +389,7 @@ namespace umbraco.NodeFactory
 		}
 
         // action should NOT move the navigator!
-	    private static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
+	    internal static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
 	    {
 	        if (nav.MoveToAttribute(name, "") == false)
                 return false;
@@ -401,7 +401,7 @@ namespace umbraco.NodeFactory
 
 		private void Initialize()
 		{
-            if (_nodeNav == null) return; // fixme ?!
+            if (_nodeNav == null) return; // ?!
             var nav = _nodeNav.Clone(); // so it's not impacted by what we do below
 
             _initialized = true;
@@ -454,7 +454,7 @@ namespace umbraco.NodeFactory
 			return new Node(id);
 		}
 
-// ReSharper disable once InconsistentNaming
+        // ReSharper disable once InconsistentNaming
 		public static int getCurrentNodeId()
 		{
             if (UmbracoContext.Current.PublishedContentRequest.HasPublishedContent == false)
@@ -463,7 +463,6 @@ namespace umbraco.NodeFactory
 
             // note: was previously based on HttpContext.Current.Items["pageID"]
             // but... that should not make a difference, should it?
-            // fixme - conclusion?
         }
 
         public static Node GetNodeByXpath(string xpath)

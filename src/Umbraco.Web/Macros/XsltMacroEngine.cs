@@ -91,7 +91,7 @@ namespace Umbraco.Web.Macros
             get { throw new NotSupportedException(); }
         }
 
-        // fixme - no idea what that is
+        // no idea what that is, but it's part of the interface, so implement it...
         public bool Validate(string code, string tempFileName, global::umbraco.interfaces.INode currentPage, out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -163,7 +163,7 @@ namespace Umbraco.Web.Macros
                     contentNavigable = umbracoXml;
                 }
 
-                // fixme - not sure we need to keep this ugly stuff
+                // this is somewhat ugly but eh...
                 var httpContext = _getHttpContext();
                 if (httpContext.Request.QueryString["umbDebug"] != null && GlobalSettings.DebugMode)
                 {
@@ -321,7 +321,7 @@ namespace Umbraco.Web.Macros
 
         // running on the XML cache, document mode
         // add parameters to the <macro> root node
-        // fixme - contains dirty code...
+        // note: contains legacy dirty code
         private static void AddMacroXmlNode(XmlDocument umbracoXml, XmlDocument macroXml,
             string macroPropertyAlias, string macroPropertyType, string macroPropertyValue)
         {
@@ -415,41 +415,6 @@ namespace Umbraco.Web.Macros
                     break;
             }
             macroXml.FirstChild.AppendChild(macroXmlNode);
-        }
-
-        // gets the result of the xslt transform - XmlDocument mode
-        // FIXME only used by ItemRenderer - must obsolete that one!
-        private static string XsltTransform(IXPathNavigable macroXml, XslCompiledTransform xslt,
-            IDictionary<string, object> parameters = null)
-        {
-            TextWriter tw = new StringWriter();
-
-            XsltArgumentList xslArgs;
-            using (DisposableTimer.DebugDuration<macro>("Adding XSLT Extensions"))
-            {
-                xslArgs = GetXsltArgumentListWithExtensions();
-                var lib = new library();
-                xslArgs.AddExtensionObject("urn:umbraco.library", lib);
-            }
-
-            // add parameters
-            if (parameters == null || parameters.ContainsKey("currentPage") == false)
-                xslArgs.AddParam("currentPage", string.Empty, library.GetXmlNodeCurrent());
-
-            if (parameters != null)
-                foreach (var parameter in parameters)
-                    xslArgs.AddParam(parameter.Key, string.Empty, parameter.Value);
-
-            // transform
-            var nav = macroXml.CreateNavigator();
-            if (nav == null)
-                throw new Exception("Internal error, navigator is null.");
-            using (DisposableTimer.DebugDuration<macro>("Executing XSLT transform"))
-            {
-                xslt.Transform(nav, xslArgs, tw);
-            }
-
-            return tw.ToString();
         }
 
         // running on a navigable cache, navigable mode

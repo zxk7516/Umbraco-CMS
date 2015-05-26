@@ -58,23 +58,12 @@ namespace umbraco.NodeFactory
 				throw new ArgumentNullException("Property xml source is null");
 		}
 
-        // fixme - duplicated from Node
-        private static bool ReadAttribute(XPathNavigator nav, string name, Action<XPathNavigator> action)
-        {
-            if (nav.MoveToAttribute(name, "") == false)
-                return false;
-
-            action(nav);
-            nav.MoveToParent();
-            return true;
-        }
-        
         public Property(XPathNavigator nav)
 	    {
             if (nav == null)
                 throw new ArgumentNullException("nav");
 
-            ReadAttribute(nav, "versionID", n => _version = new Guid(n.Value));
+            Node.ReadAttribute(nav, "versionID", n => _version = new Guid(n.Value));
             _alias = UmbracoConfig.For.UmbracoSettings().Content.UseLegacyXmlSchema ? nav.GetAttribute("alias", "") : nav.LocalName;
 
             var value = string.Empty;

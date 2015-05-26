@@ -22,103 +22,74 @@ namespace Umbraco.Web.Cache
     {
         protected override void ApplicationStarted(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
         {   
-            //bind to application tree events
+            // bind to application tree events
             ApplicationTreeService.Deleted += ApplicationTreeDeleted;
             ApplicationTreeService.Updated += ApplicationTreeUpdated;
             ApplicationTreeService.New += ApplicationTreeNew;
 
-            //bind to application events
+            // bind to application events
             SectionService.Deleted += ApplicationDeleted;
             SectionService.New += ApplicationNew;
 
-            //bind to user / user type events
+            // bind to user / user type events
             UserService.SavedUserType += UserServiceSavedUserType;
             UserService.DeletedUserType += UserServiceDeletedUserType;
             UserService.SavedUser += UserServiceSavedUser;
             UserService.DeletedUser += UserServiceDeletedUser;
 
-            //Bind to dictionary events
-
+            // bind to dictionary events
             LocalizationService.DeletedDictionaryItem += LocalizationServiceDeletedDictionaryItem;
             LocalizationService.SavedDictionaryItem += LocalizationServiceSavedDictionaryItem;
 
-            //Bind to data type events
-            //NOTE: we need to bind to legacy and new API events currently: http://issues.umbraco.org/issue/U4-1979
-
+            // bind to data type events
+            // NOTE: we need to bind to legacy and new API events currently: http://issues.umbraco.org/issue/U4-1979
             DataTypeService.Deleted += DataTypeServiceDeleted;
             DataTypeService.Saved += DataTypeServiceSaved;
 
-            //Bind to stylesheet events
-
+            // bind to stylesheet events
             FileService.SavedStylesheet += FileServiceSavedStylesheet;
             FileService.DeletedStylesheet += FileServiceDeletedStylesheet;
 
-            //Bind to domain events
-
+            // bind to domain events
             DomainService.Saved += DomainService_Saved;
             DomainService.Deleted += DomainService_Deleted;
 
-            //Bind to language events
-
+            // bind to language events
             LocalizationService.SavedLanguage += LocalizationServiceSavedLanguage;
             LocalizationService.DeletedLanguage += LocalizationServiceDeletedLanguage;
 
-            //Bind to content type events
-
-            // fixme cleanup
-            //ContentTypeService.Saved += ContentTypeServiceSaved;
-            //MediaTypeService.Saved += MediaTypeServiceSaved;
-            //ContentTypeService.Deleted += ContentTypeServiceDeleted;
-            //MediaTypeService.Deleted += MediaTypeServiceDeleted;
-            //MemberTypeService.Saved += MemberTypeServiceSaved;
-            //MemberTypeService.Deleted += MemberTypeServiceDeleted;
+            // bind to content type events
             ContentTypeService.Changed += ContentTypeServiceChanged;
             MediaTypeService.Changed += ContentTypeServiceChanged;
             MemberTypeService.Changed += ContentTypeServiceChanged;
 
-            //Bind to permission events
-
-            //TODO: Wrap legacy permissions so we can get rid of this
+            // bind to permission events
+            // TODO: Wrap legacy permissions so we can get rid of this
             Permission.New += PermissionNew;
             Permission.Updated += PermissionUpdated;
             Permission.Deleted += PermissionDeleted;
             PermissionRepository<IContent>.AssignedPermissions += CacheRefresherEventHandler_AssignedPermissions;
 
-            //Bind to template events
-
+            // bind to template events
             FileService.SavedTemplate += FileServiceSavedTemplate;
             FileService.DeletedTemplate += FileServiceDeletedTemplate;
 
-            //Bind to macro events
-
+            // bind to macro events
             MacroService.Saved += MacroServiceSaved;
             MacroService.Deleted += MacroServiceDeleted;
 
-            //Bind to member events
-
+            // bind to member events
             MemberService.Saved += MemberServiceSaved;
             MemberService.Deleted += MemberServiceDeleted;
             MemberGroupService.Saved += MemberGroupService_Saved;
             MemberGroupService.Deleted += MemberGroupService_Deleted;
 
-            //Bind to media events
-
-            //MediaService.Saved += MediaServiceSaved;            
-            //MediaService.Deleted += MediaServiceDeleted;
-            //MediaService.Moved += MediaServiceMoved;
-            //MediaService.Trashed += MediaServiceTrashed;
-            //MediaService.EmptiedRecycleBin += MediaServiceEmptiedRecycleBin;
+            // bind to media events
             MediaService.TreeChanged += MediaServiceChanged; // handles all media changes
 
-            //Bind to content events - this is for unpublished content syncing across servers (primarily for examine)
-            
+            // bind to content events            
             ContentService.Saved += ContentServiceSaved; // used for permissions
-            //ContentService.Deleted += ContentServiceDeleted; // handled by Changed
             ContentService.Copied += ContentServiceCopied; // used for permissions
-            //ContentService.Moved += ContentServiceMoved; // handled by Changed
-            //ContentService.Trashed += ContentServiceTrashed; // handled by Changed
-            //ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin; // handled by Changed
-            //ContentService.RolledBack += ContentServiceRolledBack; // handled by Changed
             ContentService.TreeChanged += ContentServiceChanged; // handles all content changes
 
             // ContentService.Changed will queue things in a ChangeSet, and when that
@@ -126,7 +97,7 @@ namespace Umbraco.Web.Cache
             // cache as one message (that will be processed sort-of atomically)
             ChangeSet.Flushed += ChangeSetFlushed;
 
-            //public access events
+            // public access events
             PublicAccessService.Saved += PublicAccessService_Saved;
         }
 
@@ -161,12 +132,6 @@ namespace Umbraco.Web.Cache
             LocalizationService.SavedLanguage -= LocalizationServiceSavedLanguage;
             LocalizationService.DeletedLanguage -= LocalizationServiceDeletedLanguage;
 
-            //ContentTypeService.Saved -= ContentTypeServiceSaved;
-            //MediaTypeService.Saved -= MediaTypeServiceSaved;
-            //ContentTypeService.Deleted -= ContentTypeServiceDeleted;
-            //MediaTypeService.Deleted -= MediaTypeServiceDeleted;
-            //MemberTypeService.Saved -= MemberTypeServiceSaved;
-            //MemberTypeService.Deleted -= MemberTypeServiceDeleted;
             ContentTypeService.Changed -= ContentTypeServiceChanged;
             MediaTypeService.Changed -= ContentTypeServiceChanged;
             MemberTypeService.Changed -= ContentTypeServiceChanged;
@@ -187,20 +152,10 @@ namespace Umbraco.Web.Cache
             MemberGroupService.Saved -= MemberGroupService_Saved;
             MemberGroupService.Deleted -= MemberGroupService_Deleted;
 
-            //MediaService.Saved -= MediaServiceSaved;
-            //MediaService.Deleted -= MediaServiceDeleted;
-            //MediaService.Moved -= MediaServiceMoved;
-            //MediaService.Trashed -= MediaServiceTrashed;
-            //MediaService.EmptiedRecycleBin -= MediaServiceEmptiedRecycleBin;
             MediaService.TreeChanged -= MediaServiceChanged;
 
             ContentService.Saved -= ContentServiceSaved;
-            //ContentService.Deleted -= ContentServiceDeleted;
             ContentService.Copied -= ContentServiceCopied;
-            //ContentService.Moved -= ContentServiceMoved;
-            //ContentService.Trashed -= ContentServiceTrashed;
-            //ContentService.EmptiedRecycleBin -= ContentServiceEmptiedRecycleBin;
-            //ContentService.RolledBack -= ContentServiceRolledBack;
             ContentService.TreeChanged -= ContentServiceChanged;
 
             ChangeSet.Flushed -= ChangeSetFlushed;
@@ -426,69 +381,6 @@ namespace Umbraco.Web.Cache
         {
             DistributedCache.Instance.RefreshContentTypeCache(args.Changes.ToArray());
         }
-        
-        // FIXME KILL
-
-        ///// <summary>
-        ///// Fires when a media type is deleted
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void MediaTypeServiceDeleted(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, DeleteEventArgs<IMediaType> e)
-        //{
-        //    e.DeletedEntities.ForEach(x => DistributedCache.Instance.RemoveMediaTypeCache(x));
-        //}
-
-        ///// <summary>
-        ///// Fires when a content type is deleted
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void ContentTypeServiceDeleted(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, DeleteEventArgs<IContentType> e)
-        //{
-        //    e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveContentTypeCache(contentType));
-        //}
-
-        ///// <summary>
-        ///// Fires when a member type is deleted
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void MemberTypeServiceDeleted(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, DeleteEventArgs<IMemberType> e)
-        //{
-        //    e.DeletedEntities.ForEach(contentType => DistributedCache.Instance.RemoveMemberTypeCache(contentType));
-        //}
-
-        ///// <summary>
-        ///// Fires when a media type is saved
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void MediaTypeServiceSaved(ContentTypeServiceBase<MediaTypeRepository, IMediaType> sender, SaveEventArgs<IMediaType> e)
-        //{
-        //    e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMediaTypeCache(x));
-        //}
-
-
-        ///// <summary>
-        ///// Fires when a content type is saved
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void ContentTypeServiceSaved(ContentTypeServiceBase<ContentTypeRepository, IContentType> sender, SaveEventArgs<IContentType> e)
-        //{
-        //    e.SavedEntities.ForEach(contentType => DistributedCache.Instance.RefreshContentTypeCache(contentType));
-        //}
-
-        ///// <summary>
-        ///// Fires when a member type is saved
-        ///// </summary>
-        ///// <param name="sender"></param>
-        ///// <param name="e"></param>
-        //static void MemberTypeServiceSaved(ContentTypeServiceBase<MemberTypeRepository, IMemberType> sender, SaveEventArgs<IMemberType> e)
-        //{
-        //    e.SavedEntities.ForEach(x => DistributedCache.Instance.RefreshMemberTypeCache(x));
-        //}
         
         #endregion
         
