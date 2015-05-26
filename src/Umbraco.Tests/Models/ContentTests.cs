@@ -45,6 +45,8 @@ namespace Umbraco.Tests.Models
             media.Id = 34;
 
             Assert.AreEqual(isInBin, media.IsInRecycleBin());
+            if (isInBin)
+                Assert.IsTrue(media.Trashed);
         }
 
         [TestCase("-1,-20,12,34,56", true)]
@@ -58,6 +60,8 @@ namespace Umbraco.Tests.Models
             content.Id = 34;
 
             Assert.AreEqual(isInBin, content.IsInRecycleBin());
+            if (isInBin)
+                Assert.IsTrue(content.Trashed);
         }
 
         [Test]
@@ -653,23 +657,6 @@ namespace Umbraco.Tests.Models
             // Assert
             Assert.That(content.IsPropertyDirty("Published"), Is.True);
             Assert.That(content.Published, Is.True);
-            Assert.That(content.IsPropertyDirty("Name"), Is.False);
-        }
-
-        [Test]
-        public void Can_Verify_Content_Is_Trashed()
-        {
-            // Arrange
-            var contentType = MockedContentTypes.CreateTextpageContentType();
-            var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
-
-            // Act
-            content.ResetDirtyProperties();
-            content.ChangeTrashedState(true);
-
-            // Assert
-            Assert.That(content.IsPropertyDirty("Trashed"), Is.True);
-            Assert.That(content.Trashed, Is.True);
             Assert.That(content.IsPropertyDirty("Name"), Is.False);
         }
 

@@ -39,8 +39,10 @@ namespace Umbraco.Core.Persistence.Repositories
         /// <returns></returns>
         protected IEnumerable<int> PerformGetByQuery(IQuery<PropertyType> query)
         {
-            // FIXME - this is used by DataTypeDefinitionRepository to remove properties
-            // from content types if they have a deleted data type - wrong in so many ways!
+            // used by DataTypeDefinitionRepository to remove properties
+            // from content types if they have a deleted data type - see
+            // notes in DataTypeDefinitionRepository.Delete as it's a bit
+            // weird
 
             var sqlClause = new Sql();
             sqlClause.Select("*")
@@ -192,8 +194,7 @@ AND umbracoNode.id <> @id",
                 throw new DuplicateNameException("An item with the alias " + entity.Alias + " already exists");
             }
 
-            // FIXME race condition here + should be a database 'unique' something?!
-            // at the moment we are safe due to the big massive lock around everything
+            // repository should be write-locked when doing this, so we are safe from race-conds
 
             var propertyGroupFactory = new PropertyGroupFactory(entity.Id);
 

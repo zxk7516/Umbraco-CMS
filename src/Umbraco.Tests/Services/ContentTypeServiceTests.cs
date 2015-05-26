@@ -27,6 +27,60 @@ namespace Umbraco.Tests.Services
             base.TearDown();
         }
 
+        public override void CreateTestData()
+        {
+            // create nothing!
+        }
+
+        [Test]
+        public void MediaAndContentTypesAreIsolatedThings()
+        {
+            var contentTypes = ServiceContext.ContentTypeService.GetAll().ToArray();
+            var contentTypesInit = contentTypes.Length; // should be zero but... safer
+            var mediaTypes = ServiceContext.MediaTypeService.GetAll().ToArray();
+            var mediaTypesInit = mediaTypes.Length; // has Folder, Image, File... already
+            var memberTypes = ServiceContext.MemberTypeService.GetAll().ToArray();
+            var memberTypesInit = memberTypes.Length; // should be zero but... safer
+
+            IContentType contentType = MockedContentTypes.CreateTextpageContentType("video", "video");
+            ServiceContext.ContentTypeService.Save(contentType);
+            IMediaType mediaType = MockedContentTypes.CreateVideoMediaType(); // alias 'video'
+            ServiceContext.MediaTypeService.Save(mediaType);
+            IMemberType memberType = MockedContentTypes.CreateSimpleMemberType("video", "video");
+            ServiceContext.MemberTypeService.Save(memberType);
+
+            Assert.IsNotNull(ServiceContext.ContentTypeService.Get(contentType.Id));
+            Assert.IsNull(ServiceContext.ContentTypeService.Get(mediaType.Id));
+            Assert.IsNull(ServiceContext.ContentTypeService.Get(memberType.Id));
+
+            Assert.IsNotNull(ServiceContext.MediaTypeService.Get(mediaType.Id));
+            Assert.IsNull(ServiceContext.MediaTypeService.Get(contentType.Id));
+            Assert.IsNull(ServiceContext.MediaTypeService.Get(memberType.Id));
+
+            Assert.IsNotNull(ServiceContext.MemberTypeService.Get(memberType.Id));
+            Assert.IsNull(ServiceContext.MemberTypeService.Get(contentType.Id));
+            Assert.IsNull(ServiceContext.MemberTypeService.Get(mediaType.Id));
+
+            var videoContent = ServiceContext.ContentTypeService.Get("video");
+            var videoMedia = ServiceContext.MediaTypeService.Get("video");
+            var videoMember = ServiceContext.MemberTypeService.Get("video");
+
+            Assert.IsNotNull(videoContent);
+            Assert.IsNotNull(videoMedia);
+            Assert.IsNotNull(videoMember);
+
+            Assert.AreNotEqual(videoContent.Id, videoMedia.Id);
+            Assert.AreNotEqual(videoContent.Id, videoMember.Id);
+            Assert.AreNotEqual(videoMember.Id, videoMedia.Id);
+
+            contentTypes = ServiceContext.ContentTypeService.GetAll().ToArray();
+            Assert.AreEqual(contentTypesInit + 1, contentTypes.Length);
+            mediaTypes = ServiceContext.MediaTypeService.GetAll().ToArray();
+            Assert.AreEqual(mediaTypesInit + 1, mediaTypes.Length);
+            memberTypes = ServiceContext.MemberTypeService.GetAll().ToArray();
+            Assert.AreEqual(memberTypesInit + 1, memberTypes.Length);
+        }
+
         [Test]
         public void Deleting_PropertyType_Removes_The_Property_From_Content()
         {

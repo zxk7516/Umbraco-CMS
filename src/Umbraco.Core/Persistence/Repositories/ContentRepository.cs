@@ -590,11 +590,44 @@ namespace Umbraco.Core.Persistence.Repositories
             });
         }
 
-        public int CountPublished()
+        public int CountPublished(string contentTypeAlias = null)
         {
-            var sql = GetBaseQuery(true).Where<NodeDto>(x => x.Trashed == false)
-                .Where<DocumentDto>(x => x.Published == true)
-                .Where<DocumentDto>(x => x.Newest == true);
+            // was:
+            //var sql = GetBaseQuery(true).Where<NodeDto>(x => x.Trashed == false)
+            //    .Where<DocumentDto>(x => x.Published == true)
+            //    .Where<DocumentDto>(x => x.Newest == true);
+            //
+            // which does not take contentTypeAlias in account, and only counts those
+            // that are published AND newest, and ignores those that are published BUT
+            // with a newest draft, so it does not make any sense - using code from
+            // VersionableRepositoryBase.Count + extra condition on being published
+            // and not trashed
+
+            var sql = new Sql();
+            if (contentTypeAlias.IsNullOrWhiteSpace())
+            {
+                sql.Select("COUNT(*)")
+                    .From<NodeDto>()
+                    .InnerJoin<DocumentDto>()
+                    .On<NodeDto, DocumentDto>(left => left.NodeId, right => right.NodeId)
+                    .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId && x.Trashed == false)
+                    .Where<DocumentDto>(x => x.Published);
+            }
+            else
+            {
+                sql.Select("COUNT(*)")
+                    .From<NodeDto>()
+                    .InnerJoin<ContentDto>()
+                    .On<NodeDto, ContentDto>(left => left.NodeId, right => right.NodeId)
+                    .InnerJoin<DocumentDto>()
+                    .On<NodeDto, DocumentDto>(left => left.NodeId, right => right.NodeId)
+                    .InnerJoin<ContentTypeDto>()
+                    .On<ContentTypeDto, ContentDto>(left => left.NodeId, right => right.ContentTypeId)
+                    .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId && x.Trashed == false)
+                    .Where<ContentTypeDto>(x => x.Alias == contentTypeAlias)
+                    .Where<DocumentDto>(x => x.Published);
+            }
+
             return Database.ExecuteScalar<int>(sql);
         }
 

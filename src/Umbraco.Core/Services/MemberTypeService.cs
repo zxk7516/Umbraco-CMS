@@ -49,12 +49,16 @@ namespace Umbraco.Core.Services
         {
             return LRepo.WithReadLocked(xr =>
             {
-                var types = xr.Repository.GetAll().Select(x => x.Alias).ToArray();
-
-                if (types.Any() == false)
-                    throw new InvalidOperationException("No member types could be resolved");
-
-                return types.FirstOrDefault(x => x.InvariantEquals("Member")) ?? types[0];
+                using (var e = xr.Repository.GetAll().GetEnumerator())
+                {
+                    if (e.MoveNext() == false)
+                        throw new InvalidOperationException("No member types could be resolved");
+                    var first = e.Current.Alias;
+                    var current = true;
+                    while (e.Current.Alias.InvariantEquals("Member") == false && (current = e.MoveNext()))
+                    { }
+                    return current ? e.Current.Alias : first;
+                }
             });
         }
     }
