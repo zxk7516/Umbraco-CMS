@@ -6,26 +6,33 @@
 
     <p>You are running the brand new NuCache!</p>
 
-    <p>
-        This verifies that content, media and members have corresponding data in the cmsContentNu table.
-        It does not check the integrity and validity of those data, though. Rebuilding can be expensive.
+    <p style="min-height: 120px; background: #f8f8f8; padding: 4px;">
+        <!-- ng-if or ng-show? -->
+        <span ng-if="working">NuCache is working.</span>
+        <span ng-if="!working">NuCache says: {{status}}</span>
     </p>
-    <span ng-if="verifying" class="text-info">
-        <span ng-if="!rebuilding">Checking...</span>
-        <span ng-if="rebuilding">Rebuilding...</span>
-    </span>
-    <span ng-if="!verifying">
-        Status:
-        <span ng-if="!invalid" class="text-success"><strong>Ok</strong></span>
-        <span ng-if="invalid" class="text-error"><strong>Error</strong></span>
-    </span>
-    <div ng-show="!rebuilding">
+
+    <p>
+        This lets you refresh the status, or collect snapshots (after running a CLR GC).
+    </p>
+    <div>
+        <button type="button" ng-click="verify()" class="btn btn-warning">
+            <span>Refresh</span>
+        </button>
+        <button type="button" ng-click="collect()" class="btn btn-warning">
+            <span>Collect</span>
+        </button>
+    </div>
+
+    <p></p>
+    <p>
+        This lets you rebuild the database cache (status above), ie the content of the cmsContentNu table.
+        Rebuilding can be expensive.
+    </p>
+    <div>
         <button type="button" ng-click="rebuild()" class="btn btn-warning">
             <span>Rebuild</span>
         </button>
-    </div>
-    <div class="umb-loader-wrapper" ng-show="rebuilding">
-        <div class="umb-loader"></div>
     </div>
 
     <p></p>
@@ -34,13 +41,13 @@
         the data in the cmsContentNu table, but it does not rebuild that table. This is relatively
         fast. Triggers the reload on all servers in an LB environment.
     </p>
-    <span ng-if="reloading" class="text-info">Reloading...</span>
-    <div ng-show="!reloading">
+    <div>
         <button type="button" ng-click="reload()" class="btn btn-warning">
             <span>Reload</span>
         </button>
     </div>
-    <div class="umb-loader-wrapper" ng-show="reloading">
+
+    <div class="umb-loader-wrapper" ng-show="working">
         <div class="umb-loader"></div>
     </div>
 

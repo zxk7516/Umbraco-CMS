@@ -116,10 +116,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             get { return _getContentByIdFunc; }
             set
             {
-                using (Resolution.Configuration)
-                {
-                    _getContentByIdFunc = value;
-                }
+                _getContentByIdFunc = value;
             }
         }
 
@@ -128,10 +125,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             get { return _getMediaByIdFunc; }
             set
             {
-                using (Resolution.Configuration)
-                {
-                    _getMediaByIdFunc = value;
-                }
+                _getMediaByIdFunc = value;
             }
         }
 

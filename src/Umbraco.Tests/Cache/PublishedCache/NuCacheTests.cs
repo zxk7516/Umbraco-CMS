@@ -37,108 +37,96 @@ namespace Umbraco.Tests.Cache.PublishedCache
         [Test]
         public void NewContentNotVisible()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
                     {
                         new PublishedPropertyType("prop1", 1, "?"), 
                     };
-
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
+            store.UpdateContentTypes(null, new[] { contentType1 }, null);
 
-            var content1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(content1);
-            var view1 = store.GetView();
-            Assert.AreSame(content1, view1.Get(content1.Id));
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
+            var snap1 = store.CreateSnapshot();
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
 
-            var content2 = CreateContentNode(contentType1, 2, null, 3456);
-            store.Set(content2);
-            var view2 = store.GetView();
-            Assert.AreSame(content1, view1.Get(content1.Id));
-            Assert.AreSame(content1, view2.Get(content1.Id));
-            Assert.AreSame(content2, view2.Get(content2.Id));
-            Assert.IsNull(view1.Get(content2.Id));
+            var kit2 = CreateContentNodeKit(1, 2, null, 3456);
+            store.Set(kit2);
+            var snap2 = store.CreateSnapshot();
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
+            Assert.AreSame(kit1.Node, snap2.Get(kit1.Node.Id));
+            Assert.AreSame(kit2.Node, snap2.Get(kit2.Node.Id));
+            Assert.IsNull(snap1.Get(kit2.Node.Id));
         }
 
         [Test]
         public void EditedContentNotVisible()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
                     {
                         new PublishedPropertyType("prop1", 1, "?"), 
                     };
-
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
+            store.UpdateContentTypes(null, new[] { contentType1 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(node1);
-            var view1 = store.GetView();
-            Assert.AreSame(node1, view1.Get(node1.Id));
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
+            var snap1 = store.CreateSnapshot();
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
 
-            var node2 = CreateContentNode(contentType1, 1, null, 5678);
-            store.Set(node2);
-            var view2 = store.GetView();
-            Assert.AreNotSame(view1, view2);
-            Assert.AreSame(node1, view1.Get(node1.Id));
-            Assert.AreNotSame(node1, view2.Get(node1.Id));
-            Assert.AreSame(node2, view2.Get(node1.Id));
-            Assert.AreEqual(1234, view1.Get(node1.Id).Published.GetProperty("prop1").Value);
-            Assert.AreEqual(5678, view2.Get(node1.Id).Published.GetProperty("prop1").Value);
+            var kit2 = CreateContentNodeKit(1, 1, null, 5678);
+            store.Set(kit2);
+            var snap2 = store.CreateSnapshot();
+            Assert.AreNotSame(snap1, snap2);
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
+            Assert.AreNotSame(kit1.Node, snap2.Get(kit1.Node.Id));
+            Assert.AreSame(kit2.Node, snap2.Get(kit1.Node.Id));
+            Assert.AreEqual(1234, snap1.Get(kit1.Node.Id).Published.GetProperty("prop1").Value);
+            Assert.AreEqual(5678, snap2.Get(kit1.Node.Id).Published.GetProperty("prop1").Value);
         }
 
         [Test]
         public void RootContent()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
                     {
                         new PublishedPropertyType("prop1", 1, "?"), 
                     };
-
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
             var contentType2 = new PublishedContentType(2, "ContentType2", props);
+            store.UpdateContentTypes(null, new[] { contentType1, contentType2 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(node1);
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
 
-            var view1 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
 
-            var node2 = CreateContentNode(contentType2, 2, null, 3456);
+            var node2 = CreateContentNodeKit(2, 2, null, 3456);
             store.Set(node2);
 
-            var view2 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
-            Assert.AreEqual(2, view2.GetAtRoot().Count());
+            var snap2 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
+            Assert.AreEqual(2, snap2.GetAtRoot().Count());
 
-            store.Clear(node1.Id);
+            store.Clear(kit1.Node.Id);
 
-            var view3 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
-            Assert.AreEqual(2, view2.GetAtRoot().Count());
-            Assert.AreEqual(1, view3.GetAtRoot().Count());
+            var snap3 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
+            Assert.AreEqual(2, snap2.GetAtRoot().Count());
+            Assert.AreEqual(1, snap3.GetAtRoot().Count());
         }
 
-        private void SetGetContentByIdOverride(ContentView view)
+        private void SetGetContentByIdOverride(ContentStore2.Snapshot snapshot)
         {
             Web.PublishedCache.NuCache.PublishedContent.GetContentByIdFunc = ((cache, preview, id) =>
             {
-                var n = view.Get(id);
+                var n = snapshot.Get(id);
                 if (preview == false) return n.Published;
                 throw new NotSupportedException();
                 //if (n.Draft != null) return n.Draft;
@@ -149,112 +137,152 @@ namespace Umbraco.Tests.Cache.PublishedCache
         [Test]
         public void Children()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
                     {
                         new PublishedPropertyType("prop1", 1, "?"), 
                     };
-
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
             var contentType2 = new PublishedContentType(2, "ContentType2", props);
+            store.UpdateContentTypes(null, new[] { contentType1, contentType2 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(node1);
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
 
             // content1 goes at root and has no children
-            var view1 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(0, view1.Get(node1.Id).Published.Children.Count());
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(0, snap1.Get(kit1.Node.Id).Published.Children.Count());
 
-            var node2 = CreateContentNode(contentType2, 2, node1, 3456);
-            store.Set(node2);
-            store.Set(node2);
-            store.Set(node2);
-            store.Set(node2); // no duplicate
+            var kit2 = CreateContentNodeKit(2, 2, kit1.Node, 3456);
+            store.Set(kit2);
+            store.Set(kit2);
+            store.Set(kit2);
+            store.Set(kit2); // no duplicate
 
             // still only 1 content at root
-            var view2 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
-            Assert.AreEqual(1, view2.GetAtRoot().Count());
-            // content1 from view1 still has no children
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(0, view1.Get(node1.Id).Published.Children.Count());
-            // content1 from view2 now has one child
-            SetGetContentByIdOverride(view2);
-            Assert.AreEqual(1, view2.Get(node1.Id).Published.Children.Count());
+            var snap2 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
+            Assert.AreEqual(1, snap2.GetAtRoot().Count());
+            // content1 from snap1 still has no children
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(0, snap1.Get(kit1.Node.Id).Published.Children.Count());
+            // content1 from snap2 now has one child
+            SetGetContentByIdOverride(snap2);
+            Assert.AreEqual(1, snap2.Get(kit1.Node.Id).Published.Children.Count());
 
-            store.Clear(node2.Id);
-            var view3 = store.GetView();
-            // content1 from view3 now has no child
-            SetGetContentByIdOverride(view3);
-            Assert.AreEqual(0, view3.Get(node1.Id).Published.Children.Count());
+            store.Clear(kit2.Node.Id);
+            var snap3 = store.CreateSnapshot();
+            // content1 from snap3 now has no child
+            SetGetContentByIdOverride(snap3);
+            Assert.AreEqual(0, snap3.Get(kit1.Node.Id).Published.Children.Count());
         }
 
         [Test]
         public void ClearBranch()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
             {
                 new PublishedPropertyType("prop1", 1, "?"), 
             };
-
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
+            store.UpdateContentTypes(null, new[] { contentType1 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(node1);
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
 
-            var node2 = CreateContentNode(contentType1, 2, node1, 1234);
-            store.Set(node2);
+            var kit2 = CreateContentNodeKit(1, 2, kit1.Node, 1234);
+            store.Set(kit2);
 
-            var node3 = CreateContentNode(contentType1, 3, node2, 1234);
-            store.Set(node3);
+            var kit3 = CreateContentNodeKit(1, 3, kit2.Node, 1234);
+            store.Set(kit3);
 
             // only 1 content at root
-            var view1 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
             // children
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(1, view1.Get(node1.Id).Published.Children.Count());
-            Assert.AreEqual(1, view1.Get(node2.Id).Published.Children.Count());
-            Assert.AreEqual(0, view1.Get(node3.Id).Published.Children.Count());
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(1, snap1.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.AreEqual(1, snap1.Get(kit2.Node.Id).Published.Children.Count());
+            Assert.AreEqual(0, snap1.Get(kit3.Node.Id).Published.Children.Count());
 
             // removing a content removes the whole branch
-            store.Clear(node2.Id);
-            var view2 = store.GetView();
-            SetGetContentByIdOverride(view2);
-            Assert.AreEqual(0, view2.Get(node1.Id).Published.Children.Count());
-            Assert.IsNull(view2.Get(node2.Id));
-            Assert.IsNull(view2.Get(node3.Id));
+            store.Clear(kit2.Node.Id);
+            var snap2 = store.CreateSnapshot();
+            SetGetContentByIdOverride(snap2);
+            Assert.AreEqual(0, snap2.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.IsNull(snap2.Get(kit2.Node.Id));
+            Assert.IsNull(snap2.Get(kit3.Node.Id));
 
             // but not on view 1
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(1, view1.Get(node1.Id).Published.Children.Count());
-            Assert.AreEqual(1, view1.Get(node2.Id).Published.Children.Count());
-            Assert.AreEqual(0, view1.Get(node3.Id).Published.Children.Count());
-            Assert.IsNotNull(view1.Get(node2.Id));
-            Assert.IsNotNull(view1.Get(node3.Id));
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(1, snap1.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.AreEqual(1, snap1.Get(kit2.Node.Id).Published.Children.Count());
+            Assert.AreEqual(0, snap1.Get(kit3.Node.Id).Published.Children.Count());
+            Assert.IsNotNull(snap1.Get(kit2.Node.Id));
+            Assert.IsNotNull(snap1.Get(kit3.Node.Id));
         }
 
         [Test]
         public void SetBranch()
         {
-            var options = new ContentStore.Options
+            var store = new ContentStore2(_logger);
+
+            var props = new[]
             {
-                TrackViews = true
+                new PublishedPropertyType("prop1", 1, "?"), 
             };
-            var store = new ContentStore(_logger, options);
+            var contentType1 = new PublishedContentType(1, "ContentType1", props);
+            store.UpdateContentTypes(null, new[] { contentType1 }, null);
+
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            store.Set(kit1);
+
+            var kit2 = CreateContentNodeKit(1, 2, kit1.Node, 1234);
+            store.Set(kit2);
+
+            var kit3 = CreateContentNodeKit(1, 3, kit2.Node, 1234);
+            store.Set(kit3);
+
+            // only 1 content at root
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, snap1.GetAtRoot().Count());
+            // children
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(1, snap1.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.AreEqual(1, snap1.Get(kit2.Node.Id).Published.Children.Count());
+            Assert.AreEqual(0, snap1.Get(kit3.Node.Id).Published.Children.Count());
+
+            // editing a content preserves the branch (NOT moving)
+            kit2 = CreateContentNodeKit(1, 2, kit1.Node, 9999);
+            store.Set(kit2);
+            var snap2 = store.CreateSnapshot();
+            SetGetContentByIdOverride(snap2);
+            Assert.AreEqual(1, snap2.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.AreEqual(1, snap2.Get(kit2.Node.Id).Published.Children.Count());
+            Assert.AreEqual(0, snap2.Get(kit3.Node.Id).Published.Children.Count());
+            Assert.IsNotNull(snap2.Get(kit2.Node.Id));
+            Assert.IsNotNull(snap2.Get(kit3.Node.Id));
+            Assert.AreEqual(9999, snap2.Get(kit2.Node.Id).Published.GetProperty("prop1").Value);
+
+            // but not on view 1
+            SetGetContentByIdOverride(snap1);
+            Assert.AreEqual(1, snap1.Get(kit1.Node.Id).Published.Children.Count());
+            Assert.AreEqual(1, snap1.Get(kit2.Node.Id).Published.Children.Count());
+            Assert.AreEqual(0, snap1.Get(kit3.Node.Id).Published.Children.Count());
+            Assert.IsNotNull(snap1.Get(kit2.Node.Id));
+            Assert.IsNotNull(snap1.Get(kit3.Node.Id));
+            Assert.AreEqual(1234, snap1.Get(kit2.Node.Id).Published.GetProperty("prop1").Value);
+        }
+
+        [Test]
+        public async void ContentStore()
+        {
+            var store = new ContentStore2(_logger);
 
             var props = new[]
             {
@@ -262,159 +290,67 @@ namespace Umbraco.Tests.Cache.PublishedCache
             };
 
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
-
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            store.Set(node1);
-
-            var node2 = CreateContentNode(contentType1, 2, node1, 1234);
-            store.Set(node2);
-
-            var node3 = CreateContentNode(contentType1, 3, node2, 1234);
-            store.Set(node3);
-
-            // only 1 content at root
-            var view1 = store.GetView();
-            Assert.AreEqual(1, view1.GetAtRoot().Count());
-            // children
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(1, view1.Get(node1.Id).Published.Children.Count());
-            Assert.AreEqual(1, view1.Get(node2.Id).Published.Children.Count());
-            Assert.AreEqual(0, view1.Get(node3.Id).Published.Children.Count());
-
-            // editing a content preserves the branch (NOT moving)
-            node2 = CreateContentNode(contentType1, 2, node1, 9999);
-            store.Set(node2); 
-            var view2 = store.GetView();
-            SetGetContentByIdOverride(view2);
-            Assert.AreEqual(1, view2.Get(node1.Id).Published.Children.Count());
-            Assert.AreEqual(1, view2.Get(node2.Id).Published.Children.Count());
-            Assert.AreEqual(0, view2.Get(node3.Id).Published.Children.Count());
-            Assert.IsNotNull(view2.Get(node2.Id));
-            Assert.IsNotNull(view2.Get(node3.Id));
-            Assert.AreEqual(9999, view2.Get(node2.Id).Published.GetProperty("prop1").Value);
-
-            // but not on view 1
-            SetGetContentByIdOverride(view1);
-            Assert.AreEqual(1, view1.Get(node1.Id).Published.Children.Count());
-            Assert.AreEqual(1, view1.Get(node2.Id).Published.Children.Count());
-            Assert.AreEqual(0, view1.Get(node3.Id).Published.Children.Count());
-            Assert.IsNotNull(view1.Get(node2.Id));
-            Assert.IsNotNull(view1.Get(node3.Id));
-            Assert.AreEqual(1234, view1.Get(node2.Id).Published.GetProperty("prop1").Value);
-        }
-
-        [Test]
-        public void ContentStore()
-        {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
-
-            var props = new[]
-                    {
-                        new PublishedPropertyType("prop1", 1, "?"), 
-                    };
-
-            var contentType1 = new PublishedContentType(1, "ContentType1", props);
             var contentType2 = new PublishedContentType(2, "ContentType2", props);
+            store.UpdateContentTypes(null, new[] { contentType1, contentType2 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            var node2 = CreateContentNode(contentType2, 2, null, 3456);
-            store.Set(node1);
-            store.Set(node2);
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            var kit2 = CreateContentNodeKit(2, 2, null, 3456);
+            store.Set(kit1);
+            store.Set(kit2);
 
             // we haven't requested a view yet
-            Assert.AreEqual(0, store.ViewsCount);
+            Assert.AreEqual(0, store.SnapCount);
 
             // get a view
             // now we should have one view, which has no local content
             // and if we get a view again, we should get the same view
-            var view1 = store.GetView();
-            Assert.AreEqual(1, store.ViewsCount);
-            Assert.IsFalse(view1.HasLocalContent);
-            Assert.AreSame(view1, store.GetView());
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, store.SnapCount);
+            Assert.AreSame(snap1, store.CreateSnapshot());
 
             // try to get content
-            Assert.AreSame(node1, view1.Get(node1.Id));
-            Assert.IsNull(view1.Get(666));
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
+            Assert.IsNull(snap1.Get(666));
 
-            node1 = CreateContentNode(contentType1, 1, null, 5678);
-            store.Set(node1);
+            kit1 = CreateContentNodeKit(1, 1, null, 5678);
+            store.Set(kit1);
 
-            // now the view has local content
-            Assert.IsTrue(view1.HasLocalContent);
 
             // get a view
             // now we should have two views, one with local content and one without
             // and if we get a view again, we should get the same view
-            var view2 = store.GetView();
-            Assert.AreEqual(2, store.ViewsCount);
-            Assert.AreNotSame(view1, view2);
-            Assert.IsFalse(view2.HasLocalContent);
-            Assert.AreEqual(view2, store.GetView());
+            var snap2 = store.CreateSnapshot();
+            Assert.AreEqual(2, store.SnapCount);
+            Assert.AreNotSame(snap1, snap2);
+            Assert.AreEqual(snap2, store.CreateSnapshot());
 
             // try to get content
-            Assert.AreSame(node1, view2.Get(node1.Id));
-            Assert.AreNotSame(node1, view1.Get(node1.Id));
-            Assert.IsNull(view2.Get(666));
+            Assert.AreSame(kit1.Node, snap2.Get(kit1.Node.Id));
+            Assert.AreNotSame(kit1.Node, snap1.Get(kit1.Node.Id));
+            Assert.IsNull(snap2.Get(666));
 
             // each view has its own copy of modified content
-            Assert.AreEqual(1234, view1.Get(node1.Id).Published.GetProperty("prop1").Value);
-            Assert.AreEqual(5678, view2.Get(node1.Id).Published.GetProperty("prop1").Value);
+            Assert.AreEqual(1234, snap1.Get(kit1.Node.Id).Published.GetProperty("prop1").Value);
+            Assert.AreEqual(5678, snap2.Get(kit1.Node.Id).Published.GetProperty("prop1").Value);
 
             // but same content is shared if not modified
-            Assert.AreEqual(3456, view1.Get(node2.Id).Published.GetProperty("prop1").Value);
-            Assert.AreSame(view1.Get(node2.Id), view2.Get(node2.Id));
+            Assert.AreEqual(3456, snap1.Get(kit2.Node.Id).Published.GetProperty("prop1").Value);
+            Assert.AreSame(snap1.Get(kit2.Node.Id), snap2.Get(kit2.Node.Id));
 
-            // dereference view1 and it's gone
-            view1 = null;
+            // dereference snap1 and it's (not) gone
+            snap1 = null;
             GC.Collect();
-            Assert.AreEqual(1, store.ViewsCount);
+            Assert.AreEqual(2, store.SnapCount);
+            await store.CollectAsync();
+            Assert.AreEqual(1, store.SnapCount);
 
-            // dereference view2 and it stays because it's the top view
-            view2 = null;
+            // dereference snap2 and it's (not) gone
+            snap2 = null;
             GC.Collect();
-            Assert.AreEqual(1, store.ViewsCount);
-
-            // force-kill all views does the job
-            store.KillViews();
-            GC.Collect();
-            Assert.AreEqual(0, store.ViewsCount);
+            Assert.AreEqual(1, store.SnapCount);
+            await store.CollectAsync();
+            Assert.AreEqual(0, store.SnapCount);
         }
-
-        // note - for the above test to work in "debug" mode we have to use
-        // some tricks... namely external methods AssertWhatever - otherwise
-        // hidden local vars are created that reference view1 and prevent
-        // GC to collect it.
-        //
-        // .load c:\windows\Microsoft.NET\Framework\v4.0.30319\SOS.dll
-        // !dumpheap -type ContentView
-        // !gcroot 02282f34
-        // !do 02282f34
-        // ===> will show referenced 'view1'
-
-        /*
-        private void AssertMeth(ContentView view, Action<ContentView> action)
-        {
-            action(view);
-        }
-
-        private void AssertViewHasLocalContent(ContentView view, bool expected)
-        {
-            if (expected)
-                Assert.IsTrue(view.HasLocalContent);
-            else
-                Assert.IsFalse(view.HasLocalContent);
-        }
-
-        private void AssertAreSames(ContentView view, ContentStore store, IPublishedContent content)
-        {
-            Assert.AreSame(view, store.GetView());
-            Assert.AreSame(content, view.Get(content.Id));
-        }
-        */
 
         [Test]
         public void WeakRef()
@@ -430,116 +366,56 @@ namespace Umbraco.Tests.Cache.PublishedCache
         }
 
         [Test]
-        public void ContentStoreWithTimespan()
-        {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true,
-                MinViewsInterval = 1000
-            };
-            var store = new ContentStore(_logger, options);
-
-            var props = new[]
-                    {
-                        new PublishedPropertyType("prop1", 1, "?"), 
-                    };
-
-            var contentType1 = new PublishedContentType(1, "ContentType1", props);
-            var contentType2 = new PublishedContentType(2, "ContentType2", props);
-
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            var node2 = CreateContentNode(contentType2, 2, null, 3456);
-            store.Set(node1);
-            store.Set(node2);
-            Assert.AreEqual(0, store.ViewsCount);
-
-            var view1 = store.GetView();
-            Assert.AreEqual(1, store.ViewsCount);
-            Assert.IsFalse(view1.HasLocalContent);
-            Assert.AreSame(view1, store.GetView());
-            Assert.AreSame(node1, view1.Get(node1.Id));
-
-            node1 = CreateContentNode(contentType1, 1, null, 5678);
-            store.Set(node1);
-
-            Assert.IsTrue(view1.HasLocalContent);
-
-            // get the same because of timeout
-            var view2 = store.GetView();
-            Assert.AreEqual(1, store.ViewsCount);
-            Assert.AreSame(view1, view2);
-
-            // get another one after timeout
-            Thread.Sleep(1100);
-            view2 = store.GetView();
-            Assert.AreEqual(2, store.ViewsCount);
-            Assert.AreNotSame(view1, view2);
-
-            view1 = view2 = null; // dereference both
-            GC.Collect();
-            Assert.AreEqual(1, store.ViewsCount);
-            store.KillViews();
-            GC.Collect();
-            Assert.AreEqual(0, store.ViewsCount);
-        }
-
-        [Test]
         public void RemoveFromStore()
         {
-            var options = new ContentStore.Options
-            {
-                TrackViews = true
-            };
-            var store = new ContentStore(_logger, options);
+            var store = new ContentStore2(_logger);
 
             var props = new[]
-                    {
-                        new PublishedPropertyType("prop1", 1, "?"), 
-                    };
+            {
+                new PublishedPropertyType("prop1", 1, "?"), 
+            };
 
             var contentType1 = new PublishedContentType(1, "ContentType1", props);
             var contentType2 = new PublishedContentType(2, "ContentType2", props);
             var contentType3 = new PublishedContentType(3, "ContentType3", props);
+            store.UpdateContentTypes(null, new[] { contentType1, contentType2, contentType3 }, null);
 
-            var node1 = CreateContentNode(contentType1, 1, null, 1234);
-            var node2 = CreateContentNode(contentType2, 2, null, 3456);
-            store.Set(node1);
-            store.Set(node2);
-            Assert.AreEqual(0, store.ViewsCount);
+            var kit1 = CreateContentNodeKit(1, 1, null, 1234);
+            var kit2 = CreateContentNodeKit(2, 2, null, 3456);
+            store.Set(kit1);
+            store.Set(kit2);
+            Assert.AreEqual(0, store.SnapCount);
 
-            var view1 = store.GetView();
-            Assert.AreEqual(1, store.ViewsCount);
-            Assert.IsFalse(view1.HasLocalContent);
-            Assert.IsTrue(view1.HasContent);
-            Assert.AreSame(view1, store.GetView());
+            var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, store.SnapCount);
+            Assert.IsFalse(snap1.IsEmpty);
+            Assert.AreSame(snap1, store.CreateSnapshot());
 
-            Assert.AreSame(node1, view1.Get(node1.Id));
-            Assert.AreSame(node2, view1.Get(node2.Id));
+            Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
+            Assert.AreSame(kit2.Node, snap1.Get(kit2.Node.Id));
 
-            var node3 = CreateContentNode(contentType3, 3, null, 5678);
-            store.Set(node3);
+            var kit3 = CreateContentNodeKit(3, 3, null, 5678);
+            store.Set(kit3);
 
-            Assert.IsTrue(view1.HasLocalContent);
-            Assert.IsNull(view1.Get(node3.Id)); // protected!
+            Assert.IsNull(snap1.Get(kit3.Node.Id)); // protected!
 
-            store.Set(node3);
-            Assert.IsTrue(view1.HasLocalContent);
-            Assert.IsNull(view1.Get(node3.Id)); // protected!
+            store.Set(kit3);
+            Assert.IsNull(snap1.Get(kit3.Node.Id)); // protected!
 
-            var view2 = store.GetView();
-            Assert.AreSame(node3, view2.Get(node3.Id)); // it's there!
+            var snap2 = store.CreateSnapshot();
+            Assert.AreSame(kit3.Node, snap2.Get(kit3.Node.Id)); // it's there!
 
-            store.Clear(node2.Id);
-            Assert.AreSame(node2, view1.Get(node2.Id)); // still there
-            var view3 = store.GetView();
-            Assert.IsNull(view3.Get(node2.Id)); // gone!
+            store.Clear(kit2.Node.Id);
+            Assert.AreSame(kit2.Node, snap1.Get(kit2.Node.Id)); // still there
+            var snap3 = store.CreateSnapshot();
+            Assert.IsNull(snap3.Get(kit2.Node.Id)); // gone!
 
-            Assert.AreEqual(2, view1.GetAtRoot().Count());
-            Assert.AreEqual(3, view2.GetAtRoot().Count());
-            Assert.AreEqual(2, view3.GetAtRoot().Count());
+            Assert.AreEqual(2, snap1.GetAtRoot().Count());
+            Assert.AreEqual(3, snap2.GetAtRoot().Count());
+            Assert.AreEqual(2, snap3.GetAtRoot().Count());
         }
 
-        private static ContentNode CreateContentNode(PublishedContentType contentType, int id, ContentNode parent, int value)
+        private static ContentNodeKit CreateContentNodeKit(int contentTypeId, int id, ContentNode parent, int value)
         {
             var d = new ContentData
             {
@@ -554,12 +430,18 @@ namespace Umbraco.Tests.Cache.PublishedCache
                     {"prop1", value}
                 }
             };
-            var n = new ContentNode(id, Guid.NewGuid(), contentType,
+            var n = new ContentNode(id, Guid.NewGuid(),
                 (parent == null ? 0 : parent.Level) + 1, (parent == null ? "" : parent.Path) + "/" + id, 0,
                 (parent == null ? -1 : parent.Id),
-                DateTime.Now, -1,
-                null, d);
-            return n;
+                DateTime.Now, -1);
+            var k = new ContentNodeKit
+            {
+                ContentTypeId = contentTypeId,
+                Node = n,
+                DraftData = null,
+                PublishedData = d
+            };
+            return k;
         }
     }
 }

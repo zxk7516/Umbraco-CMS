@@ -25,20 +25,29 @@ namespace Umbraco.Web.WebServices
         }
 
         [HttpPost]
-        public bool RebuildDbCache()
+        public string RebuildDbCache()
         {
-            FacadeService.RebuildContentDbCache();
-            FacadeService.RebuildMediaDbCache();
-            FacadeService.RebuildMemberDbCache();
-            return VerifyDbCache();
+            var service = FacadeService;
+            service.RebuildContentDbCache();
+            service.RebuildMediaDbCache();
+            service.RebuildMemberDbCache();
+            return service.GetStatus();
         }
 
         [HttpGet]
-        public bool VerifyDbCache()
+        public string GetStatus()
         {
-            return FacadeService.VerifyContentDbCache()
-                && FacadeService.VerifyMediaDbCache()
-                && FacadeService.VerifyMemberDbCache();
+            var service = FacadeService;
+            return service.GetStatus();
+        }
+
+        [HttpGet]
+        public string Collect()
+        {
+            var service = FacadeService;
+            GC.Collect();
+            service.Collect();
+            return service.GetStatus();
         }
 
         [HttpPost]

@@ -11,14 +11,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
 {
     class MediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData
     {
-        private readonly ContentView _view;
+        private readonly ContentStore2.Snapshot _snapshot;
 
         #region Constructors
 
-        public MediaCache(bool previewDefault, ContentView view)
+        public MediaCache(bool previewDefault, ContentStore2.Snapshot snapshot)
             : base(previewDefault)
         {
-            _view = view;
+            _snapshot = snapshot;
         }
 
         #endregion
@@ -27,24 +27,24 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IPublishedContent GetById(bool preview, int contentId)
         {
-            var n = _view.Get(contentId);
+            var n = _snapshot.Get(contentId);
             return n == null ? null : n.Published;
         }
 
         public override bool HasById(bool preview, int contentId)
         {
-            var n = _view.Get(contentId);
+            var n = _snapshot.Get(contentId);
             return n != null;
         }
 
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
-            return _view.GetAtRoot().Select(n => n.Published);
+            return _snapshot.GetAtRoot().Select(n => n.Published);
         }
 
         public override bool HasContent(bool preview)
         {
-            return _view.HasContent;
+            return _snapshot.IsEmpty == false;
         }
 
         #endregion
@@ -124,12 +124,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override PublishedContentType GetContentType(int id)
         {
-            return _view.GetContentType(id);
+            return _snapshot.GetContentType(id);
         }
 
         public override PublishedContentType GetContentType(string alias)
         {
-            return _view.GetContentType(alias);
+            return _snapshot.GetContentType(alias);
         }
 
         #endregion

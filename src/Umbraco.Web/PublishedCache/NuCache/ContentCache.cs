@@ -18,17 +18,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
 {
     class ContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
     {
-        private readonly ContentView _view;
+        private readonly ContentStore2.Snapshot _snapshot;
         private readonly ICacheProvider _facadeCache;
         private readonly ICacheProvider _snapshotCache;
         private readonly DomainHelper _domainHelper;
 
         #region Constructor
 
-        public ContentCache(bool previewDefault, ContentView view, ICacheProvider facadeCache, ICacheProvider snapshotCache, IDomainService domainService)
+        public ContentCache(bool previewDefault, ContentStore2.Snapshot snapshot, ICacheProvider facadeCache, ICacheProvider snapshotCache, IDomainService domainService)
             : base(previewDefault)
         {
-            _view = view;
+            _snapshot = snapshot;
             _facadeCache = facadeCache;
             _snapshotCache = snapshotCache;
             _domainHelper = new DomainHelper(domainService);
@@ -55,6 +55,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
             if (route == null) throw new ArgumentNullException("route");
+
+            // fixme temp
+            return GetByRouteInternal(preview, route, hideTopLevelNode);
 
             var cache = (preview == false || FacadeService.FullCacheWhenPreviewing) ? _snapshotCache : _facadeCache;
             var key = CacheKeys.ContentCacheContentByRoute(route, preview);
@@ -201,7 +204,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IPublishedContent GetById(bool preview, int contentId)
         {
-            var n = _view.Get(contentId);
+            var n = _snapshot.Get(contentId);
             if (n == null) return null;
 
             // both .Draft and .Published cannot be null at the same time
@@ -212,7 +215,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override bool HasById(bool preview, int contentId)
         {
-            var n = _view.Get(contentId);
+            var n = _snapshot.Get(contentId);
             if (n == null) return false;
 
             return preview || n.Published != null;
@@ -220,7 +223,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
-            var c = _view.GetAtRoot();
+            var c = _snapshot.GetAtRoot();
 
             // both .Draft and .Published cannot be null at the same time
             return c.Select(n => preview
@@ -245,8 +248,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override bool HasContent(bool preview)
         {
             return preview
-                ? _view.HasContent
-                : _view.GetAtRoot().Any(x => x.Published != null);
+                ? _snapshot.IsEmpty == false
+                : _snapshot.GetAtRoot().Any(x => x.Published != null);
         }
 
         #endregion
@@ -339,12 +342,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override PublishedContentType GetContentType(int id)
         {
-            return _view.GetContentType(id);
+            return _snapshot.GetContentType(id);
         }
 
         public override PublishedContentType GetContentType(string alias)
         {
-            return _view.GetContentType(alias);
+            return _snapshot.GetContentType(alias);
         }
 
         #endregion

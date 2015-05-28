@@ -7,6 +7,7 @@ using Umbraco.Core.Cache;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
+using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.ObjectResolution;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
@@ -29,11 +30,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly Database _dataSource;
         private readonly ILogger _logger;
 
-        private readonly ContentStore _contentStore;
-        private readonly ContentStore _mediaStore;
+        private readonly ContentStore2 _contentStore;
+        private readonly ContentStore2 _mediaStore;
         private readonly object _storesLock = new object();
-
-        private PublishedContentTypeCache _contentTypeCache;
 
         // define constant - determines whether to use cache when previewing
         // to store eg routes, property converted values, anything - caching
@@ -49,8 +48,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _dataSource = new Database(databaseContext);
             _logger = logger;
 
-            _contentStore = new ContentStore(logger);
-            _mediaStore = new ContentStore(logger);
+            _contentStore = new ContentStore2(logger);
+            _mediaStore = new ContentStore2(logger);
 
             if (Resolution.IsFrozen)
                 OnResolutionFrozen();
@@ -60,11 +59,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private void OnResolutionFrozen()
         {
-            _contentTypeCache = new PublishedContentTypeCache(
-                _serviceContext.ContentTypeService,
-                _serviceContext.MediaTypeService,
-                _serviceContext.MemberTypeService);
-
             InitializeRepositoryEvents();
 
             lock (_storesLock)
@@ -121,13 +115,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private void LoadContentFromDatabase()
         {
-            using (_contentStore.Frozen)
+            _contentStore.WriteLocked(() =>
             {
                 var contentService = _serviceContext.ContentService as ContentService;
                 if (contentService == null) throw new Exception("oops");
 
                 contentService.WithReadLocked(_ => LoadContentFromDatabaseLocked());
-            }
+            });
         }
 
         private void LoadContentFromDatabaseLocked()
@@ -138,10 +132,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // ResetFrozen read-locks the store, and write-locks on each change
             // so it should be possible to reload from DB while serving pages
 
-            // two-phases prevents loading content and types in // on same db connection
-            var nodeStructs = _dataSource.GetAllContentSources();
-            Phase2(PublishedItemType.Content, nodeStructs);
-            _contentStore.SetAll(nodeStructs);
+            var contentTypes = _serviceContext.ContentTypeService.GetAll()
+                .Select(x => new PublishedContentType(PublishedItemType.Content, x));
+            _contentStore.UpdateContentTypes(null, contentTypes, null);
+
+            var kits = _dataSource.GetAllContentSources();
+            _contentStore.SetAll(kits);
         }
 
         // keep these around - might be useful
@@ -171,23 +167,25 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             // locks & notes: see content
 
-            using (_mediaStore.Frozen)
+            _mediaStore.WriteLocked(() =>
             {
                 var mediaService = _serviceContext.MediaService as MediaService;
                 if (mediaService == null) throw new Exception("oops");
 
                 mediaService.WithReadLocked(_ => LoadMediaFromDatabaseLocked());
-            }
+            });
         }
 
         private void LoadMediaFromDatabaseLocked()
         {
             // locks & notes: see content
 
-            // two-phases prevents loading content and types in // on same db connection
-            var nodeStructs = _dataSource.GetAllMediaSources();
-            Phase2(PublishedItemType.Media, nodeStructs);
-            _mediaStore.SetAll(nodeStructs);
+            var mediaTypes = _serviceContext.MediaTypeService.GetAll()
+                .Select(x => new PublishedContentType(PublishedItemType.Media, x));
+            _mediaStore.UpdateContentTypes(null, mediaTypes, null);
+
+            var kits = _dataSource.GetAllMediaSources();
+            _mediaStore.SetAll(kits);
         }
 
         // keep these around - might be useful
@@ -274,31 +272,26 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    return contentNode;
         //}
 
-        private void Phase2(PublishedItemType itemType, params ContentNodeStruct[] nodeStructs)
-        {
-            foreach (var nodeStruct in nodeStructs)
-            {
-                var contentType = _contentTypeCache.Get(itemType, nodeStruct.ContentTypeId);
-                nodeStruct.Node.SetContentTypeAndData(contentType, nodeStruct.DraftData, nodeStruct.PublishedData);
-            }
-        }
-
         #endregion
 
         #region Maintain Stores
 
         public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
-            using (_contentStore.Frozen)
+            var draftChanged2 = false;
+            var publishedChanged2 = false;
+            _contentStore.WriteLocked(() =>
             {
-                NotifyFrozen(payloads, out draftChanged, out publishedChanged);
-            }
+                NotifyLocked(payloads, out draftChanged2, out publishedChanged2);
+            });
+            draftChanged = draftChanged2;
+            publishedChanged = publishedChanged2;
 
             if (draftChanged || publishedChanged)
                 Facade.Current.Resync();
         }
 
-        private void NotifyFrozen(IEnumerable<ContentCacheRefresher.JsonPayload> payloads, out bool draftChanged, out bool publishedChanged)
+        private void NotifyLocked(IEnumerable<ContentCacheRefresher.JsonPayload> payloads, out bool draftChanged, out bool publishedChanged)
         {
             publishedChanged = false;
             draftChanged = false;
@@ -344,22 +337,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var nodeStructs = _dataSource.GetBranchContentSources(capture.Id);
-                        Phase2(PublishedItemType.Content, nodeStructs);
-                        _contentStore.SetBranch(capture.Id, nodeStructs);
+                        var kits = _dataSource.GetBranchContentSources(capture.Id);
+                        _contentStore.SetBranch(capture.Id, kits);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var nodeStruct = _dataSource.GetContentSource(capture.Id);
-                        if (nodeStruct.IsEmpty)
+                        var kit = _dataSource.GetContentSource(capture.Id);
+                        if (kit.IsEmpty)
                         {
                             _contentStore.Clear(capture.Id);
                         }
                         else
                         {
-                            Phase2(PublishedItemType.Content, nodeStruct);
-                            _contentStore.Set(nodeStruct.Node);
+                            _contentStore.Set(kit);
                         }
                     }
                 });
@@ -371,16 +362,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
-            using (_mediaStore.Frozen)
+            var anythingChanged2 = false;
+            _mediaStore.WriteLocked(() =>
             {
-                NotifyFrozen(payloads, out anythingChanged);
-            }
+                NotifyLocked(payloads, out anythingChanged2);
+            });
+            anythingChanged = anythingChanged2;
 
             if (anythingChanged)
                 Facade.Current.Resync();
         }
 
-        private void NotifyFrozen(IEnumerable<MediaCacheRefresher.JsonPayload> payloads, out bool anythingChanged)
+        private void NotifyLocked(IEnumerable<MediaCacheRefresher.JsonPayload> payloads, out bool anythingChanged)
         {
             anythingChanged = false;
 
@@ -422,22 +415,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     if (capture.ChangeTypes.HasType(TreeChangeTypes.RefreshBranch))
                     {
                         // ?? should we do some RV check here?
-                        var nodeStructs = _dataSource.GetBranchMediaSources(capture.Id);
-                        Phase2(PublishedItemType.Media, nodeStructs);
-                        _mediaStore.SetBranch(capture.Id, nodeStructs);
+                        var kits = _dataSource.GetBranchMediaSources(capture.Id);
+                        _mediaStore.SetBranch(capture.Id, kits);
                     }
                     else
                     {
                         // ?? should we do some RV check here?
-                        var nodeStruct = _dataSource.GetMediaSource(capture.Id);
-                        if (nodeStruct.IsEmpty)
+                        var kit = _dataSource.GetMediaSource(capture.Id);
+                        if (kit.IsEmpty)
                         {
                             _mediaStore.Clear(capture.Id);
                         }
                         else
                         {
-                            Phase2(PublishedItemType.Media, nodeStruct);
-                            _mediaStore.Set(nodeStruct.Node);                            
+                            _mediaStore.Set(kit);
                         }
                     }
                 });
@@ -449,71 +440,71 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
-            // remove, those that are refreshed will be reloaded
             foreach (var payload in payloads)
-                _contentTypeCache.ClearContentType(payload.Id);
+                LogHelper.Debug<XmlStore>("Notified {0} for {1} {2}".FormatWith(payload.ChangeTypes, payload.ItemType, payload.Id));
 
-            // process content types / content cache
-            // only those that have been changed - with impact on content - RefreshMain
-            // for those that have been removed, content is removed already
-            var ids = payloads
+            var removedIds = payloads
+                .Where(x => x.ItemType == typeof(IContentType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.Remove))
+                .Select(x => x.Id)
+                .ToArray();
+
+            var refreshedIds = payloads
                 .Where(x => x.ItemType == typeof(IContentType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
                 .Select(x => x.Id)
                 .ToArray();
 
-            foreach (var payload in payloads)
-                LogHelper.Debug<XmlStore>("Notified {0} for content type {1}".FormatWith(payload.ChangeTypes, payload.Id));
 
-            if (ids.Length > 0)
-                using (_contentStore.Frozen)
+            if (removedIds.Length > 0 || refreshedIds.Length > 0)
+                _contentStore.WriteLocked(() =>
                 {
-                    RefreshContentTypesFrozen(ids);
-                }
+                    // ReSharper disable AccessToModifiedClosure
+                    RefreshContentTypesFrozen(removedIds, refreshedIds);
+                    // ReSharper restore AccessToModifiedClosure
+                });
 
             // same for media cache
-            ids = payloads
+
+            removedIds = payloads
+                .Where(x => x.ItemType == typeof(IMediaType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.Remove))
+                .Select(x => x.Id)
+                .ToArray();
+
+            refreshedIds = payloads
                 .Where(x => x.ItemType == typeof(IMediaType).Name && x.ChangeTypes.HasType(ContentTypeServiceBase.ChangeTypes.RefreshMain))
                 .Select(x => x.Id)
                 .ToArray();
 
-            foreach (var payload in payloads)
-                LogHelper.Debug<FacadeService>("Notified {0} for media type {1}".FormatWith(payload.ChangeTypes, payload.Id));
-
-            if (ids.Length > 0)
-                using (_mediaStore.Frozen)
+            if (removedIds.Length > 0 || refreshedIds.Length > 0)
+                _mediaStore.WriteLocked(() =>
                 {
-                    RefreshMediaTypesFrozen(ids);
-                }
+                    RefreshMediaTypesFrozen(removedIds, refreshedIds);
+                });
 
             Facade.Current.Resync();
         }
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
         {
-            var ids = payloads.Select(x => x.Id).ToArray();
-
-            // remove, those that are refreshed will be reloaded
-            foreach (var id in ids)
-                _contentTypeCache.ClearDataType(id);
+            var idsA = payloads.Select(x => x.Id).ToArray();
 
             foreach (var payload in payloads)
                 LogHelper.Debug<FacadeService>("Notified {0} for data type {1}".FormatWith(payload.Removed ? "Removed" : "Refreshed", payload.Id));
 
-            using (_contentStore.Frozen)
-            using (_mediaStore.Frozen)
-            {
-                var contentService = _serviceContext.ContentService as ContentService;
-                if (contentService == null) throw new Exception("oops");
+            _contentStore.WriteLocked(() =>
+                _mediaStore.WriteLocked(() =>
+                {
+                    var contentService = _serviceContext.ContentService as ContentService;
+                    if (contentService == null) throw new Exception("oops");
 
-                contentService.WithReadLocked(
-                    _ => _contentStore.SetDataTypes(ids, id => _contentTypeCache.Get(PublishedItemType.Content, id)));
+                    contentService.WithReadLocked(
+                        _ => _contentStore.UpdateDataTypes(idsA, id => CreateContentType(PublishedItemType.Content, id)));
 
-                var mediaService = _serviceContext.MediaService as MediaService;
-                if (mediaService == null) throw new Exception("oops");
-                
-                mediaService.WithReadLocked(
-                    _ => _mediaStore.SetDataTypes(ids, id => _contentTypeCache.Get(PublishedItemType.Media, id)));
-            }
+                    var mediaService = _serviceContext.MediaService as MediaService;
+                    if (mediaService == null) throw new Exception("oops");
+
+                    mediaService.WithReadLocked(
+                        _ => _mediaStore.UpdateDataTypes(idsA, id => CreateContentType(PublishedItemType.Media, id)));
+                }));
 
             Facade.Current.Resync();
         }
@@ -530,7 +521,53 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Manage change
 
-        private void RefreshContentTypesFrozen(IEnumerable<int> ids)
+        // fixme - rething what 'frozen' means
+
+        private IEnumerable<PublishedContentType> CreateContentTypes(PublishedItemType itemType, params int[] ids)
+        {
+            IEnumerable<IContentTypeComposition> contentTypes;
+            switch (itemType)
+            {
+                case PublishedItemType.Content:
+                    contentTypes = _serviceContext.ContentTypeService.GetAll(ids);
+                    break;
+                case PublishedItemType.Media:
+                    contentTypes = _serviceContext.MediaTypeService.GetAll(ids);
+                    break;
+                case PublishedItemType.Member:
+                    contentTypes = _serviceContext.MemberTypeService.GetAll(ids);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("itemType");
+            }
+
+            // some may be missing - not checking here
+
+            return contentTypes.Select(x => new PublishedContentType(itemType, x));
+        }
+
+        private PublishedContentType CreateContentType(PublishedItemType itemType, int id)
+        {
+            IContentTypeComposition contentType;
+            switch (itemType)
+            {
+                case PublishedItemType.Content:
+                    contentType = _serviceContext.ContentTypeService.Get(id);
+                    break;
+                case PublishedItemType.Media:
+                    contentType = _serviceContext.MediaTypeService.Get(id);
+                    break;
+                case PublishedItemType.Member:
+                    contentType = _serviceContext.MemberTypeService.Get(id);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("itemType");
+            }
+
+            return contentType == null ? null : new PublishedContentType(itemType, contentType);
+        }
+
+        private void RefreshContentTypesFrozen(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
         {
             // locks:
             // content (and content types) are read-locked while reading content
@@ -540,17 +577,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var contentService = _serviceContext.ContentService as ContentService;
             if (contentService == null) throw new Exception("oops");
 
-            var idsA = ids.ToArray();
+            var refreshedIdsA = refreshedIds.ToArray();
 
             contentService.WithReadLocked(repository =>
             {
-                var nodeStructs = _dataSource.GetTypeContentSources(idsA);
-                Phase2(PublishedItemType.Content, nodeStructs);
-                _contentStore.SetTypes(idsA, nodeStructs);
+                var typesA = CreateContentTypes(PublishedItemType.Content, refreshedIdsA).ToArray();
+                var kits = _dataSource.GetTypeContentSources(refreshedIdsA);
+                _contentStore.UpdateContentTypes(removedIds, typesA, kits);
             });
         }
 
-        private void RefreshMediaTypesFrozen(IEnumerable<int> ids)
+        private void RefreshMediaTypesFrozen(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
         {
             // locks:
             // media (and content types) are read-locked while reading media
@@ -560,13 +597,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
             var mediaService = _serviceContext.MediaService as MediaService;
             if (mediaService == null) throw new Exception("oops");
 
-            var idsA = ids.ToArray();
+            var refreshedIdsA = refreshedIds.ToArray();
 
             mediaService.WithReadLocked(repository =>
             {
-                var nodeStructs = _dataSource.GetTypeMediaSources(idsA);
-                Phase2(PublishedItemType.Media, nodeStructs);
-                _mediaStore.SetTypes(idsA, nodeStructs);
+                var typesA = CreateContentTypes(PublishedItemType.Media, refreshedIdsA).ToArray();
+                var kits = _dataSource.GetTypeMediaSources(refreshedIdsA);
+                _mediaStore.UpdateContentTypes(removedIds, typesA, kits);
             });
         }
 
@@ -574,9 +611,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Create, Get Facade
 
-        // use weak refs so nothing prevents the views from being GC
-        private readonly WeakReference<ContentView> _contentViewRef = new WeakReference<ContentView>(null);
-        private readonly WeakReference<ContentView> _mediaViewRef = new WeakReference<ContentView>(null);
+        private long _contentGen, _mediaGen;
         private ICacheProvider _snapshotCache;
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
@@ -587,34 +622,36 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public Facade.FacadeElements GetElements(bool previewDefault)
         {
-            ContentView contentView, mediaView;
+            // note: using ObjectCacheRuntimeCacheProvider for snapshot and facade caches
+            // is not recommended because it creates an inner MemoryCache which is a heavy
+            // thing - better use a StaticCacheProvider which "just" creates a concurrent
+            // dictionary
+
+            ContentStore2.Snapshot contentSnap, mediaSnap;
             ICacheProvider snapshotCache;
             lock (_storesLock)
             {
-                contentView = _contentStore.GetView();
-                mediaView = _mediaStore.GetView();
+                contentSnap = _contentStore.CreateSnapshot();
+                mediaSnap = _mediaStore.CreateSnapshot();
                 snapshotCache = _snapshotCache;
 
-                // create a new snapshot cache if the views have been GC, or have changed
-                ContentView prevContentView, prevMediaView;
-                if (_contentViewRef.TryGetTarget(out prevContentView) == false
-                    || ReferenceEquals(prevContentView, contentView) == false
-                    || _mediaViewRef.TryGetTarget(out prevMediaView) == false
-                    || ReferenceEquals(prevMediaView, mediaView) == false)
+                // create a new snapshot cache if snapshots are different gens
+                if (contentSnap.Gen != _contentGen || mediaSnap.Gen != _mediaGen)
                 {
-                    _contentViewRef.SetTarget(contentView);
-                    _mediaViewRef.SetTarget(mediaView);
-                    snapshotCache = _snapshotCache = new ObjectCacheRuntimeCacheProvider();
+                    _contentGen = contentSnap.Gen;
+                    _mediaGen = mediaSnap.Gen;
+                    snapshotCache = _snapshotCache = new StaticCacheProvider();
                 }
             }
 
-            var facadeCache = new ObjectCacheRuntimeCacheProvider();
+            var facadeCache = new StaticCacheProvider();
+            var memberTypeCache = new PublishedContentTypeCache(null, null, _serviceContext.MemberTypeService);
 
             return new Facade.FacadeElements
             {
-                ContentCache = new ContentCache(previewDefault, contentView, facadeCache, snapshotCache, _serviceContext.DomainService),
-                MediaCache = new MediaCache(previewDefault, mediaView),
-                MemberCache = new MemberCache(previewDefault, _serviceContext.MemberService, _serviceContext.DataTypeService, _contentTypeCache),
+                ContentCache = new ContentCache(previewDefault, contentSnap, facadeCache, snapshotCache, _serviceContext.DomainService),
+                MediaCache = new MediaCache(previewDefault, mediaSnap),
+                MemberCache = new MemberCache(previewDefault, _serviceContext.MemberService, _serviceContext.DataTypeService, memberTypeCache),
                 FacadeCache = facadeCache,
                 SnapshotCache = snapshotCache
             };
@@ -1137,6 +1174,36 @@ AND cmsContentNu.nodeId IS NULL
 ", new { objType = memberObjectType });
 
             return count == 0;
+        }
+
+        #endregion
+
+        #region Instrument
+
+        public string GetStatus()
+        {
+            var dbCacheIsOk = VerifyContentDbCache()
+                && VerifyMediaDbCache()
+                && VerifyMemberDbCache();
+
+            var cs = _contentStore.SnapCount;
+            var ms = _mediaStore.SnapCount;
+            var ce = _contentStore.Count;
+            var me = _mediaStore.Count;
+
+            return "I'm feeling good, really." +
+                " Database cache is " + (dbCacheIsOk ? "ok" : "NOT ok (rebuild?)") + "." +
+                " ContentStore has " + cs + " snapshot" + (cs > 1 ? "s" : "") +
+                " and " + ce + " entr" + (ce > 1 ? "ies" : "y") + "." +
+                " MediaStore has " + ms + " snapshot" + (ms > 1 ? "s" : "") +
+                " and " + me + " entr" + (me > 1 ? "ies" : "y") + ".";
+        }
+
+        public void Collect()
+        {
+            var contentCollect = _contentStore.CollectAsync();
+            var mediaCollect = _mediaStore.CollectAsync();
+            System.Threading.Tasks.Task.WaitAll(contentCollect, mediaCollect);
         }
 
         #endregion

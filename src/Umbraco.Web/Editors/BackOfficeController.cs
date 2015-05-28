@@ -359,7 +359,7 @@ namespace Umbraco.Web.Editors
                             },
                             {
                                "nuCacheStatusBaseUrl", Url.GetUmbracoApiServiceBaseUrl<NuCacheStatusController>(
-                                   controller => controller.VerifyDbCache())
+                                   controller => controller.GetStatus())
                             }
                         }
                     },

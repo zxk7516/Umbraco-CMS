@@ -1,48 +1,57 @@
 ﻿function nuCacheController($scope, umbRequestHelper, $log, $http, $q, $timeout) {
 
     $scope.reload = function () {
+        if ($scope.working) return;
         if (confirm("Trigger a in-memory and local file cache reload on all servers.")) {
-            $scope.reloading = true;
+            $scope.working = true;
             umbRequestHelper.resourcePromise(
                 $http.post(umbRequestHelper.getApiUrl("nuCacheStatusBaseUrl", "ReloadCache")),
-                'Failed to trigger a cache reload')
+                    'Failed to trigger a cache reload')
             .then(function (result) {
-                $scope.reloading = false;
+                $scope.working = false;
             });
         }
     };
 
-    $scope.reloading = false;
-
-    function verify () {
-        $scope.verifying = true;
+    $scope.collect = function() {
+        if ($scope.working) return;
+        $scope.working = true;
         umbRequestHelper.resourcePromise(
-                $http.get(umbRequestHelper.getApiUrl("nuCacheStatusBaseUrl", "VerifyDbCache")),
-                'Failed to verify the cache.')
+                $http.get(umbRequestHelper.getApiUrl("nuCacheStatusBaseUrl", "Collect")),
+                    'Failed to verify the cache.')
             .then(function (result) {
-                $scope.verifying = false;
-                $scope.invalid = result === "false";
+                $scope.working = false;
+                $scope.status = angular.fromJson(result);
             });
     };
 
-    $scope.rebuild = function() {
+    $scope.verify = function () {
+        if ($scope.working) return;
+        $scope.working = true;
+        umbRequestHelper.resourcePromise(
+                $http.get(umbRequestHelper.getApiUrl("nuCacheStatusBaseUrl", "GetStatus")),
+                    'Failed to verify the cache.')
+            .then(function (result) {
+                $scope.working = false;
+                $scope.status = angular.fromJson(result);
+            });
+    };
+
+    $scope.rebuild = function () {
+        if ($scope.working) return;
         if (confirm("Rebuild cmsContentNu table content. Expensive.")) {
-            $scope.rebuilding = true;
-            $scope.verifying = true;
+            $scope.working = true;
             umbRequestHelper.resourcePromise(
                     $http.post(umbRequestHelper.getApiUrl("nuCacheStatusBaseUrl", "RebuildDbCache")),
-                    'Failed to rebuild the cache.')
+                        'Failed to rebuild the cache.')
                 .then(function(result) {
-                    $scope.rebuilding = false;
-                    $scope.verifying = false;
-                    $scope.invalid = result === "false";
+                    $scope.working = false;
+                    $scope.status = angular.fromJson(result);
                 });
         }
     };
 
-    $scope.rebuilding = false;
-
-    verify();
-
+    $scope.working = false;
+    $scope.verify();
 }
 angular.module("umbraco").controller("Umbraco.Dashboard.NuCacheController", nuCacheController);

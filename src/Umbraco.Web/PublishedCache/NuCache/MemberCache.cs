@@ -24,8 +24,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             _memberService = memberService;
             _dataTypeService = dataTypeService;
-            _contentTypeCache = contentTypeCache;
             _previewDefault = previewDefault;
+            _contentTypeCache = contentTypeCache;
         }
 
         //private static T GetCacheItem<T>(string cacheKey)
