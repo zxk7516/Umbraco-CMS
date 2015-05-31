@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Web.Hosting;
@@ -15,7 +17,7 @@ namespace Umbraco.Core
     /// This is exposed in the core so that we can have the IApplicationEventHandler in the core project so that 
     /// IApplicationEventHandler's can fire/execute outside of the web contenxt (i.e. in console applications)
     /// </remarks>
-    public abstract class UmbracoApplicationBase : System.Web.HttpApplication
+    public abstract class UmbracoApplicationBase : HttpApplication
     {
 
         public static event EventHandler ApplicationStarting;
@@ -139,6 +141,62 @@ namespace Umbraco.Core
                 Logger.Info<UmbracoApplicationBase>("Application shutdown. Reason: " + HostingEnvironment.ShutdownReason);
             }
             OnApplicationEnd(sender, e);
+        }
+
+        protected virtual void OnEndRequest(object sender, EventArgs e)
+        { }
+
+        protected void Application_EndRequest(object sender, EventArgs e)
+        {
+            // the global EndRequest is the last one to run, all other
+            // modules (incl. dynamic modules) have run, now we can dispose
+            // http context items (see also UmbracoModule.Init).
+            OnEndRequest(sender, e);
+            var httpContext = ((HttpApplication) sender).Context;
+            DisposeHttpContextItems(httpContext);
+        }
+
+        /// <summary>
+        /// Any object that is in the HttpContext.Items collection that is IDisposable will get disposed on the end of the request
+        /// </summary>
+        /// <param name="http"></param>
+        private static void DisposeHttpContextItems(HttpContext http)
+        {
+            // do not process if client-side request
+            if (http.Request.Url.IsClientSideRequest())
+                return;
+
+            LogHelper.Debug<UmbracoApplicationBase>("dispose httpContext items");
+
+            //get a list of keys to dispose
+            var keys = new HashSet<object>();
+            foreach (DictionaryEntry i in http.Items)
+            {
+                if (i.Value is IDisposeOnRequestEnd || i.Key is IDisposeOnRequestEnd)
+                {
+                    keys.Add(i.Key);
+                }
+            }
+            //dispose each item and key that was found as disposable.
+            foreach (var k in keys)
+            {
+                try
+                {
+                    http.Items[k].DisposeIfDisposable();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.Error<UmbracoApplicationBase>("Could not dispose item with key " + k, ex);
+                }
+                try
+                {
+                    k.DisposeIfDisposable();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.Error<UmbracoApplicationBase>("Could not dispose item key " + k, ex);
+                }
+            }
         }
 
         protected abstract IBootManager GetBootManager();

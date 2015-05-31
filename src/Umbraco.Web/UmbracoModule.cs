@@ -504,49 +504,7 @@ namespace Umbraco.Web
             var urlRouting = new UrlRoutingModule();
             urlRouting.PostResolveRequestCache(context);
         }
-
        
-        /// <summary>
-        /// Any object that is in the HttpContext.Items collection that is IDisposable will get disposed on the end of the request
-        /// </summary>
-        /// <param name="http"></param>
-        private static void DisposeHttpContextItems(HttpContext http)
-        {
-            // do not process if client-side request
-            if (http.Request.Url.IsClientSideRequest())
-                return;
-
-            //get a list of keys to dispose
-            var keys = new HashSet<object>();            
-            foreach (DictionaryEntry i in http.Items)
-            {
-                if (i.Value is IDisposeOnRequestEnd || i.Key is IDisposeOnRequestEnd)
-                {
-                    keys.Add(i.Key);
-                }
-            }
-            //dispose each item and key that was found as disposable.
-            foreach (var k in keys)
-            {
-                try
-                {
-                    http.Items[k].DisposeIfDisposable();
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.Error<UmbracoModule>("Could not dispose item with key " + k, ex);
-                }
-                try
-                {
-                    k.DisposeIfDisposable();
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.Error<UmbracoModule>("Could not dispose item key " + k, ex);
-                }
-            }
-        }
-
 		#endregion
 
 		#region IHttpModule
@@ -573,7 +531,6 @@ namespace Umbraco.Web
 
 			app.EndRequest += (sender, args) =>
 				{
-					var httpContext = ((HttpApplication)sender).Context;					
 					if (UmbracoContext.Current != null && UmbracoContext.Current.IsFrontEndUmbracoRequest)
 					{
 						LogHelper.Debug<UmbracoModule>(
@@ -582,8 +539,29 @@ namespace Umbraco.Web
 
                     OnEndRequest(new EventArgs());
 
-					DisposeHttpContextItems(httpContext);
+                    // do not dispose http context items, or anything, here - other modules
+                    // may have been registered after this module, and use things that are
+                    // in the context. see for ex.
+                    // http://issues.umbraco.org/issue/U4-2734
+                    // http://our.umbraco.org/projects/developer-tools/301-url-tracker/version-2/44327-Issues-with-URL-Tracker-in-614
+                    // instead, do it in RequestCompleted (see below)
 				};
+
+            // as per MSDN, the "RequestCompleted event is called after all managed 
+            // modules and handlers in the ASP.NET pipeline have been called. It enables
+            // modules to clean up resources after all managed modules and handlers have
+            // executed." So, NO module should use these resources in RequestCompleted.
+            //
+            // So... this looks like the ideal place to DisposeHttpContextItems - alas,
+            // by the time RequestCompleted triggers HttpContext is gone ;-(
+            //
+            //app.RequestCompleted += (sender, args) =>
+            //    {
+            //        var httpContext = ((HttpApplication) sender).Context;
+            //        DisposeHttpContextItems(httpContext);
+            //    };
+            //
+            // so - moving it all to UmbracoApplicationBase
 
             //disable asp.net headers (security)
 		    app.PreSendRequestHeaders += (sender, args) =>
