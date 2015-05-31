@@ -149,6 +149,7 @@
     <Compile Include="CacheHelper.cs" />
     <Compile Include="Cache\CacheKeys.cs" />
     <Compile Include="Cache\CacheProviderExtensions.cs" />
+    <Compile Include="Cache\DictionaryCacheProvider.cs" />
     <Compile Include="Cache\ICacheProvider.cs" />
     <Compile Include="Cache\CacheRefresherBase.cs" />
     <Compile Include="Cache\CacheRefresherEventArgs.cs" />

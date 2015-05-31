@@ -5,7 +5,6 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.ObjectResolution;
 using Umbraco.Web.Models;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
@@ -137,10 +136,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private static IEnumerable<IPublishedContent> GetContentByIds(bool previewing, IEnumerable<int> ids)
         {
             var facade = Facade.Current;
-            var content = ids.Select(x => _getContentByIdFunc(facade, previewing, x));
-            if (previewing == false)
-                content = content.Where(x => x != null);
-            return content;
+
+            // beware! the loop below CANNOT be converted to query such as:
+            //return ids.Select(x => _getContentByIdFunc(facade, previewing, x)).Where(x => x != null);
+            // because it would capture the facade and cause all sorts of issues
+            //
+            // we WANT to get the actual current facade each time we run
+
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            foreach (var id in ids)
+            {
+                var content = _getContentByIdFunc(facade, previewing, id);
+                if (content != null) yield return content;
+            }
         }
 
         private static IPublishedContent GetMediaById(bool previewing, int id)
@@ -151,7 +159,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private static IEnumerable<IPublishedContent> GetMediaByIds(bool previewing, IEnumerable<int> ids)
         {
             var facade = Facade.Current;
-            return ids.Select(x => _getMediaByIdFunc(facade, previewing, x));
+
+            // see note above for content
+
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            foreach (var id in ids)
+            {
+                var content = _getMediaByIdFunc(facade, previewing, id);
+                if (content != null) yield return content;
+            }
         }
 
         #endregion
@@ -183,6 +199,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override bool IsDraft { get { return _contentData.Published == false; } }
 
+        // beware what you use that one for - you don't want to cache its result
         private ICacheProvider GetAppropriateFacadeCache()
         {
             var facade = Facade.Current;
@@ -224,23 +241,30 @@ namespace Umbraco.Web.PublishedCache.NuCache
             get
             {
                 var cache = GetAppropriateFacadeCache();
-                if (cache == null)
+                if (cache == null || FacadeService.CachePublishedContentChildren == false)
                     return GetChildren();
-                return (IEnumerable<IPublishedContent>) cache.GetCacheItem(ChildrenCacheKey, GetChildren);
+                
+                // note: ToArray is important here, we want to cache the result, not the function!
+                return (IEnumerable<IPublishedContent>) cache.GetCacheItem(ChildrenCacheKey, () => GetChildren().ToArray());
             }
         }
 
         private IEnumerable<IPublishedContent> GetChildren()
         {
+            IEnumerable<IPublishedContent> c;
             switch (_contentNode.ContentType.ItemType)
             {
                 case PublishedItemType.Content:
-                    return GetContentByIds(_isPreviewing, _contentNode.ChildContentIds).OrderBy(x => x.SortOrder);
+                    c = GetContentByIds(_isPreviewing, _contentNode.ChildContentIds);
+                    break;
                 case PublishedItemType.Media:
-                    return GetMediaByIds(_isPreviewing, _contentNode.ChildContentIds).OrderBy(x => x.SortOrder);
+                    c = GetMediaByIds(_isPreviewing, _contentNode.ChildContentIds);
+                    break;
                 default:
                     throw new Exception("oops");
             }
+
+            return c.OrderBy(x => x.SortOrder); 
 
             // notes:
             // _contentNode.ChildContentIds is an unordered int[]

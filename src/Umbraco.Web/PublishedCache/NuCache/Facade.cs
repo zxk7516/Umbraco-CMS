@@ -1,11 +1,12 @@
 ﻿using System;
+using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.ObjectResolution;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
     // implements the facade
-    class Facade : IPublishedCaches
+    class Facade : IPublishedCaches, IDisposable
     {
         private readonly FacadeService _service;
         private readonly bool _defaultPreview;
@@ -20,13 +21,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             FacadeCache = new ObjectCacheRuntimeCacheProvider();
         }
 
-        public class FacadeElements
+        public class FacadeElements : IDisposable
         {
             public ContentCache ContentCache;
             public MediaCache MediaCache;
             public MemberCache MemberCache;
             public ICacheProvider FacadeCache;
             public ICacheProvider SnapshotCache;
+
+            public void Dispose()
+            {
+                ContentCache.Dispose();
+                MediaCache.Dispose();
+            }
         }
 
         private FacadeElements Elements
@@ -41,6 +48,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public void Resync()
         {
             // no lock - facades are single-thread
+            if (_elements != null)
+                _elements.Dispose();
             _elements = null;
         }
 
@@ -94,6 +103,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public IPublishedMediaCache MediaCache { get { return Elements.MediaCache; } }
 
         public IPublishedMemberCache MemberCache { get { return Elements.MemberCache; } }
+
+        #endregion
+
+        #region IDisposable
+
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            if (_elements != null)
+                _elements.Dispose();
+        }
 
         #endregion
     }

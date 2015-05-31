@@ -29,6 +29,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly ServiceContext _serviceContext;
         private readonly Database _dataSource;
         private readonly ILogger _logger;
+        private readonly Options _options;
 
         private readonly ContentStore2 _contentStore;
         private readonly ContentStore2 _mediaStore;
@@ -37,16 +38,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // define constant - determines whether to use cache when previewing
         // to store eg routes, property converted values, anything - caching
         // means faster execution, but uses memory - not sure if we want it
-        // so making it configureable
+        // so making it configureable.
         public static readonly bool FullCacheWhenPreviewing = true;
+
+        // define constant - determines whether to cache the published content
+        // objects (in the snapshot cache, or facade cache, depending on preview)
+        // or to refetch them all the time. caching is faster but uses more
+        // memory. not sure what we want.
+        public static readonly bool CachePublishedContentChildren = true;
+
+        // define constant - determines whether to cache the content cache root
+        // objects (in the snapshot cache, or facade cache, depending on preview)
+        // or to refecth them all the time. caching is faster but uses more
+        // memory - not sure what we want.
+        public static readonly bool CacheContentCacheRoots = true;
 
         #region Constructors
 
-        public FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
+        public FacadeService(Options options, ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
         {
             _serviceContext = serviceContext;
             _dataSource = new Database(databaseContext);
             _logger = logger;
+            _options = options;
 
             _contentStore = new ContentStore2(logger);
             _mediaStore = new ContentStore2(logger);
@@ -105,6 +119,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
             MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
         }
 
+        public class Options
+        {
+            // indicates that the facade cache should reuse the application request cache
+            // otherwise a new cache object would be created for the facade specifically,
+            // which is the default - web boot manager uses this to optimze facades
+            public bool FacadeCacheIsApplicationRequestCache;
+        }
+
         #endregion
 
         #region Populate Stores
@@ -127,10 +149,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void LoadContentFromDatabaseLocked()
         {
             // locks:
-            // contentStore is frozen (1 thread)
+            // contentStore is wlocked (1 thread)
             // content (and types) are read-locked
-            // ResetFrozen read-locks the store, and write-locks on each change
-            // so it should be possible to reload from DB while serving pages
 
             var contentTypes = _serviceContext.ContentTypeService.GetAll()
                 .Select(x => new PublishedContentType(PublishedItemType.Content, x));
@@ -301,8 +321,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             // locks:
             // content (and content types) are read-locked while reading content
-            // contentStore is frozen (so readable, only no new views)
-            // and it can be frozen by 1 thread only at a time
+            // contentStore is wlocked (so readable, only no new views)
+            // and it can be wlocked by 1 thread only at a time
             // contentStore is write-locked during changes
 
             foreach (var payload in payloads)
@@ -329,7 +349,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     continue;
                 }
 
-                // fixme - should we do some RV check here?
+                // fixme - should we do some RV check here? (later)
 
                 var capture = payload;
                 contentService.WithReadLocked(repository =>
@@ -407,7 +427,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     continue;
                 }
 
-                // fixme - should we do some RV checks here?
+                // fixme - should we do some RV checks here? (later)
 
                 var capture = payload;
                 mediaService.WithReadLocked(repository =>
@@ -458,7 +478,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 _contentStore.WriteLocked(() =>
                 {
                     // ReSharper disable AccessToModifiedClosure
-                    RefreshContentTypesFrozen(removedIds, refreshedIds);
+                    RefreshContentTypesLocked(removedIds, refreshedIds);
                     // ReSharper restore AccessToModifiedClosure
                 });
 
@@ -477,7 +497,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             if (removedIds.Length > 0 || refreshedIds.Length > 0)
                 _mediaStore.WriteLocked(() =>
                 {
-                    RefreshMediaTypesFrozen(removedIds, refreshedIds);
+                    RefreshMediaTypesLocked(removedIds, refreshedIds);
                 });
 
             Facade.Current.Resync();
@@ -512,7 +532,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override void NotifyDomain(int id, bool removed)
         {
             // do not clear the facade cache - it's immutable
-            // fixme - and so, right way to do it is JUST to force-trigger a new snapshotcache!
+            // fixme - MUST FIX
+            // and so, right way to do it is JUST to force-trigger a new snapshotcache!
+            // and remove these CacheKeys entries
             _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheRouteByContentStartsWith());
             _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheContentByRouteStartsWith());
         }
@@ -520,8 +542,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         #endregion
 
         #region Manage change
-
-        // fixme - rething what 'frozen' means
 
         private IEnumerable<PublishedContentType> CreateContentTypes(PublishedItemType itemType, params int[] ids)
         {
@@ -567,12 +587,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return contentType == null ? null : new PublishedContentType(itemType, contentType);
         }
 
-        private void RefreshContentTypesFrozen(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
+        private void RefreshContentTypesLocked(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
         {
             // locks:
             // content (and content types) are read-locked while reading content
-            // contentStore is frozen (so readable, only no new views)
-            // and it can be frozen by 1 thread only at a time
+            // contentStore is wlocked (so readable, only no new views)
+            // and it can be wlocked by 1 thread only at a time
 
             var contentService = _serviceContext.ContentService as ContentService;
             if (contentService == null) throw new Exception("oops");
@@ -587,12 +607,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
             });
         }
 
-        private void RefreshMediaTypesFrozen(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
+        private void RefreshMediaTypesLocked(IEnumerable<int> removedIds, IEnumerable<int> refreshedIds)
         {
             // locks:
             // media (and content types) are read-locked while reading media
-            // mediaStore is frozen (so readable, only no new views)
-            // and it can be frozen by 1 thread only at a time
+            // mediaStore is wlocked (so readable, only no new views)
+            // and it can be wlocked by 1 thread only at a time
 
             var mediaService = _serviceContext.MediaService as MediaService;
             if (mediaService == null) throw new Exception("oops");
@@ -627,6 +647,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // thing - better use a StaticCacheProvider which "just" creates a concurrent
             // dictionary
 
+            // for facade cache, StaticCacheProvider MAY be OK but it is not thread-safe,
+            // nothing like that...
+            // for snapshot cache, StaticCacheProvider is a No-No, use something better.
+
             ContentStore2.Snapshot contentSnap, mediaSnap;
             ICacheProvider snapshotCache;
             lock (_storesLock)
@@ -640,11 +664,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 {
                     _contentGen = contentSnap.Gen;
                     _mediaGen = mediaSnap.Gen;
-                    snapshotCache = _snapshotCache = new StaticCacheProvider();
+                    snapshotCache = _snapshotCache = new DictionaryCacheProvider();
                 }
             }
 
-            var facadeCache = new StaticCacheProvider();
+            var facadeCache = _options.FacadeCacheIsApplicationRequestCache
+                ? ApplicationContext.Current.ApplicationCache.RequestCache
+                : new StaticCacheProvider(); // assuming that's OK for tests, etc
             var memberTypeCache = new PublishedContentTypeCache(null, null, _serviceContext.MemberTypeService);
 
             return new Facade.FacadeElements

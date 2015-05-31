@@ -16,7 +16,7 @@ using Umbraco.Web.Routing;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    class ContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
+    class ContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData, IDisposable
     {
         private readonly ContentStore2.Snapshot _snapshot;
         private readonly ICacheProvider _facadeCache;
@@ -55,9 +55,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public IPublishedContent GetByRoute(bool preview, string route, bool? hideTopLevelNode = null)
         {
             if (route == null) throw new ArgumentNullException("route");
-
-            // fixme temp
-            return GetByRouteInternal(preview, route, hideTopLevelNode);
 
             var cache = (preview == false || FacadeService.FullCacheWhenPreviewing) ? _snapshotCache : _facadeCache;
             var key = CacheKeys.ContentCacheContentByRoute(route, preview);
@@ -223,6 +220,27 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
+            if (FacadeService.CacheContentCacheRoots == false)
+                return GetAtRootNoCache(preview);
+
+            var facade = Facade.Current;
+            var cache = (facade == null)
+                ? null
+                : (preview == false || FacadeService.FullCacheWhenPreviewing
+                    ? facade.SnapshotCache
+                    : facade.FacadeCache);
+
+            if (cache == null)
+                return GetAtRootNoCache(preview);
+
+            // note: ToArray is important here, we want to cache the result, not the function!
+            return (IEnumerable<IPublishedContent>) cache.GetCacheItem(
+                CacheKeys.ContentCacheRoots(preview),
+                () => GetAtRootNoCache(preview).ToArray());
+        }
+
+        private IEnumerable<IPublishedContent> GetAtRootNoCache(bool preview)
+        {
             var c = _snapshot.GetAtRoot();
 
             // both .Draft and .Published cannot be null at the same time
@@ -233,7 +251,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         // gets a published content as a previewing draft, if preview is true
         // this is for published content when previewing
-        internal IPublishedContent GetPublishedContentAsPreviewing(IPublishedContent content /*, bool preview*/)
+        internal static IPublishedContent GetPublishedContentAsPreviewing(IPublishedContent content /*, bool preview*/)
         {
             if (content == null /*|| preview == false*/) return null; //content;
             
@@ -348,6 +366,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override PublishedContentType GetContentType(string alias)
         {
             return _snapshot.GetContentType(alias);
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            _snapshot.Dispose();
         }
 
         #endregion

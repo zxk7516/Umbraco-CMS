@@ -306,10 +306,8 @@
     <Compile Include="HtmlHelperBackOfficeExtensions.cs" />
     <Compile Include="PublishedCache\NuCache\CacheKeys.cs" />
     <Compile Include="PublishedCache\NuCache\ContentNode.cs" />
-    <Compile Include="PublishedCache\NuCache\ContentStore.cs" />
     <Compile Include="PublishedCache\NuCache\ContentStore2.cs" />
     <Compile Include="PublishedCache\NuCache\SnapDictionary.cs" />
-    <Compile Include="PublishedCache\NuCache\ContentView.cs" />
     <Compile Include="Mvc\ProfilingView.cs" />
     <Compile Include="Mvc\ProfilingViewEngine.cs" />
     <Compile Include="Mvc\UrlHelperExtensions.cs" />

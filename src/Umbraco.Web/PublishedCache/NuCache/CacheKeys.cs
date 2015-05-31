@@ -16,6 +16,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return "NuCache.Content.Children[" + DraftOrPub(previewing) + ":" + contentUid + "]";
         }
 
+        public static string ContentCacheRoots(bool previewing)
+        {
+            return "NuCache.ContentCache.Roots[" + DraftOrPub(previewing) + "]";
+        }
+
+        public static string MediaCacheRoots(bool previewing)
+        {
+            return "NuCache.MediaCache.Roots[" + DraftOrPub(previewing) + "]";
+        }
+
         public static string PublishedContentAsPreviewing(Guid contentUid)
         {
             return "NuCache.Content.AsPreviewing[" + contentUid + "]";
@@ -49,8 +59,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             return "NuCache.ContentCache.ContentByRoute[" + DraftOrPub(previewing) + route + "]";
         }
-
-        // fixme - remove these !
 
         public static string ContentCacheRouteByContentStartsWith()
         {

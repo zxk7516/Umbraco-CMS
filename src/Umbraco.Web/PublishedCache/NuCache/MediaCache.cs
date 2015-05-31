@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.XPath;
+using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Xml;
@@ -9,7 +11,7 @@ using Umbraco.Web.PublishedCache.NuCache.Navigable;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    class MediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData
+    class MediaCache : PublishedCacheBase, IPublishedMediaCache, INavigableData, IDisposable
     {
         private readonly ContentStore2.Snapshot _snapshot;
 
@@ -39,7 +41,34 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IEnumerable<IPublishedContent> GetAtRoot(bool preview)
         {
-            return _snapshot.GetAtRoot().Select(n => n.Published);
+            if (FacadeService.CacheContentCacheRoots == false)
+                return GetAtRootNoCache(preview);
+
+            var facade = Facade.Current;
+            var cache = (facade == null)
+                ? null
+                : (preview == false || FacadeService.FullCacheWhenPreviewing
+                    ? facade.SnapshotCache
+                    : facade.FacadeCache);
+
+            if (cache == null)
+                return GetAtRootNoCache(preview);
+
+            // note: ToArray is important here, we want to cache the result, not the function!
+            return (IEnumerable<IPublishedContent>)cache.GetCacheItem(
+                CacheKeys.MediaCacheRoots(preview),
+                () => GetAtRootNoCache(preview).ToArray());
+        }
+
+        private IEnumerable<IPublishedContent> GetAtRootNoCache(bool preview)
+        {
+            var c = _snapshot.GetAtRoot();
+
+            // there's no .Draft for medias, only non-null .Published
+            // but we may want published as previewing, still
+            return c.Select(n => preview
+                ? ContentCache.GetPublishedContentAsPreviewing(n.Published)
+                : n.Published);
         }
 
         public override bool HasContent(bool preview)
@@ -130,6 +159,15 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override PublishedContentType GetContentType(string alias)
         {
             return _snapshot.GetContentType(alias);
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            _snapshot.Dispose();
         }
 
         #endregion

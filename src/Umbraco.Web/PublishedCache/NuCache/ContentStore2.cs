@@ -23,20 +23,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly Dictionary<int, HashSet<int>> _contentTypeNodes;
 
         private readonly ILogger _logger;
-        private readonly ConcurrentQueue<WeakReference> _snapshots;
-        private WeakReference _snapshot;
+        private readonly ConcurrentQueue<GenRefRef> _genRefRefs;
+        private GenRefRef _genRefRef;
         private readonly object _wlocko = new object();
         private readonly object _rlocko = new object();
         private long _liveGen, _floorGen;
         private bool _nextGen, _collectAuto;
         private Task _collectTask;
-        private int _wlocked;
+        private volatile int _wlocked;
 
-        // fixme
-        // minGenDelta to be adjusted
-        // we may want to throttle collects even if delta is reached
-        // we may want to force collect if delta is not reached but very old
-        private const long CollectMinGenDelta = 4;
+        // fixme - collection trigger (ok for now)
+        // see SnapDictionary notes
+        private const long CollectMinGenDelta = 8;
 
         #region Ctor
 
@@ -50,8 +48,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _contentTypesByAlias = new ConcurrentDictionary<string, LinkedNode<PublishedContentType>>(StringComparer.InvariantCultureIgnoreCase);
             _contentTypeNodes = new Dictionary<int, HashSet<int>>();
 
-            _snapshots = new ConcurrentQueue<WeakReference>();
-            _snapshot = null; // no initial snapshot exists
+            _genRefRefs = new ConcurrentQueue<GenRefRef>();
+            _genRefRef = null; // no initial gen exists
             _liveGen = _floorGen = 0;
             _nextGen = false; // first time, must create a snapshot
             _collectAuto = true; // collect automatically by default
@@ -117,7 +115,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 {
                     Monitor.Enter(_rlocko, ref rtaken);
 
-                    // see SnapDictionary
                     try
                     { }
                     finally
@@ -155,8 +152,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 Monitor.Enter(_rlocko, ref rtaken);
 
                 // we have rlock, so it cannot ++
-                // it could -- but that's not important
-                var wlocked = Volatile.Read(ref _wlocked) > 0;
+                // it could -- though, so... volatile
+                var wlocked = _wlocked > 0;
                 return func(wlocked);
             }
             finally
@@ -237,14 +234,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 foreach (var contentType in contentTypes)
                 {
+                    // poof, gone, very unlikely and probably an anomaly
                     if (contentType == null)
-                    {
-                        // fixme - poof, it's gone, now what?
                         continue;
-                    }
 
+                    // again, weird situation
                     if (_contentTypeNodes.ContainsKey(contentType.Id) == false)
-                        continue; // though, ?!
+                        continue;
 
                     foreach (var id in _contentTypeNodes[contentType.Id])
                     {
@@ -306,10 +302,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public void Set(ContentNodeKit kit)
         {
+            // ReSharper disable LocalizableElement
             if (kit.IsEmpty)
                 throw new ArgumentException("Kit is empty.", "kit");
             if (kit.Node.ChildContentIds.Count > 0)
                 throw new ArgumentException("Kit content cannot have children.", "kit");
+            // ReSharper restore LocalizableElement
 
             _logger.Debug<ContentStore2>("Set content ID:" + kit.Node.Id);
 
@@ -533,18 +531,22 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void ClearLocked<TKey, TValue>(ConcurrentDictionary<TKey, LinkedNode<TValue>> dict)
             where TValue : class
         {
-            foreach (var kvp in dict.Where(x => x.Value != null))
+            WriteLocked(() =>
             {
-                if (kvp.Value.Gen < _liveGen)
+                // this is safe only because we're write-locked
+                foreach (var kvp in dict.Where(x => x.Value != null))
                 {
-                    var link = new LinkedNode<TValue>(null, _liveGen, kvp.Value);
-                    dict.TryUpdate(kvp.Key, link, kvp.Value);
+                    if (kvp.Value.Gen < _liveGen)
+                    {
+                        var link = new LinkedNode<TValue>(null, _liveGen, kvp.Value);
+                        dict.TryUpdate(kvp.Key, link, kvp.Value);
+                    }
+                    else
+                    {
+                        kvp.Value.Value = null;
+                    }
                 }
-                else
-                {
-                    kvp.Value.Value = null;
-                }
-            }
+            });
         }
 
         public ContentNode Get(int id, long gen)
@@ -613,39 +615,48 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Snapshots
 
-        // at the moment we create snapshots and give them to facades. these snapshot will not
-        // be collected until a CLR GC has completely removed them. so if the CLR decides to
-        // GC, it will just remove the snapshots, and then we will deference the contents the
-        // next time we collect, and another GC will be needed to remove the contents.
-        //
-        // could we handle explicit snapshot terminations? we'd need to make the snapshots
-        // disposable, somehow manage our own reference counting to know how many snapshots
-        // are currently using a given store generation - is it worth it?
-        //
-        // we would create a new snapshot object each time CreateSnapshot() is invoked, and
-        // the queue would contain objects: { gen, refCount }... BUT then what-if a snapshot
-        // is not properly disposed and the whole queue is blocked? better do with eg
-        // objects: { get, refCount, weak(refPtr) } and a refPtr is just an object that each
-        // snapshot references - so that if a snapshot is not disposed but eventually GCed,
-        // after a while all refs to refPtr will drop, and we know we're ok
-
         public Snapshot CreateSnapshot()
         {
             return ReadLocked(wlocked =>
             {
-                // if no next generation is required, and the last snapshot is
-                // still there, return that last snapshot
-                var snapshot = _snapshot == null ? null : (Snapshot) _snapshot.Target;
-                if (_nextGen == false && snapshot != null)
-                    return snapshot;
+                // if no next generation is required, and we already have one,
+                // use it and create a new snapshot
+                if (_nextGen == false && _genRefRef != null)
+                    return new Snapshot(this, _genRefRef.GetGenRef());
 
-                snapshot = new Snapshot(this, _liveGen);
-                var wref = new WeakReference(snapshot);
-                _snapshots.Enqueue(wref);
-                _snapshot = wref;
-                _nextGen = false;
+                // else we need to try to create a new gen ref
+                // whether we are wlocked or not, noone can rlock while we do,
+                // so _liveGen and _nextGen are safe
+                if (wlocked)
+                {
+                    // write-locked, cannot use latest gen (at least 1) so use previous
+                    var snapGen = _nextGen ? _liveGen - 1 : _liveGen;
 
-                // reading _floorGen is safe if _collect is null
+                    // create a new gen ref unless we already have it
+                    if (_genRefRef == null)
+                        _genRefRefs.Enqueue(_genRefRef = new GenRefRef(snapGen));
+                    else if (_genRefRef.Gen != snapGen)
+                        throw new Exception("panic");
+                }
+                else
+                {
+                    // not write-locked, can use latest gen, create a new gen ref
+                    _genRefRefs.Enqueue(_genRefRef = new GenRefRef(_liveGen));
+                    _nextGen = false; // this is the ONLY thing that triggers a _liveGen++
+                }
+
+                // so...
+                // the genRefRef has a weak ref to the genRef, and is queued
+                // the snapshot has a ref to the genRef, which has a ref to the genRefRef
+                // when the snapshot is disposed, it decreases genRefRef counter
+                // so after a while, one of these conditions is going to be true:
+                // - the genRefRef counter is zero because all snapshots have properly been disposed
+                // - the genRefRef weak ref is dead because all snapshots have been collected
+                // in both cases, we will dequeue and collect
+
+                var snapshot = new Snapshot(this, _genRefRef.GetGenRef());
+
+                // reading _floorGen is safe if _collectTask is null
                 if (_collectTask == null && _collectAuto && _liveGen - _floorGen > CollectMinGenDelta)
                     CollectAsyncLocked();
 
@@ -682,18 +693,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private void Collect()
         {
-            // if we keep queuing views & disposing them fast enough then
-            // that 'while' loop may never end - but does it really make
-            // any sense?
-
-            // process the queue and dequeue dead wrefs, ie figure out which
-            // generations we can get rid of, by incrementing floorGen - this
-            // does not need any lock
-            WeakReference wref;
-            while (_snapshots.TryPeek(out wref) && wref.IsAlive == false)
+            // see notes in CreateSnapshot
+            GenRefRef genRefRef;
+            while (_genRefRefs.TryPeek(out genRefRef) && (genRefRef.Count == 0 || genRefRef.WGenRef.IsAlive == false))
             {
-                _snapshots.TryDequeue(out wref); // cannot fail since TryPeek has succeeded
-                _floorGen += 1;
+                _genRefRefs.TryDequeue(out genRefRef); // cannot fail since TryPeek has succeeded
+                _floorGen = genRefRef.Gen;
             }
 
             Collect(_contentNodes);
@@ -710,7 +715,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // processed next time we collect
 
             long liveGen;
-            lock (_wlocko)
+            lock (_rlocko) // r is good
             {
                 liveGen = _liveGen;
                 if (_nextGen == false)
@@ -725,19 +730,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 // not live means .Next and .Value are safe
                 if (link.Gen < liveGen && link.Next == null && link.Value == null)
                 {
-                    // remove, but only if the dict has not been updated, have to do it
-                    // via ICollection<> (thanks Mr Toub) and if the dict has been updated
-                    // there is nothing to collect
+                    // not live, null value, no next link = remove that one -- but only if 
+                    // the dict has not been updated, have to do it via ICollection<> (thanks
+                    // Mr Toub) -- and if the dict has been updated there is nothing to collect
                     var idict = dict as ICollection<KeyValuePair<TKey, LinkedNode<TValue>>>;
                     idict.Remove(new KeyValuePair<TKey, LinkedNode<TValue>>(kvp.Key, link));
                     continue;
                 }
 
-                // .Next is not null, or .Value is not null
-                // standalone non-null entry, don't remove it
+                // in any other case we're not collecting the head, we need to go to Next
+                // and if there is no Next, skip
                 if (link.Next == null)
                     continue;
 
+                // else go to Next and loop while above floor, and kill everything below
                 while (link.Next != null && link.Next.Gen > _floorGen)
                     link = link.Next;
                 link.Next = null;
@@ -757,7 +763,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public long SnapCount
         {
-            get { return _snapshots.Count; }
+            get { return _genRefRefs.Count; }
         }
 
         #endregion
@@ -823,40 +829,113 @@ namespace Umbraco.Web.PublishedCache.NuCache
             internal volatile LinkedNode<TValue> Next;
         }
 
-        public class Snapshot
+        public class Snapshot : IDisposable
         {
             private readonly ContentStore2 _store;
-            private readonly long _gen;
+            private readonly GenRef _genRef;
+            private long _gen;
 
-            internal Snapshot(ContentStore2 store, long gen)
+            //private static int _count;
+            //private readonly int _thisCount;
+
+            internal Snapshot(ContentStore2 store, GenRef genRef)
             {
                 _store = store;
-                _gen = gen;
+                _genRef = genRef;
+                _gen = genRef.Gen;
+                Interlocked.Increment(ref genRef.GenRefRef.Count);
+                //_thisCount = _count++;
             }
 
             public ContentNode Get(int id)
             {
+                if (_gen < 0)
+                    throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
                 return _store.Get(id, _gen);
             }
 
             public IEnumerable<ContentNode> GetAtRoot()
             {
+                if (_gen < 0)
+                    throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
                 return _store.GetAtRoot(_gen);
             }
 
             public PublishedContentType GetContentType(int id)
             {
+                if (_gen < 0)
+                    throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
                 return _store.GetContentType(id, _gen);
             }
 
             public PublishedContentType GetContentType(string alias)
             {
+                if (_gen < 0)
+                    throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
                 return _store.GetContentType(alias, _gen);
             }
 
-            public bool IsEmpty { get { return _store.IsEmpty(_gen); } }
+            public bool IsEmpty
+            {
+                get
+                {
+                    if (_gen < 0)
+                        throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
+                    return _store.IsEmpty(_gen);
+                }
+            }
 
-            public long Gen { get { return _gen; } }
+            public long Gen
+            {
+                get
+                {
+                    if (_gen < 0)
+                        throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
+                    return _gen;
+                }
+            }
+
+            public void Dispose()
+            {
+                if (_gen < 0) return;
+                _gen = -1;
+                Interlocked.Decrement(ref _genRef.GenRefRef.Count);
+                GC.SuppressFinalize(this);
+            }
+        }
+
+        internal class GenRefRef
+        {
+            public GenRefRef(long gen)
+            {
+                Gen = gen;
+                WGenRef = new WeakReference(null);
+            }
+
+            public GenRef GetGenRef()
+            {
+                // not thread-safe but always invoked from within a lock
+                var genRef = (GenRef) WGenRef.Target;
+                if (genRef == null)
+                    WGenRef.Target = genRef = new GenRef(this, Gen);
+                return genRef;
+            }
+
+            public readonly long Gen;
+            public readonly WeakReference WGenRef;
+            public int Count;
+        }
+
+        internal class GenRef
+        {
+            public GenRef(GenRefRef genRefRef, long gen)
+            {
+                GenRefRef = genRefRef;
+                Gen = gen;
+            }
+
+            public readonly GenRefRef GenRefRef;
+            public readonly long Gen;
         }
 
         #endregion
