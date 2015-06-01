@@ -532,11 +532,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public override void NotifyDomain(int id, bool removed)
         {
             // do not clear the facade cache - it's immutable
-            // fixme - MUST FIX
-            // and so, right way to do it is JUST to force-trigger a new snapshotcache!
-            // and remove these CacheKeys entries
-            _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheRouteByContentStartsWith());
-            _snapshotCache.ClearCacheByKeySearch(CacheKeys.ContentCacheContentByRouteStartsWith());
+            // a good number of things depend on this... just kill the snapshot cache entirely
+            lock (_storesLock)
+            {
+                _snapshotCache = null;
+            }
         }
 
         #endregion
@@ -660,7 +660,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 snapshotCache = _snapshotCache;
 
                 // create a new snapshot cache if snapshots are different gens
-                if (contentSnap.Gen != _contentGen || mediaSnap.Gen != _mediaGen)
+                if (contentSnap.Gen != _contentGen || mediaSnap.Gen != _mediaGen || _snapshotCache == null)
                 {
                     _contentGen = contentSnap.Gen;
                     _mediaGen = mediaSnap.Gen;
