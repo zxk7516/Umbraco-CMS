@@ -174,6 +174,40 @@ namespace Umbraco.Tests.Cache
         }
 
         [Test]
+        public async void ProperlyCollects()
+        {
+            var d = new SnapDictionary<int, string>();
+            d.Test.CollectAuto = false;
+
+            for (var i = 0; i < 32; i++)
+            {
+                d.Set(i, i.ToString());
+                d.CreateSnapshot().Dispose();
+            }
+
+            await d.CollectAsync();
+            Assert.AreEqual(32, d.Test.LiveGen);
+            Assert.IsFalse(d.Test.NextGen);
+            Assert.AreEqual(0, d.SnapCount);
+            Assert.AreEqual(32, d.Count);
+
+            for (var i = 0; i < 32; i++)
+                d.Set(i, null);
+
+            d.CreateSnapshot().Dispose();
+
+            // because we haven't collected yet
+            Assert.AreEqual(1, d.SnapCount);
+            Assert.AreEqual(32, d.Count);
+
+            // once we collect, they are all gone
+            // since noone is interested anymore
+            await d.CollectAsync();
+            Assert.AreEqual(0, d.SnapCount);
+            Assert.AreEqual(0, d.Count);
+        }
+
+        [Test]
         public async void CollectNulls()
         {
             var d = new SnapDictionary<int, string>();
@@ -470,7 +504,7 @@ namespace Umbraco.Tests.Cache
             GC.Collect();
             d.Set(1, "seven");
             d.CreateSnapshot();
-            await d.WaitForPendingCollect();
+            await d.PendingCollect();
             Assert.AreEqual(1, d.SnapCount);
         }
 

@@ -370,19 +370,30 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     liveGen += 1;
             }
 
+            //Console.WriteLine("Collect live=" + liveGen + " floor=" + _floorGen);
+
             foreach (var kvp in dict)
             {
                 var link = kvp.Value;
 
-                // take care of standalone null entries
+                //Console.WriteLine("Collect id=" + kvp.Key + " gen=" + link.Gen
+                //    + " nxt=" + (link.Next == null ? null : "next") 
+                //    + " val=" + link.Value);
+
+                // reasons to collect the head:
+                //   gen must be < liveGen (we never collect live gen)
+                //   next == null && value == null (we have no data at all)
+                //   next != null && value == null BUT gen > floor (noone wants us)
                 // not live means .Next and .Value are safe
-                if (link.Gen < liveGen && link.Next == null && link.Value == null)
+                if (link.Gen < liveGen && link.Value == null
+                    && (link.Next == null || link.Gen <= _floorGen))
                 {
                     // not live, null value, no next link = remove that one -- but only if 
                     // the dict has not been updated, have to do it via ICollection<> (thanks
                     // Mr Toub) -- and if the dict has been updated there is nothing to collect
                     var idict = dict as ICollection<KeyValuePair<TKey, LinkedNode>>;
-                    idict.Remove(new KeyValuePair<TKey, LinkedNode>(kvp.Key, link));
+                    /*var removed =*/ idict.Remove(kvp);
+                    //Console.WriteLine("remove (" + (removed ? "true" : "false") + ")");
                     continue;
                 }
 
@@ -398,15 +409,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        public async Task WaitForPendingCollect()
+        public /*async*/ Task PendingCollect()
         {
             Task task;
             lock (_rlocko)
             {
                 task = _collectTask;
             }
-            if (task != null)
-                await task;
+            return task ?? Task.FromResult(0);
+            //if (task != null)
+            //    await task;
         }
 
         public long SnapCount
