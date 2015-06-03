@@ -140,5 +140,18 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             return new ContentNode(this);
         }
+
+        public ContentNodeKit ToKit()
+        {
+            return new ContentNodeKit
+            {
+                Node = this,
+                ContentTypeId = ContentType.Id,
+                // ReSharper disable MergeConditionalExpression
+                DraftData = Draft == null ? null : ((PublishedContent) Draft)._contentData,
+                PublishedData = Published == null ? null : ((PublishedContent) Published)._contentData
+                // ReSharper restore MergeConditionalExpression
+            };
+        }
     }
 }

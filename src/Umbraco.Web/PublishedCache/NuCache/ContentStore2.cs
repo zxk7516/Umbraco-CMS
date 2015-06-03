@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CSharpTest.Net.Collections;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models.PublishedContent;
 
@@ -23,6 +24,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly Dictionary<int, HashSet<int>> _contentTypeNodes;
 
         private readonly ILogger _logger;
+        private BPlusTree<int, ContentNodeKit> _localDb;
         private readonly ConcurrentQueue<GenRefRef> _genRefRefs;
         private GenRefRef _genRefRef;
         private readonly object _wlocko = new object();
@@ -38,9 +40,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Ctor
 
-        public ContentStore2(ILogger logger)
+        public ContentStore2(ILogger logger, BPlusTree<int, ContentNodeKit> localDb = null)
         {
             _logger = logger;
+            _localDb = localDb;
 
             _contentNodes = new ConcurrentDictionary<int, LinkedNode<ContentNode>>();
             _contentRootNodes = new ConcurrentDictionary<int, LinkedNode<object>>();
@@ -164,6 +167,20 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
+        #region LocalDb
+
+        public void ReleaseLocalDb()
+        {
+            WriteLocked(() =>
+            {
+                if (_localDb == null) return;
+                _localDb.Dispose();
+                _localDb = null;
+            });
+        }
+        
+        #endregion
+
         #region Content types
 
         public void UpdateContentTypes(IEnumerable<int> removedIds, IEnumerable<PublishedContentType> refreshedTypes, IEnumerable<ContentNodeKit> kits)
@@ -212,6 +229,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     BuildKit(x)))
                 {
                     SetValueLocked(_contentNodes, kit.Node.Id, kit.Node);
+                    if (_localDb != null)
+                        _localDb[kit.Node.Id] = kit;
                     temp[kit.ContentTypeId].Remove(kit.Node.Id);
                 }
 
@@ -250,6 +269,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                             continue;
                         var node = new ContentNode(link.Value, contentType);
                         SetValueLocked(_contentNodes, id, node);
+                        if (_localDb != null)
+                            _localDb[id] = node.ToKit();
                     }
                 }
             });
@@ -331,6 +352,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 // set
                 SetValueLocked(_contentNodes, kit.Node.Id, kit.Node);
+                if (_localDb != null)
+                    _localDb[kit.Node.Id] = kit;
 
                 // manage the tree
                 if (existing == null)
@@ -362,6 +385,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 foreach (var kit in kits.Where(x => ParentExistsLocked(x) && BuildKit(x)))
                 {
                     SetValueLocked(_contentNodes, kit.Node.Id, kit.Node);
+                    if (_localDb != null)
+                        _localDb[kit.Node.Id] = kit;
                     AddToParentLocked(kit.Node);
                 }
             });
@@ -385,10 +410,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
                 // now add them all back
                 // skip missing parents & unbuildable kits - what else could we do?
-                foreach (var s in kits.Where(x => ParentExistsLocked(x) && BuildKit(x)))
+                foreach (var kit in kits.Where(x => ParentExistsLocked(x) && BuildKit(x)))
                 {
-                    SetValueLocked(_contentNodes, s.Node.Id, s.Node);
-                    AddToParentLocked(s.Node);
+                    SetValueLocked(_contentNodes, kit.Node.Id, kit.Node);
+                    if (_localDb != null)
+                        _localDb[kit.Node.Id] = kit;
+                    AddToParentLocked(kit.Node);
                 }
             });
         }
@@ -428,6 +455,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void ClearBranchLocked(ContentNode content)
         {
             SetValueLocked(_contentNodes, content.Id, null);
+            if (_localDb != null)
+            {
+                ContentNodeKit kit;
+                _localDb.TryRemove(content.Id, out kit);
+            }
             ReleaseContentTypeLocked(content);
             foreach (var childId in content.ChildContentIds)
             {
@@ -500,32 +532,32 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void SetValueLocked<TKey, TValue>(ConcurrentDictionary<TKey, LinkedNode<TValue>> dict, TKey key, TValue value)
             where TValue : class
         {
-                // this is safe only because we're write-locked
-                var link = GetHead(dict, key);
-                if (link != null)
+            // this is safe only because we're write-locked
+            var link = GetHead(dict, key);
+            if (link != null)
+            {
+                // already in the dict
+                if (link.Gen != _liveGen)
                 {
-                    // already in the dict
-                    if (link.Gen != _liveGen)
-                    {
-                        // for an older gen - if value is different then insert a new 
-                        // link for the new gen, with the new value
-                        if (link.Value != value)
-                            dict.TryUpdate(key, new LinkedNode<TValue>(value, _liveGen, link), link);
-                    }
-                    else
-                    {
-                        // for the live gen - we can fix the live gen - and remove it
-                        // if value is null and there's no next gen
-                        if (value == null && link.Next == null)
-                            dict.TryRemove(key, out link);
-                        else
-                            link.Value = value;
-                    }
+                    // for an older gen - if value is different then insert a new 
+                    // link for the new gen, with the new value
+                    if (link.Value != value)
+                        dict.TryUpdate(key, new LinkedNode<TValue>(value, _liveGen, link), link);
                 }
                 else
                 {
-                    dict.TryAdd(key, new LinkedNode<TValue>(value, _liveGen));
+                    // for the live gen - we can fix the live gen - and remove it
+                    // if value is null and there's no next gen
+                    if (value == null && link.Next == null)
+                        dict.TryRemove(key, out link);
+                    else
+                        link.Value = value;
                 }
+            }
+            else
+            {
+                dict.TryAdd(key, new LinkedNode<TValue>(value, _liveGen));
+            }
         }
 
         private void ClearLocked<TKey, TValue>(ConcurrentDictionary<TKey, LinkedNode<TValue>> dict)
@@ -622,7 +654,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 // if no next generation is required, and we already have one,
                 // use it and create a new snapshot
                 if (_nextGen == false && _genRefRef != null)
-                    return new Snapshot(this, _genRefRef.GetGenRef());
+                    return new Snapshot(this, _genRefRef.GetGenRef()
+#if DEBUG
+                        , _logger
+#endif
+                        );
 
                 // else we need to try to create a new gen ref
                 // whether we are wlocked or not, noone can rlock while we do,
@@ -654,7 +690,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 // - the genRefRef weak ref is dead because all snapshots have been collected
                 // in both cases, we will dequeue and collect
 
-                var snapshot = new Snapshot(this, _genRefRef.GetGenRef());
+                var snapshot = new Snapshot(this, _genRefRef.GetGenRef()
+#if DEBUG
+                    , _logger
+#endif
+                    );
 
                 // reading _floorGen is safe if _collectTask is null
                 if (_collectTask == null && _collectAuto && _liveGen - _floorGen > CollectMinGenDelta)
@@ -694,11 +734,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void Collect()
         {
             // see notes in CreateSnapshot
+#if DEBUG
+            _logger.Debug<ContentStore2>("Collect.");
+#endif
             GenRefRef genRefRef;
             while (_genRefRefs.TryPeek(out genRefRef) && (genRefRef.Count == 0 || genRefRef.WGenRef.IsAlive == false))
             {
                 _genRefRefs.TryDequeue(out genRefRef); // cannot fail since TryPeek has succeeded
                 _floorGen = genRefRef.Gen;
+#if DEBUG
+                //_logger.Debug<ContentStore2>("_floorGen=" + _floorGen + ", _liveGen=" + _liveGen);
+#endif
             }
 
             Collect(_contentNodes);
@@ -726,15 +772,25 @@ namespace Umbraco.Web.PublishedCache.NuCache
             {
                 var link = kvp.Value;
 
-                // take care of standalone null entries
+#if DEBUG
+                //_logger.Debug<ContentStore2>("Collect id:" + kvp.Key + ", gen:" + link.Gen +
+                //    ", nxt:" + (link.Next == null ? "null" : "link") + 
+                //    ", val:" + (link.Value == null ? "null" : "value"));
+#endif
+
+                // reasons to collect the head:
+                //   gen must be < liveGen (we never collect live gen)
+                //   next == null && value == null (we have no data at all)
+                //   next != null && value == null BUT gen > floor (noone wants us)
                 // not live means .Next and .Value are safe
-                if (link.Gen < liveGen && link.Next == null && link.Value == null)
+                if (link.Gen < liveGen && link.Value == null
+                    && (link.Next == null || link.Gen <= _floorGen))
                 {
                     // not live, null value, no next link = remove that one -- but only if 
                     // the dict has not been updated, have to do it via ICollection<> (thanks
                     // Mr Toub) -- and if the dict has been updated there is nothing to collect
                     var idict = dict as ICollection<KeyValuePair<TKey, LinkedNode<TValue>>>;
-                    idict.Remove(new KeyValuePair<TKey, LinkedNode<TValue>>(kvp.Key, link));
+                    idict.Remove(kvp);
                     continue;
                 }
 
@@ -834,17 +890,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
             private readonly ContentStore2 _store;
             private readonly GenRef _genRef;
             private long _gen;
+#if DEBUG
+            private readonly ILogger _logger;
+#endif
 
             //private static int _count;
             //private readonly int _thisCount;
 
-            internal Snapshot(ContentStore2 store, GenRef genRef)
+            internal Snapshot(ContentStore2 store, GenRef genRef
+#if DEBUG
+                    , ILogger logger
+#endif
+                )
             {
                 _store = store;
                 _genRef = genRef;
                 _gen = genRef.Gen;
                 Interlocked.Increment(ref genRef.GenRefRef.Count);
                 //_thisCount = _count++;
+
+#if DEBUG
+                _logger = logger;
+                _logger.Debug<Snapshot>("Creating snapshot.");
+#endif
             }
 
             public ContentNode Get(int id)
@@ -898,6 +966,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
             public void Dispose()
             {
                 if (_gen < 0) return;
+#if DEBUG
+                _logger.Debug<Snapshot>("Dispose snapshot (" + _genRef.GenRefRef.Count + ").");
+#endif
                 _gen = -1;
                 Interlocked.Decrement(ref _genRef.GenRefRef.Count);
                 GC.SuppressFinalize(this);

@@ -34,6 +34,7 @@ namespace Umbraco.Core.Sync
         private readonly object _lock = new object();
         private int _lastId = -1;
         private volatile bool _syncing;
+        private volatile bool _syncDisabled;
         private DateTime _lastSync;
         private bool _initialized;
 
@@ -133,10 +134,25 @@ namespace Umbraco.Core.Sync
         }
 
         /// <summary>
+        /// Prevents this server from synchronizing.
+        /// </summary>
+        /// <remarks>Used when the app domain is going down.</remarks>
+        public void StopProcessingInstructions()
+        {
+            lock (_lock) // wait until not syncing anymore
+            {
+                _syncDisabled = true;
+            }
+        }
+
+        /// <summary>
         /// Synchronize the server (throttled).
         /// </summary>
         protected void Sync()
         {
+            if (_syncDisabled)
+                return;
+
             if ((DateTime.UtcNow - _lastSync).Seconds <= _options.ThrottleSeconds)
                 return;
 
@@ -277,10 +293,11 @@ namespace Umbraco.Core.Sync
         /// <returns>The unique identity of the local server.</returns>
         protected string GetLocalIdentity()
         {
-            return JsonConvert.SerializeObject(new
+            return JsonConvert.SerializeObject(new object[]
             {
-                machineName = NetworkHelper.MachineName, 
-                appDomainAppId = HttpRuntime.AppDomainAppId
+                /*machineName =*/ NetworkHelper.MachineName, 
+                /*appDomainAppId =*/ HttpRuntime.AppDomainAppId,
+                /*appDomainId =*/ AppDomain.CurrentDomain.Id
             });
         }
 

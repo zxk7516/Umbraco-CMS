@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Web.Hosting;
+using CSharpTest.Net.Collections;
 using Newtonsoft.Json;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
@@ -24,7 +27,7 @@ using Content = umbraco.cms.businesslogic.Content;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    class FacadeService : PublishedCachesServiceBase
+    class FacadeService : PublishedCachesServiceBase, IRegisteredObject
     {
         private readonly ServiceContext _serviceContext;
         private readonly Database _dataSource;
@@ -34,6 +37,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly ContentStore2 _contentStore;
         private readonly ContentStore2 _mediaStore;
         private readonly object _storesLock = new object();
+
+        private BPlusTree<int, ContentNodeKit> _localContentDb;
+        private BPlusTree<int, ContentNodeKit> _localMediaDb;
+        private readonly bool _localDbX;
+        private readonly AsyncLock _localDbLock;
+        private readonly IDisposable _localDbLocked;
+        private const int LocalDbLockTimeoutMilliseconds = 4 * 60 * 1000; // 4'
 
         // define constant - determines whether to use cache when previewing
         // to store eg routes, property converted values, anything - caching
@@ -62,8 +72,26 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _logger = logger;
             _options = options;
 
-            _contentStore = new ContentStore2(logger);
-            _mediaStore = new ContentStore2(logger);
+            if (_options.IgnoreLocalDb == false)
+            {
+                // see XmlStore
+                var name = HostingEnvironment.ApplicationID + "/NuCache/LocalDb";
+                _localDbLock = new AsyncLock(name);
+
+                // don't hang forever, throws if it cannot lock within the timeout
+                LogHelper.Debug<FacadeService>("Acquiring exclusive access to local db for this AppDomain...");
+                _localDbLocked = _localDbLock.Lock(LocalDbLockTimeoutMilliseconds);
+                LogHelper.Debug<FacadeService>("Acquired exclusive access to local db for this AppDomain.");
+
+                HostingEnvironment.RegisterObject(this);
+                var localContentDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Content.db");
+                var localMediaDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Media.db");
+                _localDbX = System.IO.File.Exists(localContentDbPath) && System.IO.File.Exists(localMediaDbPath);
+                _localContentDb = BTree.GetTree(localContentDbPath, _localDbX);
+                _localMediaDb = BTree.GetTree(localMediaDbPath, _localDbX);
+            }
+            _contentStore = new ContentStore2(logger, _localContentDb);
+            _mediaStore = new ContentStore2(logger, _localMediaDb);
 
             if (Resolution.IsFrozen)
                 OnResolutionFrozen();
@@ -79,8 +107,16 @@ namespace Umbraco.Web.PublishedCache.NuCache
             {
                 try
                 {
-                    LoadContentFromDatabase();
-                    LoadMediaFromDatabase();
+                    if (_localDbX)
+                    {
+                        LockAndLoadContent(LoadContentFromLocalDbLocked);
+                        LockAndLoadMedia(LoadMediaFromLocalDbLocked);
+                    }
+                    else
+                    {
+                        LockAndLoadContent(LoadContentFromDatabaseLocked);
+                        LockAndLoadMedia(LoadMediaFromDatabaseLocked);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -125,6 +161,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // otherwise a new cache object would be created for the facade specifically,
             // which is the default - web boot manager uses this to optimze facades
             public bool FacadeCacheIsApplicationRequestCache;
+
+            public bool IgnoreLocalDb;
         }
 
         #endregion
@@ -135,14 +173,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
         // before I read it? NO! because the WHOLE content tree is read-locked using WithReadLocked.
         // don't panic.
 
-        private void LoadContentFromDatabase()
+        private void LockAndLoadContent(Action action)
         {
             _contentStore.WriteLocked(() =>
             {
                 var contentService = _serviceContext.ContentService as ContentService;
                 if (contentService == null) throw new Exception("oops");
 
-                contentService.WithReadLocked(_ => LoadContentFromDatabaseLocked());
+                contentService.WithReadLocked(_ => action());
             });
         }
 
@@ -156,8 +194,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 .Select(x => new PublishedContentType(PublishedItemType.Content, x));
             _contentStore.UpdateContentTypes(null, contentTypes, null);
 
+            if (_localContentDb != null)
+                _localContentDb.Clear();
+
+            _logger.Debug<FacadeService>("Loading content from database...");
+            var sw = Stopwatch.StartNew();
             var kits = _dataSource.GetAllContentSources();
             _contentStore.SetAll(kits);
+            sw.Stop();
+            _logger.Debug<FacadeService>("Loaded content from database (" + sw.ElapsedMilliseconds + "ms).");
+        }
+
+        private void LoadContentFromLocalDbLocked()
+        {
+            var contentTypes = _serviceContext.ContentTypeService.GetAll()
+                .Select(x => new PublishedContentType(PublishedItemType.Content, x));
+            _contentStore.UpdateContentTypes(null, contentTypes, null);
+
+            _logger.Debug<FacadeService>("Loading content from local db...");
+            var sw = Stopwatch.StartNew();
+            var kits = _localContentDb.Select(x => x.Value);
+            _contentStore.SetAll(kits);
+            sw.Stop();
+            _logger.Debug<FacadeService>("Loaded content from local db (" + sw.ElapsedMilliseconds + "ms).");
         }
 
         // keep these around - might be useful
@@ -183,16 +242,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    _contentStore.Set(contentNode);
         //}
 
-        private void LoadMediaFromDatabase()
+        private void LockAndLoadMedia(Action action)
         {
-            // locks & notes: see content
-
             _mediaStore.WriteLocked(() =>
             {
                 var mediaService = _serviceContext.MediaService as MediaService;
                 if (mediaService == null) throw new Exception("oops");
 
-                mediaService.WithReadLocked(_ => LoadMediaFromDatabaseLocked());
+                mediaService.WithReadLocked(_ => action());
             });
         }
 
@@ -204,8 +261,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 .Select(x => new PublishedContentType(PublishedItemType.Media, x));
             _mediaStore.UpdateContentTypes(null, mediaTypes, null);
 
+            if (_localMediaDb != null)
+                _localMediaDb.Clear();
+
+            _logger.Debug<FacadeService>("Loading media from database...");
+            var sw = Stopwatch.StartNew();
             var kits = _dataSource.GetAllMediaSources();
             _mediaStore.SetAll(kits);
+            sw.Stop();
+            _logger.Debug<FacadeService>("Loaded media from database (" + sw.ElapsedMilliseconds + "ms).");
+        }
+
+        private void LoadMediaFromLocalDbLocked()
+        {
+            var mediaTypes = _serviceContext.MediaTypeService.GetAll()
+                .Select(x => new PublishedContentType(PublishedItemType.Media, x));
+            _mediaStore.UpdateContentTypes(null, mediaTypes, null);
+
+            _logger.Debug<FacadeService>("Loading media from local db...");
+            var sw = Stopwatch.StartNew();
+            var kits = _localMediaDb.Select(x => x.Value);
+            _mediaStore.SetAll(kits);
+            sw.Stop();
+            _logger.Debug<FacadeService>("Loaded media from local db (" + sw.ElapsedMilliseconds + "ms).");
         }
 
         // keep these around - might be useful
@@ -1230,6 +1308,43 @@ AND cmsContentNu.nodeId IS NULL
             var contentCollect = _contentStore.CollectAsync();
             var mediaCollect = _mediaStore.CollectAsync();
             System.Threading.Tasks.Task.WaitAll(contentCollect, mediaCollect);
+        }
+
+        #endregion
+
+        #region IRegisteredObject
+
+        public void Stop(bool immediate)
+        {
+            // ideally we should run the database server messenger
+            // even with only 1 server, so it can process notifications
+            // from other app domains
+            var messenger = DistributedCache.Instance.Messenger as BatchedDatabaseServerMessenger;
+            if (messenger != null)
+                messenger.StopProcessingInstructions(); // flush and stop
+
+            // we will still process the local notifications,
+            // only we will not update the local db - so if using
+            // the database server messenger, another app domain
+            // will take over and process the notifications, else
+            // the local db will end up being inconsistent, and
+            // there is little we can do about it
+
+            lock (_storesLock)
+            {
+                _contentStore.ReleaseLocalDb();
+                _localContentDb = null;
+
+                _mediaStore.ReleaseLocalDb();
+                _localMediaDb = null;
+
+                if (_localDbLocked == null) return;
+                LogHelper.Debug<FacadeService>("Releasing exclusive access to local db for this AppDomain...");
+                _localDbLocked.Dispose();
+                LogHelper.Debug<FacadeService>("Released exclusive access to local db for this AppDomain...");
+            }
+
+            HostingEnvironment.UnregisterObject(this);
         }
 
         #endregion

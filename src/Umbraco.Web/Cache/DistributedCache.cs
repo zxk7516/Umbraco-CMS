@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Web.Hosting;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Sync;
@@ -94,6 +95,16 @@ namespace Umbraco.Web.Cache
 
         #region Core notification methods
 
+        internal IServerMessenger Messenger
+        {
+            get { return ServerMessengerResolver.Current.Messenger; }
+        }
+
+        private IEnumerable<IServerAddress> Registrations
+        {
+            get { return ServerRegistrarResolver.Current.Registrar.Registrations; }
+        }
+
         /// <summary>
         /// Notifies the distributed cache of specifieds item invalidation, for a specified <see cref="ICacheRefresher"/>.
         /// </summary>
@@ -108,8 +119,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || instances.Length == 0 || getNumericId == null) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefresh(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRefresh(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 getNumericId,
                 instances);
@@ -124,8 +135,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || id == default(int)) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefresh(
-                ServerRegistrarResolver.Current.Registrar.Registrations, 
+            Messenger.PerformRefresh(
+                Registrations, 
                 GetRefresherById(refresherGuid), 
                 id);
         }
@@ -139,8 +150,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || id == Guid.Empty) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefresh(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRefresh(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 id);
         }
@@ -151,8 +162,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || payload == null) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefresh(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRefresh(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 payload);
         }
@@ -190,8 +201,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || jsonPayload.IsNullOrWhiteSpace()) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefresh(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRefresh(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 jsonPayload);
         }
@@ -205,8 +216,8 @@ namespace Umbraco.Web.Cache
         //{
         //    if (refresherId == Guid.Empty || payload == null) return;
 
-        //    ServerMessengerResolver.Current.Messenger.Notify(
-        //        ServerRegistrarResolver.Current.Registrar.Registrations,
+        //    Messenger.Notify(
+        //        Registrations,
         //        GetRefresherById(refresherId),
         //        json);
         //}
@@ -219,8 +230,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRefreshAll(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRefreshAll(
+                Registrations,
                 GetRefresherById(refresherGuid));
         }
 
@@ -233,8 +244,8 @@ namespace Umbraco.Web.Cache
         {
             if (refresherGuid == Guid.Empty || id == default(int)) return;
 
-            ServerMessengerResolver.Current.Messenger.PerformRemove(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRemove(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 id);
         }
@@ -251,8 +262,8 @@ namespace Umbraco.Web.Cache
         /// </remarks>
         public void Remove<T>(Guid refresherGuid, Func<T, int> getNumericId, params T[] instances)
         {
-            ServerMessengerResolver.Current.Messenger.PerformRemove(
-                ServerRegistrarResolver.Current.Registrar.Registrations,
+            Messenger.PerformRemove(
+                Registrations,
                 GetRefresherById(refresherGuid),
                 getNumericId,
                 instances);
