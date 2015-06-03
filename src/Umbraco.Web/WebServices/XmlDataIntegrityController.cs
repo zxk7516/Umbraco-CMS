@@ -66,7 +66,7 @@ namespace Umbraco.Web.WebServices
         [HttpPost]
         public void ReloadXmlCache()
         {
-            DistributedCache.Instance.RefreshAllPublishedContentCache();
+            DistributedCache.Instance.RefreshAllContentCache();
         }
     }
 }

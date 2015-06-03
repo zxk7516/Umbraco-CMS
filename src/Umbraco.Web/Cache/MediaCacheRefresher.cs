@@ -1,25 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Linq;
 using System.Xml.Linq;
+using Newtonsoft.Json;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
-using Umbraco.Core.Events;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
-using System.Linq;
 using Umbraco.Core.Services;
 using Umbraco.Web.PublishedCache;
 
 namespace Umbraco.Web.Cache
 {
-    /// <summary>
-    /// A cache refresher to ensure media cache is updated
-    /// </summary>
-    /// <remarks>
-    /// This is not intended to be used directly in your code and it should be sealed but due to legacy code we cannot seal it.
-    /// </remarks>
-    public class MediaCacheRefresher : JsonCacheRefresherBase<MediaCacheRefresher>
+    public sealed class MediaCacheRefresher : PayloadCacheRefresherBase<MediaCacheRefresher>
     {
         #region Json
 
@@ -37,12 +30,19 @@ namespace Umbraco.Web.Cache
 
         internal static string Serialize(IEnumerable<JsonPayload> payloads)
         {
-            return Newtonsoft.Json.JsonConvert.SerializeObject(payloads.ToArray());
+            return JsonConvert.SerializeObject(payloads.ToArray());
         }
 
-        internal static JsonPayload[] Deserialize(string json)
+        protected override object Deserialize(string json)
         {
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
+            return JsonConvert.DeserializeObject<JsonPayload[]>(json);
+        }
+
+        internal JsonPayload[] GetPayload(object o)
+        {
+            if ((o is JsonPayload[]) == false)
+                throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
+            return (JsonPayload[])o;
         }
 
         #endregion
@@ -68,9 +68,10 @@ namespace Umbraco.Web.Cache
 
         #region Events
 
-        public override void Refresh(string json)
+        public override void Refresh(object o)
         {
-            var payloads = Deserialize(json);
+            var payloads = GetPayload(o);
+
             var svce = PublishedCachesServiceResolver.Current.Service;
             bool anythingChanged;
             svce.Notify(payloads, out anythingChanged);
@@ -127,7 +128,7 @@ namespace Umbraco.Web.Cache
                 }
             }
 
-            base.Refresh(json);
+            base.Refresh(o);
         }
 
         // these events should never trigger

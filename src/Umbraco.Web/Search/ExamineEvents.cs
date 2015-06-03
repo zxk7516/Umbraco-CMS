@@ -117,13 +117,13 @@ namespace Umbraco.Web.Search
 
 	    static void MediaCacheRefresherUpdated(MediaCacheRefresher sender, CacheRefresherEventArgs args)
         {
-            if (args.MessageType != MessageType.RefreshByJson)
+            if (args.MessageType != MessageType.RefreshByPayload)
                 throw new NotSupportedException();
 
             var mediaService = ApplicationContext.Current.Services.MediaService;
 
             // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
-	        foreach (var payload in MediaCacheRefresher.Deserialize((string) args.MessageObject))
+	        foreach (var payload in sender.GetPayload(args.MessageObject))
 	        {
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
 	            {

@@ -188,7 +188,7 @@ namespace Umbraco.Web.Cache
         /// Refreshes all published content.
         /// </summary>
         /// <param name="dc"></param>
-        public static void RefreshAllPublishedContentCache(this DistributedCache dc)
+        public static void RefreshAllContentCache(this DistributedCache dc)
         {
             var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
@@ -248,6 +248,13 @@ namespace Umbraco.Web.Cache
         #endregion
 
         #region Media Cache
+
+        public static void RefreshAllMediaCache(this DistributedCache dc)
+        {
+            var payloads = new[] { new MediaCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
+
+            dc.RefreshSetByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
+        }
 
         public static void RefreshMediaCache(this DistributedCache dc, TreeChange<IMedia>[] changes)
         {
