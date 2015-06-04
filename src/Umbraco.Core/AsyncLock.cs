@@ -104,6 +104,7 @@ namespace Umbraco.Core
         private class NamedSemaphoreReleaser : CriticalFinalizerObject, IDisposable
         {
             private readonly Semaphore _semaphore;
+            private bool _disposed;
 
             internal NamedSemaphoreReleaser(Semaphore semaphore)
             {
@@ -118,8 +119,21 @@ namespace Umbraco.Core
 
             private void Dispose(bool disposing)
             {
+                lock (_semaphore)
+                {
+                    if (_disposed) return;
+                    _disposed = true;
+                }
+
                 // critical
-                _semaphore.Release();
+                // if disposing == true, then releasing should be ok
+                // else when finalizing, anything can happen really
+                try
+                {
+                    _semaphore.Release();
+                }
+                catch // I know ;-(
+                { }
             }
 
             // we WANT to release the semaphore because it's a system object
