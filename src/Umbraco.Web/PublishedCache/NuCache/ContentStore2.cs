@@ -237,6 +237,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 // all content should have been refreshed - but...
                 foreach (var id in temp.Values.SelectMany(x => x))
                     ClearBranchLocked(id);
+
+                if (_localDb != null)
+                    _localDb.Commit();
             });
         }
 
@@ -273,6 +276,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                             _localDb[id] = node.ToKit();
                     }
                 }
+
+                if (_localDb != null)
+                    _localDb.Commit();
             });
         }
 
@@ -367,6 +373,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                     RemoveFromParentLocked(existing);
                     AddToParentLocked(kit.Node);
                 }
+
+                if (_localDb != null)
+                    _localDb.Commit();
             });
         }
 
@@ -389,6 +398,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         _localDb[kit.Node.Id] = kit;
                     AddToParentLocked(kit.Node);
                 }
+
+                if (_localDb != null)
+                    _localDb.Commit();
             });
         }
 
@@ -417,6 +429,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         _localDb[kit.Node.Id] = kit;
                     AddToParentLocked(kit.Node);
                 }
+
+                if (_localDb != null)
+                    _localDb.Commit();
             });
         }
 
