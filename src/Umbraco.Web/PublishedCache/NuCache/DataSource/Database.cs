@@ -169,7 +169,7 @@ LEFT JOIN cmsDocument docDraft ON (docDraft.nodeId=n.id AND docDraft.newest=1 AN
 LEFT JOIN cmsDocument docPub ON (docPub.nodeId=n.id AND docPub.published=1)
 LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
-WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
+WHERE n.nodeObjectType=@objType AND cmsContent.contentType IN (@ids)
 ORDER BY n.level, n.sortOrder
 ", new { objType = ContentObjectType, /*id =*/ ids })).Select(CreateContentNodeKit);
         }
@@ -189,7 +189,7 @@ FROM umbracoNode n
 JOIN cmsContent ON (cmsContent.nodeId=n.id)
 JOIN cmsContentVersion ver ON (ver.contentId=n.id)
 LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
-WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
+WHERE n.nodeObjectType=@objType AND cmsContent.contentType IN (@ids)
 ORDER BY n.level, n.sortOrder
 ", new { objType = MediaObjectType, /*id =*/ ids })).Select(CreateMediaNodeKit);
         }
