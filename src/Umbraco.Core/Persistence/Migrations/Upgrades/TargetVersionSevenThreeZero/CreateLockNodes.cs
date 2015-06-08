@@ -45,6 +45,9 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
 
         private void InsertLockObject(int id, string uniqueId, string text)
         {
+            var exists = Context.Database.Exists<NodeDto>(id);
+            if (exists) return;
+
             Context.Database.Insert("umbracoNode", "id", false, new NodeDto
             {
                 NodeId = id,
