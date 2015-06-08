@@ -27,7 +27,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
                 .WithColumn("nodeId").AsInt32().NotNullable()
                 .WithColumn("published").AsBoolean().NotNullable()
                 .WithColumn("data").AsString().NotNullable()
-                .WithColumn("rv").AsInt64().NotNullable().WithDefault(SystemMethods.CurrentDateTime);
+                .WithColumn("rv").AsInt64().NotNullable().WithDefault(0L);
 
             Create.PrimaryKey("PK_cmsContentNu")
                 .OnTable("cmsContentNu")
