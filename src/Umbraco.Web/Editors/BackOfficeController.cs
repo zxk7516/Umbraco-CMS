@@ -356,6 +356,10 @@ namespace Umbraco.Web.Editors
                             {
                                 "facadeStatusBaseUrl", Url.GetUmbracoApiServiceBaseUrl<FacadeStatusController>(
                                     controller => controller.GetFacadeStatusUrl())
+                            },
+                            {
+                               "nuCacheStatusBaseUrl", Url.GetUmbracoApiServiceBaseUrl<NuCacheStatusController>(
+                                   controller => controller.VerifyDbCache())
                             }
                         }
                     },

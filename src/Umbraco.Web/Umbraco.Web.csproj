@@ -310,6 +310,8 @@
     <Compile Include="Mvc\ProfilingView.cs" />
     <Compile Include="Mvc\ProfilingViewEngine.cs" />
     <Compile Include="Mvc\UrlHelperExtensions.cs" />
+    <Compile Include="PublishedCache\NuCache\DataSource\ContentNuDto.cs" />
+    <Compile Include="PublishedCache\NuCache\DataSource\ContentSourceDto.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceControl.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PublishedMemberCache.cs" />
@@ -810,8 +812,6 @@
     <Compile Include="PublishedCache\NuCache\ContentCache.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentData.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\Database.cs" />
-    <Compile Include="PublishedCache\NuCache\DataSource\PropertyPoco.cs" />
-    <Compile Include="PublishedCache\NuCache\DataSource\VersionsPoco.cs" />
     <Compile Include="PublishedCache\NuCache\MediaCache.cs" />
     <Compile Include="PublishedCache\NuCache\Navigable\NavigableContent.cs" />
     <Compile Include="PublishedCache\NuCache\Property.cs" />
@@ -1961,6 +1961,7 @@
     <Compile Include="WebServices\ExamineManagementApiController.cs" />
     <Compile Include="WebServices\FacadeStatusController.cs" />
     <Compile Include="WebServices\FolderBrowserService.cs" />
+    <Compile Include="WebServices\NuCacheStatusController.cs" />
     <Compile Include="WebServices\TagsController.cs" />
     <Compile Include="WebServices\ScheduledPublishController.cs" />
     <Compile Include="WebServices\UmbracoAuthorizedHttpHandler.cs" />

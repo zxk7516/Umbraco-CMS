@@ -1,82 +1,193 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Web.PublishedCache.NuCache.DataSource
 {
+    // provides efficient database access for NuCache
     class Database
     {
-        // fixme - this is completely experimental
+        // though these should be system constants too!
+        private readonly static Guid ContentObjectType = Guid.Parse(Constants.ObjectTypes.Document);
+        private readonly static Guid MediaObjectType = Guid.Parse(Constants.ObjectTypes.Media);
+        private readonly static Guid MemberObjectType = Guid.Parse(Constants.ObjectTypes.Member);
 
-        public IEnumerable<VersionsPoco> GetVersions()
+        private readonly DatabaseContext _databaseContext;
+
+        public Database(DatabaseContext databaseContext)
         {
-            var db = ApplicationContext.Current.DatabaseContext.Database;
-            var pocos = db.Fetch<VersionsPoco>(new Sql(@"select 
-    node.id Id, node.parentID ParentId,
-	docPublished.versionId PublishedVersionId, docPublished.updateDate PublishedUpdateDate,
-	docDraft.versionId DraftVersionId, docDraft.updateDate DraftUpdateDate
-from umbracoNode node
-    left join cmsDocument docPublished on node.id = docPublished.nodeId and docPublished.published = 1
-    left join cmsDocument docDraft on node.id = docDraft.nodeId and docDraft.published = 0 and docDraft.newest = 1
-where
-	node.nodeObjectType = 'C66BA18E-EAF3-4CFF-8A22-41B16D66A972'
-	and node.trashed = 0
-order by node.id;
-"));
-            return pocos;
+            _databaseContext = databaseContext;
         }
 
-        public IEnumerable<ContentData> GetContent()
+        public ContentSourceDto GetContentSource(int id)
         {
-            var db = ApplicationContext.Current.DatabaseContext.Database;
-            var pocos = db.Fetch<ContentData>(new Sql(@"select
-    node.id Id, node.parentId ParentId, node.level Level, node.sortOrder SortOrder,
-    node.text Text,
-    node.createDate CreateDate, node.nodeUser CreateUserId, 
-    doc.versionId VersionId,
-    doc.text VersionText,
-    doc.updateDate VersionDate, doc.documentUser VersionUserId,
-    doc.templateId TemplateId,
-    doc.Published Published
-from umbracoNode node
-    join cmsDocument doc on node.id = doc.nodeId
-where
-	node.nodeObjectType = 'C66BA18E-EAF3-4CFF-8A22-41B16D66A972'
-	and (doc.newest = 1 or doc.published = 1)
-	and node.trashed = 0
-order by node.id, doc.published;
-"));
+            return _databaseContext.Database.Fetch<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+docDraft.text DraftName, docDraft.versionId DraftVersion, docDraft.updateDate DraftVersionDate, docDraft.documentUser DraftWriterId, docDraft.templateId DraftTemplateId,
+nuDraft.data DraftData,
+docPub.text PubName, docPub.versionId PubVersion, docPub.updateDate PubVersionDate, docPub.documentUser PubWriterId, docPub.templateId PubTemplateId,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+LEFT JOIN cmsDocument docDraft ON (docDraft.nodeId=n.id AND docDraft.newest=1 AND docDraft.published=0)
+LEFT JOIN cmsDocument docPub ON (docPub.nodeId=n.id AND docPub.published=1)
+LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND n.id=@id
+", new { objType = ContentObjectType, /*id =*/ id })).FirstOrDefault();
+        }
 
-            // pdata.propertyTypeId PropertyTypeId,
-            // but fetching the alias means more data....
-            var props = db.Fetch<PropertyPoco>(new Sql(@"select 
-    pdata.contentNodeId NodeId, pdata.versionId VersionId,
-    ptype.Alias Alias,
-    pdata.dataInt ValueInt, pdata.dataDate ValueDateTime, pdata.dataNvarchar ValueVarchar, pdata.dataNtext ValueText
-from umbracoNode node
-    join cmsDocument doc on node.id = doc.nodeId
-    join cmsPropertyData pdata on doc.versionId = pdata.versionId
-    join cmsPropertyType ptype on pdata.propertyTypeId = ptype.id
-where
-	node.nodeObjectType = 'C66BA18E-EAF3-4CFF-8A22-41B16D66A972'
-	and (doc.newest = 1 or doc.published = 1)
-	and node.trashed = 0
-order by node.id, doc.published;
-"));
+        public ContentSourceDto GetMediaSource(int id)
+        {
+            // should be only 1 version for medias
 
-            using (var transaction = db.GetTransaction()) // can't tell the isolation ?!
-            {
-                transaction.Complete();
-            }
+            return _databaseContext.Database.Fetch<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+n.text PubName, ver.versionId PubVersion, ver.versionDate PubVersionDate,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+JOIN cmsContentVersion ver ON (ver.contentId=n.id)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND n.id=@id
+", new { objType = MediaObjectType, /*id =*/ id })).FirstOrDefault();
+        }
 
-            var propsEnumerator = props.GetEnumerator();
-            propsEnumerator.MoveNext();
+        public IEnumerable<ContentSourceDto> GetAllContentSources()
+        {
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+docDraft.text DraftName, docDraft.versionId DraftVersion, docDraft.updateDate DraftVersionDate, docDraft.documentUser DraftWriterId, docDraft.templateId DraftTemplateId,
+nuDraft.data DraftData,
+docPub.text PubName, docPub.versionId PubVersion, docPub.updateDate PubVersionDate, docPub.documentUser PubWriterId, docPub.templateId PubTemplateId,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+LEFT JOIN cmsDocument docDraft ON (docDraft.nodeId=n.id AND docDraft.newest=1 AND docDraft.published=0)
+LEFT JOIN cmsDocument docPub ON (docPub.nodeId=n.id AND docPub.published=1)
+LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType
+ORDER BY n.level, n.sortOrder
+", new { objType = ContentObjectType }));
+        }
 
-            foreach (var poco in pocos)
-            {
-                //poco.PropertiesEnumerator = propsEnumerator;
-                yield return poco;
-            }
+        public IEnumerable<ContentSourceDto> GetAllMediaSources()
+        {
+            // should be only 1 version for medias
+
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+n.text PubName, ver.versionId PubVersion, ver.versionDate PubVersionDate,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+JOIN cmsContentVersion ver ON (ver.contentId=n.id)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType
+ORDER BY n.level, n.sortOrder
+", new { objType = MediaObjectType }));
+        }
+
+        public IEnumerable<ContentSourceDto> GetBranchContentSources(int id)
+        {
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+docDraft.text DraftName, docDraft.versionId DraftVersion, docDraft.updateDate DraftVersionDate, docDraft.documentUser DraftWriterId, docDraft.templateId DraftTemplateId,
+nuDraft.data DraftData,
+docPub.text PubName, docPub.versionId PubVersion, docPub.updateDate PubVersionDate, docPub.documentUser PubWriterId, docPub.templateId PubTemplateId,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN umbracoNode x ON (n.id=x.id OR n.path LIKE " + _databaseContext.SqlSyntax.GetConcat("x.path", "',%'") + @")
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+LEFT JOIN cmsDocument docDraft ON (docDraft.nodeId=n.id AND docDraft.newest=1 AND docDraft.published=0)
+LEFT JOIN cmsDocument docPub ON (docPub.nodeId=n.id AND docPub.published=1)
+LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND x.id=@id
+ORDER BY n.level, n.sortOrder
+", new { objType = ContentObjectType, /*id =*/ id }));
+        }
+
+        public IEnumerable<ContentSourceDto> GetBranchMediaSources(int id)
+        {
+            // should be only 1 version for medias
+
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+n.text PubName, ver.versionId PubVersion, ver.versionDate PubVersionDate,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN umbracoNode x ON (n.id=x.id OR n.path LIKE " + _databaseContext.SqlSyntax.GetConcat("x.path", "',%'") + @")
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+JOIN cmsContentVersion ver ON (ver.contentId=n.id)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND x.id=@id
+ORDER BY n.level, n.sortOrder
+", new { objType = MediaObjectType, /*id =*/ id }));
+        }
+
+        public IEnumerable<ContentSourceDto> GetTypeContentSources(IEnumerable<int> ids)
+        {
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+docDraft.text DraftName, docDraft.versionId DraftVersion, docDraft.updateDate DraftVersionDate, docDraft.documentUser DraftWriterId, docDraft.templateId DraftTemplateId,
+nuDraft.data DraftData,
+docPub.text PubName, docPub.versionId PubVersion, docPub.updateDate PubVersionDate, docPub.documentUser PubWriterId, docPub.templateId PubTemplateId,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+LEFT JOIN cmsDocument docDraft ON (docDraft.nodeId=n.id AND docDraft.newest=1 AND docDraft.published=0)
+LEFT JOIN cmsDocument docPub ON (docPub.nodeId=n.id AND docPub.published=1)
+LEFT JOIN cmsContentNu nuDraft ON (nuDraft.nodeId=n.id AND nuDraft.published=0)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
+ORDER BY n.level, n.sortOrder
+", new { objType = ContentObjectType, /*id =*/ ids }));
+        }
+
+        public IEnumerable<ContentSourceDto> GetTypeMediaSources(IEnumerable<int> ids)
+        {
+            // should be only 1 version for medias
+
+            return _databaseContext.Database.Query<ContentSourceDto>(new Sql(@"SELECT
+n.id Id,
+cmsContent.contentType ContentTypeId,
+n.level Level, n.path Path, n.sortOrder SortOrder, n.parentId ParentId,
+n.createDate CreateDate, n.nodeUser CreatorId,
+n.text PubName, ver.versionId PubVersion, ver.versionDate PubVersionDate,
+nuPub.data PubData
+FROM umbracoNode n
+JOIN cmsContent ON (cmsContent.nodeId=n.id)
+JOIN cmsContentVersion ver ON (ver.contentId=n.id)
+LEFT JOIN cmsContentNu nuPub ON (nuPub.nodeId=n.id AND nuPub.published=1)
+WHERE n.nodeObjectType=@objType AND cmsContent.contentType=@ids
+ORDER BY n.level, n.sortOrder
+", new { objType = MediaObjectType, /*id =*/ ids }));
         }
     }
 }

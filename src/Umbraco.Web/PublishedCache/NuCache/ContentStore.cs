@@ -14,6 +14,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         internal readonly ReaderWriterLockSlim Locker = new ReaderWriterLockSlim();
         internal readonly Dictionary<int, ContentNode> AllContent = new Dictionary<int, ContentNode>();
 
+        private readonly FrozenLock _freezeLock;
+        private bool _frozen;
+
         // fixme - see node in ContentView re. root content & children
         private readonly HashSet<int> _rootContentIds = new HashSet<int>();
         private int[] _rootContentIdsSnap = {};
@@ -24,7 +27,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private bool _contentTypesDirty;
 
         private ContentView _topView;
-
         private readonly int _minViewsInterval;
         private readonly int _viewsCollectInterval;
         private readonly bool _trackViews;
@@ -32,7 +34,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private volatile Task _collectTask;
         private DateTime _lastCollect = DateTime.MinValue;
         private DateTime _lastViewTime;
-        private bool _frozen;
 
         #region Constructors
 
@@ -42,6 +43,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public ContentStore(Options options)
         {
+            _freezeLock = new FrozenLock(this);
+
             _minViewsInterval = options.MinViewsInterval;
             _viewsCollectInterval = options.ViewsCollectInternal;
             _trackViews = options.TrackViews;
@@ -185,6 +188,38 @@ namespace Umbraco.Web.PublishedCache.NuCache
             finally
             {
                 Locker.ExitWriteLock();
+            }
+        }
+
+        public void ResetFrozen(IEnumerable<ContentNode> contents)
+        {
+            // UpgradeableReadLock does not block other readers
+            // but blocks other upgradeable, so one 'reset' at a time
+
+            if (_frozen == false)
+                throw new InvalidOperationException("Not frozen.");
+
+            Locker.EnterUpgradeableReadLock();
+            try
+            {
+                var remove = AllContent.Select(x => x.Key).ToList();
+
+                foreach (var content in contents)
+                {
+                    Set(content); // upgrades to WriteLock
+                    remove.Remove(content.Id);
+                }
+
+                foreach (var id in remove)
+                {
+                    Clear(id); // upgrades to WriteLock
+                }
+
+                // fixme - should we _also_ take care of content types?
+            }
+            finally
+            {
+                Locker.ExitUpgradeableReadLock();
             }
         }
 
@@ -368,6 +403,54 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
+        public IDisposable Frozen
+        {
+            get
+            {
+                _freezeLock.Lock();
+                return _freezeLock;
+            }
+        }
+
+        private class FrozenLock : IDisposable
+        {
+            private readonly object _locko = new object();
+            private readonly ContentStore _store;
+
+            public FrozenLock(ContentStore store)
+            {
+                _store = store;
+            }
+
+            public void Lock()
+            {
+                _store.Locker.EnterWriteLock();
+                try
+                {
+                    Monitor.Enter(_locko);
+                    _store._frozen = true;
+                }
+                finally
+                {
+                    _store.Locker.ExitWriteLock();
+                }
+            }
+
+            public void Dispose()
+            {
+                _store.Locker.EnterWriteLock();
+                try
+                {
+                    _store._frozen = false;
+                    Monitor.Exit(_locko);
+                }
+                finally
+                {
+                    _store.Locker.ExitWriteLock();
+                }
+            }
+        }
+
         #endregion
 
         #region Instrumentation
@@ -452,19 +535,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             var collectTask = _collectTask; // atomic read
             if (collectTask != null) collectTask.Wait();
-        }
-
-        public void Freeze(bool frozen)
-        {
-            Locker.EnterWriteLock();
-            try
-            {
-                _frozen = frozen;
-            }
-            finally 
-            {
-                Locker.ExitWriteLock();
-            }
         }
 
         #endregion
