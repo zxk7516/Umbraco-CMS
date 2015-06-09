@@ -180,11 +180,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             runner.Terminating += (sender, args) =>
             {
-                // terminating, make sure we do NOT make any more changes to content
-                var contentService = _serviceContext.ContentService as ContentService;
-                if (contentService == null)
-                    throw new Exception("oops");
-                contentService.DenyCurrentAppDomainAccess();
+                // terminating - the runner is going to trigger the task (if pending)
+                // one more time and then will not accept tasks anymore - so we set
+                // the task to null to indicate that there's no point trying to write
+                // anymore - in a proper LB scenario, the new starting app domain 
+                // will process the notifications - otherwise they would get lost
+                using (GetSafeXmlWriter(false))
+                {
+                    _persisterTask = null;
+                }
             };
 
             runner.Terminated += (sender, args) =>
@@ -363,7 +367,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly XmlDocument _xmlDocument; // supplied xml document (for tests)
         private volatile XmlDocument _xml; // master xml document
         private readonly AsyncLock _xmlLock = new AsyncLock(); // protects _xml
-        //private DateTime _lastXmlChange; // last time Xml was reported as changed
 
         // to be used by PublishedContentCache only
         // for non-preview content only
@@ -393,8 +396,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             if (registerXmlChange == false || SyncToXmlFile == false)
                 return;
 
-            //_lastXmlChange = DateTime.UtcNow;
-            _persisterTask = _persisterTask.Touch(); // _persisterTask != null because SyncToXmlFile == true
+            if (_persisterTask != null)
+                _persisterTask = _persisterTask.Touch();
         }
 
         private static XmlDocument Clone(XmlDocument xmlDoc)
@@ -1707,13 +1710,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private void OnRemovedVersion(UmbracoDatabase db, IEnumerable<Tuple<int, Guid>> items)
         {
-            foreach (var item in items)
-            {
-                var parms = new { id = item.Item1 /*, versionId = item.Item2*/ };
-                db.Execute("DELETE FROM cmsPreviewXml WHERE nodeId=@id", parms);
-            }
-
-            // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
+            // we do not version cmsPreviewXml anymore - nothing to do here
         }
 
         private static readonly string[] PropertiesImpactingAllVersions = { "SortOrder", "ParentId", "Level", "Path", "Trashed" };
