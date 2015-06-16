@@ -61,7 +61,7 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
             return sb.ToString();
         }
 
-        public override object ConvertDataToSource(PublishedPropertyType propertyType, object source, bool preview)
+        public override object ConvertSourceToObject(PublishedPropertyType propertyType, object source, bool preview)
         {
             if (source == null)
             {
@@ -116,5 +116,14 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
 
             return sourceString;
         }
-    }
+
+        public override object ConvertSourceToXPath(PublishedPropertyType propertyType, object source, bool preview)
+        {
+            // legacy XML does NOT convert the RTE content
+            // and we cannot do it anyways, else it kills XPath during IContentFinder
+            // because the converter wants to run macros & needs a page to do it
+
+            return source;
+        }
+	}
 }
