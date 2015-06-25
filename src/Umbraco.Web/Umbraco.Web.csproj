@@ -307,6 +307,7 @@
     <Compile Include="HtmlHelperBackOfficeExtensions.cs" />
     <Compile Include="PublishedCache\NuCache\CacheKeys.cs" />
     <Compile Include="PublishedCache\NuCache\ContentNode.cs" />
+    <Compile Include="Media\EmbedProviders\Flickr.cs" />
     <Compile Include="PropertyEditors\DatePreValueEditor.cs" />
     <Compile Include="PublishedCache\NuCache\ContentStore2.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\BTree.cs" />
@@ -317,10 +318,13 @@
     <Compile Include="Security\Identity\GetUserSecondsMiddleWare.cs" />
     <Compile Include="PublishedCache\NuCache\ContentNodeKit.cs" />
     <Compile Include="PublishedCache\NuCache\PublishedMember.cs" />
+    <Compile Include="Media\EmbedProviders\OEmbedJson.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentNuDto.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentSourceDto.cs" />
     <Compile Include="PublishedCache\PublishedCachesServiceControl.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
+    <Compile Include="Media\EmbedProviders\OEmbedResponse.cs" />
+    <Compile Include="Media\EmbedProviders\OEmbedPhoto.cs" />
     <Compile Include="PublishedCache\XmlPublishedCache\PublishedMemberCache.cs" />
     <Compile Include="UmbracoDefaultOwinStartup.cs" />
     <Compile Include="Cache\ContentCacheRefresher.cs" />
@@ -957,7 +961,6 @@
     <Compile Include="Scheduling\Scheduler.cs" />
     <Compile Include="Media\EmbedProviders\AbstractOEmbedProvider.cs" />
     <Compile Include="Media\EmbedProviders\AbstractProvider.cs" />
-    <Compile Include="Media\EmbedProviders\Flickr.cs" />
     <Compile Include="Media\EmbedProviders\OEmbedRich.cs" />
     <Compile Include="Media\EmbedProviders\OEmbedVideo.cs" />
     <Compile Include="Media\EmbedProviders\Settings\Dictionary.cs" />
