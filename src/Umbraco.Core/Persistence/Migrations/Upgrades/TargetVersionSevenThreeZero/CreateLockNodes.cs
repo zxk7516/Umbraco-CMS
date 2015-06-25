@@ -24,6 +24,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
                 InsertLockObject(Constants.System.MemberTreeLock, "FA951390-DF12-4594-8366-89CA8396D977", "LOCK: MemberTree");
                 InsertLockObject(Constants.System.MediaTypesLock, "BA13E02F-E595-4415-8693-B044C83AA9A7", "LOCK: MediaTypes");
                 InsertLockObject(Constants.System.MemberTypesLock, "B23EED6B-CC05-48FE-B096-B50441D0E825", "LOCK: MemberTypes");
+                InsertLockObject(Constants.System.DomainsLock, "0AF5E610-A310-4B6F-925F-E928D5416AF7", "LOCK: Domains");
 
                 // turn off identity insert if db provider is not mysql
                 if (SqlSyntax.SupportsIdentityInsert())
@@ -41,6 +42,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MemberTreeLock });
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MediaTypesLock });
             Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.MemberTypesLock });
+            Context.Database.Execute("DELETE FROM umbracoNode WHERE id=@id", new { @id = Constants.System.DomainsLock });
         }
 
         private void InsertLockObject(int id, string uniqueId, string text)

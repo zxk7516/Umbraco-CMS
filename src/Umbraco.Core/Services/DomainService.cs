@@ -1,29 +1,41 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence;
-using Umbraco.Core.Persistence.Querying;
+using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Persistence.UnitOfWork;
 
 namespace Umbraco.Core.Services
 {
     public class DomainService : RepositoryService, IDomainService
     {
+        #region Constructors
+
         public DomainService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
             : base(provider, repositoryFactory, logger)
         {
+            _lrepo = new LockingRepository<DomainRepository>(UowProvider,
+                uow => RepositoryFactory.CreateDomainRepository(uow) as DomainRepository,
+                LockingRepositoryLockIds, LockingRepositoryLockIds);
         }
+
+        #endregion
+
+        #region Locking
+
+        // constant
+        private static readonly int[] LockingRepositoryLockIds = { Constants.System.DomainsLock };
+
+        private readonly LockingRepository<DomainRepository> _lrepo;
+
+        #endregion
+
+        #region Service
 
         public bool Exists(string domainName)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repo = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                return repo.Exists(domainName);
-            } 
+            return _lrepo.WithReadLocked(lr => lr.Repository.Exists(domainName));
         }
 
         public void Delete(IDomain domain)
@@ -31,12 +43,7 @@ namespace Umbraco.Core.Services
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IDomain>(domain), this))
                 return;
 
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                repository.Delete(domain);
-                uow.Commit();               
-            }
+            _lrepo.WithWriteLocked(lr => lr.Repository.Delete(domain));
 
             var args = new DeleteEventArgs<IDomain>(domain, false);
             Deleted.RaiseEvent(args, this);
@@ -44,38 +51,22 @@ namespace Umbraco.Core.Services
 
         public IDomain GetByName(string name)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                return repository.GetByName(name);
-            }
+            return _lrepo.WithReadLocked(lr => lr.Repository.GetByName(name));
         }
 
         public IDomain GetById(int id)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repo = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                return repo.Get(id);
-            }
+            return _lrepo.WithReadLocked(lr => lr.Repository.Get(id));
         }
 
         public IEnumerable<IDomain> GetAll(bool includeWildcards)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repo = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                return repo.GetAll(includeWildcards);
-            }
+            return _lrepo.WithReadLocked(lr => lr.Repository.GetAll(includeWildcards));
         }
 
         public IEnumerable<IDomain> GetAssignedDomains(int contentId, bool includeWildcards)
         {
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repo = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                return repo.GetAssignedDomains(contentId, includeWildcards);
-            }
+            return _lrepo.WithReadLocked(lr => lr.Repository.GetAssignedDomains(contentId, includeWildcards));
         }
 
         public void Save(IDomain domainEntity, bool raiseEvents = true)
@@ -86,18 +77,16 @@ namespace Umbraco.Core.Services
                     return;
             }
 
-            var uow = UowProvider.GetUnitOfWork();
-            using (var repository = RepositoryFactory.CreateDomainRepository(uow))
-            {
-                repository.AddOrUpdate(domainEntity);
-                uow.Commit();
-            }
+            _lrepo.WithWriteLocked(lr => lr.Repository.AddOrUpdate(domainEntity));
 
             if (raiseEvents)
                 Saved.RaiseEvent(new SaveEventArgs<IDomain>(domainEntity, false), this);
         }
 
+        #endregion
+
         #region Event Handlers
+
         /// <summary>
         /// Occurs before Delete
         /// </summary>		
@@ -117,7 +106,6 @@ namespace Umbraco.Core.Services
         /// Occurs after Save
         /// </summary>
         public static event TypedEventHandler<IDomainService, SaveEventArgs<IDomain>> Saved;
-
       
         #endregion
     }

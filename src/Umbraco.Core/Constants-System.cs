@@ -33,6 +33,7 @@
 		    public const int MemberTreeLock = -335;
 		    public const int MediaTypesLock = -336;
             public const int MemberTypesLock = -337;
+		    public const int DomainsLock = -338;
 		}
 	}
 }
