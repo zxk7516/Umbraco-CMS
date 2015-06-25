@@ -153,7 +153,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 			result.Fields.Add("writerName", "Shannon");
 
             var store = new PublishedMediaCache(new XmlStore((XmlDocument)null), ServiceContext.MediaService, new StaticCacheProvider(), ContentTypesCache);
-			var doc = store.ConvertFromSearchResult(result);
+			var doc = store.CreateFromCacheValues(store.ConvertFromSearchResult(result));
 
 			DoAssert(doc, 1234, 0, 0, "", "Image", 0, "Shannon", "", 0, 0, "-1,1234", default(DateTime), DateTime.Parse("2012-07-16T10:34:09"), 2);
 			Assert.AreEqual(null, doc.Parent);
@@ -167,7 +167,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 			var xmlDoc = GetMediaXml();
 			var navigator = xmlDoc.SelectSingleNode("/root/Image").CreateNavigator();
             var cache = new PublishedMediaCache(new XmlStore((XmlDocument)null), ServiceContext.MediaService, new StaticCacheProvider(), ContentTypesCache);
-			var doc = cache.ConvertFromXPathNavigator(navigator);
+			var doc = cache.CreateFromCacheValues(cache.ConvertFromXPathNavigator(navigator, true));
 
 			DoAssert(doc, 2000, 0, 2, "image1", "Image", 2044, "Shannon", "Shannon2", 22, 33, "-1,2000", DateTime.Parse("2012-06-12T14:13:17"), DateTime.Parse("2012-07-20T18:50:43"), 1);
 			Assert.AreEqual(null, doc.Parent);
@@ -254,19 +254,23 @@ namespace Umbraco.Tests.Cache.PublishedCache
 					// callback to get the parent: there is no parent
 				    a => null,
 					// callback to get the children: we're not going to test this so ignore
-					a => new List<IPublishedContent>(),
+					(dd, n) => new List<IPublishedContent>(),
                     // callback to get a property
 					(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
                     null, // cache provider
                     ContentTypesCache,
+                    // no xpath
+                    null,
                     // not from examine
 					false),
 				// callback to get the children
-				d => children,
+				(dd, n) => children,
                 // callback to get a property
 				(dd, a) => dd.Properties.FirstOrDefault(x => x.PropertyTypeAlias.InvariantEquals(a)), 
                 null, // cache provider
                 ContentTypesCache,
+                // no xpath
+                null,
                 // not from examine
 				false);
 			return dicDoc;

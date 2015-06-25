@@ -100,6 +100,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\NUnit.2.6.2\lib\nunit.framework.dll</HintPath>
     </Reference>
+    <Reference Include="Semver">
+      <HintPath>..\packages\semver.1.1.2\lib\net45\Semver.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.configuration" />
@@ -173,6 +176,7 @@
     <Compile Include="AngularIntegration\ContentModelSerializationTests.cs" />
     <Compile Include="AngularIntegration\JsInitializationTests.cs" />
     <Compile Include="AngularIntegration\ServerVariablesParserTests.cs" />
+    <Compile Include="ApplicationContextTests.cs" />
     <Compile Include="AttemptTests.cs" />
     <Compile Include="Cache\CacheRefresherTests.cs" />
     <Compile Include="Cache\DeepCloneRuntimeCacheProviderTests.cs" />
@@ -430,7 +434,6 @@
     <Compile Include="Persistence\Mappers\PropertyTypeMapperTest.cs" />
     <Compile Include="Persistence\Mappers\RelationMapperTest.cs" />
     <Compile Include="Persistence\Mappers\RelationTypeMapperTest.cs" />
-    <Compile Include="Persistence\MySqlDatabaseCreationTest.cs" />
     <Compile Include="Persistence\MySqlTableByTableTest.cs" />
     <Compile Include="Persistence\Querying\PetaPocoSqlTests.cs" />
     <Compile Include="Persistence\Querying\QueryBuilderTests.cs" />
@@ -517,7 +520,6 @@
     <Compile Include="TestHelpers\Stubs\TestControllerFactory.cs" />
     <Compile Include="TestHelpers\BaseUsingSqlCeSyntax.cs" />
     <Compile Include="TestHelpers\BaseWebTest.cs" />
-    <Compile Include="TestHelpers\BaseDatabaseTest.cs" />
     <Compile Include="TestHelpers\Entities\MockedContent.cs" />
     <Compile Include="TestHelpers\Entities\MockedContentTypes.cs" />
     <Compile Include="TestHelpers\Entities\MockedEntity.cs" />
@@ -561,6 +563,7 @@
     <Compile Include="TestHelpers\FakeHttpContextFactory.cs" />
     <Compile Include="Plugins\TypeFinderTests.cs" />
     <Compile Include="Routing\UmbracoModuleTests.cs" />
+    <Compile Include="VersionExtensionTests.cs" />
     <Compile Include="XmlExtensionsTests.cs" />
     <Compile Include="XmlHelperTests.cs" />
   </ItemGroup>

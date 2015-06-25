@@ -264,9 +264,11 @@ namespace Umbraco.Core.Persistence.Repositories
             //Logic for setting Path, Level and SortOrder
             var parent = Database.First<NodeDto>("WHERE id = @ParentId", new { /*ParentId =*/ entity.ParentId });
             var level = parent.Level + 1;
-            var sortOrder =
-                Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoNode WHERE parentID = @ParentId AND nodeObjectType = @NodeObjectType",
+            var maxSortOrder =
+                    Database.ExecuteScalar<int>(
+                        "SELECT coalesce(max(sortOrder),0) FROM umbracoNode WHERE parentId = @ParentId AND nodeObjectType = @NodeObjectType",
                                                       new { /*ParentId =*/ entity.ParentId, NodeObjectType = NodeObjectTypeId });
+            var sortOrder = maxSortOrder + 1;
 
             //Create the (base) node data - umbracoNode
             var nodeDto = dto.ContentVersionDto.ContentDto.NodeDto;
