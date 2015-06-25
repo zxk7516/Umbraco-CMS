@@ -158,6 +158,9 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
+            foreach (var payload in payloads)
+                PublishedMediaCache.ClearCache(payload.Id);
+
             anythingChanged = true;
         }
 
