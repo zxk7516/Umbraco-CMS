@@ -20,13 +20,13 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
     class PublishedContentCache : PublishedCacheBase, IPublishedContentCache, INavigableData
     {
         private readonly IContentService _contentService;
-        private readonly IDomainService _domainService;
+        private readonly IDomainCache _domainCache;
         private readonly IContentTypeService _contentTypeService;
 
-        public PublishedContentCache(string previewToken, IDomainService domainService, IContentService contentService, IContentTypeService contentTypeService)
+        public PublishedContentCache(string previewToken, IDomainCache domainCache, IContentService contentService, IContentTypeService contentTypeService)
             : base(previewToken.IsNullOrWhiteSpace() == false)
         {
-            _domainService = domainService;
+            _domainCache = domainCache;
             _contentService = contentService;
             _contentTypeService = contentTypeService;
         }
@@ -118,7 +118,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             if (node == null)
                 return null;
 
-            var domainHelper = new DomainHelper(_domainService);
+            var domainHelper = new DomainHelper(_domainCache);
 
             // walk up from that node until we hit a node with a domain,
             // or we reach the content root, collecting urls in the way

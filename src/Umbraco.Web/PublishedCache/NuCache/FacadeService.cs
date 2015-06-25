@@ -20,6 +20,7 @@ using Umbraco.Core.Services;
 using Umbraco.Web.Cache;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
+using Umbraco.Web.Routing;
 using Database = Umbraco.Web.PublishedCache.NuCache.DataSource.Database;
 #pragma warning disable 618
 using Content = umbraco.cms.businesslogic.Content;
@@ -36,6 +37,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private readonly ContentStore2 _contentStore;
         private readonly ContentStore2 _mediaStore;
+        private readonly SnapDictionary<int, Domain> _domainStore;
         private readonly object _storesLock = new object();
 
         private BPlusTree<int, ContentNodeKit> _localContentDb;
@@ -92,6 +94,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
             _contentStore = new ContentStore2(logger, _localContentDb);
             _mediaStore = new ContentStore2(logger, _localMediaDb);
+            _domainStore = new SnapDictionary<int, Domain>();
 
             if (Resolution.IsFrozen)
                 OnResolutionFrozen();
@@ -117,6 +120,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         LockAndLoadContent(LoadContentFromDatabaseLocked);
                         LockAndLoadMedia(LoadMediaFromDatabaseLocked);
                     }
+
+                    LockAndLoadDomains();
                 }
                 catch (Exception e)
                 {
@@ -370,6 +375,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
         //    return contentNode;
         //}
 
+        private void LockAndLoadDomains()
+        {
+            _domainStore.WriteLocked(() =>
+            {
+                var domains = _serviceContext.DomainService.GetAll(true);
+                foreach (var domain in domains)
+                    _domainStore.Set(domain.Id,
+                        new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+            });
+        }
+
         #endregion
 
         #region Maintain Stores
@@ -609,12 +625,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void NotifyDomain(int id, bool removed)
         {
-            // do not clear the facade cache - it's immutable
-            // a good number of things depend on this... just kill the snapshot cache entirely
-            lock (_storesLock)
+            if (removed)
             {
-                _snapshotCache = null;
+                _domainStore.Clear(id);
+                return;
             }
+
+            var domain = _serviceContext.DomainService.GetById(id);
+            _domainStore.WriteLocked(() =>
+            {
+                _domainStore.Set(id, new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+            });
         }
 
         #endregion
@@ -709,7 +730,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Create, Get Facade
 
-        private long _contentGen, _mediaGen;
+        private long _contentGen, _mediaGen, _domainGen;
         private ICacheProvider _snapshotCache;
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
@@ -730,18 +751,21 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // for snapshot cache, StaticCacheProvider is a No-No, use something better.
 
             ContentStore2.Snapshot contentSnap, mediaSnap;
+            SnapDictionary<int, Domain>.Snapshot domainSnap;
             ICacheProvider snapshotCache;
             lock (_storesLock)
             {
                 contentSnap = _contentStore.CreateSnapshot();
                 mediaSnap = _mediaStore.CreateSnapshot();
+                domainSnap = _domainStore.CreateSnapshot();
                 snapshotCache = _snapshotCache;
 
                 // create a new snapshot cache if snapshots are different gens
-                if (contentSnap.Gen != _contentGen || mediaSnap.Gen != _mediaGen || _snapshotCache == null)
+                if (contentSnap.Gen != _contentGen || mediaSnap.Gen != _mediaGen || domainSnap.Gen != _domainGen || _snapshotCache == null)
                 {
                     _contentGen = contentSnap.Gen;
                     _mediaGen = mediaSnap.Gen;
+                    _domainGen = domainSnap.Gen;
                     snapshotCache = _snapshotCache = new DictionaryCacheProvider();
                 }
             }
@@ -751,11 +775,14 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 : new StaticCacheProvider(); // assuming that's OK for tests, etc
             var memberTypeCache = new PublishedContentTypeCache(null, null, _serviceContext.MemberTypeService);
 
+            var domainCache = new DomainCache(domainSnap);
+
             return new Facade.FacadeElements
             {
-                ContentCache = new ContentCache(previewDefault, contentSnap, facadeCache, snapshotCache, _serviceContext.DomainService),
+                ContentCache = new ContentCache(previewDefault, contentSnap, facadeCache, snapshotCache, new DomainHelper(domainCache)),
                 MediaCache = new MediaCache(previewDefault, mediaSnap),
                 MemberCache = new MemberCache(previewDefault, _serviceContext.MemberService, _serviceContext.DataTypeService, memberTypeCache),
+                DomainCache = domainCache,
                 FacadeCache = facadeCache,
                 SnapshotCache = snapshotCache
             };

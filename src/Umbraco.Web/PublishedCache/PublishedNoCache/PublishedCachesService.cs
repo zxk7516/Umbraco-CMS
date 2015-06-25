@@ -25,10 +25,11 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
             var preview = previewToken.IsNullOrWhiteSpace() == false;
-            var contentCache = new PublishedContentCache(previewToken, _services.DomainService, _services.ContentService, _services.ContentTypeService);
+            var domainCache = new DomainCache(_services.DomainService);
+            var contentCache = new PublishedContentCache(previewToken, domainCache, _services.ContentService, _services.ContentTypeService);
             var mediaCache = new PublishedMediaCache(preview, _services.MediaService, _services.MediaTypeService);
             var memberCache = new PublishedMemberCache(_services.DataTypeService, _services.MemberService, _services.ContentTypeService);
-            return new PublishedCaches(contentCache, mediaCache, memberCache);
+            return new PublishedCaches(contentCache, mediaCache, memberCache, domainCache);
         }
 
         public override string EnterPreview(IUser user, int contentId)

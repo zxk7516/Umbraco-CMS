@@ -30,6 +30,11 @@ namespace Umbraco.Tests.PublishedContent
             get { return null; }
         }
 
+        public IDomainCache DomainCache
+        {
+            get { return null; }
+        }
+
         public void Resync()
         { }
     }

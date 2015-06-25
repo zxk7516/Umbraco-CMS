@@ -89,13 +89,16 @@ namespace Umbraco.Tests.Cache.PublishedCache
 		    var xmlStore = new XmlStore(() => _xml);
 		    var cacheProvider = new StaticCacheProvider();
 
+            var domainCache = new DomainCache(ServiceContext.DomainService);
+
 		    _umbracoContext = new UmbracoContext(
                 _httpContextFactory.HttpContext,
                 ApplicationContext,
                 new PublishedCaches(
-                    new PublishedContentCache(xmlStore, ServiceContext.DomainService, cacheProvider, ContentTypesCache, null, null),
+                    new PublishedContentCache(xmlStore, domainCache, cacheProvider, ContentTypesCache, null, null),
                     new PublishedMediaCache(xmlStore, ServiceContext.MediaService, cacheProvider, ContentTypesCache),
-                    new PublishedMemberCache(null, cacheProvider, ApplicationContext.Services.MemberService, ContentTypesCache)),
+                    new PublishedMemberCache(null, cacheProvider, ApplicationContext.Services.MemberService, ContentTypesCache),
+                    domainCache),
                 new WebSecurity(_httpContextFactory.HttpContext, ApplicationContext));
 
 		    _cache = _umbracoContext.ContentCache;

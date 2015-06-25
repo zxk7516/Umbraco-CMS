@@ -10,16 +10,22 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         private readonly PublishedContentCache _contentCache;
         private readonly PublishedMediaCache _mediaCache;
         private readonly PublishedMemberCache _memberCache;
+        private readonly DomainCache _domainCache;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PublishedCaches"/> class with a content cache
         /// and a media cache.
         /// </summary>
-        public PublishedCaches(PublishedContentCache contentCache, PublishedMediaCache mediaCache, PublishedMemberCache memberCache)
+        public PublishedCaches(
+            PublishedContentCache contentCache, 
+            PublishedMediaCache mediaCache, 
+            PublishedMemberCache memberCache,
+            DomainCache domainCache)
         {
             _contentCache = contentCache;
             _mediaCache = mediaCache;
             _memberCache = memberCache;
+            _domainCache = domainCache;
         }
 
         /// <summary>
@@ -44,6 +50,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         public IPublishedMemberCache MemberCache
         {
             get { return _memberCache; }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="IDomainCache"/>.
+        /// </summary>
+        public IDomainCache DomainCache
+        {
+            get { return _domainCache; }
         }
 
         /// <summary>

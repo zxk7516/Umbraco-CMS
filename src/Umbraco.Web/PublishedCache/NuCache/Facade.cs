@@ -26,6 +26,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             public ContentCache ContentCache;
             public MediaCache MediaCache;
             public MemberCache MemberCache;
+            public DomainCache DomainCache;
             public ICacheProvider FacadeCache;
             public ICacheProvider SnapshotCache;
 
@@ -103,6 +104,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         public IPublishedMediaCache MediaCache { get { return Elements.MediaCache; } }
 
         public IPublishedMemberCache MemberCache { get { return Elements.MemberCache; } }
+
+        public IDomainCache DomainCache { get { return Elements.DomainCache; } }
 
         #endregion
 

@@ -37,7 +37,7 @@ namespace Umbraco.Web.Routing
                     isProfile = true;
 					LogHelper.Debug<ContentFinderByProfile>("Path \"{0}\" is the profile path", () => path);
 
-					var route = docRequest.HasDomain ? (docRequest.Domain.RootNodeId.ToString() + path) : path;
+					var route = docRequest.HasDomain ? (docRequest.Domain.ContentId.ToString() + path) : path;
 					node = FindContent(docRequest, route);
 
                     if (node != null)

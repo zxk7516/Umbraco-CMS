@@ -25,5 +25,10 @@ namespace Umbraco.Web.PublishedCache
         /// Gets the <see cref="IPublishedMemberCache"/>.
         /// </summary>
         IPublishedMemberCache MemberCache { get; }
+
+        /// <summary>
+        /// Gets the <see cref="IDomainCache"/>.
+        /// </summary>
+        IDomainCache DomainCache { get; }
     }
 }

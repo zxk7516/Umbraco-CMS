@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.Membership;
-using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Core.Services;
-using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
+    /// <summary>
+    /// Implements a facade service.
+    /// </summary>
     class PublishedCachesService : PublishedCachesServiceBase
     {
         private readonly XmlStore _xmlStore;
@@ -70,10 +69,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // the current caches, but that would mean creating an extra cache (StaticCache
             // probably) so better use RequestCache.
 
+            var domainCache = new DomainCache(_domainService);
+
             return new PublishedCaches(
-                new PublishedContentCache(_xmlStore, _domainService, _requestCache, _contentTypeCache, _routesCache, previewToken),
+                new PublishedContentCache(_xmlStore, domainCache, _requestCache, _contentTypeCache, _routesCache, previewToken),
                 new PublishedMediaCache(_xmlStore, _mediaService, _requestCache, _contentTypeCache),
-                new PublishedMemberCache(_xmlStore, _requestCache, _memberService, _contentTypeCache));
+                new PublishedMemberCache(_xmlStore, _requestCache, _memberService, _contentTypeCache),
+                domainCache);
         }
 
         #endregion

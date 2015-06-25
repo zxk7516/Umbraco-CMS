@@ -6,6 +6,7 @@ using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Services;
 using Umbraco.Web.Routing;
+using Domain = Umbraco.Web.Routing.Domain;
 
 namespace Umbraco.Web.Models
 {
@@ -48,8 +49,11 @@ namespace Umbraco.Web.Models
                 ? null // for tests only
                 : umbracoContext.ContentCache.GetRouteById(contentId); // cached
 
-            var domainHelper = new DomainHelper(domainService);
-            IDomain domain;
+            var domainCache = umbracoContext == null
+                ? new PublishedCache.XmlPublishedCache.DomainCache(domainService) // for tests only
+                : umbracoContext.PublishedCaches.DomainCache; // default
+            var domainHelper = new DomainHelper(domainCache);
+            Domain domain;
 
             if (route == null)
             {
@@ -67,7 +71,7 @@ namespace Umbraco.Web.Models
                     hasDomain = content != null && domainHelper.NodeHasDomains(content.Id);
                 }
 
-                domain = hasDomain ? domainHelper.DomainForNode(content.Id, current).UmbracoDomain : null;
+                domain = hasDomain ? domainHelper.DomainForNode(content.Id, current) : null;
             }
             else
             {
@@ -77,16 +81,14 @@ namespace Umbraco.Web.Models
                 var pos = route.IndexOf('/');
                 domain = pos == 0
                     ? null
-                    : domainHelper.DomainForNode(int.Parse(route.Substring(0, pos)), current).UmbracoDomain;
+                    : domainHelper.DomainForNode(int.Parse(route.Substring(0, pos)), current);
               }
 
             if (domain == null)
                 return GetDefaultCulture(localizationService);
 
-            var wcDomain = DomainHelper.FindWildcardDomainInPath(domainService.GetAll(true), contentPath, domain.RootContent.Id);
-            return wcDomain == null
-                ? new CultureInfo(domain.Language.IsoCode)
-                : new CultureInfo(wcDomain.Language.IsoCode);
+            var wcDomain = DomainHelper.FindWildcardDomainInPath(domainCache.GetAll(true), contentPath, domain.ContentId);
+            return wcDomain == null ? domain.Culture : wcDomain.Culture;
         }
 
         private static CultureInfo GetDefaultCulture(ILocalizationService localizationService)

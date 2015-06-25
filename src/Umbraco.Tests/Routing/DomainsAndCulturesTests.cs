@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Moq;
+using System.Threading;
 using NUnit.Framework;
 using Umbraco.Core.Models;
 using Umbraco.Tests.TestHelpers;
-using Umbraco.Web;
 using Umbraco.Web.Routing;
-using umbraco.cms.businesslogic.web;
-using System.Configuration;
+using ContentExtensions = Umbraco.Web.Models.ContentExtensions;
 
 namespace Umbraco.Tests.Routing
 {
@@ -303,7 +298,7 @@ namespace Umbraco.Tests.Routing
             SetDomains2();
 
             // defaults depend on test environment
-            expectedCulture = expectedCulture ?? System.Threading.Thread.CurrentThread.CurrentUICulture.Name;
+            expectedCulture = expectedCulture ?? Thread.CurrentThread.CurrentUICulture.Name;
 
             var routingContext = GetRoutingContext(inputUrl);
             var url = routingContext.UmbracoContext.CleanedUmbracoUrl;
@@ -365,7 +360,7 @@ namespace Umbraco.Tests.Routing
             var content = umbracoContext.ContentCache.GetById(nodeId);
             Assert.IsNotNull(content);
 
-            var culture = Web.Models.ContentExtensions.GetCulture(umbracoContext, domainService, null, null, content.Id, content.Path, new Uri(currentUrl));
+            var culture = ContentExtensions.GetCulture(umbracoContext, domainService, null, null, content.Id, content.Path, new Uri(currentUrl));
             Assert.AreEqual(expectedCulture, culture.Name);
         }
     }

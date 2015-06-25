@@ -3,14 +3,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Web.Security;
+using umbraco;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Configuration.UmbracoSettings;
 using Umbraco.Core.Models;
-
-using umbraco;
-using umbraco.cms.businesslogic.web;
-using RenderingEngine = Umbraco.Core.RenderingEngine;
 
 namespace Umbraco.Web.Routing
 {
@@ -350,30 +347,18 @@ namespace Umbraco.Web.Routing
 
 		#region Domain and Culture
 
-	    [Obsolete("Do not use this property, use the non-legacy UmbracoDomain property instead")]
-	    public Domain Domain
-	    {
-	        get { return new Domain(UmbracoDomain); }
-	    }
-
-        //TODO: Should we publicize the setter now that we are using a non-legacy entity??
+        //FIXME TODO: Should we publicize the setter now that we are using a non-legacy entity??
         /// <summary>
         /// Gets or sets the content request's domain.
         /// </summary>
-        public IDomain UmbracoDomain { get; internal set; }
-
-		/// <summary>
-		/// Gets or sets the content request's domain Uri.
-		/// </summary>
-		/// <remarks>The <c>Domain</c> may contain "example.com" whereas the <c>Uri</c> will be fully qualified eg "http://example.com/".</remarks>
-		public Uri DomainUri { get; internal set; }
+        public DomainAndUri Domain { get; internal set; }
 
 		/// <summary>
 		/// Gets a value indicating whether the content request has a domain.
 		/// </summary>
 		public bool HasDomain
 		{
-			get { return UmbracoDomain != null; }
+            get { return Domain != null; }
 		}
 
 	    private CultureInfo _culture;

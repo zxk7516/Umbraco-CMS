@@ -26,7 +26,7 @@ namespace Umbraco.Web.Routing
             string path = docRequest.Uri.GetAbsolutePathDecoded();
 
             if (docRequest.HasDomain)
-                path = DomainHelper.PathRelativeToDomain(docRequest.DomainUri, path);
+                path = DomainHelper.PathRelativeToDomain(docRequest.Domain.Uri, path);
 
             if (path != "/") // no template if "/"
             {
@@ -39,7 +39,7 @@ namespace Umbraco.Web.Routing
                 {
                     LogHelper.Debug<ContentFinderByNiceUrlAndTemplate>("Valid template: \"{0}\"", () => templateAlias);
 
-                    var route = docRequest.HasDomain ? (docRequest.Domain.RootNodeId.ToString() + path) : path;
+                    var route = docRequest.HasDomain ? (docRequest.Domain.ContentId.ToString() + path) : path;
                     node = FindContent(docRequest, route);
 
                     if (UmbracoConfig.For.UmbracoSettings().WebRouting.DisableAlternativeTemplates == false && node != null)

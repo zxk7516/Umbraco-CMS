@@ -25,13 +25,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Constructor
 
-        public ContentCache(bool previewDefault, ContentStore2.Snapshot snapshot, ICacheProvider facadeCache, ICacheProvider snapshotCache, IDomainService domainService)
+        public ContentCache(bool previewDefault, ContentStore2.Snapshot snapshot, ICacheProvider facadeCache, ICacheProvider snapshotCache, DomainHelper domainHelper)
             : base(previewDefault)
         {
             _snapshot = snapshot;
             _facadeCache = facadeCache;
             _snapshotCache = snapshotCache;
-            _domainHelper = new DomainHelper(domainService);
+            _domainHelper = domainHelper;
         }
 
         #endregion

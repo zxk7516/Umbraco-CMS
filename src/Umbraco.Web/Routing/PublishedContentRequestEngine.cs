@@ -239,7 +239,8 @@ namespace Umbraco.Web.Routing
 			ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Uri=\"{1}\"", () => tracePrefix, () => _pcr.Uri);
 
 			// try to find a domain matching the current request
-            var domainAndUri = DomainHelper.DomainForUri(Services.DomainService.GetAll(false), _pcr.Uri);
+		    var domainCache = _routingContext.UmbracoContext.PublishedCaches.DomainCache;
+            var domainAndUri = DomainHelper.DomainForUri(domainCache.GetAll(false), _pcr.Uri);
 
 			// handle domain
 			if (domainAndUri != null)
@@ -247,13 +248,12 @@ namespace Umbraco.Web.Routing
 				// matching an existing domain
 				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Matches domain=\"{1}\", rootId={2}, culture=\"{3}\"",
 												 () => tracePrefix,
-												 () => domainAndUri.UmbracoDomain.DomainName,
-												 () => domainAndUri.UmbracoDomain.RootContent.Id,
-                                                 () => domainAndUri.UmbracoDomain.Language.IsoCode);
+												 () => domainAndUri.Name,
+												 () => domainAndUri.ContentId,
+                                                 () => domainAndUri.Culture);
 
-                _pcr.UmbracoDomain = domainAndUri.UmbracoDomain;
-				_pcr.DomainUri = domainAndUri.Uri;
-                _pcr.Culture = new CultureInfo(domainAndUri.UmbracoDomain.Language.IsoCode);
+                _pcr.Domain = domainAndUri;
+                _pcr.Culture = domainAndUri.Culture;
 
 				// canonical? not implemented at the moment
 				// if (...)
@@ -273,7 +273,7 @@ namespace Umbraco.Web.Routing
 
 			ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Culture=\"{1}\"", () => tracePrefix, () => _pcr.Culture.Name);
 
-			return _pcr.UmbracoDomain != null;
+			return _pcr.Domain != null;
 		}
 
 		/// <summary>
@@ -288,14 +288,15 @@ namespace Umbraco.Web.Routing
 
 			var nodePath = _pcr.PublishedContent.Path;
 			ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Path=\"{1}\"", () => tracePrefix, () => nodePath);
-            var rootNodeId = _pcr.HasDomain ? _pcr.UmbracoDomain.RootContent.Id : (int?)null;
-            var domain = DomainHelper.FindWildcardDomainInPath(Services.DomainService.GetAll(true), nodePath, rootNodeId);
+            var rootNodeId = _pcr.HasDomain ? _pcr.Domain.ContentId : (int?)null;
+            var domainCache = _routingContext.UmbracoContext.PublishedCaches.DomainCache;
+            var domain = DomainHelper.FindWildcardDomainInPath(domainCache.GetAll(true), nodePath, rootNodeId);
 
 			if (domain != null)
 			{
-				_pcr.Culture = new CultureInfo(domain.Language.IsoCode);
+				_pcr.Culture = domain.Culture;
 				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Got domain on node {1}, set culture to \"{2}\".", () => tracePrefix,
-                    () => domain.RootContent.Id, () => _pcr.Culture.Name);
+                    () => domain.ContentId, () => _pcr.Culture.Name);
 			}
 			else
 			{

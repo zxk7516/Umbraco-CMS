@@ -1,25 +1,29 @@
-﻿using Umbraco.Core;
-
-namespace Umbraco.Web.PublishedCache.XmlPublishedCache
+﻿namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
     /// <summary>
-    /// Provides caches (content and media).
+    /// Implements a facade.
     /// </summary>
     class PublishedCaches : IPublishedCaches
     {
         private readonly PublishedContentCache _contentCache;
         private readonly PublishedMediaCache _mediaCache;
         private readonly PublishedMemberCache _memberCache;
+        private readonly DomainCache _domainCache;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PublishedCaches"/> class with a content cache
         /// and a media cache.
         /// </summary>
-        public PublishedCaches(PublishedContentCache contentCache, PublishedMediaCache mediaCache, PublishedMemberCache memberCache)
+        public PublishedCaches(
+            PublishedContentCache contentCache, 
+            PublishedMediaCache mediaCache, 
+            PublishedMemberCache memberCache,
+            DomainCache domainCache)
         {
             _contentCache = contentCache;
             _mediaCache = mediaCache;
             _memberCache = memberCache;
+            _domainCache = domainCache;
         }
 
         /// <summary>
@@ -46,6 +50,14 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             get { return _memberCache; }
         }
 
+        /// <summary>
+        /// Gets the <see cref="IDomainCache"/>.
+        /// </summary>
+        public IDomainCache DomainCache
+        {
+            get { return _domainCache; }
+        }
+
         public static void ResyncCurrent()
         {
             if (PublishedCachesServiceResolver.HasCurrent == false) return;
@@ -56,6 +68,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             facade._contentCache.Resync();
             facade._mediaCache.Resync();
 
+            // FIXME media cache resync? also domains?!
             // note: the media cache does not resync because it is fully sync
             // note: the member cache does not resync...
             // not very consistent but we're not trying to fix it at that point
