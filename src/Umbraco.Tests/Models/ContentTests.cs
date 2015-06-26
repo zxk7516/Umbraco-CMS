@@ -41,7 +41,13 @@ namespace Umbraco.Tests.Models
         {
             var mediaType = MockedContentTypes.CreateImageMediaType();
             var media = MockedMedia.CreateMediaFile(mediaType, -1);
+
+            // this is NOT how we should do it, we should "move to recycle bin"
+            // as it causes various things to change... IsInRecycleBin looks for
+            // the path but Trashed looks for the flag!
             media.Path = path;
+            ((Media) media).Trashed = isInBin;
+
             media.Id = 34;
 
             Assert.AreEqual(isInBin, media.IsInRecycleBin());
@@ -56,7 +62,13 @@ namespace Umbraco.Tests.Models
         {
             var contentType = MockedContentTypes.CreateSimpleContentType();
             var content = MockedContent.CreateSimpleContent(contentType);
+            
+            // this is NOT how we should do it, we should "move to recycle bin"
+            // as it causes various things to change... IsInRecycleBin looks for
+            // the path but Trashed looks for the flag!
             content.Path = path;
+            content.Trashed = isInBin;
+            
             content.Id = 34;
 
             Assert.AreEqual(isInBin, content.IsInRecycleBin());
