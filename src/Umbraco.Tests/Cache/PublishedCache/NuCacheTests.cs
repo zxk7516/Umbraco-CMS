@@ -299,14 +299,17 @@ namespace Umbraco.Tests.Cache.PublishedCache
             store.Set(kit2);
 
             // we haven't requested a view yet
-            Assert.AreEqual(0, store.SnapCount);
+            Assert.AreEqual(0, store.GenCount);
 
-            // get a view
-            // now we should have one view, which has no local content
-            // and if we get a view again, we should get the same view
+            // get a snapshot, and again
             var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, store.GenCount);
             Assert.AreEqual(1, store.SnapCount);
-            Assert.AreSame(snap1, store.CreateSnapshot());
+            var snap1B = store.CreateSnapshot();
+            Assert.AreNotSame(snap1, snap1B);
+            Assert.AreEqual(snap1.Gen, snap1B.Gen);
+            Assert.AreEqual(1, store.GenCount);
+            Assert.AreEqual(2, store.SnapCount);
 
             // try to get content
             Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
@@ -316,13 +319,18 @@ namespace Umbraco.Tests.Cache.PublishedCache
             store.Set(kit1);
 
 
-            // get a view
-            // now we should have two views, one with local content and one without
-            // and if we get a view again, we should get the same view
+            // get a snapshot, and again
             var snap2 = store.CreateSnapshot();
-            Assert.AreEqual(2, store.SnapCount);
+            Assert.AreEqual(2, store.GenCount);
+            Assert.AreEqual(3, store.SnapCount);
             Assert.AreNotSame(snap1, snap2);
-            Assert.AreEqual(snap2, store.CreateSnapshot());
+            Assert.AreNotSame(snap1B, snap2);
+            Assert.AreEqual(snap1.Gen + 1, snap2.Gen);
+            var snap2B = store.CreateSnapshot();
+            Assert.AreNotSame(snap2, snap2B);
+            Assert.AreNotSame(snap2.Gen, snap2B.Gen);
+            Assert.AreEqual(2, store.GenCount);
+            Assert.AreEqual(4, store.SnapCount);
 
             // try to get content
             Assert.AreSame(kit1.Node, snap2.Get(kit1.Node.Id));
@@ -338,17 +346,21 @@ namespace Umbraco.Tests.Cache.PublishedCache
             Assert.AreSame(snap1.Get(kit2.Node.Id), snap2.Get(kit2.Node.Id));
 
             // dereference snap1 and it's (not) gone
-            snap1 = null;
+            snap1 = snap1B = null;
             GC.Collect();
-            Assert.AreEqual(2, store.SnapCount);
+            Assert.AreEqual(2, store.GenCount);
+            Assert.AreEqual(4, store.SnapCount);
             await store.CollectAsync();
-            Assert.AreEqual(1, store.SnapCount);
+            Assert.AreEqual(1, store.GenCount);
+            Assert.AreEqual(2, store.SnapCount);
 
             // dereference snap2 and it's (not) gone
-            snap2 = null;
+            snap2 = snap2B = null;
             GC.Collect();
-            Assert.AreEqual(1, store.SnapCount);
+            Assert.AreEqual(1, store.GenCount);
+            Assert.AreEqual(2, store.SnapCount);
             await store.CollectAsync();
+            Assert.AreEqual(0, store.GenCount);
             Assert.AreEqual(0, store.SnapCount);
         }
 
@@ -384,12 +396,17 @@ namespace Umbraco.Tests.Cache.PublishedCache
             var kit2 = CreateContentNodeKit(2, 2, null, 3456);
             store.Set(kit1);
             store.Set(kit2);
-            Assert.AreEqual(0, store.SnapCount);
+            Assert.AreEqual(0, store.GenCount);
 
             var snap1 = store.CreateSnapshot();
+            Assert.AreEqual(1, store.GenCount);
             Assert.AreEqual(1, store.SnapCount);
             Assert.IsFalse(snap1.IsEmpty);
-            Assert.AreSame(snap1, store.CreateSnapshot());
+            var snap1B = store.CreateSnapshot();
+            Assert.AreNotSame(snap1, snap1B);
+            Assert.AreEqual(snap1.Gen, snap1B.Gen);
+            Assert.AreEqual(1, store.GenCount);
+            Assert.AreEqual(2, store.SnapCount);
 
             Assert.AreSame(kit1.Node, snap1.Get(kit1.Node.Id));
             Assert.AreSame(kit2.Node, snap1.Get(kit2.Node.Id));

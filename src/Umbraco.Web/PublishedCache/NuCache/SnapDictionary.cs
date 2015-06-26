@@ -438,9 +438,17 @@ namespace Umbraco.Web.PublishedCache.NuCache
             //    await task;
         }
 
-        public long SnapCount
+        public long GenCount
         {
             get { return _genRefRefs.Count; }
+        }
+
+        public long SnapCount
+        {
+            get
+            {
+                return _genRefRefs.Sum(x => x.Count);
+            }
         }
 
         #endregion

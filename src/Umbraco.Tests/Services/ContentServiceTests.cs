@@ -17,7 +17,6 @@ using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Services;
 using Umbraco.Tests.TestHelpers;
 using Umbraco.Tests.TestHelpers.Entities;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Tests.Services
 {
@@ -151,10 +150,10 @@ namespace Umbraco.Tests.Services
             ServiceContext.ContentTypeService.Save(contentType);
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
             ServiceContext.ContentService.PublishWithStatus(content);
-            content.Properties.First().Value = "changed";
+            content.Properties["title"].Value = "changed";
             ServiceContext.ContentService.PublishWithStatus(content);
             var c = ServiceContext.ContentService.GetById(content.Id);
-            Assert.AreEqual("changed", c.Properties.First().Value);
+            Assert.AreEqual("changed", c.Properties["title"].Value);
         }
 
         [Test]
@@ -164,10 +163,10 @@ namespace Umbraco.Tests.Services
             ServiceContext.ContentTypeService.Save(contentType);
             var content = MockedContent.CreateTextpageContent(contentType, "Textpage", -1);
             ServiceContext.ContentService.PublishWithStatus(content);
-            content.Properties.First().Value = "changed";
+            content.Properties["title"].Value = "changed";
             ServiceContext.ContentService.PublishWithChildrenWithStatus(content);
             var c = ServiceContext.ContentService.GetById(content.Id);
-            Assert.AreEqual("changed", c.Properties.First().Value);
+            Assert.AreEqual("changed", c.Properties["title"].Value);
         }
 
         #region Tags

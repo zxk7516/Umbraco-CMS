@@ -1317,8 +1317,8 @@ AND cmsContentNu.nodeId IS NULL
                 && VerifyMediaDbCache()
                 && VerifyMemberDbCache();
 
-            var cs = _contentStore.SnapCount;
-            var ms = _mediaStore.SnapCount;
+            var cs = _contentStore.GenCount;
+            var ms = _mediaStore.GenCount;
             var ce = _contentStore.Count;
             var me = _mediaStore.Count;
 

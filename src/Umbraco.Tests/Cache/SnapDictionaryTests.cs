@@ -185,9 +185,13 @@ namespace Umbraco.Tests.Cache
                 d.CreateSnapshot().Dispose();
             }
 
+            Assert.AreEqual(32, d.GenCount);
+            Assert.AreEqual(0, d.SnapCount); // because we've disposed them
+
             await d.CollectAsync();
             Assert.AreEqual(32, d.Test.LiveGen);
             Assert.IsFalse(d.Test.NextGen);
+            Assert.AreEqual(0, d.GenCount);
             Assert.AreEqual(0, d.SnapCount);
             Assert.AreEqual(32, d.Count);
 
@@ -196,13 +200,15 @@ namespace Umbraco.Tests.Cache
 
             d.CreateSnapshot().Dispose();
 
-            // because we haven't collected yet
-            Assert.AreEqual(1, d.SnapCount);
+            // because we haven't collected yet, but disposed nevertheless
+            Assert.AreEqual(1, d.GenCount);
+            Assert.AreEqual(0, d.SnapCount);
             Assert.AreEqual(32, d.Count);
 
             // once we collect, they are all gone
             // since noone is interested anymore
             await d.CollectAsync();
+            Assert.AreEqual(0, d.GenCount);
             Assert.AreEqual(0, d.SnapCount);
             Assert.AreEqual(0, d.Count);
         }
@@ -477,35 +483,10 @@ namespace Umbraco.Tests.Cache
             Assert.AreEqual(3, d.SnapCount);
             Assert.AreEqual(3, d.Test.GetValues(1).Length);
 
-
             GC.Collect();
             await d.CollectAsync();
             Assert.AreEqual(0, d.SnapCount);
             Assert.AreEqual(1, d.Test.GetValues(1).Length);
-        }
-
-        [Test]
-        public async void CollectsSnapshots()
-        {
-            var d = new SnapDictionary<int, string>();
-            d.Set(1, "one");
-            d.CreateSnapshot();
-            d.Set(1, "two");
-            d.CreateSnapshot();
-            d.Set(1, "three");
-            d.CreateSnapshot();
-            d.Set(1, "four");
-            d.CreateSnapshot();
-            d.Set(1, "five");
-            d.CreateSnapshot();
-            d.Set(1, "six");
-            d.CreateSnapshot();
-            Assert.AreEqual(6, d.SnapCount);
-            GC.Collect();
-            d.Set(1, "seven");
-            d.CreateSnapshot();
-            await d.PendingCollect();
-            Assert.AreEqual(1, d.SnapCount);
         }
 
         [Test]

@@ -42,7 +42,7 @@ namespace Umbraco.Core.Services
             if (typeof(T).Implements<IMediaType>())
                 return services.MediaTypeService as IContentTypeServiceBase<T>;
             if (typeof(T).Implements<IMemberType>())
-                return services.MediaTypeService as IContentTypeServiceBase<T>;
+                return services.MemberTypeService as IContentTypeServiceBase<T>;
             throw new ArgumentException("Type " + typeof(T).FullName + " does not have a service.");
         }
 
@@ -273,8 +273,7 @@ namespace Umbraco.Core.Services
 
             foreach (var contentType in contentTypes)
             {
-                var dirty = contentType as IRememberBeingDirty;
-                if (dirty == null) throw new Exception("oops");
+                var dirty = (IRememberBeingDirty) contentType;
 
                 // skip new content types
                 var isNewContentType = dirty.WasPropertyDirty("HasIdentity");
@@ -317,7 +316,7 @@ namespace Umbraco.Core.Services
                     AddChange(changes, contentType, ChangeTypes.RefreshMain);
 
                     if (hasPropertyMainImpact)
-                        foreach (var c in contentType.ComposedOf().Cast<TItem>())
+                        foreach (var c in contentType.ComposedOf())
                             AddChange(changes, c, ChangeTypes.RefreshMain);
                 }
                 else
@@ -460,7 +459,7 @@ namespace Umbraco.Core.Services
             }
 
             OnSaved(new SaveEventArgs<TItem>(item, false));
-            Audit(AuditType.Save, string.Format("Save MediaType performed by user"), userId, item.Id);
+            Audit(AuditType.Save, "Save MediaType performed by user", userId, item.Id);
         }
 
         public void Save(IEnumerable<TItem> items, int userId = 0)
@@ -498,7 +497,7 @@ namespace Umbraco.Core.Services
             }
 
             OnSaved(new SaveEventArgs<TItem>(itemsA, false));
-            Audit(AuditType.Save, string.Format("Save MediaTypes performed by user"), userId, -1);
+            Audit(AuditType.Save, "Save MediaTypes performed by user", userId, -1);
         }
 
         #endregion
@@ -516,7 +515,6 @@ namespace Umbraco.Core.Services
             {
                 // all descendants are going to be deleted
                 var descendantsAndSelf = item.DescendantsAndSelf()
-                    .Cast<TItem>()
                     .ToArray();
 
                 // all impacted (through composition) probably lose some properties
@@ -524,8 +522,7 @@ namespace Umbraco.Core.Services
                 // do this before anything is deleted
                 var changed = descendantsAndSelf.SelectMany(xx => xx.ComposedOf())
                     .Distinct()
-                    .Except(descendantsAndSelf) // will be deleted anyway
-                    .Cast<TItem>()
+                    .Except(descendantsAndSelf)
                     .ToArray();
 
                 // delete content
@@ -554,7 +551,7 @@ namespace Umbraco.Core.Services
             }
 
             OnDeleted(new DeleteEventArgs<TItem>(item, false));
-            Audit(AuditType.Delete, string.Format("Delete MediaType performed by user"), userId, item.Id);
+            Audit(AuditType.Delete, "Delete MediaType performed by user", userId, item.Id);
         }
 
         /// <summary>
@@ -577,7 +574,6 @@ namespace Umbraco.Core.Services
                 // all descendants are going to be deleted
                 var allDescendantsAndSelf = itemsA.SelectMany(xx => xx.DescendantsAndSelf())
                     .Distinct()
-                    .Cast<TItem>()
                     .ToArray();
 
                 // all impacted (through composition) probably lose some properties
@@ -585,8 +581,7 @@ namespace Umbraco.Core.Services
                 // do this before anything is deleted
                 var changed = allDescendantsAndSelf.SelectMany(x => x.ComposedOf())
                     .Distinct()
-                    .Except(allDescendantsAndSelf) // will be deleted anyway
-                    .Cast<TItem>()
+                    .Except(allDescendantsAndSelf)
                     .ToArray();
 
                 // delete content
@@ -612,7 +607,7 @@ namespace Umbraco.Core.Services
             }
 
             OnDeleted(new DeleteEventArgs<TItem>(itemsA, false));
-            Audit(AuditType.Delete, string.Format("Delete MediaTypes performed by user"), userId, -1);
+            Audit(AuditType.Delete, "Delete MediaTypes performed by user", userId, -1);
         }
 
         protected abstract void DeleteItemsOfTypes(IEnumerable<int> typeIds);
