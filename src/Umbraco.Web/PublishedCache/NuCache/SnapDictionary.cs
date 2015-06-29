@@ -247,6 +247,23 @@ namespace Umbraco.Web.PublishedCache.NuCache
             return null;
         }
 
+        public IEnumerable<TValue> GetAll(long gen)
+        {
+            // enumerating on .Values locks the concurrent dictionary,
+            // so better get a shallow clone in an array and release
+            var links = _items.Values.ToArray();
+            return links.Select(link =>
+            {
+                while (link != null)
+                {
+                    if (link.Gen <= gen)
+                        return link.Value; // may be null
+                    link = link.Next;
+                }
+                return null;
+            }).Where(x => x != null);
+        }
+
         public bool IsEmpty(long gen)
         {
             var has = _items.Any(x =>
@@ -507,6 +524,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 if (_gen < 0)
                     throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
                 return _store.Get(key, _gen);
+            }
+
+            public IEnumerable<TValue> GetAll()
+            {
+                if (_gen < 0)
+                    throw new ObjectDisposedException("snapshot" /*+ " (" + _thisCount + ")"*/);
+                return _store.GetAll(_gen);
             }
 
             public bool IsEmpty
