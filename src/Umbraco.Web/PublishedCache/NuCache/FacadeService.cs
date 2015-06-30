@@ -35,6 +35,9 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private readonly ILogger _logger;
         private readonly Options _options;
 
+        // volatile because we read it with no lock
+        private volatile bool _isReady;
+
         private readonly ContentStore2 _contentStore;
         private readonly ContentStore2 _mediaStore;
         private readonly SnapDictionary<int, Domain> _domainStore;
@@ -42,7 +45,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private BPlusTree<int, ContentNodeKit> _localContentDb;
         private BPlusTree<int, ContentNodeKit> _localMediaDb;
-        private readonly bool _localDbX;
+        private readonly bool _localDbExists;
 
         // define constant - determines whether to use cache when previewing
         // to store eg routes, property converted values, anything - caching
@@ -71,6 +74,19 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _logger = logger;
             _options = options;
 
+            // we always want to handle repository events, configured or not
+            // assuming no repository event will trigger before the whole db is ready
+            // (ideally we'd have Upgrading.App vs Upgrading.Data application states...)
+            InitializeRepositoryEvents();
+
+            // however, the cache is NOT available until we are configured, because loading 
+            // content (and content types) from database cannot be consistent (see notes in "Handle 
+            // Notifications" region), so
+            // - notifications will be ignored
+            // - trying to obtain a facade from the service will throw
+            if (ApplicationContext.Current.IsConfigured == false)
+                return;
+
             if (_options.IgnoreLocalDb == false)
             {
                 var registered = mainDom.Register(
@@ -90,13 +106,25 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 {
                     var localContentDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Content.db");
                     var localMediaDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Media.db");
-                    _localDbX = System.IO.File.Exists(localContentDbPath) && System.IO.File.Exists(localMediaDbPath);
-                    _localContentDb = BTree.GetTree(localContentDbPath, _localDbX);
-                    _localMediaDb = BTree.GetTree(localMediaDbPath, _localDbX);
+                    _localDbExists = System.IO.File.Exists(localContentDbPath) && System.IO.File.Exists(localMediaDbPath);
+
+                    // if both local dbs exist then GetTree will open them, else new dbs will be created
+                    _localContentDb = BTree.GetTree(localContentDbPath, _localDbExists);
+                    _localMediaDb = BTree.GetTree(localMediaDbPath, _localDbExists);
                 }
+
+                // stores are created with a db so they can write to it, but they do not read from it,
+                // stores need to be populated, happens in OnResolutionFrozen which uses _localDbExists to
+                // figure out whether it can read the dbs or it should populate them from sql
+                _contentStore = new ContentStore2(logger, _localContentDb);
+                _mediaStore = new ContentStore2(logger, _localMediaDb);
             }
-            _contentStore = new ContentStore2(logger, _localContentDb);
-            _mediaStore = new ContentStore2(logger, _localMediaDb);
+            else
+            {
+                _contentStore = new ContentStore2(logger);
+                _mediaStore = new ContentStore2(logger);
+            }
+
             _domainStore = new SnapDictionary<int, Domain>();
 
             if (Resolution.IsFrozen)
@@ -107,13 +135,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private void OnResolutionFrozen()
         {
-            InitializeRepositoryEvents();
-
             lock (_storesLock)
             {
+                // populate the stores
+
                 try
                 {
-                    if (_localDbX)
+                    if (_localDbExists)
                     {
                         LockAndLoadContent(LoadContentFromLocalDbLocked);
                         LockAndLoadMedia(LoadMediaFromLocalDbLocked);
@@ -130,12 +158,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 {
                     _logger.Error<FacadeService>("Panic, exception while loading cache data.", e);
                 }
-            }
 
-            // temp - until we get rid of Content
-#pragma warning disable 618
-            Content.DeletedContent += OnDeletedContent;
-#pragma warning restore 618
+                // finaly, cache is ready!
+                _isReady = true;
+            }
         }
 
         private void InitializeRepositoryEvents()
@@ -161,6 +187,11 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // mostly to be sure - each node should have been deleted beforehand
             ContentRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin += OnEmptiedRecycleBin;
+
+            // temp - until we get rid of Content
+#pragma warning disable 618
+            Content.DeletedContent += OnDeletedContent;
+#pragma warning restore 618
         }
 
         public class Options
@@ -398,15 +429,36 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        #region Maintain Stores
+        #region Handle Notifications
 
-        // FIXME 
-        // when notified of a content or media RefreshAll we may NOT be initialized
-        // and then what? MUST log it and delete the database files! AND THEN we
-        // also want it on XmlStore?
+        // note: if the service is not ready, ie _isReady is false, then notifications are ignored
+
+        // SetUmbracoVersionStep issues a DistributedCache.Instance.RefreshAllFacade() call which should cause
+        // the entire content, media etc caches to reload from database -- and then the app restarts -- however,
+        // at the time SetUmbracoVersionStep runs, Umbraco is not fully initialized and therefore some property
+        // value converters, etc are not registered, and rebuilding the NuCache may not work properly.
+        //
+        // More details: ApplicationContext.IsConfigured being false, ApplicationEventHandler.ExecuteWhen... is
+        // called and in most cases events are skipped, so property value converters are not registered or
+        // removed, so PublishedPropertyType either initializes with the wrong converter, or throws because it
+        // detects more than one converter for a property type.
+        //
+        // It's not an issue for XmlStore - the app restart takes place *after* the install has refreshed the
+        // cache, and XmlStore just writes a new umbraco.config file upon RefreshAll, so that's OK.
+        //
+        // But for NuCache... we cannot rebuild the cache now. So it will NOT work and we are not fixing it,
+        // because now we should ALWAYS run with the database server messenger, and then the RefreshAll will
+        // be processed as soon as we are configured and the messenger processes instructions.
 
         public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
+            // no cache, nothing we can do
+            if (_isReady == false)
+            {
+                draftChanged = publishedChanged = false;
+                return;
+            }
+
             var draftChanged2 = false;
             var publishedChanged2 = false;
             _contentStore.WriteLocked(() =>
@@ -491,6 +543,13 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(MediaCacheRefresher.JsonPayload[] payloads, out bool anythingChanged)
         {
+            // no cache, nothing we can do
+            if (_isReady == false)
+            {
+                anythingChanged = false;
+                return;
+            }
+
             var anythingChanged2 = false;
             _mediaStore.WriteLocked(() =>
             {
@@ -569,6 +628,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(ContentTypeCacheRefresher.JsonPayload[] payloads)
         {
+            // no cache, nothing we can do
+            if (_isReady == false)
+                return;
+
             foreach (var payload in payloads)
                 LogHelper.Debug<XmlStore>("Notified {0} for {1} {2}".FormatWith(payload.ChangeTypes, payload.ItemType, payload.Id));
 
@@ -613,6 +676,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
         {
+            // no cache, nothing we can do
+            if (_isReady == false)
+                return;
+
             var idsA = payloads.Select(x => x.Id).ToArray();
 
             foreach (var payload in payloads)
@@ -639,6 +706,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override void Notify(DomainCacheRefresher.JsonPayload[] payloads)
         {
+            // no cache, nothing we can do
+            if (_isReady == false)
+                return;
+
             _domainStore.WriteLocked(() =>
             {
                 foreach (var payload in payloads)
@@ -665,7 +736,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #endregion
 
-        #region Manage change
+        #region Content Types
 
         private IEnumerable<PublishedContentType> CreateContentTypes(PublishedItemType itemType, params int[] ids)
         {
@@ -760,6 +831,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         public override IPublishedCaches CreatePublishedCaches(string previewToken)
         {
+            // no cache, no joy
+            if (_isReady == false)
+                throw new InvalidOperationException("The facade service has not properly initialized.");
+
             var preview = previewToken.IsNullOrWhiteSpace() == false;
             return new Facade(this, preview);
         }
@@ -836,6 +911,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Handle Repository Events For Database PreCache
 
+        // note: if the service is not ready, ie _isReady is false, then we still handle repository events,
+        // because we can, we do not need a working facade to do it - the only reason why it could cause an
+        // issue is if the database table is not ready, but that should be prevented by migrations.
+
         // we need them to be "repository" events ie to trigger from within the repository transaction,
         // because they need to be consistent with the content that is being refreshed/removed - and that
         // should be guaranteed by a DB transaction
@@ -870,7 +949,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private static bool HasChangesImpactingAllVersions(IContent icontent)
         {
-            var content = (Core.Models.Content)icontent;
+            var content = (Core.Models.Content) icontent;
 
             // UpdateDate will be dirty
             // Published may be dirty if saving a Published entity
@@ -890,7 +969,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 OnRepositoryRefreshed(db, c, false);
 
                 // if unpublishing, remove from table
-                if (((Core.Models.Content)c).PublishedState == PublishedState.Unpublishing)
+                if (((Core.Models.Content) c).PublishedState == PublishedState.Unpublishing)
                 {
                     db.Execute("DELETE FROM cmsContentNu WHERE nodeId=@id AND published=1", new { id = c.Id });
                     continue;
