@@ -347,7 +347,7 @@ namespace Umbraco.Web.Routing
 
 		#region Domain and Culture
 
-        //FIXME TODO: Should we publicize the setter now that we are using a non-legacy entity??
+        //TODO: Should we publicize the setter now that we are using a non-legacy entity??
         /// <summary>
         /// Gets or sets the content request's domain.
         /// </summary>

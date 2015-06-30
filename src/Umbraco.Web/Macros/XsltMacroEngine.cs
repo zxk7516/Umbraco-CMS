@@ -406,7 +406,8 @@ namespace Umbraco.Web.Macros
                         //var c = new global::umbraco.cms.businesslogic.Content(int.Parse(macroPropertyValue));
                         //macroXmlNode.AppendChild(macroXml.ImportNode(c.ToXml(global::umbraco.content.Instance.XmlContent, false), true));
                         var nav = UmbracoContext.Current.MediaCache.CreateNodeNavigator(int.Parse(macroPropertyValue), false);
-                        macroXmlNode.AppendChild(macroXml.ReadNode(nav.ReadSubtree()));
+                        if (nav != null)
+                            macroXmlNode.AppendChild(macroXml.ReadNode(nav.ReadSubtree()));
                     }
                     break;
 

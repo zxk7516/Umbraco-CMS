@@ -211,7 +211,7 @@ namespace umbraco.editorControls.MultiNodeTreePicker
             var nav = UmbracoContext.Current.ContentCache.CreateNodeNavigator(doc.Id, doc.Published == false);
 
             //var xmlString = "<root>" + xmlDoc.OuterXml + "</root>";
-            var xmlString = "<root>" + nav.OuterXml + "</root>";
+            var xmlString = "<root>" + (nav == null ? "" : nav.OuterXml) + "</root>";
 
             var xml = XElement.Parse(xmlString);
             xNode.DetermineClickable(xpath, xPathType, xml);

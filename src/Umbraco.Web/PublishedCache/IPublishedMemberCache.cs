@@ -14,7 +14,7 @@ namespace Umbraco.Web.PublishedCache
 
         XPathNavigator CreateNavigator(bool preview);
 
-        // fixme - what-if the node does not exist?
+        // if the node does not exist, return null
         XPathNavigator CreateNodeNavigator(int id, bool preview);
 
         /// <summary>

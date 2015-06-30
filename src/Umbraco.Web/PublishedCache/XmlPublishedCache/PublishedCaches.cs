@@ -68,10 +68,7 @@
             facade._contentCache.Resync();
             facade._mediaCache.Resync();
 
-            // FIXME media cache resync? also domains?!
-            // note: the media cache does not resync because it is fully sync
-            // note: the member cache does not resync...
-            // not very consistent but we're not trying to fix it at that point
+            // not trying to resync members or domains, which are not cached really
         }
     }
 }

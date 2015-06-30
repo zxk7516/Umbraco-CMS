@@ -23,27 +23,24 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         #region Constructors
 
-        // FIXME must cleanup those constructors?!
-
-        public PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
-            : this(serviceContext, databaseContext, requestCache,
-                new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MediaTypeService, serviceContext.MemberTypeService), false, true)
+        // used in StandaloneBootManager only, should get rid of that one eventually
+        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
+            : this(serviceContext, databaseContext, requestCache, null, false, true)
         { }
 
-        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext,
-            ICacheProvider requestCache,
-            bool testing, bool enableRepositoryEvents)
-            : this(serviceContext, databaseContext, requestCache,
-                new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MediaTypeService, serviceContext.MemberTypeService), testing, enableRepositoryEvents)
-        { }
-
-        // for testing
+        // used in some tests + in WebBootManager
         internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
-            PublishedContentTypeCache contentTypeCache,
             bool testing, bool enableRepositoryEvents)
+            : this(serviceContext, databaseContext, requestCache, null, testing, enableRepositoryEvents)
+        { }
+
+        // used in some tests
+        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
+            PublishedContentTypeCache contentTypeCache, bool testing, bool enableRepositoryEvents)
         {
             _routesCache = new RoutesCache();
-            _contentTypeCache = contentTypeCache;
+            _contentTypeCache = contentTypeCache
+                ?? new PublishedContentTypeCache(serviceContext.ContentTypeService, serviceContext.MediaTypeService, serviceContext.MemberTypeService);
 
             _xmlStore = new XmlStore(serviceContext, databaseContext, _routesCache, _contentTypeCache, testing, enableRepositoryEvents);
 
@@ -123,7 +120,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return XmlStore.VerifyContentAndPreviewXml();
         }
 
-        // FIXME missing LOCKS here ** AND IN MANY SIMILAR PLACES ** WTF?
         public void RebuildContentAndPreviewXml()
         {
             XmlStore.RebuildContentAndPreviewXml();

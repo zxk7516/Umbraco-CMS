@@ -60,45 +60,48 @@ namespace umbraco
         public XmlNode GetDocument(int NodeId, string ContextID)
         {
             XmlDocument xd = new XmlDocument();
-            if (BasePages.BasePage.ValidateUserContextID(ContextID))
-            {
-                //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
-                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
-                var node = xd.ReadNode(nav.ReadSubtree());
-                return node;
-            }
-            else
+            if (BasePages.BasePage.ValidateUserContextID(ContextID) == false)
                 return null;
+
+            //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+            var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
+            if (nav == null)
+                return null;
+
+            var node = xd.ReadNode(nav.ReadSubtree());
+            return node;
         }
 
         [WebMethod]
         public XmlNode GetMedia(int NodeId, string ContextID)
         {
             XmlDocument xd = new XmlDocument();
-            if (BasePages.BasePage.ValidateUserContextID(ContextID))
-            {
-                //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
-                var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
-                var node = xd.ReadNode(nav.ReadSubtree());
-                return node;
-            }
-            else
+            if (BasePages.BasePage.ValidateUserContextID(ContextID) == false)
                 return null;
+
+            //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+            var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
+            if (nav == null)
+                return null;
+
+            var node = xd.ReadNode(nav.ReadSubtree());
+            return node;
         }
 
         [WebMethod]
         public XmlNode GetMediaValidate(int NodeId, string Login, string Password)
         {
             XmlDocument xd = new XmlDocument();
-            if (BusinessLogic.User.validateCredentials(Login, Password))
-            {
-                //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
-                var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
-                var node = xd.ReadNode(nav.ReadSubtree());
-                return node;
-            }
-            else
+            if (BusinessLogic.User.validateCredentials(Login, Password) == false)
                 return null;
+
+            //return new cms.businesslogic.media.Media(NodeId).ToXml(xd, false);
+            var nav = Umbraco.Web.UmbracoContext.Current.MediaCache.CreateNodeNavigator(NodeId, false);
+            if (nav == null)
+                return null;
+
+            var node = xd.ReadNode(nav.ReadSubtree());
+            return node;
         }
 
 
@@ -106,15 +109,16 @@ namespace umbraco
         public XmlNode GetDocumentValidate(int NodeId, string Login, string Password)
         {
             XmlDocument xd = new XmlDocument();
-            if (BusinessLogic.User.validateCredentials(Login, Password))
-            {
-                //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
-                var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
-                var node = xd.ReadNode(nav.ReadSubtree());
-                return node;
-            }
-            else
+            if (BusinessLogic.User.validateCredentials(Login, Password) == false)
                 return null;
+
+            //return new cms.businesslogic.web.Document(NodeId).ToXml(xd, false);
+            var nav = Umbraco.Web.UmbracoContext.Current.ContentCache.CreateNodeNavigator(NodeId, false);
+            if (nav == null)
+                return null;
+
+            var node = xd.ReadNode(nav.ReadSubtree());
+            return node;
         }
 
         [WebMethod]

@@ -18,7 +18,7 @@ namespace Umbraco.Web.Mvc
             get
             {
                 // it's invalid to create a DynamicPublishedContent around a null content anyway
-                // fixme - should we return null or DynamicNull.Null?
+                // return null and not DynamicNull.Null, it's been like that forever
                 if (Model == null || Model.Content == null) return null;
                 return _currentPage ?? (_currentPage = Model.Content.AsDynamic());
             }
