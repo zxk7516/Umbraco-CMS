@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
@@ -26,6 +27,11 @@ namespace Umbraco.Core.Services
 
         // constant
         private static readonly int[] LockingRepositoryLockIds = { Constants.System.DomainsLock };
+
+        internal void WithReadLocked(Action<DomainRepository> action, bool autoCommit = true)
+        {
+            _lrepo.WithReadLocked(xr => action(xr.Repository), autoCommit);
+        }
 
         private readonly LockingRepository<DomainRepository> _lrepo;
 

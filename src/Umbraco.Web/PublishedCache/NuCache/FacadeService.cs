@@ -382,16 +382,28 @@ namespace Umbraco.Web.PublishedCache.NuCache
         {
             _domainStore.WriteLocked(() =>
             {
-                var domains = _serviceContext.DomainService.GetAll(true);
-                foreach (var domain in domains)
-                    _domainStore.Set(domain.Id,
-                        new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+                var domainService = _serviceContext.DomainService as DomainService;
+                if (domainService == null) throw new Exception("oops");
+                domainService.WithReadLocked(_ => LoadDomainsLocked());
             });
+        }
+
+        private void LoadDomainsLocked()
+        {
+            var domains = _serviceContext.DomainService.GetAll(true);
+            foreach (var domain in domains)
+                _domainStore.Set(domain.Id,
+                    new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
         }
 
         #endregion
 
         #region Maintain Stores
+
+        // FIXME 
+        // when notified of a content or media RefreshAll we may NOT be initialized
+        // and then what? MUST log it and delete the database files! AND THEN we
+        // also want it on XmlStore?
 
         public override void Notify(ContentCacheRefresher.JsonPayload[] payloads, out bool draftChanged, out bool publishedChanged)
         {
@@ -570,7 +582,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 .Select(x => x.Id)
                 .ToArray();
 
-
             if (removedIds.Length > 0 || refreshedIds.Length > 0)
                 _contentStore.WriteLocked(() =>
                 {
@@ -626,18 +637,29 @@ namespace Umbraco.Web.PublishedCache.NuCache
             Facade.Current.Resync();
         }
 
-        public override void NotifyDomain(int id, bool removed)
+        public override void Notify(DomainCacheRefresher.JsonPayload[] payloads)
         {
-            if (removed)
-            {
-                _domainStore.Clear(id);
-                return;
-            }
-
-            var domain = _serviceContext.DomainService.GetById(id);
             _domainStore.WriteLocked(() =>
             {
-                _domainStore.Set(id, new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+                foreach (var payload in payloads)
+                {
+                    switch (payload.ChangeType)
+                    {
+                        case DomainCacheRefresher.ChangeTypes.RefreshAll:
+                            var domainService = _serviceContext.DomainService as DomainService;
+                            if (domainService == null) throw new Exception("oops");
+                            domainService.WithReadLocked(_ => LoadDomainsLocked());
+                            break;
+                        case DomainCacheRefresher.ChangeTypes.Remove:
+                            _domainStore.Clear(payload.Id);
+                            break;
+                        case DomainCacheRefresher.ChangeTypes.Refresh:
+                            var domain = _serviceContext.DomainService.GetById(payload.Id);
+                            if (domain == null) continue;
+                            _domainStore.Set(domain.Id, new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+                            break;
+                    }
+                }
             });
         }
 

@@ -192,6 +192,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
+            // note: refresh all content cache does refresh content types too
             dc.RefreshSetByPayload(DistributedCache.ContentCacheRefresherGuid, payloads);
         }
 
@@ -253,6 +254,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = new[] { new MediaCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) };
 
+            // note: refresh all media cache does refresh content types too
             dc.RefreshSetByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
         }
 
@@ -264,6 +266,18 @@ namespace Umbraco.Web.Cache
                 .Select(x => new MediaCacheRefresher.JsonPayload(x.Item.Id, x.ChangeTypes));
 
             dc.RefreshSetByPayload(DistributedCache.MediaCacheRefresherGuid, payloads);
+        }
+
+        #endregion
+
+        #region Facade
+
+        public static void RefreshAllFacade(this DistributedCache dc)
+        {
+            // note: refresh all content & media caches does refresh content types too
+            dc.RefreshAllContentCache();
+            dc.RefreshAllMediaCache();
+            dc.RefreshAllDomainCache();
         }
 
         #endregion
@@ -381,13 +395,21 @@ namespace Umbraco.Web.Cache
         public static void RefreshDomainCache(this DistributedCache dc, IDomain domain)
         {
             if (domain == null) return;
-            dc.Refresh(DistributedCache.DomainCacheRefresherGuid, domain.Id);
+            var payloads = new[] { new DomainCacheRefresher.JsonPayload(domain.Id, DomainCacheRefresher.ChangeTypes.Refresh) };
+            dc.RefreshSetByPayload(DistributedCache.DomainCacheRefresherGuid, payloads);
         }
 
         public static void RemoveDomainCache(this DistributedCache dc, IDomain domain)
         {
             if (domain == null) return;
-            dc.Remove(DistributedCache.DomainCacheRefresherGuid, domain.Id);
+            var payloads = new[] { new DomainCacheRefresher.JsonPayload(domain.Id, DomainCacheRefresher.ChangeTypes.Remove) };
+            dc.RefreshSetByPayload(DistributedCache.DomainCacheRefresherGuid, payloads);
+        }
+
+        public static void RefreshAllDomainCache(this DistributedCache dc)
+        {
+            var payloads = new[] { new DomainCacheRefresher.JsonPayload(0, DomainCacheRefresher.ChangeTypes.RefreshAll) };
+            dc.RefreshSetByPayload(DistributedCache.DomainCacheRefresherGuid, payloads);
         }
 
         #endregion

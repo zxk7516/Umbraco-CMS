@@ -53,8 +53,7 @@ namespace Umbraco.Web.WebServices
         [HttpPost]
         public void ReloadCache()
         {
-            DistributedCache.Instance.RefreshAllContentCache();
-            DistributedCache.Instance.RefreshAllMediaCache();
+            DistributedCache.Instance.RefreshAllFacade();
         }
     }
 }

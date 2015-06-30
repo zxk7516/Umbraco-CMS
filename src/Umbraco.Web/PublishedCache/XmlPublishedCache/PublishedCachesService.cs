@@ -178,7 +178,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             _xmlStore.Notify(payloads);
         }
 
-        public override void NotifyDomain(int id, bool removed)
+        public override void Notify(DomainCacheRefresher.JsonPayload[] payloads)
         {
             _routesCache.Clear();
         }

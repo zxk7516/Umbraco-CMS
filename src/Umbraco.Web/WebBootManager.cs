@@ -369,7 +369,7 @@ namespace Umbraco.Web
                 ServerMessengerResolver.Current.SetServerMessenger(new BatchedDatabaseServerMessenger(
                 ApplicationContext,
                 true,
-                    //Default options for web including the required callbacks to build caches
+                // default options for web including the required callbacks to build caches
                 new DatabaseServerMessengerOptions
                 {
                     //These callbacks will be executed if the server has not been synced
@@ -385,7 +385,7 @@ namespace Umbraco.Web
                             // note: refresh all content & media caches does refresh content types too
 					        var svc = PublishedCachesServiceResolver.Current.Service;
 					        bool ignored1, ignored2;
-                            // missing: domains?
+                            svc.Notify(new[] { new DomainCacheRefresher.JsonPayload(0, DomainCacheRefresher.ChangeTypes.RefreshAll) });
                             svc.Notify(new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) }, out ignored1, out ignored2);
                             svc.Notify(new[] { new MediaCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) }, out ignored1);
                         },

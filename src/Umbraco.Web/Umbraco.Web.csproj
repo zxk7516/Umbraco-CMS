@@ -328,7 +328,6 @@
     <Compile Include="Media\EmbedProviders\OEmbedJson.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentNuDto.cs" />
     <Compile Include="PublishedCache\NuCache\DataSource\ContentSourceDto.cs" />
-    <Compile Include="PublishedCache\PublishedCachesServiceControl.cs" />
     <Compile Include="PublishedCache\PublishedNoCache\PublishedMemberCache.cs" />
     <Compile Include="Media\EmbedProviders\OEmbedResponse.cs" />
     <Compile Include="Media\EmbedProviders\OEmbedPhoto.cs" />

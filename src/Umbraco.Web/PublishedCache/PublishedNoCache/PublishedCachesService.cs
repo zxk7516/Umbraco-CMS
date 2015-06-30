@@ -67,7 +67,7 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             // nothing
         }
 
-        public override void NotifyDomain(int id, bool removed)
+        public override void Notify(DomainCacheRefresher.JsonPayload[] payloads)
         {
             // nothing
         }

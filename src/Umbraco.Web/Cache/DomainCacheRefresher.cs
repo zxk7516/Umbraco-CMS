@@ -3,15 +3,49 @@ using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Web.PublishedCache;
-using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
 namespace Umbraco.Web.Cache
 {
-    /// <summary>
-    /// A cache refresher to ensure language cache is refreshed when languages change
-    /// </summary>
-    public sealed class DomainCacheRefresher : CacheRefresherBase<DomainCacheRefresher>
+    public sealed class DomainCacheRefresher : PayloadCacheRefresherBase<DomainCacheRefresher>
     {
+        #region Json
+
+        internal class JsonPayload
+        {
+            public JsonPayload(int id, ChangeTypes changeType)
+            {
+                Id = id;
+                ChangeType = changeType;
+            }
+
+            public int Id { get; private set; }
+            public ChangeTypes ChangeType { get; private set; }
+        }
+
+        protected override object Deserialize(string json)
+        {
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
+        }
+
+        internal JsonPayload[] GetPayload(object o)
+        {
+            if ((o is JsonPayload[]) == false)
+                throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
+            return (JsonPayload[])o;
+        }
+
+        public enum ChangeTypes : byte
+        {
+            None = 0,
+            RefreshAll = 1,
+            Refresh = 2,
+            Remove = 3
+        }
+
+        #endregion
+
+        #region Define
+
         protected override DomainCacheRefresher Instance
         {
             get { return this; }
@@ -19,37 +53,68 @@ namespace Umbraco.Web.Cache
 
         public override Guid UniqueIdentifier
         {
-            get { return new Guid(DistributedCache.DomainCacheRefresherId); }
+            get { return DistributedCache.DomainCacheRefresherGuid; }
         }
 
         public override string Name
         {
-            get { return "Domain cache refresher"; }
+            get { return "DomainCacheRefresher"; }
+        }
+
+        #endregion
+
+        #region Events
+
+        public override void Refresh(object o)
+        {
+            var payloads = GetPayload(o);
+
+            var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
+            runtimeCache.ClearCacheObjectTypes<DomainRepository.CacheableDomain>();
+
+            // note: must do what's above FIRST else the repositories still have the old cached
+            // content and when the PublishedCachesService is notified of changes it does not see
+            // the new content...
+
+            // notify
+            var svce = PublishedCachesServiceResolver.Current.Service;
+            svce.Notify(payloads);
+            // then trigger event
+            base.Refresh(o);
+        }
+
+        // these events should never trigger
+        // everything should be PAYLOAD/JSON
+
+        public override void RefreshAll()
+        {
+            throw new NotSupportedException();
         }
 
         public override void Refresh(int id)
         {
-            ClearCache();
-            // notify
-            var svce = PublishedCachesServiceResolver.Current.Service;
-            svce.NotifyDomain(id, false);
-            // then trigger event
-            base.Refresh(id);
+            throw new NotSupportedException();
+        }
+
+        public override void Refresh(Guid id)
+        {
+            throw new NotSupportedException();
         }
 
         public override void Remove(int id)
         {
-            ClearCache();
-            // notify
-            var svce = PublishedCachesServiceResolver.Current.Service;
-            svce.NotifyDomain(id, true);
-            // then trigger event
-            base.Remove(id);
+            throw new NotSupportedException();
         }
 
-        private void ClearCache()
+        #endregion
+
+        #region Helpers
+
+        private static void ClearCache()
         {
             ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<DomainRepository.CacheableDomain>();
         }
+
+        #endregion
     }
 }
