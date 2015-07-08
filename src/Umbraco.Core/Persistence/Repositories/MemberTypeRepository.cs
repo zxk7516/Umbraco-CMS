@@ -47,6 +47,25 @@ namespace Umbraco.Core.Persistence.Repositories
             return member;
         }
 
+        protected override IMemberType PerformGet(Guid id)
+        {
+            var sql = GetBaseQuery(false);
+            sql.Where("umbracoNode.uniqueID = @Id", new { Id = id });
+            sql.OrderByDescending<NodeDto>(x => x.NodeId);
+
+            var dtos =
+                Database.Fetch<MemberTypeReadOnlyDto, PropertyTypeReadOnlyDto, PropertyTypeGroupReadOnlyDto, MemberTypeReadOnlyDto>(
+                    new PropertyTypePropertyGroupRelator().Map, sql);
+
+            if (dtos == null || dtos.Any() == false)
+                return null;
+
+            var factory = new MemberTypeReadOnlyFactory();
+            var member = factory.BuildEntity(dtos.First());
+
+            return member;
+        }
+
         protected override IEnumerable<IMemberType> PerformGetAll(params int[] ids)
         {
             var sql = GetBaseQuery(false);
@@ -56,6 +75,23 @@ namespace Umbraco.Core.Persistence.Repositories
                 sql.Where(statement);
             }
             sql.OrderByDescending<NodeDto>(x => x.NodeId);
+
+            var dtos =
+                Database.Fetch<MemberTypeReadOnlyDto, PropertyTypeReadOnlyDto, PropertyTypeGroupReadOnlyDto, MemberTypeReadOnlyDto>(
+                    new PropertyTypePropertyGroupRelator().Map, sql);
+
+            return BuildFromDtos(dtos);
+        }
+
+        protected override IEnumerable<IMemberType> PerformGetAll(params Guid[] ids)
+        {
+            var sql = GetBaseQuery(false);
+            if (ids.Any())
+            {
+                var statement = string.Join(" OR ", ids.Select(x => string.Format("umbracoNode.uniqueID='{0}'", x)));
+                sql.Where(statement);
+            }
+            sql.OrderByDescending<NodeDto>(x => x.NodeId, SqlSyntax);
 
             var dtos =
                 Database.Fetch<MemberTypeReadOnlyDto, PropertyTypeReadOnlyDto, PropertyTypeGroupReadOnlyDto, MemberTypeReadOnlyDto>(

@@ -106,8 +106,7 @@ namespace Umbraco.Web.Install
             try
             {
                 // xml cache will persist file, other caches may do something else
-                svc.XmlStore.SaveXmlToFile();
-                //SaveAndDeleteFile(xmlFile);
+                svc.XmlStore.EnsureFilePermission();
                 return true;
             }
             catch

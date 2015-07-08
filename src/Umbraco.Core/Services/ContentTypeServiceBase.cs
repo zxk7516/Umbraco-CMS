@@ -356,7 +356,18 @@ namespace Umbraco.Core.Services
             return LRepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).FirstOrDefault());
         }
 
+        public TItem Get(Guid id)
+        {
+            var query = Query<TItem>.Builder.Where(x => x.Key == id);
+            return LRepo.WithReadLocked(xr => xr.Repository.GetByQuery(query).FirstOrDefault());
+        }
+
         public IEnumerable<TItem> GetAll(params int[] ids)
+        {
+            return LRepo.WithReadLocked(xr => xr.Repository.GetAll(ids));
+        }
+
+        public IEnumerable<TItem> GetAll(params Guid[] ids)
         {
             return LRepo.WithReadLocked(xr => xr.Repository.GetAll(ids));
         }
@@ -365,6 +376,12 @@ namespace Umbraco.Core.Services
         {
             var query = Query<TItem>.Builder.Where(x => x.ParentId == id);
             return LRepo.WithReadLocked(xr => xr.Repository.GetByQuery(query));
+        }
+
+        public IEnumerable<TItem> GetChildren(Guid id)
+        {
+            var parent = Get(id);
+            return parent == null ? Enumerable.Empty<TItem>() : GetChildren(parent.Id);
         }
 
         public bool HasChildren(int id)

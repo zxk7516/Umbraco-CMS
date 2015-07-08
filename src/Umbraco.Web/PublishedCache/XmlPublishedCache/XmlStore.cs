@@ -763,6 +763,14 @@ AND (umbracoNode.id=@id)";
 
         private const int FileLockTimeoutMilliseconds = 4*60*1000; // 4'
 
+        public void EnsureFilePermission()
+        {
+            // FIXME - but do we really have a store, initialized, at that point?
+            var filename = _xmlFileName + ".temp";
+            System.IO.File.WriteAllText(filename, "TEMP");
+            System.IO.File.Delete(filename);
+        }
+
         private void InitializeFileLock()
         {
             // initialize file lock

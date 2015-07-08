@@ -52,11 +52,22 @@ namespace Umbraco.Web.Editors
     public class BackOfficeController : UmbracoController
     {
         private BackOfficeUserManager _userManager;
+        private BackOfficeSignInManager _signInManager;
+
+        protected BackOfficeSignInManager SignInManager
+        {
+            get { return _signInManager ?? (_signInManager = OwinContext.Get<BackOfficeSignInManager>()); }
+        }
 
         protected BackOfficeUserManager UserManager
         {
             get { return _userManager ?? (_userManager = OwinContext.GetUserManager<BackOfficeUserManager>()); }
         }
+
+        protected IAuthenticationManager AuthenticationManager
+        {
+            get { return OwinContext.Authentication; }
+        } 
 
         /// <summary>
         /// Render the default view
@@ -458,7 +469,7 @@ namespace Umbraco.Web.Editors
             var loginInfo = await OwinContext.Authentication.GetExternalLoginInfoAsync(
                 Core.Constants.Security.BackOfficeExternalAuthenticationType);
 
-            if (loginInfo == null)
+            if (loginInfo == null || loginInfo.ExternalIdentity.IsAuthenticated == false)
             {
                 return defaultResponse();
             }
@@ -483,7 +494,7 @@ namespace Umbraco.Web.Editors
                 // that the ticket is created and stored and that the user is logged in.
 
                 //sign in
-                await SignInAsync(user, isPersistent: false);
+                await SignInManager.SignInAsync(user, isPersistent: false, rememberBrowser: false);
             }
             else
             {
@@ -545,8 +556,7 @@ namespace Umbraco.Web.Editors
                             }
                             else
                             {
-                                //var userMembershipProvider = global::Umbraco.Core.Security.MembershipProviderExtensions.GetUsersMembershipProvider();
-
+                                
                                 var autoLinkUser = new BackOfficeIdentityUser()
                                 {
                                     Email = loginInfo.Email,
@@ -556,6 +566,13 @@ namespace Umbraco.Web.Editors
                                     Culture = autoLinkOptions.GetDefaultCulture(UmbracoContext, loginInfo),
                                     UserName = loginInfo.Email
                                 };
+
+                                //call the callback if one is assigned
+                                if (autoLinkOptions.OnAutoLinking != null)
+                                {
+                                    autoLinkOptions.OnAutoLinking(autoLinkUser, loginInfo);
+                                }
+
                                 var userCreationResult = await UserManager.CreateAsync(autoLinkUser);
 
                                 if (userCreationResult.Succeeded == false)
@@ -579,14 +596,8 @@ namespace Umbraco.Web.Editors
                                     }
                                     else
                                     {
-
-                                        //Ok, we're all linked up! Assign the auto-link options to a ViewBag property, this can be used
-                                        // in the view to render a custom view (AutoLinkExternalAccountView) if required, which will allow
-                                        // a developer to display a custom angular view to prompt the user for more information if required.
-                                        ViewBag.ExternalSignInAutoLinkOptions = autoLinkOptions;
-
                                         //sign in
-                                        await SignInAsync(autoLinkUser, isPersistent: false);
+                                        await SignInManager.SignInAsync(autoLinkUser, isPersistent: false, rememberBrowser: false);
                                     }
                                 }
                             }
@@ -599,28 +610,6 @@ namespace Umbraco.Web.Editors
 
             return false;
         }
-
-        private async Task SignInAsync(BackOfficeIdentityUser user, bool isPersistent)
-        {
-            OwinContext.Authentication.SignOut(Core.Constants.Security.BackOfficeExternalAuthenticationType);
-
-            var nowUtc = DateTime.Now.ToUniversalTime();
-
-            OwinContext.Authentication.SignIn(
-                new AuthenticationProperties()
-                {
-                    IsPersistent = isPersistent,
-                    AllowRefresh = true,
-                    IssuedUtc = nowUtc,
-                    ExpiresUtc = nowUtc.AddMinutes(GlobalSettings.TimeOutInMinutes)
-                },
-                await user.GenerateUserIdentityAsync(UserManager));
-        }
-
-        private IAuthenticationManager AuthenticationManager
-        {
-            get { return OwinContext.Authentication; }
-        }        
         
         /// <summary>
         /// Returns the server variables regarding the application state
@@ -636,7 +625,7 @@ namespace Umbraco.Web.Editors
                     {"assemblyVersion", UmbracoVersion.AssemblyVersion}
                 };
 
-            var version = UmbracoVersion.GetSemanticVersion().ToString();
+            var version = UmbracoVersion.GetSemanticVersion().ToSemanticString();
 
             app.Add("version", version);
             app.Add("cdf", ClientDependency.Core.Config.ClientDependencySettings.Instance.Version);

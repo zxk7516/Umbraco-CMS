@@ -46,6 +46,8 @@ namespace Umbraco.Web.PropertyEditors
             // empty recycle bin now uses proper deletes
             //ContentService.EmptiedRecycleBin += (sender, args) =>
             //    args.Files.AddRange(ServiceEmptiedRecycleBin(args.AllPropertyData));
+            MemberService.Deleted += (sender, args) =>
+                args.MediaFilesToDelete.AddRange(ServiceDeleted(args.DeletedEntities.Cast<ContentBase>()));
         }
 
         /// <summary>

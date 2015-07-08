@@ -1006,7 +1006,7 @@ namespace Umbraco.Core.Services
         /// Occurs before Save
         /// </summary>
         public static event TypedEventHandler<IMemberService, SaveEventArgs<IMember>> Saving;
-        
+
         /// <summary>
         /// Occurs after Create
         /// </summary>
