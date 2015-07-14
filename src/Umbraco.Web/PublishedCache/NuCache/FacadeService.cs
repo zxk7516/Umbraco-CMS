@@ -28,7 +28,7 @@ using Content = umbraco.cms.businesslogic.Content;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    class FacadeService : PublishedCachesServiceBase, IRegisteredObject
+    class FacadeService : PublishedCachesServiceBase
     {
         private readonly ServiceContext _serviceContext;
         private readonly Database _dataSource;
@@ -43,9 +43,6 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private BPlusTree<int, ContentNodeKit> _localContentDb;
         private BPlusTree<int, ContentNodeKit> _localMediaDb;
         private readonly bool _localDbX;
-        private readonly AsyncLock _localDbLock;
-        private readonly IDisposable _localDbLocked;
-        private const int LocalDbLockTimeoutMilliseconds = 4 * 60 * 1000; // 4'
 
         // define constant - determines whether to use cache when previewing
         // to store eg routes, property converted values, anything - caching
@@ -67,7 +64,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         #region Constructors
 
-        public FacadeService(Options options, ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
+        public FacadeService(Options options, MainDom mainDom, ServiceContext serviceContext, DatabaseContext databaseContext, ILogger logger)
         {
             _serviceContext = serviceContext;
             _dataSource = new Database(databaseContext);
@@ -76,21 +73,27 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
             if (_options.IgnoreLocalDb == false)
             {
-                // see XmlStore
-                var name = HostingEnvironment.ApplicationID + "/NuCache/LocalDb";
-                _localDbLock = new AsyncLock(name);
+                var registered = mainDom.Register(
+                    null,
+                    () =>
+                    {
+                        lock (_storesLock)
+                        {
+                            _contentStore.ReleaseLocalDb();
+                            _localContentDb = null;
+                            _mediaStore.ReleaseLocalDb();
+                            _localMediaDb = null;
+                        }
+                    });
 
-                // don't hang forever, throws if it cannot lock within the timeout
-                LogHelper.Debug<FacadeService>("Acquiring exclusive access to local db for this AppDomain...");
-                _localDbLocked = _localDbLock.Lock(LocalDbLockTimeoutMilliseconds);
-                LogHelper.Debug<FacadeService>("Acquired exclusive access to local db for this AppDomain.");
-
-                HostingEnvironment.RegisterObject(this);
-                var localContentDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Content.db");
-                var localMediaDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Media.db");
-                _localDbX = System.IO.File.Exists(localContentDbPath) && System.IO.File.Exists(localMediaDbPath);
-                _localContentDb = BTree.GetTree(localContentDbPath, _localDbX);
-                _localMediaDb = BTree.GetTree(localMediaDbPath, _localDbX);
+                if (registered)
+                {
+                    var localContentDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Content.db");
+                    var localMediaDbPath = HostingEnvironment.MapPath("~/App_Data/NuCache.Media.db");
+                    _localDbX = System.IO.File.Exists(localContentDbPath) && System.IO.File.Exists(localMediaDbPath);
+                    _localContentDb = BTree.GetTree(localContentDbPath, _localDbX);
+                    _localMediaDb = BTree.GetTree(localMediaDbPath, _localDbX);
+                }
             }
             _contentStore = new ContentStore2(logger, _localContentDb);
             _mediaStore = new ContentStore2(logger, _localMediaDb);
@@ -1335,43 +1338,6 @@ AND cmsContentNu.nodeId IS NULL
             var contentCollect = _contentStore.CollectAsync();
             var mediaCollect = _mediaStore.CollectAsync();
             System.Threading.Tasks.Task.WaitAll(contentCollect, mediaCollect);
-        }
-
-        #endregion
-
-        #region IRegisteredObject
-
-        public void Stop(bool immediate)
-        {
-            // ideally we should run the database server messenger
-            // even with only 1 server, so it can process notifications
-            // from other app domains
-            //var messenger = DistributedCache.Instance.Messenger as BatchedDatabaseServerMessenger;
-            //if (messenger != null)
-            //    messenger.StopProcessingInstructions(); // flush and stop
-
-            // we will still process the local notifications,
-            // only we will not update the local db - so if using
-            // the database server messenger, another app domain
-            // will take over and process the notifications, else
-            // the local db will end up being inconsistent, and
-            // there is little we can do about it
-
-            lock (_storesLock)
-            {
-                _contentStore.ReleaseLocalDb();
-                _localContentDb = null;
-
-                _mediaStore.ReleaseLocalDb();
-                _localMediaDb = null;
-
-                if (_localDbLocked == null) return;
-                LogHelper.Debug<FacadeService>("Releasing exclusive access to local db for this AppDomain...");
-                _localDbLocked.Dispose();
-                LogHelper.Debug<FacadeService>("Released exclusive access to local db for this AppDomain...");
-            }
-
-            HostingEnvironment.UnregisterObject(this);
         }
 
         #endregion
