@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Hosting;
 using System.Xml;
 using System.Xml.Linq;
 using Umbraco.Core;
-using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
@@ -22,11 +18,12 @@ using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 using Umbraco.Core.Persistence.Repositories;
-using Umbraco.Core.Profiling;
 using Umbraco.Core.Services;
-using Umbraco.Core.Sync;
 using Umbraco.Web.Cache;
 using Umbraco.Web.Scheduling;
+using Content = umbraco.cms.businesslogic.Content;
+using File = System.IO.File;
+using Task = System.Threading.Tasks.Task;
 
 namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 {
@@ -44,6 +41,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private Func<IMember, XElement> _xmlMemberSerializer;
         private Func<IMedia, XElement> _xmlMediaSerializer;
         private XmlStoreFilePersister _persisterTask;
+        private volatile bool _released;
         private bool _withRepositoryEvents;
         private bool _withOtherEvents;
 
@@ -51,43 +49,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private readonly RoutesCache _routesCache;
         private readonly ServiceContext _serviceContext;
         private readonly DatabaseContext _databaseContext;
-
-        // LOCKS
-        //
-        //  we make use of various locking strategies in XmlStore:
-        //
-        //  _fileLock is an AsyncLock built on top of a named (system-wide) semaphore, that is
-        //    used to ensure that only the current app domain has access to the file. It is
-        //    acquired before the file is used, and released when the app domain goes down.
-        //
-        //    so when the web app restarts, the new app domain will not be able to read the
-        //    file until the old app domain is really done writing to it. as a consequence,
-        //    every methods in XmlStore can safely assume that the file is locked.
-        //
-        //    this does not "lock" the file itself in a filesystem way, so the file can still
-        //    be accessed by external tools such as a text editor, during debugging sessions.
-        //
-        //    the lock is acquired when needed, ie in
-        //      LoadXmlFromFile
-        //      SaveXmlToFile
-        //      SaveXmlToFileAsync
-        //    and these are the ONLY methods that access the file
-        //
-        //  _xmlLock is an AsyncLock that is used to protect _xml ie the master xml document
-        //    from concurrent accesses. It is an AsyncLock because saving xml to file can be
-        //    an async operation. It is never used directly but only through GetSafeXmlReader
-        //    and GetSafeXmlWriter which provide safe, locked, clean access to _xml.
-        //
-        // there is not lock around writes to cmsContentXml and cmsPreviewXml as these are
-        //    supposed to happen in the context of the original repository transaction
-        //    and therefore concurrency is already taken care of.
-        //
-        // there is no lock around the database, because writes are already protected (see
-        //    above) and reads are atomic (only 1 query).
-        //
-        // during 'rebuilding all' methods, we get the service write-lock so that no other
-        //    thread or app domain can read/write at the same time
-        //
 
         #region Constructors
 
@@ -122,7 +83,6 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             else
             {
                 InitializeFilePersister();
-                InitializeFileLock();
             }
 
             // need to wait for resolution to be frozen
@@ -175,30 +135,31 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var runner = new BackgroundTaskRunner<XmlStoreFilePersister>(new BackgroundTaskRunnerOptions
             {
                 LongRunning = true,
-                KeepAlive = true
+                KeepAlive = true,
+                Hosted = false // main domain will take care of stopping the runner (see below)
             }, logger);
-
-            runner.Terminating += (sender, args) =>
-            {
-                // terminating - the runner is going to trigger the task (if pending)
-                // one more time and then will not accept tasks anymore - so we set
-                // the task to null to indicate that there's no point trying to write
-                // anymore - in a proper LB scenario, the new starting app domain 
-                // will process the notifications - otherwise they would get lost
-                using (GetSafeXmlWriter(false))
-                {
-                    _persisterTask = null;
-                }
-            };
-
-            runner.Terminated += (sender, args) =>
-            {
-                // terminated, release the lock now
-                ReleaseFileLock();
-            };
 
             // create (and add to runner)
             _persisterTask = new XmlStoreFilePersister(runner, this, logger);
+
+            var registered = ApplicationContext.Current.MainDom.Register(
+                null,
+                () =>
+                {
+                    // once released, the cache still works but does not write to file anymore,
+                    // which is OK with database server messenger but will cause data loss with
+                    // another messenger...
+                        
+                    runner.Shutdown(false, true); // wait until flushed
+                    _persisterTask = null; // fail fast
+                    _released = true;
+                });
+
+            // failed to become the main domain, we will never use the file
+            if (registered == false)
+                runner.Shutdown(false, true);
+
+            _released = (registered == false);
         }
 
         private void OnResolutionFrozen(bool testing, bool enableRepositoryEvents)
@@ -241,7 +202,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         private void InitializeOtherEvents()
         {
             // temp - until we get rid of Content
-            global::umbraco.cms.businesslogic.Content.DeletedContent += OnDeletedContent;
+            Content.DeletedContent += OnDeletedContent;
 
             _withOtherEvents = true;
         }
@@ -265,7 +226,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             ContentRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
             MediaRepository.EmptiedRecycleBin -= OnEmptiedRecycleBin;
 
-            global::umbraco.cms.businesslogic.Content.DeletedContent -= OnDeletedContent;
+            Content.DeletedContent -= OnDeletedContent;
 
             _withRepositoryEvents = false;
             _withOtherEvents = false;
@@ -405,7 +366,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             return xmlDoc == null ? null : (XmlDocument) xmlDoc.CloneNode(true);
         }
 
-        private static void EnsureSchema(string contentTypeAlias, XmlDocument xml)
+        private static XmlDocument EnsureSchema(string contentTypeAlias, XmlDocument xml)
         {
             string subset = null;
 
@@ -418,15 +379,22 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             // ensure it contains the content type
             if (subset != null && subset.Contains(string.Format("<!ATTLIST {0} id ID #REQUIRED>", contentTypeAlias)))
-                return;
+                return xml;
 
-            // remove current doctype
-            xml.RemoveChild(n);
+            // alas, that does not work, replacing a doctype is ignored and GetElementById fails
+            //
+            //// remove current doctype, set new doctype
+            //xml.RemoveChild(n);
+            //subset = string.Format("<!ELEMENT {1} ANY>{0}<!ATTLIST {1} id ID #REQUIRED>{0}{2}", Environment.NewLine, contentTypeAlias, subset);
+            //var doctype = xml.CreateDocumentType("root", null, null, subset);
+            //xml.InsertAfter(doctype, xml.FirstChild);
 
-            // set new doctype
+            var xml2 = new XmlDocument();
             subset = string.Format("<!ELEMENT {1} ANY>{0}<!ATTLIST {1} id ID #REQUIRED>{0}{2}", Environment.NewLine, contentTypeAlias, subset);
-            var doctype = xml.CreateDocumentType("root", null, null, subset);
-            xml.InsertAfter(doctype, xml.FirstChild);
+            var doctype = xml2.CreateDocumentType("root", null, null, subset);
+            xml2.AppendChild(doctype);
+            xml2.AppendChild(xml2.ImportNode(xml.DocumentElement, true));
+            return xml2;
         }
 
         private static void InitializeXml(XmlDocument xml, string dtd)
@@ -626,7 +594,7 @@ AND (umbracoNode.id=@id)";
                 if (xml == null || xml.Attributes == null) continue;
                 if (xmlDto.Published == false)
                     xml.Attributes.Append(doc.CreateAttribute("isDraft"));
-                AddOrUpdateXmlNode(doc, xmlDto);
+                doc = AddOrUpdateXmlNode(doc, xmlDto);
             }
             return doc;
         }
@@ -758,119 +726,14 @@ AND (umbracoNode.id=@id)";
         private readonly string _xmlFileName = IOHelper.MapPath(SystemFiles.ContentCacheXml);
         private DateTime _lastFileRead; // last time the file was read
         private DateTime _nextFileCheck; // last time we checked whether the file was changed
-        private AsyncLock _fileLock; // protects the file
-        private IDisposable _fileLocked; // protects the file
-
-        private const int FileLockTimeoutMilliseconds = 4*60*1000; // 4'
 
         public void EnsureFilePermission()
         {
             // FIXME - but do we really have a store, initialized, at that point?
             var filename = _xmlFileName + ".temp";
-            System.IO.File.WriteAllText(filename, "TEMP");
-            System.IO.File.Delete(filename);
+            File.WriteAllText(filename, "TEMP");
+            File.Delete(filename);
         }
-
-        private void InitializeFileLock()
-        {
-            // initialize file lock
-            // ApplicationId will look like "/LM/W3SVC/1/Root/AppName"
-            // name is system-wide and must be less than 260 chars
-            //
-            // From MSDN C++ CreateSemaphore doc:
-            // "The name can have a "Global\" or "Local\" prefix to explicitly create the object in
-            // the global or session namespace. The remainder of the name can contain any character 
-            // except the backslash character (\). For more information, see Kernel Object Namespaces."
-            //
-            // From MSDN "Kernel object namespaces" doc:
-            // "The separate client session namespaces enable multiple clients to run the same 
-            // applications without interfering with each other. For processes started under 
-            // a client session, the system uses the session namespace by default. However, these 
-            // processes can use the global namespace by prepending the "Global\" prefix to the object name."
-            //
-            // just use "default" (whatever it is) for now - ie, no prefix
-            //
-            var name = HostingEnvironment.ApplicationID + "/XmlStore/XmlFile";
-            _fileLock = new AsyncLock(name);
-
-            // the file lock works with a shared, system-wide, semaphore - and we don't want
-            // to leak a count on that semaphore else the whole process will hang - so we have
-            // to ensure we dispose of the locker when the domain goes down - in theory the
-            // async lock should do it via its finalizer, but then there are some weird cases
-            // where the semaphore has been disposed of before it's been released, and then
-            // we'd need to GC-pin the semaphore... better dispose the locker explicitely
-            // when the app domain unloads.
-            //
-            // however... some app domains take ages to die and then the new app domains time
-            // out and it's ugly... trying another approach: when the hosting environment
-            // stops the file writer background task runner, we lock the content service for
-            // all and ever, and release the lock - so no need to that code anymore
-            //
-            //if (AppDomain.CurrentDomain.IsDefaultAppDomain())
-            //{
-            //    LogHelper.Debug<XmlStore>("Registering Unload handler for default app domain.");
-            //    AppDomain.CurrentDomain.ProcessExit += OnDomainUnloadReleaseFileLock;
-            //}
-            //else
-            //{
-            //    LogHelper.Debug<XmlStore>("Registering Unload handler for non-default app domain.");
-            //    AppDomain.CurrentDomain.DomainUnload += OnDomainUnloadReleaseFileLock;
-            //}
-        }
-
-        private void EnsureFileLock()
-        {
-            if (_fileLock == null) return; // not locking (testing?)
-            if (_fileLocked != null) return; // locked already
-
-            // thread-safety, acquire lock only once!
-            // lock something that's readonly and not null..
-            lock (_xmlFileName) 
-            {
-                // double-check
-                if (_fileLock == null) return;
-                if (_fileLocked != null) return;
-
-                // don't hang forever, throws if it cannot lock within the timeout
-                LogHelper.Debug<XmlStore>("Acquiring exclusive access to file for this AppDomain...");
-                _fileLocked = _fileLock.Lock(FileLockTimeoutMilliseconds);
-                LogHelper.Debug<XmlStore>("Acquired exclusive access to file for this AppDomain.");
-            }
-        }
-
-        private void ReleaseFileLock()
-        {
-            if (_fileLock == null) return; // not locking (testing?)
-            if (_fileLocked == null) return; // not locked
-
-            // thread-safety
-            // lock something that's readonly and not null..
-            lock (_xmlFileName)
-            {
-                // double-check
-                if (_fileLocked == null) return;
-
-                // in case you really need to debug... that should be safe...
-                //System.IO.File.AppendAllText(HostingEnvironment.MapPath("~/App_Data/log.txt"), string.Format("{0} {1} unlock", DateTime.Now, AppDomain.CurrentDomain.Id));
-                _fileLocked.Dispose();
-
-                _fileLock = null; // ensure we don't lock again
-            }
-        }
-
-        // see note above
-        //private void OnDomainUnloadReleaseFileLock(object sender, EventArgs args)
-        //{
-        //    // the unload event triggers AFTER all hosted objects (eg the file persister
-        //    // background task runner) have been stopped, so we should NOT be accessing
-        //    // the file from now one - release the lock
-
-        //    // NOTE
-        //    // trying to write to the log via LogHelper at that point is a BAD idea
-        //    // it can lead to ugly deadlocks with the named semaphore - DONT do it
-
-        //    ReleaseFileLock();
-        //}
 
         // not used - just try to read the file
         //private bool XmlFileExists
@@ -892,7 +755,9 @@ AND (umbracoNode.id=@id)";
             }
         }
 
-        // assumes file lock
+        // invoked by XmlStoreFilePersister ONLY and that one manages the MainDom, ie it
+        // will NOT try to save once the current app domain is not the main domain anymore
+        // (no need to test _released)
         internal void SaveXmlToFile()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
@@ -902,8 +767,6 @@ AND (umbracoNode.id=@id)";
                 var xml = _xml; // capture (atomic + volatile), immutable anyway
                 if (xml == null) return;
 
-                EnsureFileLock();
-
                 // delete existing file, if any
                 DeleteXmlFile();
 
@@ -911,7 +774,7 @@ AND (umbracoNode.id=@id)";
                 var directoryName = Path.GetDirectoryName(_xmlFileName);
                 if (directoryName == null)
                     throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
-                if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                if (File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
                     Directory.CreateDirectory(directoryName);
 
                 // save
@@ -932,8 +795,10 @@ AND (umbracoNode.id=@id)";
             }
         }
 
-        // assumes file lock
-        internal async System.Threading.Tasks.Task SaveXmlToFileAsync()
+        // invoked by XmlStoreFilePersister ONLY and that one manages the MainDom, ie it
+        // will NOT try to save once the current app domain is not the main domain anymore
+        // (no need to test _released)
+        internal async Task SaveXmlToFileAsync()
         {
             LogHelper.Info<XmlStore>("Save Xml to file...");
 
@@ -942,8 +807,6 @@ AND (umbracoNode.id=@id)";
                 var xml = _xml; // capture (atomic + volatile), immutable anyway
                 if (xml == null) return;
 
-                EnsureFileLock();
-
                 // delete existing file, if any
                 DeleteXmlFile();
 
@@ -951,7 +814,7 @@ AND (umbracoNode.id=@id)";
                 var directoryName = Path.GetDirectoryName(_xmlFileName);
                 if (directoryName == null)
                     throw new Exception(string.Format("Invalid XmlFileName \"{0}\".", _xmlFileName));
-                if (System.IO.File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
+                if (File.Exists(_xmlFileName) == false && Directory.Exists(directoryName) == false)
                     Directory.CreateDirectory(directoryName);
 
                 // save
@@ -1000,15 +863,15 @@ AND (umbracoNode.id=@id)";
             return sb.ToString();
         }
 
-        // assumes file lock
         private XmlDocument LoadXmlFromFile()
         {
+            // do NOT try to load if we are not the main domain anymore
+            if (_released) return null;
+
             LogHelper.Info<XmlStore>("Load Xml from file...");
 
             try
             {
-                EnsureFileLock();
-
                 var xml = new XmlDocument();
                 using (var fs = new FileStream(_xmlFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
@@ -1031,12 +894,11 @@ AND (umbracoNode.id=@id)";
             }
         }
 
-        // (files is always locked)
         private void DeleteXmlFile()
         {
-            if (System.IO.File.Exists(_xmlFileName) == false) return;
-            System.IO.File.SetAttributes(_xmlFileName, FileAttributes.Normal);
-            System.IO.File.Delete(_xmlFileName);
+            if (File.Exists(_xmlFileName) == false) return;
+            File.SetAttributes(_xmlFileName, FileAttributes.Normal);
+            File.Delete(_xmlFileName);
         }
 
         private void ReloadXmlFromFileIfChanged()
@@ -1413,7 +1275,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                         else
                         {
                             // in-place
-                            AddOrUpdateXmlNode(safeXml.Xml, currentDto);
+                            safeXml.Xml = AddOrUpdateXmlNode(safeXml.Xml, currentDto);
                         }
                     }
 
@@ -1488,7 +1350,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 foreach (var xmlDto in xmlDtos)
                 {
                     xmlDto.XmlNode = safeXml.Xml.ReadNode(XmlReader.Create(new StringReader(xmlDto.Xml)));
-                    AddOrUpdateXmlNode(safeXml.Xml, xmlDto);
+                    safeXml.Xml = AddOrUpdateXmlNode(safeXml.Xml, xmlDto);
                 }
             }
         }
@@ -1504,7 +1366,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         }
 
         // adds or updates a node (docNode) into a cache (xml)
-        private static void AddOrUpdateXmlNode(XmlDocument xml, XmlDto xmlDto)
+        private static XmlDocument AddOrUpdateXmlNode(XmlDocument xml, XmlDto xmlDto)
         {
             // sanity checks
             var docNode = xmlDto.XmlNode;
@@ -1519,7 +1381,12 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // if the document is not there already then it's a new document
             // we must make sure that its document type exists in the schema
             if (currentNode == null && UseLegacySchema == false)
-                EnsureSchema(docNode.Name, xml);
+            {
+                var xml2 = EnsureSchema(docNode.Name, xml);
+                if (ReferenceEquals(xml, xml2) == false)
+                    docNode = xml2.ImportNode(docNode, true);
+                xml = xml2;
+            }
 
             // find the parent
             XmlNode parentNode = xmlDto.Level == 1
@@ -1528,7 +1395,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // no parent = cannot do anything
             if (parentNode == null)
-                return;
+                return xml;
 
             // insert/move the node under the parent
             if (currentNode == null)
@@ -1605,6 +1472,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // then we just need to ensure that currentNode is at the right position.
             // should be faster that moving all the nodes around.
             XmlHelper.SortNode(parentNode, ChildNodesXPath, currentNode, x => x.AttributeValue<int>("sortOrder"));
+            return xml;
         }
 
         private static void TransferValuesFromDocumentXmlToPublishedXml(XmlNode documentNode, XmlNode publishedNode)
@@ -1674,17 +1542,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
         // it is not the case at the moment, instead a global lock is used whenever content is modified - well,
         // almost: rollback or unpublish do not implement it - nevertheless
 
-        private void OnContentRemovedEntity(object sender, ContentRepository.EntityChangeEventArgs args)
+        private void OnContentRemovedEntity(object sender, VersionableRepositoryBase<int, IContent>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
 
-        private void OnMediaRemovedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        private void OnMediaRemovedEntity(object sender, VersionableRepositoryBase<int, IMedia>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
 
-        private void OnMemberRemovedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        private void OnMemberRemovedEntity(object sender, VersionableRepositoryBase<int, IMember>.EntityChangeEventArgs args)
         {
             OnRemovedEntity(args.UnitOfWork.Database, args.Entities);
         }
@@ -1701,17 +1569,17 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             // note: could be optimized by using "WHERE nodeId IN (...)" delete clauses
         }
 
-        private void OnContentRemovedVersion(object sender, ContentRepository.VersionChangeEventArgs args)
+        private void OnContentRemovedVersion(object sender, VersionableRepositoryBase<int, IContent>.VersionChangeEventArgs args)
         {
             OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
         }
 
-        private void OnMediaRemovedVersion(object sender, MediaRepository.VersionChangeEventArgs args)
+        private void OnMediaRemovedVersion(object sender, VersionableRepositoryBase<int, IMedia>.VersionChangeEventArgs args)
         {
             OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
         }
 
-        private void OnMemberRemovedVersion(object sender, MemberRepository.VersionChangeEventArgs args)
+        private void OnMemberRemovedVersion(object sender, VersionableRepositoryBase<int, IMember>.VersionChangeEventArgs args)
         {
             OnRemovedVersion(args.UnitOfWork.Database, args.Versions);
         }
@@ -1725,7 +1593,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
         private static bool HasChangesImpactingAllVersions(IContent icontent)
         {
-            var content = (Content) icontent;
+            var content = (Core.Models.Content) icontent;
 
             // UpdateDate will be dirty
             // Published may be dirty if saving a Published entity
@@ -1736,7 +1604,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             return PropertiesImpactingAllVersions.Any(content.IsPropertyDirty);
         }
 
-        private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, ContentRepository.EntityChangeEventArgs args)
+        private void OnContentRefreshedEntity(VersionableRepositoryBase<int, IContent> sender, VersionableRepositoryBase<int, IContent>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -1754,7 +1622,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
                 // if unpublishing, remove from table
 
-                if (((Content) c).PublishedState == PublishedState.Unpublishing)
+                if (((Core.Models.Content) c).PublishedState == PublishedState.Unpublishing)
                 {
                     db.Execute("DELETE FROM cmsContentXml WHERE nodeId=@id", new { id = c.Id });
                     continue;
@@ -1786,7 +1654,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        private void OnMediaRefreshedEntity(object sender, MediaRepository.EntityChangeEventArgs args)
+        private void OnMediaRefreshedEntity(object sender, VersionableRepositoryBase<int, IMedia>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -1804,7 +1672,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
             }
         }
 
-        private void OnMemberRefreshedEntity(object sender, MemberRepository.EntityChangeEventArgs args)
+        private void OnMemberRefreshedEntity(object sender, VersionableRepositoryBase<int, IMember>.EntityChangeEventArgs args)
         {
             var db = args.UnitOfWork.Database;
 
@@ -1853,12 +1721,12 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 });
         }
 
-        private void OnEmptiedRecycleBin(object sender, ContentRepository.RecycleBinEventArgs args)
+        private void OnEmptiedRecycleBin(object sender, RecycleBinRepository<int, IContent>.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
 
-        private void OnEmptiedRecycleBin(object sender, MediaRepository.RecycleBinEventArgs args)
+        private void OnEmptiedRecycleBin(object sender, RecycleBinRepository<int, IMedia>.RecycleBinEventArgs args)
         {
             OnEmptiedRecycleBin(args.UnitOfWork.Database, args.NodeObjectType);
         }
@@ -1899,7 +1767,7 @@ WHERE cmsContentXml.nodeId IN (
             db.Execute(sql2, parms);
         }
 
-        private void OnDeletedContent(object sender, global::umbraco.cms.businesslogic.Content.ContentDeleteEventArgs args)
+        private void OnDeletedContent(object sender, Content.ContentDeleteEventArgs args)
         {
             var db = args.Database;
             var parms = new { @nodeId = args.Id };
