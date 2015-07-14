@@ -1346,9 +1346,9 @@ AND cmsContentNu.nodeId IS NULL
             // ideally we should run the database server messenger
             // even with only 1 server, so it can process notifications
             // from other app domains
-            var messenger = DistributedCache.Instance.Messenger as BatchedDatabaseServerMessenger;
-            if (messenger != null)
-                messenger.StopProcessingInstructions(); // flush and stop
+            //var messenger = DistributedCache.Instance.Messenger as BatchedDatabaseServerMessenger;
+            //if (messenger != null)
+            //    messenger.StopProcessingInstructions(); // flush and stop
 
             // we will still process the local notifications,
             // only we will not update the local db - so if using
