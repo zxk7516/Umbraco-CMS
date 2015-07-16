@@ -21,15 +21,11 @@ namespace Umbraco.Core.Sync
     /// An <see cref="IServerMessenger"/> that works by storing messages in the database.
     /// </summary>
     //
-    // abstract because it needs to be inherited by a class that will
-    // - trigger Boot() when appropriate
-    // - trigger Sync() when appropriate
-    //
     // this messenger writes ALL instructions to the database,
     // but only processes instructions coming from remote servers,
     // thus ensuring that instructions run only once
     //
-    public abstract class DatabaseServerMessenger : ServerMessengerBase
+    public class DatabaseServerMessenger : ServerMessengerBase
     {
         private readonly ApplicationContext _appContext;
         private readonly DatabaseServerMessengerOptions _options;
@@ -41,10 +37,11 @@ namespace Umbraco.Core.Sync
         private bool _initialized;
         private bool _syncing;
         private bool _released;
+        private readonly ProfilingLogger _profilingLogger;
 
         protected ApplicationContext ApplicationContext { get { return _appContext; } }
 
-        protected DatabaseServerMessenger(ApplicationContext appContext, bool distributedEnabled, DatabaseServerMessengerOptions options)
+        public DatabaseServerMessenger(ApplicationContext appContext, bool distributedEnabled, DatabaseServerMessengerOptions options)
             : base(distributedEnabled)
         {
             if (appContext == null) throw new ArgumentNullException("appContext");
@@ -54,6 +51,7 @@ namespace Umbraco.Core.Sync
             _options = options;
             _lastSync = DateTime.UtcNow;
             _syncIdle = new ManualResetEvent(true);
+            _profilingLogger = appContext.ProfilingLogger;
             _logger = appContext.ProfilingLogger.Logger;
         }
 
@@ -186,7 +184,7 @@ namespace Umbraco.Core.Sync
 
             try
             {
-                using (DisposableTimer.DebugDuration<DatabaseServerMessenger>("Syncing from database..."))
+                using (_profilingLogger.DebugDuration<DatabaseServerMessenger>("Syncing from database..."))
                 {
                     ProcessDatabaseInstructions();
                     PruneOldInstructions();
@@ -262,9 +260,12 @@ namespace Umbraco.Core.Sync
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error<DatabaseServerMessenger>("Failed to execute instructions ({0}: \"{1}\").".FormatWith(dto.Id, dto.Instructions), ex);
-                    _logger.Warn<DatabaseServerMessenger>("BEWARE - DISTRIBUTED CACHE IS NOT UPDATED.");
-                    throw;
+                    _logger.Error<DatabaseServerMessenger>("DISTRIBUTED CACHE REFRESH ERROR. Failed to execute (skipping) instructions ({0}: \"{1}\").".FormatWith(dto.Id, dto.Instructions), ex);
+
+                    // cannot throw here, because this invalid instruction will just keep getting processed over and over and errors
+                    // will be thrown over and over. The only thing we can do is ignore and move on. But cache if now out of sync.
+                    lastId = dto.Id;
+                    continue; continue;
                 }
             }
 

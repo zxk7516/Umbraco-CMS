@@ -38,6 +38,8 @@ using Umbraco.Web.Scheduling;
 using Umbraco.Web.UI.JavaScript;
 using Umbraco.Web.WebApi;
 using umbraco.BusinessLogic;
+using Umbraco.Core.Services;
+using Umbraco.Web.Cache;
 using GlobalSettings = Umbraco.Core.Configuration.GlobalSettings;
 using ProfilingViewEngine = Umbraco.Web.Mvc.ProfilingViewEngine;
 
@@ -329,32 +331,71 @@ namespace Umbraco.Web
             //set the default RenderMvcController
             DefaultRenderMvcControllerResolver.Current = new DefaultRenderMvcControllerResolver(typeof(RenderMvcController));
 
-            ServerMessengerResolver.Current.SetServerMessenger(new BatchedWebServiceServerMessenger(() =>
+            //Override the default server messenger, we need to check if the legacy dist calls is enabled, if that is the
+            // case, then we'll set the default messenger to be the old one, otherwise we'll set it to the db messenger
+            // which will always be on.
+            if (UmbracoConfig.For.UmbracoSettings().DistributedCall.Enabled)
             {
-                //we should not proceed to change this if the app/database is not configured since there will 
-                // be no user, plus we don't need to have server messages sent if this is the case.
-                if (ApplicationContext.IsConfigured && ApplicationContext.DatabaseContext.IsDatabaseConfigured)
+                //set the legacy one by default - this maintains backwards compat
+                ServerMessengerResolver.Current.SetServerMessenger(new BatchedWebServiceServerMessenger(() =>
                 {
-                    //disable if they are not enabled
-                    if (UmbracoConfig.For.UmbracoSettings().DistributedCall.Enabled == false)
+                    //we should not proceed to change this if the app/database is not configured since there will 
+                    // be no user, plus we don't need to have server messages sent if this is the case.
+                    if (ApplicationContext.IsConfigured && ApplicationContext.DatabaseContext.IsDatabaseConfigured)
                     {
-                        return null;
-                    }
+                        //disable if they are not enabled
+                        if (UmbracoConfig.For.UmbracoSettings().DistributedCall.Enabled == false)
+                        {
+                            return null;
+                        }
 
-                    try
-                    {
-                        var user = User.GetUser(UmbracoConfig.For.UmbracoSettings().DistributedCall.UserId);
-                        return new System.Tuple<string, string>(user.LoginName, user.GetPassword());
+                        try
+                        {
+                            var user = ApplicationContext.Services.UserService.GetUserById(UmbracoConfig.For.UmbracoSettings().DistributedCall.UserId);
+                            return new Tuple<string, string>(user.Username, user.RawPasswordValue);
+                        }
+                        catch (Exception e)
+                        {
+                            LoggerResolver.Current.Logger.Error<WebBootManager>("An error occurred trying to set the IServerMessenger during application startup", e);
+                            return null;
+                        }
                     }
-                    catch (Exception e)
+                    LoggerResolver.Current.Logger.Warn<WebBootManager>("Could not initialize the DefaultServerMessenger, the application is not configured or the database is not configured");
+                    return null;
+                }));
+            }
+            else
+            {
+                ServerMessengerResolver.Current.SetServerMessenger(new BatchedDatabaseServerMessenger(
+                ApplicationContext,
+                true,
+                    //Default options for web including the required callbacks to build caches
+                new DatabaseServerMessengerOptions
+                {
+                    //These callbacks will be executed if the server has not been synced
+                    // (i.e. it is a new server or the lastsynced.txt file has been removed)
+                    InitializingCallbacks = new Action[]
                     {
-                        LoggerResolver.Current.Logger.Error<WebBootManager>("An error occurred trying to set the IServerMessenger during application startup", e);
-                        return null;
+                        //rebuild the xml cache file if the server is not synced
+                        () =>
+                        {
+                            // rebuild the facade caches entirely, if the server is not synced
+                            // this is equivalent to DistributedCache RefreshAllFacade but local only
+                            // (we really should have a way to reuse RefreshAllFacade... locally)
+                            // note: refresh all content & media caches does refresh content types too
+					        var svc = PublishedCachesServiceResolver.Current.Service;
+					        bool ignored1, ignored2;
+                            // missing: domains?
+                            svc.Notify(new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) }, out ignored1, out ignored2);
+                            svc.Notify(new[] { new MediaCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) }, out ignored1);
+                        },
+                        //rebuild indexes if the server is not synced
+                        // NOTE: This will rebuild ALL indexes including the members, if developers want to target specific 
+                        // indexes then they can adjust this logic themselves.
+                        () => Examine.ExamineManager.Instance.RebuildIndex()
                     }
-                }
-                LoggerResolver.Current.Logger.Warn<WebBootManager>("Could not initialize the DefaultServerMessenger, the application is not configured or the database is not configured");
-                return null;
-            }));
+                }));
+            }
 
             SurfaceControllerResolver.Current = new SurfaceControllerResolver(
                 ServiceProvider, LoggerResolver.Current.Logger,
