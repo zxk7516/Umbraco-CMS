@@ -1342,16 +1342,20 @@ AND cmsContentNu.nodeId IS NULL
                 && VerifyMediaDbCache()
                 && VerifyMemberDbCache();
 
-            var cs = _contentStore.GenCount;
-            var ms = _mediaStore.GenCount;
+            var cg = _contentStore.GenCount;
+            var mg = _mediaStore.GenCount;
+            var cs = _contentStore.SnapCount;
+            var ms = _mediaStore.SnapCount;
             var ce = _contentStore.Count;
             var me = _mediaStore.Count;
 
             return "I'm feeling good, really." +
                 " Database cache is " + (dbCacheIsOk ? "ok" : "NOT ok (rebuild?)") + "." +
-                " ContentStore has " + cs + " snapshot" + (cs > 1 ? "s" : "") +
+                " ContentStore has " + cg + " generation" + (cg > 1 ? "s" : "") +
+                ", " + cs + " snapshot" + (cs > 1 ? "s" : "") +
                 " and " + ce + " entr" + (ce > 1 ? "ies" : "y") + "." +
-                " MediaStore has " + ms + " snapshot" + (ms > 1 ? "s" : "") +
+                " MediaStore has " + mg + " generation" + (mg > 1 ? "s" : "") +
+                ", " + ms + " snapshot" + (ms > 1 ? "s" : "") +
                 " and " + me + " entr" + (me > 1 ? "ies" : "y") + ".";
         }
 
