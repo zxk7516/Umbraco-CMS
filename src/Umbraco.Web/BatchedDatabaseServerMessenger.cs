@@ -38,7 +38,7 @@ namespace Umbraco.Web
                     + typeof(BatchedDatabaseServerMessenger) + ", distributed calls will not be enabled for this server");
 
             // because .ApplicationStarted triggers only once, this is thread-safe
-            Boot();
+            Initialize();
         }
 
         private void UmbracoModule_RouteAttempt(object sender, RoutableAttemptEventArgs e)

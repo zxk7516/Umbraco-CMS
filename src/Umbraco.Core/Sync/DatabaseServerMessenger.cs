@@ -33,8 +33,9 @@ namespace Umbraco.Core.Sync
         private readonly object _locko = new object();
         private readonly ILogger _logger;
         private int _lastId = -1;
+        private volatile bool _syncEnabled; // whether to sync (process instructions)
+        private bool _writeEnabled; // whether to write (instructions)
         private DateTime _lastSync;
-        private bool _initialized;
         private bool _syncing;
         private bool _released;
         private readonly ProfilingLogger _profilingLogger;
@@ -55,13 +56,81 @@ namespace Umbraco.Core.Sync
             _logger = appContext.ProfilingLogger.Logger;
         }
 
+        protected void Initialize()
+        {
+            var isConfigured = ApplicationContext.IsConfigured;
+            var hasDatabase = ApplicationContext.DatabaseContext.IsDatabaseConfigured
+                                && ApplicationContext.DatabaseContext.CanConnect;
+
+            // for the time being it's always enabled (but see CanWrite)
+            InitializeWrite();
+
+            if (isConfigured && hasDatabase)
+                InitializeSync();
+            else
+                _logger.Warn<DatabaseServerMessenger>("Sync is disabled " + (isConfigured
+                    ? "(app is not configured)"
+                    : "(app is configured, but cannot reach database)"));
+        }
+
         #region Messenger
 
+        private bool? _canWrite;
+
+        // write is always enabled, but whether we can actually write or not depends
+        // on the application state -- and because we may want to write during upgrades,
+        // eg to broadcast the final global facade refresh, we have to figure out
+        // whether we can write or not at runtime
+        private bool CanWrite()
+        {
+            // if we already know, return the value
+            if (_canWrite.HasValue) 
+                return _canWrite.Value;
+
+            // if we are configured, we can write,
+            // set the value and return
+            if (ApplicationContext.IsConfigured)
+            {
+                _canWrite = true;
+                return true;
+            }
+
+            // if we are not upgrading (ie installing), we cannot write,
+            // set the value and return
+            if (ApplicationContext.IsUpgrading == false)
+            {
+                _canWrite = false;
+                return false;
+            }
+
+            // if we are upgrading... it depends on the current state of the database
+            var dbContext = ApplicationContext.DatabaseContext;
+            if (dbContext.IsDatabaseConfigured == false || dbContext.CanConnect == false) return false;
+            var canWrite = new DatabaseSchemaHelper(dbContext.Database, _logger, dbContext.SqlSyntax).TableExist("umbracoCacheInstruction");
+
+            // if we *can* write, set the value, else we'll try again
+            if (canWrite) _canWrite = true;
+            return canWrite;
+        }
+
+        /// <summary>
+        /// Initializes writing instructions to database.
+        /// </summary>
+        /// <remarks>
+        /// Thread safety: this is NOT thread safe. Because it is NOT meant to run multi-threaded.
+        /// Callers MUST ensure thread-safety.
+        /// </remarks>
+        private void InitializeWrite()
+        {
+            _writeEnabled = true;
+        }
+
+        // this tells ServerMessengerBase whether it should deliver to remote
         protected override bool RequiresDistributed(IEnumerable<IServerAddress> servers, ICacheRefresher refresher, MessageType dispatchType)
         {
             // we don't care if there's servers listed or not, 
             // if distributed call is enabled we will make the call
-            return _initialized && DistributedEnabled;
+            return DistributedEnabled && _writeEnabled && CanWrite();
         }
 
         protected override void DeliverRemote(
@@ -94,13 +163,13 @@ namespace Umbraco.Core.Sync
         #region Sync
 
         /// <summary>
-        /// Boots the messenger.
+        /// Initializes synchronization.
         /// </summary>
         /// <remarks>
         /// Thread safety: this is NOT thread safe. Because it is NOT meant to run multi-threaded.
         /// Callers MUST ensure thread-safety.
         /// </remarks>
-        protected void Boot()
+        private void InitializeSync()
         {
             // weight:10, must release *before* the facade service, because once released
             // the service will *not* be able to properly handle our notifications anymore
@@ -122,18 +191,7 @@ namespace Umbraco.Core.Sync
 
             ReadLastSynced(); // get _lastId
             EnsureInstructions(); // reset _lastId if instrs are missing
-            Initialize(); // boot
-        }
 
-        /// <summary>
-        /// Initializes a server that has never synchronized before.
-        /// </summary>
-        /// <remarks>
-        /// Thread safety: this is NOT thread safe. Because it is NOT meant to run multi-threaded.
-        /// Callers MUST ensure thread-safety.
-        /// </remarks>
-        private void Initialize()
-        {
             lock (_locko)
             {
                 if (_released) return;
@@ -157,7 +215,7 @@ namespace Umbraco.Core.Sync
                             callback();
                 }
 
-                _initialized = true;
+                _syncEnabled = true;
             }
         }
 
@@ -168,10 +226,7 @@ namespace Umbraco.Core.Sync
         {
             lock (_locko)
             {
-                if (_syncing) 
-                    return;
-
-                if (_released)
+                if (_syncing || _released || _syncEnabled == false) 
                     return;
 
                 if ((DateTime.UtcNow - _lastSync).Seconds <= _options.ThrottleSeconds)
@@ -265,7 +320,6 @@ namespace Umbraco.Core.Sync
                     // cannot throw here, because this invalid instruction will just keep getting processed over and over and errors
                     // will be thrown over and over. The only thing we can do is ignore and move on. But cache if now out of sync.
                     lastId = dto.Id;
-                    continue; continue;
                 }
             }
 
