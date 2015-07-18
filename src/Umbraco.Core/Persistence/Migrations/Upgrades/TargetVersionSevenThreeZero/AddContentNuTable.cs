@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Persistence.DatabaseAnnotations;
 using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.SqlSyntax;
 
@@ -23,11 +24,13 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZe
             var tables = SqlSyntax.GetTablesInSchema(Context.Database).ToArray();
             if (tables.InvariantContains("cmsContentNu")) return;
 
+            var textType = SqlSyntax.GetSpecialDbType(SpecialDbTypes.NTEXT);
+
             Create.Table("cmsContentNu")
                 .WithColumn("nodeId").AsInt32().NotNullable()
                 .WithColumn("published").AsBoolean().NotNullable()
-                .WithColumn("data").AsString().NotNullable()
-                .WithColumn("rv").AsInt64().NotNullable().WithDefault(0L);
+                .WithColumn("data").AsCustom(textType).NotNullable()
+                .WithColumn("rv").AsInt64().NotNullable().WithDefaultValue(0);
 
             Create.PrimaryKey("PK_cmsContentNu")
                 .OnTable("cmsContentNu")
