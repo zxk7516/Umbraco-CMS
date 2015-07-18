@@ -284,6 +284,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private bool BuildKit(ContentNodeKit kit)
         {
+            // make sure the kit is valid
+            if (kit.DraftData == null && kit.PublishedData == null)
+                return false;
+
             LinkedNode<PublishedContentType> link;
 
             // unknown = bad

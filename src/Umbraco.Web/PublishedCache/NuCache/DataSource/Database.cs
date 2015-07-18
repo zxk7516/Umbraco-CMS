@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Umbraco.Core;
+using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence;
 
 namespace Umbraco.Web.PublishedCache.NuCache.DataSource
@@ -196,42 +197,51 @@ ORDER BY n.level, n.sortOrder
 
         private static ContentNodeKit CreateContentNodeKit(ContentSourceDto dto)
         {
-            if (dto.DraftVersion != Guid.Empty && dto.DraftData == null)
-                throw new Exception();
-
             ContentData d = null;
             ContentData p = null;
 
             if (dto.DraftVersion != Guid.Empty)
             {
                 if (dto.DraftData == null)
-                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
-                d = new ContentData
                 {
-                    Name = dto.DraftName,
-                    Published = false,
-                    TemplateId = dto.DraftTemplateId,
-                    Version = dto.DraftVersion,
-                    VersionDate = dto.DraftVersionDate,
-                    WriterId = dto.DraftWriterId,
-                    Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.DraftData)
-                };
+                    //throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
+                    LogHelper.Warn<Database>("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
+                }
+                else
+                {
+                    d = new ContentData
+                    {
+                        Name = dto.DraftName,
+                        Published = false,
+                        TemplateId = dto.DraftTemplateId,
+                        Version = dto.DraftVersion,
+                        VersionDate = dto.DraftVersionDate,
+                        WriterId = dto.DraftWriterId,
+                        Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.DraftData)
+                    };
+                }
             }
 
             if (dto.PubVersion != Guid.Empty)
             {
                 if (dto.PubData == null)
-                    throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
-                p = new ContentData
                 {
-                    Name = dto.PubName,
-                    Published = true,
-                    TemplateId = dto.PubTemplateId,
-                    Version = dto.PubVersion,
-                    VersionDate = dto.PubVersionDate,
-                    WriterId = dto.PubWriterId,
-                    Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
-                };
+                    //throw new Exception("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
+                    LogHelper.Warn<Database>("Missing cmsContentNu content for node " + dto.Id + ", consider rebuilding.");
+                }
+                else
+                {
+                    p = new ContentData
+                    {
+                        Name = dto.PubName,
+                        Published = true,
+                        TemplateId = dto.PubTemplateId,
+                        Version = dto.PubVersion,
+                        VersionDate = dto.PubVersionDate,
+                        WriterId = dto.PubWriterId,
+                        Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
+                    };
+                }
             }
 
             var n = new ContentNode(dto.Id, dto.Uid,
