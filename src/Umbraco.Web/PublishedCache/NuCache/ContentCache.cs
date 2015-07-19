@@ -246,7 +246,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             // both .Draft and .Published cannot be null at the same time
             return c.Select(n => preview
                 ? n.Draft ?? GetPublishedContentAsPreviewing(n.Published)
-                : n.Published).WhereNotNull();
+                : n.Published).WhereNotNull().OrderBy(x => x.SortOrder);
         }
 
         // gets a published content as a previewing draft, if preview is true
