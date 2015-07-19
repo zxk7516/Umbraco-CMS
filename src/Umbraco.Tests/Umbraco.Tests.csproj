@@ -181,6 +181,7 @@
     <Compile Include="Cache\CacheRefresherTests.cs" />
     <Compile Include="Cache\DeepCloneRuntimeCacheProviderTests.cs" />
     <Compile Include="Cache\SnapDictionaryTests.cs" />
+    <Compile Include="JsonSerializationTests.cs" />
     <Compile Include="Logging\AsyncRollingFileAppenderTest.cs" />
     <Compile Include="Logging\DebugAppender.cs" />
     <Compile Include="Persistence\PetaPocoRowVersionTests.cs" />

@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Umbraco.Core;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence;
+using Umbraco.Core.Serialization;
 
 namespace Umbraco.Web.PublishedCache.NuCache.DataSource
 {
@@ -217,7 +219,7 @@ ORDER BY n.level, n.sortOrder
                         Version = dto.DraftVersion,
                         VersionDate = dto.DraftVersionDate,
                         WriterId = dto.DraftWriterId,
-                        Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.DraftData)
+                        Properties = DeserializeData(dto.DraftData)
                     };
                 }
             }
@@ -239,7 +241,7 @@ ORDER BY n.level, n.sortOrder
                         Version = dto.PubVersion,
                         VersionDate = dto.PubVersionDate,
                         WriterId = dto.PubWriterId,
-                        Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
+                        Properties = DeserializeData(dto.PubData)
                     };
                 }
             }
@@ -271,7 +273,7 @@ ORDER BY n.level, n.sortOrder
                 Version = dto.PubVersion,
                 VersionDate = dto.PubVersionDate,
                 WriterId = dto.CreatorId, // what-else?
-                Properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(dto.PubData)
+                Properties = DeserializeData(dto.PubData)
             };
 
             var n = new ContentNode(dto.Id, dto.Uid,
@@ -285,6 +287,19 @@ ORDER BY n.level, n.sortOrder
             };
 
             return s;
+        }
+
+        private static Dictionary<string, object> DeserializeData(string data)
+        {
+            // by default JsonConvert will deserialize our numeric values as Int64
+            // which is bad, because they were Int32 in the database - take care
+
+            var settings = new JsonSerializerSettings
+            {
+                Converters = new List<JsonConverter> { new ForceInt32Converter() }
+            };
+
+            return JsonConvert.DeserializeObject<Dictionary<string, object>>(data, settings);
         }
     }
 }
