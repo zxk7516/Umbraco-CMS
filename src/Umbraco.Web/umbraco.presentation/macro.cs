@@ -454,13 +454,11 @@ namespace umbraco
             OnMacroRendering(new MacroRenderingEventArgs(pageElements, pageId));
 
             var macroInfo = (Model.MacroType == MacroTypes.Script && Model.Name.IsNullOrWhiteSpace())
-                                ? string.Format("Render Inline Macro, Cache: {0})", Model.CacheDuration)
-                                : string.Format("Render Macro: {0}, type: {1}, cache: {2})", Model.Name, Model.MacroType, Model.CacheDuration);
+                                ? string.Format("Render Inline Macro, cache: {0}", Model.CacheDuration)
+                                : string.Format("Render Macro: {0}, type: {1}, cache: {2}", Model.Name, Model.MacroType, Model.CacheDuration);
 
-            using (DisposableTimer.DebugDuration<macro>(macroInfo))
+            using (DisposableTimer.DebugDuration<macro>(macroInfo, "Rendered Macro."))
             {
-                LogHelper.Info<macro>(macroInfo);
-
                 // parse macro parameters ie replace the special [#key], [$key], etc. syntaxes
                 foreach (var prop in Model.Properties)
                     prop.Value = helper.parseAttribute(pageElements, prop.Value);
@@ -502,9 +500,9 @@ namespace umbraco
         /// <summary>
         /// Executes a macro of a given type.
         /// </summary>
-        private Attempt<MacroContent> ExecuteMacroWithErrorWrapper(string message, Func<MacroContent> getMacroContent)
+        private Attempt<MacroContent> ExecuteMacroWithErrorWrapper(string msgIn, string msgOut, Func<MacroContent> getMacroContent)
         {
-            using (DisposableTimer.DebugDuration<macro>(message))
+            using (DisposableTimer.DebugDuration<macro>(msgIn, msgOut))
             {
                 try
                 {
@@ -514,7 +512,7 @@ namespace umbraco
                 {
                     Exceptions.Add(e);
 
-                    var errorMessage = "Failed " + message;
+                    var errorMessage = "Failed " + msgIn;
                     LogHelper.WarnWithException<macro>(errorMessage, true, e);
 
                     var macroErrorEventArgs = new MacroErrorEventArgs
@@ -575,36 +573,39 @@ namespace umbraco
                 case MacroTypes.PartialView:
                     return ExecuteMacroWithErrorWrapper(
                         string.Format("Executing PartialView: TypeName=\"{0}\", ScriptName=\"{1}\".", model.TypeName, model.ScriptName),
+                        "Executed PartialView.",
                         () =>
                         {
                             var text = ExecutePartialView(model);
-                            LogHelper.Debug<macro>("Executed.");
                             return new MacroContent { Text = text };
                         });
 
                 case MacroTypes.Script:
                     return ExecuteMacroWithErrorWrapper(
-                        string.Format("Executing Script: ScriptName=\"{0}\".", model.ScriptName),
+                        "Executing Script: " + (string.IsNullOrWhiteSpace(model.ScriptCode)
+                            ? "ScriptName=\"" + model.ScriptName + "\""
+                            : "Inline, Language=\"" + model.ScriptLanguage + "\""),
+                        "Executed Script.",
                         () =>
                         {
                             var text = ExecuteScript(model);
-                            LogHelper.Debug<macro>("Executed.");
                             return new MacroContent { Text = text };
                         });
 
                 case MacroTypes.XSLT:
                     return ExecuteMacroWithErrorWrapper(
                         string.Format("Executing Xslt: TypeName=\"{0}\", ScriptName=\"{1}\".", model.TypeName, model.Xslt),
+                        "Executed Xslt.",
                         () =>
                         {
                             var text = ExecuteXslt(model);
-                            LogHelper.Debug<macro>("Executed.");
                             return new MacroContent { Text = text };
                         });
 
                 case MacroTypes.UserControl:
                     return ExecuteMacroWithErrorWrapper(
                         string.Format("Loading UserControl: TypeName=\"{0}\".", model.TypeName),
+                        "Loaded UserControl.",
                         () =>
                         {
                             // add tilde for v4 defined macros
@@ -613,23 +614,23 @@ namespace umbraco
                                 model.TypeName = "~/" + model.TypeName;
 
                             var control = LoadUserControl(model);
-                            LogHelper.Debug<macro>("Loaded.");
                             return new MacroContent { Control = control };
                         });
 
                 case MacroTypes.CustomControl:
                     return ExecuteMacroWithErrorWrapper(
                         string.Format("Loading CustomControl: TypeName=\"{0}\", TypeAssembly=\"{1}\".", model.TypeName, model.TypeAssembly),
+                        "Loaded CustomControl.",
                         () =>
                         {
                             var control = LoadCustomControl(model);
-                            LogHelper.Debug<macro>("Loaded.");
                             return new MacroContent { Control = control };
                         });
 
                 default:
                     return ExecuteMacroWithErrorWrapper(
                         string.Format("Execute macro with unsupported type \"{0}\".", model.MacroType),
+                        "Executed.",
                         () =>
                         {
                             throw new Exception("Unsupported macro type.");

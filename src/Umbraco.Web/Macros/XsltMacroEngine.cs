@@ -72,18 +72,21 @@ namespace Umbraco.Web.Macros
         // macro engine when searching for engines via extension. Those types of engines are reserved for files that are
         // stored in the ~/macroScripts folder and each engine must support unique extensions. This is a total Hack until 
         // we rewrite how macro engines work.
+        //
+        //NOTE: The XsltMacroEngine does support inline Xslt and will happily render an inline Xslt macro - however, asp
+        // does not like things such as <xsl:text> within the <umbraco:Macro> control so creating inline Xslt is a pain,
+        // and it was never supported to begin with, so we do NOT activate it here.
+
+        private static readonly IEnumerable<string> Extensions = Enumerable.Empty<string>(); //new[] {"xslt"};
+
         public IEnumerable<string> SupportedExtensions
         {
-            get { return Enumerable.Empty<string>(); }
+            get { return Extensions; }
         }
 
-        //NOTE: We do not return any supported extensions because we don't want the MacroEngineFactory to return this
-        // macro engine when searching for engines via extension. Those types of engines are reserved for files that are
-        // stored in the ~/macroScripts folder and each engine must support unique extensions. This is a total Hack until 
-        // we rewrite how macro engines work.
         public IEnumerable<string> SupportedUIExtensions
         {
-            get { return Enumerable.Empty<string>(); }
+            get { return Extensions; }
         }
 
         public Dictionary<string, global::umbraco.interfaces.IMacroGuiRendering> SupportedProperties
@@ -111,13 +114,23 @@ namespace Umbraco.Web.Macros
         // will pick XmlDocument or Navigator mode depending on the capabilities of the published caches
         private string Execute(MacroModel model)
         {
-            if (model.Xslt.Trim() == string.Empty)
+            var hasCode = string.IsNullOrWhiteSpace(model.ScriptCode) == false;
+            var hasXslt = string.IsNullOrWhiteSpace(model.Xslt) == false;
+
+            if (hasXslt == false && hasCode == false)
             {
                 LogHelper.Warn<XsltMacroEngine>("Xslt is empty");
                 return string.Empty;
             }
 
-            using (DisposableTimer.DebugDuration<macro>("Executing XSLT: " + model.Xslt))
+            if (hasCode && model.ScriptLanguage.InvariantEquals("xslt") == false)
+            {
+                LogHelper.Warn<XsltMacroEngine>("Unsupported script language \"" + model.ScriptLanguage + "\".");
+                return string.Empty;
+            }
+
+            var msg = "Executing Xslt: " + (hasCode ? "Inline." : "Xslt=\"" + model.Xslt + "\".");
+            using (DisposableTimer.DebugDuration<XsltMacroEngine>(msg, "Executed Xslt."))
             {
                 // need these two here for error reporting
                 MacroNavigator macroNavigator = null;
@@ -174,16 +187,34 @@ namespace Umbraco.Web.Macros
 
                 // get the transform
                 XslCompiledTransform transform;
-                try
+                if (hasCode)
                 {
-                    transform = GetCachedXsltTransform(model.Xslt);
+                    try
+                    {
+                        using (var sreader = new StringReader(model.ScriptCode))
+                        using (var xreader = new XmlTextReader(sreader))
+                        {
+                            transform = GetXsltTransform(xreader, GlobalSettings.DebugMode);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        throw new Exception(string.Format("Failed to parse inline Xslt."), e);
+                    }
                 }
-                catch (Exception e)
+                else
                 {
-                    throw new Exception(string.Format("Failed to read Xslt file \"{0}\".", model.Xslt), e);
+                    try
+                    {
+                        transform = GetCachedXsltTransform(model.Xslt);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new Exception(string.Format("Failed to read Xslt file \"{0}\".", model.Xslt), e);
+                    }
                 }
 
-                using (DisposableTimer.DebugDuration<macro>("Performing transformation"))
+                using (DisposableTimer.DebugDuration<XsltMacroEngine>("Performing transformation.", "Performed transformation."))
                 {
                     try
                     {
@@ -515,7 +546,7 @@ namespace Umbraco.Web.Macros
             TextWriter tw = new StringWriter();
 
             XsltArgumentList xslArgs;
-            using (DisposableTimer.DebugDuration<macro>("Adding XSLT Extensions"))
+            using (DisposableTimer.DebugDuration<XsltMacroEngine>("Adding Xslt extensions", "Added Xslt extensions"))
             {
                 xslArgs = GetXsltArgumentListWithExtensions();
                 var lib = new library();
@@ -535,7 +566,7 @@ namespace Umbraco.Web.Macros
                     xslArgs.AddParam(parameter.Key, string.Empty, parameter.Value);
 
             // transform
-            using (DisposableTimer.DebugDuration<macro>("Executing XSLT transform"))
+            using (DisposableTimer.DebugDuration<XsltMacroEngine>("Executing Xslt transform", "Executed Xslt transform"))
             {
                 xslt.Transform(macroNavigable, xslArgs, tw);
             }

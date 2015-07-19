@@ -119,7 +119,7 @@ namespace umbraco.cms.businesslogic.macro
         {
             if (filename.Contains("."))
             {
-                string extension = filename.Substring(filename.LastIndexOf(".") + 1);
+                var extension = System.IO.Path.GetExtension(filename).TrimStart(".");
                 return GetByExtension(extension);
             }
 
@@ -128,7 +128,7 @@ namespace umbraco.cms.businesslogic.macro
 
         public static IMacroEngine GetByExtension(string extension)
         {
-            var engine = GetAll().Find(t => t.SupportedExtensions.Contains(extension));
+            var engine = GetAll().Find(t => t.SupportedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase));
             if (engine != null)
             {
                 return engine;
