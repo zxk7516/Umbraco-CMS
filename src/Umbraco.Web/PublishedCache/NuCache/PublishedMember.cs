@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.ServiceModel.Security;
+using Umbraco.Core;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Web.PublishedCache.NuCache.DataSource;
@@ -21,7 +23,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             _member = member;
         }
 
-        public static PublishedMember Create(IMember member, PublishedContentType contentType, bool previewing)
+        public static IPublishedContent Create(IMember member, PublishedContentType contentType, bool previewing)
         {
             var d = new ContentData
             {
@@ -31,24 +33,24 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 Version = member.Version,
                 VersionDate = member.UpdateDate,
                 WriterId = member.CreatorId, // what else?
-                Properties = GetPropertyValues(member)
+                Properties = GetPropertyValues(contentType, member)
             };
             var n = new ContentNode(member.Id, member.Key,
                 contentType,
                 member.Level, member.Path, member.SortOrder,
                 member.ParentId,
                 member.CreateDate, member.CreatorId);
-            return new PublishedMember(member, n, d);
+            return new PublishedMember(member, n, d).CreateModel();
         }
 
-        private static Dictionary<string, object> GetPropertyValues(IContentBase content)
+        private static Dictionary<string, object> GetPropertyValues(PublishedContentType contentType, IMember member)
         {
             // see node in FacadeService
             // we do not (want to) support ConvertDbToXml/String
 
             //var propertyEditorResolver = PropertyEditorResolver.Current;
 
-            return content
+            var properties = member
                 .Properties
                 //.Select(property =>
                 //{
@@ -59,7 +61,27 @@ namespace Umbraco.Web.PublishedCache.NuCache
                 //    return new KeyValuePair<string, object>(property.Alias, v);
                 //})
                 //.ToDictionary(x => x.Key, x => x.Value);
-                .ToDictionary(x => x.Alias, x => x.Value);
+                .ToDictionary(x => x.Alias, x => x.Value, StringComparer.OrdinalIgnoreCase);
+
+            AddIf(contentType, properties, "Email", member.Email);
+            AddIf(contentType, properties, "Username", member.Username);
+            //AddIf(contentType, properties, "PasswordQuestion", member.PasswordQuestion);
+            //AddIf(contentType, properties, "Comments", member.Comments);
+            //AddIf(contentType, properties, "IsApproved", member.IsApproved);
+            //AddIf(contentType, properties, "IsLockedOut", member.IsLockedOut);
+            //AddIf(contentType, properties, "LastLockoutDate", member.LastLockoutDate);
+            //AddIf(contentType, properties, "CreateDate", member.CreateDate);
+            //AddIf(contentType, properties, "LastLoginDate", member.LastLoginDate);
+            //AddIf(contentType, properties, "LastPasswordChangeDate", member.LastPasswordChangeDate);
+
+            return properties;
+        }
+
+        private static void AddIf(PublishedContentType contentType, IDictionary<string, object> properties, string alias, object value)
+        {
+            var propertyType = contentType.GetPropertyType(alias);
+            if (propertyType == null || propertyType.IsUmbraco == false) return;
+            properties[alias] = value;
         }
 
         #region IPublishedMember

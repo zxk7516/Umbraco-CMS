@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web.Caching;
-using System.Web.UI;
-using Umbraco.Core.Cache;
 
 namespace Umbraco.Core.Models.PublishedContent
 {
@@ -40,9 +36,11 @@ namespace Umbraco.Core.Models.PublishedContent
             Id = contentType.Id;
             Alias = contentType.Alias;
             ItemType = itemType;
-            _propertyTypes = contentType.CompositionPropertyTypes
-                .Select(x => new PublishedPropertyType(this, x))
-                .ToArray();
+            var propertyTypes = contentType.CompositionPropertyTypes
+                .Select(x => new PublishedPropertyType(this, x));
+            if (itemType == PublishedItemType.Member)
+                propertyTypes = WithMemberProperties(propertyTypes, this);
+            _propertyTypes = propertyTypes.ToArray();
             InitializeIndexes();
         }
 
@@ -57,6 +55,8 @@ namespace Umbraco.Core.Models.PublishedContent
             Id = id;
             Alias = alias;
             ItemType = itemType;
+            if (itemType == PublishedItemType.Member)
+                propertyTypes = WithMemberProperties(propertyTypes);
             _propertyTypes = propertyTypes.ToArray();
             foreach (var propertyType in _propertyTypes)
                 propertyType.ContentType = this;
@@ -75,6 +75,49 @@ namespace Umbraco.Core.Models.PublishedContent
                 var propertyType = _propertyTypes[i];
                 _indexes[propertyType.PropertyTypeAlias] = i;
                 _indexes[propertyType.PropertyTypeAlias.ToLowerInvariant()] = i;
+            }
+        }
+
+        // NOTE: code below defines and add custom, built-in, Umbraco properties for members
+        //  unless they are already user-defined in the content type, then they are skipped
+
+        private const int TextboxDataTypeDefinitionId = -88;
+        //private const int BooleanDataTypeDefinitionId = -49;
+        //private const int DatetimeDataTypeDefinitionId = -36;
+
+        private const string TextboxEditorAlias = Constants.PropertyEditors.TextboxAlias;
+        //private const string BooleanEditorAlias = Constants.PropertyEditors.TrueFalseAlias;
+        //private const string DatetimeEditorAlias = Constants.PropertyEditors.DateTimeAlias;
+
+        static readonly Dictionary<string, Tuple<int, string>> BuiltinProperties = new Dictionary<string, Tuple<int, string>>
+        {
+            { "Email", Tuple.Create(TextboxDataTypeDefinitionId, TextboxEditorAlias) },
+            { "Username", Tuple.Create(TextboxDataTypeDefinitionId, TextboxEditorAlias) },
+            //{ "PasswordQuestion", Tuple.Create(TextboxDataTypeDefinitionId, TextboxEditorAlias) },
+            //{ "Comments", Tuple.Create(TextboxDataTypeDefinitionId, TextboxEditorAlias) },
+            //{ "IsApproved", Tuple.Create(BooleanDataTypeDefinitionId, BooleanEditorAlias) },
+            //{ "IsLockedOut", Tuple.Create(BooleanDataTypeDefinitionId, BooleanEditorAlias) },
+            //{ "LastLockoutDate", Tuple.Create(DatetimeDataTypeDefinitionId, DatetimeEditorAlias) },
+            //{ "CreateDate", Tuple.Create(DatetimeDataTypeDefinitionId, DatetimeEditorAlias) },
+            //{ "LastLoginDate", Tuple.Create(DatetimeDataTypeDefinitionId, DatetimeEditorAlias) },
+            //{ "LastPasswordChangeDate", Tuple.Create(DatetimeDataTypeDefinitionId, DatetimeEditorAlias) },
+        };
+
+        private static IEnumerable<PublishedPropertyType> WithMemberProperties(IEnumerable<PublishedPropertyType> propertyTypes, 
+            PublishedContentType contentType = null)
+        {
+            var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var propertyType in propertyTypes)
+            {
+                aliases.Add(propertyType.PropertyTypeAlias);
+                yield return propertyType;
+            }
+
+            foreach (var kvp in BuiltinProperties.Where(kvp => aliases.Contains(kvp.Key) == false))
+            {
+                var propertyType = new PublishedPropertyType(kvp.Key, kvp.Value.Item1, kvp.Value.Item2, true);
+                if (contentType != null) propertyType.ContentType = contentType;
+                yield return propertyType;
             }
         }
 
