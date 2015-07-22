@@ -63,6 +63,7 @@ namespace umbraco.presentation.webservices
         {
             if (AuthorizeRequest(DefaultApps.developer.ToString()))
             {
+                IOHelper.EnsurePathExists(SystemDirectories.Xslt);
 
                 // validate file
                 IOHelper.ValidateEditPath(IOHelper.MapPath(SystemDirectories.Xslt + "/" + fileName),
@@ -346,7 +347,10 @@ namespace umbraco.presentation.webservices
                             if (File.Exists(saveOldPath))
                                 File.Delete(saveOldPath);
                         }
-                        
+
+                        //ensure the folder exists before saving
+                        Directory.CreateDirectory(Path.GetDirectoryName(savePath));
+
                         using (var sw = File.CreateText(savePath))
                         {
                             sw.Write(val);

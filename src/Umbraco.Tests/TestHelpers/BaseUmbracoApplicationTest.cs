@@ -73,8 +73,7 @@ namespace Umbraco.Tests.TestHelpers
                 var pcc = UmbracoContext.Current.PublishedCaches.ContentCache as PublishedContentCache;
                 if (pcc != null) pcc.XmlStore.Dispose();
             }
-
-            LoggerResolver.Reset();
+            
             //reset settings
             SettingsForTests.Reset();
             UmbracoContext.Current = null;

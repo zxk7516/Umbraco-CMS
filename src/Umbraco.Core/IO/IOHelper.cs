@@ -8,6 +8,7 @@ using System.Configuration;
 using System.Threading.Tasks;
 using System.Web;
 using System.Text.RegularExpressions;
+using System.Web.Hosting;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence.Repositories;
@@ -54,7 +55,23 @@ namespace Umbraco.Core.IO
                 return VirtualPathUtility.ToAbsolute(virtualPath, SystemDirectories.Root);
         }
 
-		[Obsolete("Use Umbraco.Web.Templates.TemplateUtilities.ResolveUrlsFromTextString instead, this method on this class will be removed in future versions")]
+        public static Attempt<string> TryResolveUrl(string virtualPath)
+        {
+            try
+            {
+                if (virtualPath.StartsWith("~"))
+                    return Attempt.Succeed(virtualPath.Replace("~", SystemDirectories.Root).Replace("//", "/"));
+                if (Uri.IsWellFormedUriString(virtualPath, UriKind.Absolute))
+                    return Attempt.Succeed(virtualPath);
+                return Attempt.Succeed(VirtualPathUtility.ToAbsolute(virtualPath, SystemDirectories.Root));
+            }
+            catch (Exception ex)
+            {
+                return Attempt.Fail(virtualPath, ex);
+            }
+        }
+
+	    [Obsolete("Use Umbraco.Web.Templates.TemplateUtilities.ResolveUrlsFromTextString instead, this method on this class will be removed in future versions")]
         internal static string ResolveUrlsFromTextString(string text)
         {
             if (UmbracoConfig.For.UmbracoSettings().Content.ResolveUrlsFromTextString)
@@ -96,9 +113,9 @@ namespace Umbraco.Core.IO
             {
                 //string retval;
                 if (string.IsNullOrEmpty(path) == false && (path.StartsWith("~") || path.StartsWith(SystemDirectories.Root)))
-                    return System.Web.Hosting.HostingEnvironment.MapPath(path);
+                    return HostingEnvironment.MapPath(path);
                 else
-                    return System.Web.Hosting.HostingEnvironment.MapPath("~/" + path.TrimStart('/'));
+                    return HostingEnvironment.MapPath("~/" + path.TrimStart('/'));
             }
 
         	var root = GetRootDirectorySafe();
@@ -301,6 +318,25 @@ namespace Umbraco.Core.IO
             return filePath.ToSafeFileName();
         }
 
+	    public static void EnsurePathExists(string path)
+	    {
+	        var absolutePath = IOHelper.MapPath(path);
+	        if (Directory.Exists(absolutePath) == false)
+	            Directory.CreateDirectory(absolutePath);
+	    }
+
+	    public static void EnsureFileExists(string path, string contents)
+	    {
+	        var absolutePath = IOHelper.MapPath(path);
+	        if (File.Exists(absolutePath) == false)
+	        {
+                using (var writer = File.CreateText(absolutePath))
+                {
+                    writer.Write(contents);
+                }
+	        }	            
+	    }
+        
 	    /// <summary>
 	    /// Deletes all files passed in.
 	    /// </summary>
@@ -347,6 +383,5 @@ namespace Umbraco.Core.IO
 
             return allsuccess;
         }
-
     }
 }

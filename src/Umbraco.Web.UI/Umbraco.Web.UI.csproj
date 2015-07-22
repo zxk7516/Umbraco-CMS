@@ -194,7 +194,7 @@
     </Reference>
     <Reference Include="MySql.Data">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\MySql.Data.6.9.6\lib\net45\MySql.Data.dll</HintPath>
+      <HintPath>..\packages\MySql.Data.6.9.7\lib\net45\MySql.Data.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.6.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -2385,20 +2385,13 @@
     <Content Include="Config\log4net.config" />
     <Content Include="Config\FileSystemProviders.config" />
     <Content Include="Config\EmbeddedMedia.config" />
-    <Content Include="Xslt\Web.config" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="App_Code\" />
     <Folder Include="App_Data\" />
-    <Folder Include="App_Plugins\" />
-    <Folder Include="Css\" />
-    <Folder Include="MasterPages\" />
     <Folder Include="Media\" />
-    <Folder Include="Scripts\" />
     <Folder Include="Umbraco\preview\" />
     <Folder Include="Umbraco_Client\FolderBrowser\Images\" />
     <Folder Include="Umbraco_Client\Tags\images\" />
-    <Folder Include="UserControls\" />
     <Folder Include="Views\MacroPartials\" />
   </ItemGroup>
   <PropertyGroup>

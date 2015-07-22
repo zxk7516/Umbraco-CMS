@@ -45,6 +45,22 @@ namespace Umbraco.Core.Services
         {
         }
 
+        public TaggedEntity GetTaggedEntityById(int id)
+        {
+            using (var repository = RepositoryFactory.CreateTagRepository(UowProvider.GetUnitOfWork()))
+            {
+                return repository.GetTaggedEntityById(id);
+            } 
+        }
+
+        public TaggedEntity GetTaggedEntityByKey(Guid key)
+        {
+            using (var repository = RepositoryFactory.CreateTagRepository(UowProvider.GetUnitOfWork()))
+            {
+                return repository.GetTaggedEntityByKey(key);
+            } 
+        }
+
         /// <summary>
         /// Gets tagged Content by a specific 'Tag Group'.
         /// </summary>
