@@ -239,7 +239,7 @@ namespace Umbraco.Web.Routing
 			ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Uri=\"{1}\"", () => tracePrefix, () => _pcr.Uri);
 
 			// try to find a domain matching the current request
-		    var domainCache = _routingContext.UmbracoContext.PublishedCaches.DomainCache;
+		    var domainCache = _routingContext.UmbracoContext.Facade.DomainCache;
             var domainAndUri = DomainHelper.DomainForUri(domainCache.GetAll(false), _pcr.Uri);
 
 			// handle domain
@@ -289,7 +289,7 @@ namespace Umbraco.Web.Routing
 			var nodePath = _pcr.PublishedContent.Path;
 			ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Path=\"{1}\"", () => tracePrefix, () => nodePath);
             var rootNodeId = _pcr.HasDomain ? _pcr.Domain.ContentId : (int?)null;
-            var domainCache = _routingContext.UmbracoContext.PublishedCaches.DomainCache;
+            var domainCache = _routingContext.UmbracoContext.Facade.DomainCache;
             var domain = DomainHelper.FindWildcardDomainInPath(domainCache.GetAll(true), nodePath, rootNodeId);
 
 			if (domain != null)

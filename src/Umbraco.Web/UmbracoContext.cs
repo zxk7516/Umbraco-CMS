@@ -25,7 +25,7 @@ namespace Umbraco.Web
 
         private bool _replacing;
         private bool? _previewing;
-        private readonly Lazy<IPublishedCaches> _publishedCaches;
+        private readonly Lazy<IFacade> _facade;
 
         /// <summary>
         /// Used if not running in a web application (no real HttpContext)
@@ -133,7 +133,7 @@ namespace Umbraco.Web
             var umbracoContext = new UmbracoContext(
                 httpContext,
                 applicationContext,
-                previewToken => PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(previewToken),
+                previewToken => FacadeServiceResolver.Current.Service.CreateFacade(previewToken),
                 webSecurity,
                 preview);
 
@@ -167,16 +167,16 @@ namespace Umbraco.Web
         /// </summary>
         /// <param name="httpContext"></param>
         /// <param name="applicationContext"> </param>
-        /// <param name="publishedCaches">The published caches.</param>
+        /// <param name="facade">The facade.</param>
         /// <param name="webSecurity"></param>
         /// <param name="preview">An optional value overriding detection of preview mode.</param>
         internal UmbracoContext(
             HttpContextBase httpContext,
             ApplicationContext applicationContext,
-            IPublishedCaches publishedCaches,
+            IFacade facade,
             WebSecurity webSecurity,
             bool? preview = null)
-            : this(httpContext, applicationContext, _ => publishedCaches, webSecurity, preview)
+            : this(httpContext, applicationContext, _ => facade, webSecurity, preview)
         {
         }
 
@@ -185,13 +185,13 @@ namespace Umbraco.Web
         /// </summary>
         /// <param name="httpContext"></param>
         /// <param name="applicationContext"> </param>
-        /// <param name="publishedCachesGetter">The published caches getter.</param>
+        /// <param name="facadeGetter">The facade getter.</param>
         /// <param name="webSecurity"></param>
         /// <param name="preview">An optional value overriding detection of preview mode.</param>
         internal UmbracoContext(
 			HttpContextBase httpContext, 
 			ApplicationContext applicationContext,
-            Func<string, IPublishedCaches> publishedCachesGetter,
+            Func<string, IFacade> facadeGetter,
             WebSecurity webSecurity,
             bool? preview = null)
         {
@@ -210,7 +210,7 @@ namespace Umbraco.Web
             Application = applicationContext;
             Security = webSecurity;
 
-            _publishedCaches = new Lazy<IPublishedCaches>(() => publishedCachesGetter(PreviewToken));
+            _facade = new Lazy<IFacade>(() => facadeGetter(PreviewToken));
             
             // set the urls...
             //original request url
@@ -307,17 +307,17 @@ namespace Umbraco.Web
 		internal Uri CleanedUmbracoUrl { get; private set; }
 
         /// <summary>
-        /// Gets the published caches.
+        /// Gets the facade.
         /// </summary>
-        public IPublishedCaches PublishedCaches
+        public IFacade Facade
         {
-            get { return _publishedCaches.Value; }
+            get { return _facade.Value; }
         }
 
         // for unit tests
-        internal bool HasPublishedCaches
+        internal bool HasFacade
         {
-            get { return _publishedCaches.IsValueCreated; }
+            get { return _facade.IsValueCreated; }
         }
 
         /// <summary>
@@ -325,7 +325,7 @@ namespace Umbraco.Web
         /// </summary>
         public IPublishedContentCache ContentCache
         {
-            get { return _publishedCaches.Value.ContentCache; }
+            get { return _facade.Value.ContentCache; }
         }
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace Umbraco.Web
         /// </summary>
         public IPublishedMediaCache MediaCache
         {
-            get { return _publishedCaches.Value.MediaCache; }
+            get { return _facade.Value.MediaCache; }
         }
 
         /// <summary>
@@ -480,8 +480,8 @@ namespace Umbraco.Web
             // help caches release resources
             // (but don't create caches just to dispose them)
             // context is not multi-threaded
-            if (_publishedCaches.IsValueCreated)
-                _publishedCaches.Value.DisposeIfDisposable();
+            if (_facade.IsValueCreated)
+                _facade.Value.DisposeIfDisposable();
         }
     }
 }

@@ -12,7 +12,7 @@ namespace umbraco.presentation
         protected void Page_Load(object sender, EventArgs e)
         {
             var previewToken = (new HttpRequestWrapper(Request)).GetPreviewCookieValue();
-            var service = PublishedCachesServiceResolver.Current.Service;
+            var service = FacadeServiceResolver.Current.Service;
             service.ExitPreview(previewToken);
 
             StateHelper.Cookies.Preview.Clear();

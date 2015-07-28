@@ -214,9 +214,9 @@ namespace Umbraco.Tests.PublishedContent
             Assert.AreEqual(1234, content3.Prop1);
         }
 
-        static SolidPublishedCaches CreatePublishedContent()
+        static SolidFacade CreatePublishedContent()
         {
-            var caches = new SolidPublishedCaches();
+            var caches = new SolidFacade();
             var cache = caches.InnerCache;
 
             var props = new[]

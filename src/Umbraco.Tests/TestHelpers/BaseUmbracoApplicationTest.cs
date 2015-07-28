@@ -68,9 +68,9 @@ namespace Umbraco.Tests.TestHelpers
             // in production we never have to do this because when the XmlStore goes down, the
             // entire application goes down - but for tests, we are creating more than one XmlStore
             // this is hackish-but would require a much larger refactoring to be ok
-            if (UmbracoContext.Current != null && UmbracoContext.Current.HasPublishedCaches)
+            if (UmbracoContext.Current != null && UmbracoContext.Current.HasFacade)
             {
-                var pcc = UmbracoContext.Current.PublishedCaches.ContentCache as PublishedContentCache;
+                var pcc = UmbracoContext.Current.Facade.ContentCache as PublishedContentCache;
                 if (pcc != null) pcc.XmlStore.Dispose();
             }
             

@@ -77,7 +77,7 @@ namespace Umbraco.Web.Cache
             // the new content...
 
             // notify
-            var svce = PublishedCachesServiceResolver.Current.Service;
+            var svce = FacadeServiceResolver.Current.Service;
             svce.Notify(payloads);
             // then trigger event
             base.Refresh(o);

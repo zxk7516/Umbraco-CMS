@@ -83,7 +83,7 @@ namespace umbraco.webservices
                 return;
 
             // makes sense for xml cache only
-            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            var svc = FacadeServiceResolver.Current.Service as FacadeService;
             if (svc == null) return;
 
             // xml cache will persist file, other caches may do something else

@@ -57,8 +57,8 @@ namespace Umbraco.Web.Standalone
         {
             base.InitializeResolvers();
 
-            PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(
-                new PublishedCache.XmlPublishedCache.PublishedCachesService(
+            FacadeServiceResolver.Current = new FacadeServiceResolver(
+                new PublishedCache.XmlPublishedCache.FacadeService(
                     ApplicationContext.Current.Services, 
                     ApplicationContext.Current.DatabaseContext,
                     ApplicationContext.Current.ApplicationCache.RequestCache));

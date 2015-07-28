@@ -6,11 +6,11 @@ using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache
 {
-    abstract class PublishedCachesServiceBase : IPublishedCachesService
+    abstract class FacadeServiceBase : IFacadeService
     {
-        private Func<IPublishedCaches> _getPublishedCachesFunc = () => UmbracoContext.Current == null ? null : UmbracoContext.Current.PublishedCaches;
+        private Func<IFacade> _getPublishedCachesFunc = () => UmbracoContext.Current == null ? null : UmbracoContext.Current.Facade;
 
-        public Func<IPublishedCaches> GetPublishedCachesFunc
+        public Func<IFacade> GetPublishedCachesFunc
         {
             get { return _getPublishedCachesFunc; }
             set
@@ -22,9 +22,9 @@ namespace Umbraco.Web.PublishedCache
             }
         }
 
-        public abstract IPublishedCaches CreatePublishedCaches(string previewToken);
+        public abstract IFacade CreateFacade(string previewToken);
 
-        public IPublishedCaches GetPublishedCaches()
+        public IFacade GetFacade()
         {
             var caches = _getPublishedCachesFunc();
             if (caches == null)

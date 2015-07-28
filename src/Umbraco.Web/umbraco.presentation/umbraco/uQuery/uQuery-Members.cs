@@ -23,7 +23,7 @@ namespace umbraco
             // so if we want to maintain backward compatibility for xPath queries...
             // but really, should be MediaCache.GetByXPath(...)
 
-            var nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MemberCache.CreateNavigator(), "Members");
+            var nav = new RenamedRootNavigator(UmbracoContext.Current.Facade.MemberCache.CreateNavigator(), "Members");
             var iter = nav.Select(xPath);
             while (iter.MoveNext())
             {

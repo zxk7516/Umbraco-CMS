@@ -13,11 +13,11 @@ namespace Umbraco.Web.WebServices
 {
     public class XmlDataIntegrityController : UmbracoAuthorizedApiController
     {
-        private static PublishedCachesService PublishedCachesService
+        private static FacadeService FacadeService
         {
             get
             {
-                var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+                var svc = FacadeServiceResolver.Current.Service as FacadeService;
                 if (svc == null)
                     throw new NotSupportedException("Unsupported IPublishedCachesService, only the Xml one is supported.");
                 return svc;
@@ -27,40 +27,40 @@ namespace Umbraco.Web.WebServices
         [HttpPost]
         public bool FixContentXmlTable()
         {
-            PublishedCachesService.RebuildContentAndPreviewXml();
-            return PublishedCachesService.VerifyContentAndPreviewXml();
+            FacadeService.RebuildContentAndPreviewXml();
+            return FacadeService.VerifyContentAndPreviewXml();
         }
 
         [HttpPost]
         public bool FixMediaXmlTable()
         {
-            PublishedCachesService.RebuildMediaXml();
-            return PublishedCachesService.VerifyMediaXml();
+            FacadeService.RebuildMediaXml();
+            return FacadeService.VerifyMediaXml();
         }
 
         [HttpPost]
         public bool FixMembersXmlTable()
         {
-            PublishedCachesService.RebuildMemberXml();
-            return PublishedCachesService.VerifyMemberXml();
+            FacadeService.RebuildMemberXml();
+            return FacadeService.VerifyMemberXml();
         }
 
         [HttpGet]
         public bool CheckContentXmlTable()
         {
-            return PublishedCachesService.VerifyContentAndPreviewXml();
+            return FacadeService.VerifyContentAndPreviewXml();
         }
         
         [HttpGet]
         public bool CheckMediaXmlTable()
         {
-            return PublishedCachesService.VerifyMediaXml();
+            return FacadeService.VerifyMediaXml();
         }
 
         [HttpGet]
         public bool CheckMembersXmlTable()
         {
-            return PublishedCachesService.VerifyMemberXml();
+            return FacadeService.VerifyMemberXml();
         }
 
         [HttpPost]

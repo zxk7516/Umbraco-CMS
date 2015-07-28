@@ -1,14 +1,13 @@
 ﻿using System;
-using System.Web.Services.Description;
 using Umbraco.Core.Models.Membership;
 using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache
 {
     /// <summary>
-    /// Creates and manages IPublishedCaches.
+    /// Creates and manages IFacade.
     /// </summary>
-    internal interface IPublishedCachesService : IDisposable
+    internal interface IFacadeService : IDisposable
     {
         #region PublishedCaches
 
@@ -32,18 +31,18 @@ namespace Umbraco.Web.PublishedCache
          */
 
         /// <summary>
-        /// Creates a set of published caches.
+        /// Creates a facade.
         /// </summary>
         /// <param name="previewToken">A preview token, or <c>null</c> if not previewing.</param>
-        /// <returns>A set of published caches.</returns>
-        IPublishedCaches CreatePublishedCaches(string previewToken);
+        /// <returns>A facade.</returns>
+        IFacade CreateFacade(string previewToken);
 
         /// <summary>
-        /// Gets the current set of published caches.
+        /// Gets the current facade.
         /// </summary>
-        /// <returns>The current set of published caches.</returns>
+        /// <returns>The current facade.</returns>
         /// <remarks></remarks>
-        IPublishedCaches GetPublishedCaches();
+        IFacade GetFacade();
 
         #endregion
 

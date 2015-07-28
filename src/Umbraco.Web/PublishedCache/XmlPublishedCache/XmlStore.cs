@@ -31,7 +31,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     /// Represents the Xml storage for the Xml published cache.
     /// </summary>
     /// <remarks>
-    /// <para>One instance of <see cref="XmlStore"/> is instanciated by the <see cref="PublishedCachesService"/> and
+    /// <para>One instance of <see cref="XmlStore"/> is instanciated by the <see cref="FacadeService"/> and
     /// then passed to all <see cref="PublishedContentCache"/> instances that are created (one per request).</para>
     /// <para>This class should *not* be public.</para>
     /// </remarks>
@@ -1285,7 +1285,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
                 if (publishedChanged)
                 {
                     safeXml.Commit(); // not auto!
-                    PublishedCaches.ResyncCurrent();
+                    Facade.ResyncCurrent();
                 }
             }
         }
@@ -1314,7 +1314,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // ignore media and member types - we're not caching them
 
-            PublishedCaches.ResyncCurrent();
+            Facade.ResyncCurrent();
         }
 
         public void Notify(DataTypeCacheRefresher.JsonPayload[] payloads)
@@ -1332,7 +1332,7 @@ ORDER BY umbracoNode.level, umbracoNode.sortOrder";
 
             // ignore media and member types - we're not caching them
 
-            PublishedCaches.ResyncCurrent();
+            Facade.ResyncCurrent();
         }
 
         #endregion

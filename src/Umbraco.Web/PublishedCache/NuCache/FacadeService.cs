@@ -28,7 +28,7 @@ using Content = umbraco.cms.businesslogic.Content;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    class FacadeService : PublishedCachesServiceBase
+    class FacadeService : FacadeServiceBase
     {
         private readonly ServiceContext _serviceContext;
         private readonly Database _dataSource;
@@ -829,7 +829,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private long _contentGen, _mediaGen, _domainGen;
         private ICacheProvider _snapshotCache;
 
-        public override IPublishedCaches CreatePublishedCaches(string previewToken)
+        public override IFacade CreateFacade(string previewToken)
         {
             // no cache, no joy
             if (_isReady == false)

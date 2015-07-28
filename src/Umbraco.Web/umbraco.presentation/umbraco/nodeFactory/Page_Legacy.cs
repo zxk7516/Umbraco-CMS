@@ -126,7 +126,7 @@ namespace umbraco.presentation.nodeFactory
         private static IPublishedContentCache ContentCache
         {
             // gets the "current" one - what is "current" is managed by the service
-            get { return PublishedCachesServiceResolver.Current.Service.GetPublishedCaches().ContentCache; }
+            get { return FacadeServiceResolver.Current.Service.GetFacade().ContentCache; }
         }
 
         #endregion

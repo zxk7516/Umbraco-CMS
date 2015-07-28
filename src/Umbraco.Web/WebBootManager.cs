@@ -387,7 +387,7 @@ namespace Umbraco.Web
                             // this is equivalent to DistributedCache RefreshAllFacade but local only
                             // (we really should have a way to reuse RefreshAllFacade... locally)
                             // note: refresh all content & media caches does refresh content types too
-					        var svc = PublishedCachesServiceResolver.Current.Service;
+					        var svc = FacadeServiceResolver.Current.Service;
 					        bool ignored1, ignored2;
                             svc.Notify(new[] { new DomainCacheRefresher.JsonPayload(0, DomainCacheRefresher.ChangeTypes.RefreshAll) });
                             svc.Notify(new[] { new ContentCacheRefresher.JsonPayload(0, TreeChangeTypes.RefreshAll) }, out ignored1, out ignored2);
@@ -419,15 +419,15 @@ namespace Umbraco.Web
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.TextStringValueConverter>();
             PropertyValueConvertersResolver.Current.RemoveType<Core.PropertyEditors.ValueConverters.MarkdownEditorValueConverter>();
 
-            var publishedCachesService =
+            var facadeService =
                 // use the Xml cache
-                new PublishedCache.XmlPublishedCache.PublishedCachesService(
+                new PublishedCache.XmlPublishedCache.FacadeService(
                         ApplicationContext.Current.Services,
                         ApplicationContext.Current.DatabaseContext, 
                         ApplicationContext.Current.ApplicationCache.RequestCache,
                         _isForTesting, false);
                 // use the NoCache
-                //new PublishedCache.PublishedNoCache.PublishedCachesService(
+                //new PublishedCache.PublishedNoCache.FacadeService(
                 //    () => ApplicationContext.Current.Services);
                 // use the NuCache
                 //new PublishedCache.NuCache.FacadeService(
@@ -435,10 +435,11 @@ namespace Umbraco.Web
                 //    {
                 //        FacadeCacheIsApplicationRequestCache = true
                 //    },
+                //    ApplicationContext.Current.MainDom,
                 //    ApplicationContext.Current.Services,
                 //    ApplicationContext.Current.DatabaseContext,
                 //    LoggerResolver.Current.Logger);
-            PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(publishedCachesService);
+            FacadeServiceResolver.Current = new FacadeServiceResolver(facadeService);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector), 
                 new NamespaceHttpControllerSelector(GlobalConfiguration.Configuration));

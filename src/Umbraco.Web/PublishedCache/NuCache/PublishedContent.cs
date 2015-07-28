@@ -105,12 +105,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         // this is for tests purposes
         // args are: current facade (may be null), previewing, content id - returns: content
-        private static Func<IPublishedCaches, bool, int, IPublishedContent> _getContentByIdFunc =
+        private static Func<IFacade, bool, int, IPublishedContent> _getContentByIdFunc =
             (facade, previewing, id) => facade.ContentCache.GetById(previewing, id);
-        private static Func<IPublishedCaches, bool, int, IPublishedContent> _getMediaByIdFunc =
+        private static Func<IFacade, bool, int, IPublishedContent> _getMediaByIdFunc =
             (facade, previewing, id) => facade.MediaCache.GetById(previewing, id);
 
-        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetContentByIdFunc
+        internal static Func<IFacade, bool, int, IPublishedContent> GetContentByIdFunc
         {
             get { return _getContentByIdFunc; }
             set
@@ -119,7 +119,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             }
         }
 
-        internal static Func<IPublishedCaches, bool, int, IPublishedContent> GetMediaByIdFunc
+        internal static Func<IFacade, bool, int, IPublishedContent> GetMediaByIdFunc
         {
             get { return _getMediaByIdFunc; }
             set

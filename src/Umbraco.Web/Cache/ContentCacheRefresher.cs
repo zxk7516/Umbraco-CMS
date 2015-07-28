@@ -85,7 +85,7 @@ namespace Umbraco.Web.Cache
             // content and when the PublishedCachesService is notified of changes it does not see
             // the new content...
 
-            var svce = PublishedCachesServiceResolver.Current.Service;
+            var svce = FacadeServiceResolver.Current.Service;
             bool draftChanged, publishedChanged;
             svce.Notify(payloads, out draftChanged, out publishedChanged);
 

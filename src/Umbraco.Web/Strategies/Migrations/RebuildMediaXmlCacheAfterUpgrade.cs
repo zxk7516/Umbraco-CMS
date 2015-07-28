@@ -30,7 +30,7 @@ namespace Umbraco.Web.Strategies.Migrations
                 // maintain - for backward compatibility?
                 //var mediasvc = (MediaService)ApplicationContext.Current.Services.MediaService;
                 //mediasvc.RebuildMediaXml();
-                var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+                var svc = FacadeServiceResolver.Current.Service as FacadeService;
                 if (svc != null)
                     svc.RebuildMediaXml();
             }

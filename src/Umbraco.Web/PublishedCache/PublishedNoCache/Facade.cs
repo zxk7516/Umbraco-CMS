@@ -1,9 +1,11 @@
-﻿namespace Umbraco.Web.PublishedCache.XmlPublishedCache
+﻿using Umbraco.Web.PublishedCache.XmlPublishedCache;
+
+namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
     /// <summary>
-    /// Implements a facade.
+    /// Provides caches (content and media).
     /// </summary>
-    class PublishedCaches : IPublishedCaches
+    class Facade : IFacade
     {
         private readonly PublishedContentCache _contentCache;
         private readonly PublishedMediaCache _mediaCache;
@@ -11,10 +13,10 @@
         private readonly DomainCache _domainCache;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="PublishedCaches"/> class with a content cache
+        /// Initializes a new instance of the <see cref="Facade"/> class with a content cache
         /// and a media cache.
         /// </summary>
-        public PublishedCaches(
+        public Facade(
             PublishedContentCache contentCache, 
             PublishedMediaCache mediaCache, 
             PublishedMemberCache memberCache,
@@ -58,17 +60,12 @@
             get { return _domainCache; }
         }
 
-        public static void ResyncCurrent()
+        /// <summary>
+        /// Resynchronizes caches with their corresponding repositories.
+        /// </summary>
+        public void Resync()
         {
-            if (PublishedCachesServiceResolver.HasCurrent == false) return;
-            var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
-            if (service == null) return;
-            var facade = service.GetPublishedCaches() as PublishedCaches;
-            if (facade == null) return;
-            facade._contentCache.Resync();
-            facade._mediaCache.Resync();
-
-            // not trying to resync members or domains, which are not cached really
+            // NoCache is fully sync, nothing to resync
         }
     }
 }

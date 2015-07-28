@@ -37,7 +37,7 @@ namespace Umbraco.Tests.Mvc
     [TestFixture]
     public class UmbracoViewPageTests : BaseUmbracoConfigurationTest
     {
-        private PublishedCachesService _service;
+        private FacadeService _service;
 
         [TearDown]
         public override void TearDown()
@@ -468,14 +468,14 @@ namespace Umbraco.Tests.Mvc
                 new ProfilingLogger(logger, Mock.Of<IProfiler>())) { IsReady = true };
 
             var cache = new NullCacheProvider();
-            _service = new PublishedCachesService(svcCtx, appCtx.DatabaseContext, cache, true, false); // no events
+            _service = new FacadeService(svcCtx, appCtx.DatabaseContext, cache, true, false); // no events
 
             var http = GetHttpContextFactory(url, routeData).HttpContext;
             var cacheProvider = new StaticCacheProvider();
             var ctx = new UmbracoContext(
                 GetHttpContextFactory(url, routeData).HttpContext,
                 appCtx,
-                _service.CreatePublishedCaches(null),
+                _service.CreateFacade(null),
                 new WebSecurity(http, appCtx));
 
             //if (setSingleton)

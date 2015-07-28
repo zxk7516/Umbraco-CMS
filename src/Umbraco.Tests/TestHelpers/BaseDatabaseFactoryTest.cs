@@ -200,7 +200,7 @@ namespace Umbraco.Tests.TestHelpers
                 PublishedContentModelFactoryResolver.Current = new PublishedContentModelFactoryResolver();
 
             // ensure we have a PublishedCachesService
-            if (PublishedCachesServiceResolver.HasCurrent == false)
+            if (FacadeServiceResolver.HasCurrent == false)
             {
                 var behavior = GetType().GetCustomAttribute<FacadeServiceBehaviorAttribute>(false);
                 var cache = new NullCacheProvider();
@@ -225,7 +225,7 @@ namespace Umbraco.Tests.TestHelpers
                         ApplicationContext.Services.MemberTypeService);
 
                 // testing=true so XmlStore will not use the file nor the database
-                var service = new PublishedCachesService(
+                var service = new FacadeService(
                     ApplicationContext.Services, 
                     ApplicationContext.DatabaseContext, 
                     cache, ContentTypesCache, true, enableRepositoryEvents);
@@ -238,7 +238,7 @@ namespace Umbraco.Tests.TestHelpers
                     return doc;
                 };
 
-                PublishedCachesServiceResolver.Current = new PublishedCachesServiceResolver(service);
+                FacadeServiceResolver.Current = new FacadeServiceResolver(service);
             }
 
             base.FreezeResolution();
@@ -298,8 +298,8 @@ namespace Umbraco.Tests.TestHelpers
                 SqlSyntaxContext.SqlSyntaxProvider = null;
 
                 // make sure we dispose of the service to unbind events
-                if (PublishedCachesServiceResolver.HasCurrent)
-                    PublishedCachesServiceResolver.Current.Service.Dispose();
+                if (FacadeServiceResolver.HasCurrent)
+                    FacadeServiceResolver.Current.Service.Dispose();
             }
 
             base.TearDown();
@@ -379,7 +379,7 @@ namespace Umbraco.Tests.TestHelpers
         protected UmbracoContext GetUmbracoContext(string url, int templateId, RouteData routeData = null, bool setSingleton = false)
         {
             // ensure we have a PublishedCachesService
-            var service = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            var service = FacadeServiceResolver.Current.Service as FacadeService;
             if (service == null)
                 throw new Exception("Not a proper XmlPublishedCache.PublishedCachesService.");
 
@@ -395,7 +395,7 @@ namespace Umbraco.Tests.TestHelpers
             var ctx = new UmbracoContext(
                 httpContext,
                 ApplicationContext,
-                service.CreatePublishedCaches(null),
+                service.CreateFacade(null),
                 new WebSecurity(httpContext, ApplicationContext));
 
             if (setSingleton)

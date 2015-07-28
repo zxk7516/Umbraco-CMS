@@ -72,7 +72,7 @@ namespace Umbraco.Web.Cache
         {
             var payloads = GetPayload(o);
 
-            var svce = PublishedCachesServiceResolver.Current.Service;
+            var svce = FacadeServiceResolver.Current.Service;
             bool anythingChanged;
             svce.Notify(payloads, out anythingChanged);
 

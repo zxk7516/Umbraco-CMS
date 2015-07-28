@@ -5,14 +5,14 @@ namespace Umbraco.Web.PublishedCache
     /// <summary>
     /// Resolves the IPublishedCachesService object.
     /// </summary>
-    internal sealed class PublishedCachesServiceResolver : SingleObjectResolverBase<PublishedCachesServiceResolver, IPublishedCachesService>
+    internal sealed class FacadeServiceResolver : SingleObjectResolverBase<FacadeServiceResolver, IFacadeService>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="PublishedCachesServiceResolver"/> class with a service implementation.
+        /// Initializes a new instance of the <see cref="FacadeServiceResolver"/> class with a service implementation.
         /// </summary>
         /// <param name="service">The service.</param>
         /// <remarks>The resolver is created by the <c>WebBootManager</c> and thus the constructor remains internal.</remarks>
-        internal PublishedCachesServiceResolver(IPublishedCachesService service)
+        internal FacadeServiceResolver(IFacadeService service)
             : base(service)
         { }
 
@@ -21,7 +21,7 @@ namespace Umbraco.Web.PublishedCache
         /// </summary>
         /// <param name="service">The service implementation.</param>
         /// <remarks>For developers, at application startup.</remarks>
-        public void SetService(IPublishedCachesService service)
+        public void SetService(IFacadeService service)
         {
             Value = service;
         }
@@ -29,7 +29,7 @@ namespace Umbraco.Web.PublishedCache
         /// <summary>
         /// Gets the service implementation.
         /// </summary>
-        public IPublishedCachesService Service
+        public IFacadeService Service
         {
             get { return Value; }
         }

@@ -67,7 +67,7 @@ namespace Umbraco.Web.BaseRest
 			var m = GetCurrentMember();
 		    if (m == null) return null;
 
-            var n = UmbracoContext.Current.PublishedCaches.MemberCache.CreateNodeNavigator(m.Id, false);
+            var n = UmbracoContext.Current.Facade.MemberCache.CreateNodeNavigator(m.Id, false);
 		    if (n == null) return null;
 
 			return n.Select(".");

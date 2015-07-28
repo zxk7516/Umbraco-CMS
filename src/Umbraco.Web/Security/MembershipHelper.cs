@@ -241,22 +241,22 @@ namespace Umbraco.Web.Security
 
         public IPublishedContent GetByProviderKey(object key)
         {
-            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByProviderKey(key);
+            return UmbracoContext.Current.Facade.MemberCache.GetByProviderKey(key);
         }
 
         public IPublishedContent GetById(int memberId)
         {
-            return UmbracoContext.Current.PublishedCaches.MemberCache.GetById(memberId);
+            return UmbracoContext.Current.Facade.MemberCache.GetById(memberId);
         }
 
         public IPublishedContent GetByUsername(string username)
         {
-            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByUsername(username);
+            return UmbracoContext.Current.Facade.MemberCache.GetByUsername(username);
         }
 
         public IPublishedContent GetByEmail(string email)
         {
-            return UmbracoContext.Current.PublishedCaches.MemberCache.GetByEmail(email);
+            return UmbracoContext.Current.Facade.MemberCache.GetByEmail(email);
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Umbraco.Web.Security
                 return null;
             }
             var result = GetCurrentPersistedMember();
-            return result == null ? null : UmbracoContext.Current.PublishedCaches.MemberCache.GetByMember(result);
+            return result == null ? null : UmbracoContext.Current.Facade.MemberCache.GetByMember(result);
         }
 
         /// <summary>

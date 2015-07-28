@@ -599,7 +599,7 @@ namespace umbraco
             Member m = Member.GetCurrentMember();
             if (m != null)
             {
-                var n = global::Umbraco.Web.UmbracoContext.Current.PublishedCaches.MemberCache.CreateNodeNavigator(m.Id, false);
+                var n = global::Umbraco.Web.UmbracoContext.Current.Facade.MemberCache.CreateNodeNavigator(m.Id, false);
                 if (n != null)
                     return n.Select(".");
             }
@@ -1411,8 +1411,8 @@ namespace umbraco
         // compatibility, try to do something here...
         internal static IPublishedContentCache GetSafeContentCache()
         {
-            var caches = PublishedCachesServiceResolver.Current.Service.GetPublishedCaches()
-                ?? PublishedCachesServiceResolver.Current.Service.CreatePublishedCaches(null);
+            var caches = FacadeServiceResolver.Current.Service.GetFacade()
+                ?? FacadeServiceResolver.Current.Service.CreateFacade(null);
             return caches.ContentCache;
         }
 

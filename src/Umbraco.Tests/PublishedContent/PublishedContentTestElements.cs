@@ -11,7 +11,7 @@ using Umbraco.Web.PublishedCache;
 
 namespace Umbraco.Tests.PublishedContent
 {
-    class SolidPublishedCaches : IPublishedCaches
+    class SolidFacade : IFacade
     {
         public readonly SolidPublishedContentCache InnerCache = new SolidPublishedContentCache();
 

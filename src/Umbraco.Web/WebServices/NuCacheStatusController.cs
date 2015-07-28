@@ -17,7 +17,7 @@ namespace Umbraco.Web.WebServices
         {
             get
             {
-                var svc = PublishedCachesServiceResolver.Current.Service as FacadeService;
+                var svc = FacadeServiceResolver.Current.Service as FacadeService;
                 if (svc == null)
                     throw new NotSupportedException("Not running NuCache.");
                 return svc;

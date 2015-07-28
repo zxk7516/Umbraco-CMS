@@ -8,11 +8,11 @@ using Umbraco.Web.Cache;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
-    class PublishedCachesService : PublishedCachesServiceBase
+    class FacadeService : FacadeServiceBase
     {
         private ServiceContext _services;
 
-        public PublishedCachesService(Func<ServiceContext> services)
+        public FacadeService(Func<ServiceContext> services)
         {
             // too soon to resolve the services in the ctor
             // do in when resolution freezes
@@ -22,14 +22,14 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
             };
         }
 
-        public override IPublishedCaches CreatePublishedCaches(string previewToken)
+        public override IFacade CreateFacade(string previewToken)
         {
             var preview = previewToken.IsNullOrWhiteSpace() == false;
             var domainCache = new DomainCache(_services.DomainService);
             var contentCache = new PublishedContentCache(previewToken, domainCache, _services.ContentService, _services.ContentTypeService);
             var mediaCache = new PublishedMediaCache(preview, _services.MediaService, _services.MediaTypeService);
             var memberCache = new PublishedMemberCache(_services.DataTypeService, _services.MemberService, _services.ContentTypeService);
-            return new PublishedCaches(contentCache, mediaCache, memberCache, domainCache);
+            return new Facade(contentCache, mediaCache, memberCache, domainCache);
         }
 
         public override string EnterPreview(IUser user, int contentId)

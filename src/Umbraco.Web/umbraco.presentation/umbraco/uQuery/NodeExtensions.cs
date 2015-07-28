@@ -615,7 +615,7 @@ namespace umbraco
         /// <returns>Returns an <c>XmlNode</c> for the selected Node</returns>
         public static XmlNode ToXml(this INode node)
         {
-            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            var svc = FacadeServiceResolver.Current.Service as FacadeService;
             if (svc == null)
                 throw new InvalidOperationException("Unsupported IPublishedContentCache, only the Xml one is supported.");
 

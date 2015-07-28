@@ -44,15 +44,15 @@ namespace umbraco
             switch (umbracoObjectType)
             {
                 case UmbracoObjectType.Media:
-                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MediaCache.CreateNavigator(), "Media");
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.Facade.MediaCache.CreateNavigator(), "Media");
                     break;
 
                 case UmbracoObjectType.Member:
-                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.MemberCache.CreateNavigator(), "Members");
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.Facade.MemberCache.CreateNavigator(), "Members");
                     break;
 
                 case UmbracoObjectType.Document:
-                    nav = new RenamedRootNavigator(UmbracoContext.Current.PublishedCaches.ContentCache.CreateNavigator(false), "Nodes");
+                    nav = new RenamedRootNavigator(UmbracoContext.Current.Facade.ContentCache.CreateNavigator(false), "Nodes");
                     break;
 
                 default:

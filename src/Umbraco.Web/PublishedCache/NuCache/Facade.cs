@@ -6,7 +6,7 @@ using Umbraco.Core.ObjectResolution;
 namespace Umbraco.Web.PublishedCache.NuCache
 {
     // implements the facade
-    class Facade : IPublishedCaches, IDisposable
+    class Facade : IFacade, IDisposable
     {
         private readonly FacadeService _service;
         private readonly bool _defaultPreview;
@@ -61,8 +61,8 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private static Func<Facade> _getCurrentFacadeFunc = () =>
         {
 #if DEBUG
-            if (PublishedCachesServiceResolver.HasCurrent == false) return null;
-            var service = PublishedCachesServiceResolver.Current.Service as FacadeService;
+            if (FacadeServiceResolver.HasCurrent == false) return null;
+            var service = FacadeServiceResolver.Current.Service as FacadeService;
             if (service == null) return null;
             return (Facade) service.GetPublishedCachesFunc();
 #else

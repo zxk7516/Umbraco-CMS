@@ -51,7 +51,7 @@ namespace Umbraco.Web.Models
 
             var domainCache = umbracoContext == null
                 ? new PublishedCache.XmlPublishedCache.DomainCache(domainService) // for tests only
-                : umbracoContext.PublishedCaches.DomainCache; // default
+                : umbracoContext.Facade.DomainCache; // default
             var domainHelper = new DomainHelper(domainCache);
             Domain domain;
 

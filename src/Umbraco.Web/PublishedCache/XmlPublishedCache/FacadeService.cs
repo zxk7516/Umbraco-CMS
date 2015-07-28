@@ -11,7 +11,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
     /// <summary>
     /// Implements a facade service.
     /// </summary>
-    class PublishedCachesService : PublishedCachesServiceBase
+    class FacadeService : FacadeServiceBase
     {
         private readonly XmlStore _xmlStore;
         private readonly RoutesCache _routesCache;
@@ -24,18 +24,18 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
         #region Constructors
 
         // used in StandaloneBootManager only, should get rid of that one eventually
-        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
+        internal FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache)
             : this(serviceContext, databaseContext, requestCache, null, false, true)
         { }
 
         // used in some tests + in WebBootManager
-        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
+        internal FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
             bool testing, bool enableRepositoryEvents)
             : this(serviceContext, databaseContext, requestCache, null, testing, enableRepositoryEvents)
         { }
 
         // used in some tests
-        internal PublishedCachesService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
+        internal FacadeService(ServiceContext serviceContext, DatabaseContext databaseContext, ICacheProvider requestCache,
             PublishedContentTypeCache contentTypeCache, bool testing, bool enableRepositoryEvents)
         {
             _routesCache = new RoutesCache();
@@ -59,7 +59,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         #region PublishedCachesService Caches
 
-        public override IPublishedCaches CreatePublishedCaches(string previewToken)
+        public override IFacade CreateFacade(string previewToken)
         {
             // use _requestCache to store recursive properties lookup, etc. both in content
             // and media cache. Life span should be the current request. Or, ideally
@@ -68,7 +68,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             var domainCache = new DomainCache(_domainService);
 
-            return new PublishedCaches(
+            return new Facade(
                 new PublishedContentCache(_xmlStore, domainCache, _requestCache, _contentTypeCache, _routesCache, previewToken),
                 new PublishedMediaCache(_xmlStore, _mediaService, _requestCache, _contentTypeCache),
                 new PublishedMemberCache(_xmlStore, _requestCache, _memberService, _contentTypeCache),

@@ -99,7 +99,7 @@ namespace Umbraco.Web.Install
             errorReport = new List<string>();
 
             // makes sense for xml cache only
-            var svc = PublishedCachesServiceResolver.Current.Service as PublishedCachesService;
+            var svc = FacadeServiceResolver.Current.Service as FacadeService;
             if (svc == null) return true;
 
             // Test creating/saving/deleting a file in the same location as the content xml file
