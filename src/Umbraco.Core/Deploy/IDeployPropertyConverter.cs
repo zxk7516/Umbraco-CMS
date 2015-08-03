@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.PropertyEditors;
 
@@ -16,7 +17,7 @@ namespace Umbraco.Core.Deploy
         /// </summary>
         /// <param name="propertyType">The property type.</param>
         /// <returns>A value indicating whether the converter supports a property type.</returns>
-        bool IsConverter(PublishedPropertyType propertyType);
+        bool IsConverter(PropertyType propertyType);
 
         /// <summary>
         /// Returns a SerializedPropertyResult for the property's stored value
@@ -24,7 +25,7 @@ namespace Umbraco.Core.Deploy
         /// <param name="propertyType"></param>
         /// <param name="source">The persisted value of the property</param>
         /// <returns></returns>
-        SerializedPropertyResult GetSerializedPropertyResult(PublishedPropertyType propertyType, object source);
+        SerializedPropertyResult GetSerializedPropertyResult(PropertyType propertyType, object source);
 
         /// <summary>
         /// Returns the value that will be used for persisting to the database from the serialized value passed in

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
 
@@ -26,5 +27,13 @@ namespace Umbraco.Core.Deploy
         /// into an integer for persistence.
         /// </remarks>
         SerializedPreValuesResult GetSerializedPreValues(PreValueCollection preValues);
+
+        /// <summary>
+        /// Returns the value that will be used for persisting to the database from the serialized value passed in
+        /// </summary>
+        /// <param name="propertyType"></param>
+        /// <param name="serializedValue"></param>
+        /// <returns></returns>
+        PreValueCollection GetDeserializedPreValues(PublishedPropertyType propertyType, IDictionary<string, string> serializedValue);
     }
 }
