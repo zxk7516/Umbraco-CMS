@@ -494,8 +494,12 @@ namespace Umbraco.Core
                 PluginManager.ResolveTypes<IPropertyValueConverter>());
 
             DeployPropertyConvertersResolver.Current = new DeployPropertyConvertersResolver(
-                ServiceProvider, ProfilingLogger.Logger,  
+                ProfilingLogger.Logger,  
                 () => PluginManager.ResolveTypes<IDeployPropertyConverter>());
+
+            DeployPreValuesConverterResolver.Current = new DeployPreValuesConverterResolver(
+                ProfilingLogger.Logger,
+                () => PluginManager.ResolveTypes<IDeployPreValuesConverter>());
 
             // use the new DefaultShortStringHelper
             ShortStringHelperResolver.Current = new ShortStringHelperResolver(

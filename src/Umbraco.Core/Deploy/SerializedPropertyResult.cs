@@ -2,21 +2,19 @@ using System.Collections.Generic;
 
 namespace Umbraco.Core.Deploy
 {
-    public class SerializedPropertyResult
+    public class SerializedPropertyResult : SerializedDeployResult
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Object"/> class.
         /// </summary>
-        public SerializedPropertyResult(IEnumerable<DeployKey> dependencies, object serializedPropertyValue)
-        {
-            Dependencies = dependencies;
+        public SerializedPropertyResult(
+            object serializedPropertyValue, 
+            IEnumerable<Dependency> dependencies = null, 
+            IEnumerable<DeployableFile> files = null)
+            :base(dependencies, files)
+        {   
             SerializedPropertyValue = serializedPropertyValue;
         }
-
-        /// <summary>
-        /// A collection of Dependencies determined for the serialized property
-        /// </summary>
-        public IEnumerable<DeployKey> Dependencies { get; private set; } 
 
         /// <summary>
         /// The property value to be serialized

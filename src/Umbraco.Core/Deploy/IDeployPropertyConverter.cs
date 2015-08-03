@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.PropertyEditors;
@@ -6,7 +7,7 @@ using Umbraco.Core.PropertyEditors;
 namespace Umbraco.Core.Deploy
 {
     /// <summary>
-    /// Used to convert a property value during a Deploy
+    /// Used to convert a property value during a Deployment
     /// </summary>
     public interface IDeployPropertyConverter
     {

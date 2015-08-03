@@ -16,12 +16,10 @@ namespace Umbraco.Core.Deploy
         /// Initializes a new instance of the <see cref="DeployPropertyConvertersResolver"/> class with 
         /// an initial list of converter types.
         /// </summary>
-        /// <param name="serviceProvider"></param>
         /// <param name="logger"></param>
         /// <param name="typeListProducerList">The list of converter types</param>
-        /// <remarks>The resolver is created by the <c>WebBootManager</c> and thus the constructor remains internal.</remarks>
-        internal DeployPropertyConvertersResolver(IServiceProvider serviceProvider, ILogger logger, Func<IEnumerable<Type>> typeListProducerList)
-            : base(serviceProvider, logger, typeListProducerList)
+        internal DeployPropertyConvertersResolver(ILogger logger, Func<IEnumerable<Type>> typeListProducerList)
+            : base(new AppCtxServiceProvider(), logger, typeListProducerList)
         { }
         
         /// <summary>
@@ -65,6 +63,23 @@ namespace Umbraco.Core.Deploy
 
                     return _defaults;
                 }
+            }
+        }
+
+        //This is like a super crappy DI - in v8 we have real DI
+        private class AppCtxServiceProvider : IServiceProvider
+        {
+            public object GetService(Type serviceType)
+            {
+                var normalArgs = new[] { typeof(ApplicationContext) };
+                var found = serviceType.GetConstructor(normalArgs);
+                if (found != null)
+                    return found.Invoke(new object[]
+                    {
+                        ApplicationContext.Current
+                    });
+                //use normal ctor
+                return Activator.CreateInstance(serviceType);
             }
         }
     }

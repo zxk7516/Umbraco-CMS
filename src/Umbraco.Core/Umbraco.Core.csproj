@@ -304,9 +304,14 @@
     <Compile Include="DateTimeExtensions.cs" />
     <Compile Include="Deploy\DefaultDeployPropertyConverterAttribute.cs" />
     <Compile Include="Deploy\Dependency.cs" />
+    <Compile Include="Deploy\DeployableFile.cs" />
     <Compile Include="Deploy\DeployKey.cs" />
+    <Compile Include="Deploy\DeployPreValuesConverterResolver.cs" />
     <Compile Include="Deploy\DeployPropertyConvertersResolver.cs" />
+    <Compile Include="Deploy\IDeployPreValuesConverter.cs" />
     <Compile Include="Deploy\IDeployPropertyConverter.cs" />
+    <Compile Include="Deploy\SerializedDeployResult.cs" />
+    <Compile Include="Deploy\SerializedPreValuesResult.cs" />
     <Compile Include="Deploy\SerializedPropertyResult.cs" />
     <Compile Include="DictionaryExtensions.cs" />
     <Compile Include="Dictionary\CultureDictionaryFactoryResolver.cs" />
