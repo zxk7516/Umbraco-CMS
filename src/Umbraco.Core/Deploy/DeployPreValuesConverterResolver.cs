@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Models;
 using Umbraco.Core.ObjectResolution;
 
 namespace Umbraco.Core.Deploy
@@ -23,6 +25,16 @@ namespace Umbraco.Core.Deploy
         public IEnumerable<IDeployPreValuesConverter> Converters
         {
             get { return Values; }
+        }
+
+        /// <summary>
+        /// Get a converter for a property type
+        /// </summary>
+        /// <param name="dataType"></param>
+        /// <returns></returns>
+        public IDeployPreValuesConverter GetConverter(IDataTypeDefinition dataType)
+        {
+            return Converters.FirstOrDefault(x => x.IsConverter(dataType));
         }
 
         //This is like a super crappy DI - in v8 we have real DI

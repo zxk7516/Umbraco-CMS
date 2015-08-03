@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Umbraco.Core.Logging;
+using Umbraco.Core.Models;
 using Umbraco.Core.ObjectResolution;
 
 namespace Umbraco.Core.Deploy
@@ -28,6 +29,16 @@ namespace Umbraco.Core.Deploy
         public IEnumerable<IDeployPropertyConverter> Converters
         {
             get { return Values; }
+        }
+
+        /// <summary>
+        /// Get a converter for a property type
+        /// </summary>
+        /// <param name="propertyType"></param>
+        /// <returns></returns>
+        public IDeployPropertyConverter GetConverter(PropertyType propertyType)
+        {
+            return Converters.FirstOrDefault(x => x.IsConverter(propertyType));
         }
 
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
