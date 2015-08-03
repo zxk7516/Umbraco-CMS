@@ -302,6 +302,12 @@
     <Compile Include="DatabaseContext.cs" />
     <Compile Include="DataTableExtensions.cs" />
     <Compile Include="DateTimeExtensions.cs" />
+    <Compile Include="Deploy\DefaultDeployPropertyConverterAttribute.cs" />
+    <Compile Include="Deploy\Dependency.cs" />
+    <Compile Include="Deploy\DeployKey.cs" />
+    <Compile Include="Deploy\DeployPropertyConvertersResolver.cs" />
+    <Compile Include="Deploy\IDeployPropertyConverter.cs" />
+    <Compile Include="Deploy\SerializedPropertyResult.cs" />
     <Compile Include="DictionaryExtensions.cs" />
     <Compile Include="Dictionary\CultureDictionaryFactoryResolver.cs" />
     <Compile Include="Dictionary\ICultureDictionaryFactory.cs" />

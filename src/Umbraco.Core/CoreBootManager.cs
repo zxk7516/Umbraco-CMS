@@ -7,6 +7,7 @@ using System.Web;
 using AutoMapper;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.Deploy;
 using Umbraco.Core.Events;
 using Umbraco.Core.Exceptions;
 using Umbraco.Core.IO;
@@ -491,6 +492,10 @@ namespace Umbraco.Core
             PropertyValueConvertersResolver.Current = new PropertyValueConvertersResolver(
                 ServiceProvider, ProfilingLogger.Logger,
                 PluginManager.ResolveTypes<IPropertyValueConverter>());
+
+            DeployPropertyConvertersResolver.Current = new DeployPropertyConvertersResolver(
+                ServiceProvider, ProfilingLogger.Logger,  
+                () => PluginManager.ResolveTypes<IDeployPropertyConverter>());
 
             // use the new DefaultShortStringHelper
             ShortStringHelperResolver.Current = new ShortStringHelperResolver(
