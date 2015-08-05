@@ -96,7 +96,19 @@ namespace Umbraco.Core.Deploy
 
         public void ReadXml(XmlReader reader)
         {
-            throw new NotImplementedException();
+           reader.MoveToContent();		
+		
+            var wasEmpty = reader.IsEmptyElement;		
+            reader.ReadStartElement();		
+		
+            if (wasEmpty)		
+                return;		
+		
+            Name = reader.ReadElementString("Name");		
+            Path = reader.ReadElementString("Path");		
+            Hash = reader.ReadElementString("Hash");		
+		
+            reader.ReadEndElement();
         }
 
         public void WriteXml(XmlWriter writer)
