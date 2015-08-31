@@ -13,7 +13,7 @@ using Umbraco.Core.Persistence.UnitOfWork;
 
 namespace Umbraco.Core.Services
 {
-    internal abstract class ContentTypeServiceBase : RepositoryService
+    public abstract class ContentTypeServiceBase : RepositoryService
     {
         protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
             : base(provider, repositoryFactory, logger, eventMessagesFactory)

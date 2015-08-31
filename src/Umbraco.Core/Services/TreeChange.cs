@@ -5,7 +5,7 @@ using System.Linq;
 namespace Umbraco.Core.Services
 {
     [Flags]
-    internal enum TreeChangeTypes : byte
+    public enum TreeChangeTypes : byte
     {
         None = 0,
 

@@ -123,7 +123,7 @@ namespace Umbraco.Web.Search
             var mediaService = ApplicationContext.Current.Services.MediaService;
 
             // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
-	        foreach (var payload in sender.GetPayload(args.MessageObject))
+	        foreach (var payload in sender.GetAsPayload(args.MessageObject))
 	        {
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
 	            {
@@ -170,7 +170,7 @@ namespace Umbraco.Web.Search
 	        var contentService = ApplicationContext.Current.Services.ContentService;
 
             // note: too bad we deserialize *again* - somehow the cache refresher should take care of it!
-	        foreach (var payload in sender.GetPayload(args.MessageObject))
+	        foreach (var payload in sender.GetAsPayload(args.MessageObject))
 	        {
                 if (payload.ChangeTypes.HasType(TreeChangeTypes.Remove))
 	            {

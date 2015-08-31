@@ -28,7 +28,7 @@ namespace Umbraco.Web.Cache
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
 
-        internal JsonPayload[] GetPayload(object o)
+        internal JsonPayload[] GetAsPayload(object o)
         {
             if ((o is JsonPayload[]) == false)
                 throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
@@ -68,7 +68,7 @@ namespace Umbraco.Web.Cache
 
         public override void Refresh(object o)
         {
-            var payloads = GetPayload(o);
+            var payloads = GetAsPayload(o);
 
             var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
             runtimeCache.ClearCacheObjectTypes<IDomain>();

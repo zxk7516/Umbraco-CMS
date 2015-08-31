@@ -16,9 +16,9 @@ namespace Umbraco.Web.Cache
     {
         #region Json
 
-        internal class JsonPayload
+        public class JsonPayload
         {
-            public JsonPayload(int id, TreeChangeTypes changeTypes)
+            internal JsonPayload(int id, TreeChangeTypes changeTypes)
             {
                 Id = id;
                 ChangeTypes = changeTypes;
@@ -38,7 +38,7 @@ namespace Umbraco.Web.Cache
             return JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
 
-        internal JsonPayload[] GetPayload(object o)
+        public JsonPayload[] GetAsPayload(object o)
         {
             if ((o is JsonPayload[]) == false)
                 throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
@@ -70,7 +70,7 @@ namespace Umbraco.Web.Cache
 
         public override void Refresh(object o)
         {
-            var payloads = GetPayload(o);
+            var payloads = GetAsPayload(o);
 
             var svce = FacadeServiceResolver.Current.Service;
             bool anythingChanged;

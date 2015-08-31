@@ -15,9 +15,9 @@ namespace Umbraco.Web.Cache
     {
         #region Json
 
-        internal class JsonPayload
+        public class JsonPayload
         {
-            public JsonPayload(int id, Guid uniqueId, bool removed)
+            internal JsonPayload(int id, Guid uniqueId, bool removed)
             {
                 Id = id;
                 UniqueId = uniqueId;
@@ -34,7 +34,7 @@ namespace Umbraco.Web.Cache
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
 
-        internal JsonPayload[] GetPayload(object o)
+        public JsonPayload[] GetAsPayload(object o)
         {
             if ((o is JsonPayload[]) == false)
                 throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
@@ -66,7 +66,7 @@ namespace Umbraco.Web.Cache
 
         public override void Refresh(object o)
         {
-            var payloads = GetPayload(o);
+            var payloads = GetAsPayload(o);
 
             //we need to clear the ContentType runtime cache since that is what caches the
             // db data type to store the value against and anytime a datatype changes, this also might change

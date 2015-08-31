@@ -20,9 +20,9 @@ namespace Umbraco.Web.Cache
     {
         #region Json
 
-        internal class JsonPayload
+        public class JsonPayload
         {
-            public JsonPayload(string itemType, int id, ContentTypeServiceBase.ChangeTypes changeTypes)
+            internal JsonPayload(string itemType, int id, ContentTypeServiceBase.ChangeTypes changeTypes)
             {
                 ItemType = itemType;
                 Id = id;
@@ -39,7 +39,7 @@ namespace Umbraco.Web.Cache
             return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonPayload[]>(json);
         }
 
-        internal JsonPayload[] GetPayload(object o)
+        public JsonPayload[] GetAsPayload(object o)
         {
             if ((o is JsonPayload[]) == false)
                 throw new Exception("Invalid payload object, got {0}, expected JsonPayload[].".FormatWith(o.GetType().FullName));
@@ -71,7 +71,7 @@ namespace Umbraco.Web.Cache
         
         public override void Refresh(object o)
         {
-            var payloads = GetPayload(o);
+            var payloads = GetAsPayload(o);
 
             // TODO: refactor
             // we should NOT directly clear caches here, but instead ask whatever class

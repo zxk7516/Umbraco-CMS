@@ -289,7 +289,7 @@ namespace Umbraco.Tests.Integration
             if (args.MessageType != MessageType.RefreshByPayload)
                 throw new NotSupportedException();
 
-            foreach (var payload in sender.GetPayload(args.MessageObject))
+            foreach (var payload in sender.GetAsPayload(args.MessageObject))
             {
                 var e = new EventInstance
                 {
