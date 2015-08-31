@@ -5,9 +5,29 @@ using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Events;
 
 namespace Umbraco.Core.Services
 {
+    /// <summary>
+    /// These are used currently to return the temporary 'operation' interfaces for services
+    /// which are used to return a status from operational methods so we can determine if things are
+    /// cancelled, etc...
+    /// 
+    /// These will be obsoleted in v8 since all real services methods will be changed to have the correct result.
+    /// </summary>
+    public static class ServiceWithResultExtensions
+    {
+        public static IContentServiceOperations WithResult(this IContentService contentService)
+        {
+            return (IContentServiceOperations)contentService;
+        }
+        public static IMediaServiceOperations WithResult(this IMediaService mediaService)
+        {
+            return (IMediaServiceOperations)mediaService;
+        }
+    }
+
     /// <summary>
     /// The Umbraco ServiceContext, which provides access to the following services:
     /// <see cref="IContentService"/>, <see cref="IContentTypeService"/>, <see cref="IDataTypeService"/>,
@@ -116,16 +136,33 @@ namespace Umbraco.Core.Services
             if (publicAccessService != null) _publicAccessService = new Lazy<IPublicAccessService>(() => publicAccessService);
         }
 
-        internal ServiceContext(
+        /// <summary>
+        /// Creates a service context with a RepositoryFactory which is used to construct Services
+        /// </summary>
+        /// <param name="repositoryFactory"></param>
+        /// <param name="dbUnitOfWorkProvider"></param>
+        /// <param name="fileUnitOfWorkProvider"></param>
+        /// <param name="cache"></param>
+        /// <param name="logger"></param>
+        /// <param name="eventMessagesFactory"></param>
+        public ServiceContext(
             RepositoryFactory repositoryFactory,
             IDatabaseUnitOfWorkProvider dbUnitOfWorkProvider, 
             IUnitOfWorkProvider fileUnitOfWorkProvider,
             CacheHelper cache, 
-            ILogger logger)
+            ILogger logger,
+            IEventMessagesFactory eventMessagesFactory)
         {
+            if (repositoryFactory == null) throw new ArgumentNullException("repositoryFactory");
+            if (dbUnitOfWorkProvider == null) throw new ArgumentNullException("dbUnitOfWorkProvider");
+            if (fileUnitOfWorkProvider == null) throw new ArgumentNullException("fileUnitOfWorkProvider");
+            if (cache == null) throw new ArgumentNullException("cache");
+            if (logger == null) throw new ArgumentNullException("logger");
+            if (eventMessagesFactory == null) throw new ArgumentNullException("eventMessagesFactory");
+
             BuildServiceCache(dbUnitOfWorkProvider, fileUnitOfWorkProvider, cache,
                               repositoryFactory,
-                              logger);
+                              logger, eventMessagesFactory);
         }
 
         /// <summary>
@@ -136,28 +173,29 @@ namespace Umbraco.Core.Services
             IUnitOfWorkProvider fileUnitOfWorkProvider,
             CacheHelper cache,
             RepositoryFactory repositoryFactory,
-            ILogger logger)
+            ILogger logger,
+            IEventMessagesFactory eventMessagesFactory)
         {
             var provider = dbUnitOfWorkProvider;
             var fileProvider = fileUnitOfWorkProvider;
 
             if (_migrationEntryService == null)
-                _migrationEntryService = new Lazy<IMigrationEntryService>(() => new MigrationEntryService(provider, repositoryFactory, logger));
+                _migrationEntryService = new Lazy<IMigrationEntryService>(() => new MigrationEntryService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_externalLoginService == null)
-                _externalLoginService = new Lazy<IExternalLoginService>(() => new ExternalLoginService(provider, repositoryFactory, logger));
+                _externalLoginService = new Lazy<IExternalLoginService>(() => new ExternalLoginService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_publicAccessService == null)
-                _publicAccessService = new Lazy<IPublicAccessService>(() => new PublicAccessService(provider, repositoryFactory, logger));
+                _publicAccessService = new Lazy<IPublicAccessService>(() => new PublicAccessService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_taskService == null)
-                _taskService = new Lazy<ITaskService>(() => new TaskService(provider, repositoryFactory, logger));
+                _taskService = new Lazy<ITaskService>(() => new TaskService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_domainService == null)
-                _domainService = new Lazy<IDomainService>(() => new DomainService(provider, repositoryFactory, logger));
+                _domainService = new Lazy<IDomainService>(() => new DomainService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_auditService == null)
-                _auditService = new Lazy<IAuditService>(() => new AuditService(provider, repositoryFactory, logger));
+                _auditService = new Lazy<IAuditService>(() => new AuditService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_localizedTextService == null)
             {
@@ -200,17 +238,17 @@ namespace Umbraco.Core.Services
                 _notificationService = new Lazy<INotificationService>(() => new NotificationService(provider, _userService.Value, ContentService, logger));
 
             if (_serverRegistrationService == null)
-                _serverRegistrationService = new Lazy<IServerRegistrationService>(() => new ServerRegistrationService(provider, repositoryFactory, logger));
+                _serverRegistrationService = new Lazy<IServerRegistrationService>(() => new ServerRegistrationService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_userService == null)
-                _userService = new Lazy<IUserService>(() => new UserService(provider, repositoryFactory, logger));
+                _userService = new Lazy<IUserService>(() => new UserService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_memberServices == null)
                 _memberServices = new Lazy<Tuple<IMemberService, IMemberTypeService>>(() =>
                 {
                     // need this before both services cross-reference each other
-                    var memberService = new MemberService(provider, repositoryFactory, logger, _memberGroupService.Value, _dataTypeService.Value);
-                    var memberTypeService = new MemberTypeService(provider, repositoryFactory, logger);
+                    var memberService = new MemberService(provider, repositoryFactory, logger, eventMessagesFactory, _memberGroupService.Value, _dataTypeService.Value);
+                    var memberTypeService = new MemberTypeService(provider, repositoryFactory, logger, eventMessagesFactory);
                     memberService.MemberTypeService = memberTypeService;
                     memberTypeService.MemberService = memberService;
                     return Tuple.Create((IMemberService) memberService, (IMemberTypeService) memberTypeService);
@@ -218,14 +256,14 @@ namespace Umbraco.Core.Services
 
             // that one is distinct from the two preview services (no cross-reference)
             if (_memberGroupService == null)
-                _memberGroupService = new Lazy<IMemberGroupService>(() => new MemberGroupService(provider, repositoryFactory, logger));
+                _memberGroupService = new Lazy<IMemberGroupService>(() => new MemberGroupService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_contentServices == null)
                 _contentServices = new Lazy<Tuple<IContentService, IContentTypeService>>(() =>
                 {
                     // need this before both services cross-reference each other
-                    var contentService = new ContentService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
-                    var contentTypeService = new ContentTypeService(provider, repositoryFactory, logger);
+                    var contentService = new ContentService(provider, repositoryFactory, logger, eventMessagesFactory, _dataTypeService.Value, _userService.Value);
+                    var contentTypeService = new ContentTypeService(provider, repositoryFactory, logger, eventMessagesFactory);
                     contentService.ContentTypeService = contentTypeService;
                     contentTypeService.ContentService = contentService;
                     return Tuple.Create((IContentService)contentService, (IContentTypeService) contentTypeService);
@@ -235,33 +273,33 @@ namespace Umbraco.Core.Services
                 _mediaServices = new Lazy<Tuple<IMediaService, IMediaTypeService>>(() =>
                 {
                     // need this before both services cross-reference each other
-                    var mediaService = new MediaService(provider, repositoryFactory, logger, _dataTypeService.Value, _userService.Value);
-                    var mediaTypeService = new MediaTypeService(provider, repositoryFactory, logger);
+                    var mediaService = new MediaService(provider, repositoryFactory, logger, eventMessagesFactory, _dataTypeService.Value, _userService.Value);
+                    var mediaTypeService = new MediaTypeService(provider, repositoryFactory, logger, eventMessagesFactory);
                     mediaService.MediaTypeService = mediaTypeService;
                     mediaTypeService.MediaService = mediaService;
                     return Tuple.Create((IMediaService) mediaService, (IMediaTypeService) mediaTypeService);
                 });
 
             if (_dataTypeService == null)
-                _dataTypeService = new Lazy<IDataTypeService>(() => new DataTypeService(provider, repositoryFactory, logger));
+                _dataTypeService = new Lazy<IDataTypeService>(() => new DataTypeService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_fileService == null)
                 _fileService = new Lazy<IFileService>(() => new FileService(fileProvider, provider, repositoryFactory));
 
             if (_localizationService == null)
-                _localizationService = new Lazy<ILocalizationService>(() => new LocalizationService(provider, repositoryFactory, logger));
+                _localizationService = new Lazy<ILocalizationService>(() => new LocalizationService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_packagingService == null)
                 _packagingService = new Lazy<IPackagingService>(() => new PackagingService(logger, ContentService, ContentTypeService, MediaService, _macroService.Value, _dataTypeService.Value, _fileService.Value, _localizationService.Value, _userService.Value, repositoryFactory, provider));
 
             if (_entityService == null)
                 _entityService = new Lazy<IEntityService>(() => new EntityService(
-                    provider, repositoryFactory, logger,
+                    provider, repositoryFactory, logger, eventMessagesFactory, 
                     ContentService, ContentTypeService, MediaService, MediaTypeService, MemberService, MemberTypeService, _dataTypeService.Value,
                     cache.RuntimeCache));
 
             if (_relationService == null)
-                _relationService = new Lazy<IRelationService>(() => new RelationService(provider, repositoryFactory, logger, _entityService.Value));
+                _relationService = new Lazy<IRelationService>(() => new RelationService(provider, repositoryFactory, logger, eventMessagesFactory, _entityService.Value));
 
             if (_treeService == null)
                 _treeService = new Lazy<IApplicationTreeService>(() => new ApplicationTreeService(logger, cache));
@@ -270,10 +308,10 @@ namespace Umbraco.Core.Services
                 _sectionService = new Lazy<ISectionService>(() => new SectionService(_userService.Value, _treeService.Value, provider, cache));
 
             if (_macroService == null)
-                _macroService = new Lazy<IMacroService>(() => new MacroService(provider, repositoryFactory, logger));
+                _macroService = new Lazy<IMacroService>(() => new MacroService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_tagService == null)
-                _tagService = new Lazy<ITagService>(() => new TagService(provider, repositoryFactory, logger));
+                _tagService = new Lazy<ITagService>(() => new TagService(provider, repositoryFactory, logger, eventMessagesFactory));
         }
 
         /// <summary>

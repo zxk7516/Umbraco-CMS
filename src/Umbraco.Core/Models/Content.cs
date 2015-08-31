@@ -97,13 +97,7 @@ namespace Umbraco.Core.Models
         [DataMember]
         public virtual ITemplate Template
         {
-            get
-            {
-                if (_template == null)
-                    return _contentType.DefaultTemplate;
-
-                return _template;
-            }
+            get { return _template; }
             set
             {
                 SetPropertyValueAndDetectChanges(o =>

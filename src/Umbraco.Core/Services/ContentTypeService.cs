@@ -18,8 +18,8 @@ namespace Umbraco.Core.Services
 
         #region Constructor
 
-        public ContentTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger,
+        public ContentTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory,
                 new LockingRepository<ContentTypeRepository>(provider,
                     uow => repositoryFactory.CreateContentTypeRepository(uow) as ContentTypeRepository,
                     LockingRepositoryReadLockIds, LockingRepositoryWriteLockIds))

@@ -32,6 +32,7 @@ using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Routing;
 using Umbraco.Web.Security;
 using umbraco.BusinessLogic;
+using Umbraco.Core.Events;
 
 namespace Umbraco.Tests.TestHelpers
 {

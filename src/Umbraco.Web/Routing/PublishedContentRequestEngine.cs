@@ -242,27 +242,27 @@ namespace Umbraco.Web.Routing
 		    var domainCache = _routingContext.UmbracoContext.Facade.DomainCache;
             var domainAndUri = DomainHelper.DomainForUri(domainCache.GetAll(false), _pcr.Uri);
 
-			// handle domain
+			// handle domain - always has a contentId and a culture
 			if (domainAndUri != null)
 			{
-				// matching an existing domain
-				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Matches domain=\"{1}\", rootId={2}, culture=\"{3}\"",
-												 () => tracePrefix,
-												 () => domainAndUri.Name,
-												 () => domainAndUri.ContentId,
-                                                 () => domainAndUri.Culture);
+                // matching an existing domain
+                ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Matches domain=\"{1}\", rootId={2}, culture=\"{3}\"",
+                    () => tracePrefix,
+                    () => domainAndUri.Name,
+                    () => domainAndUri.ContentId,
+                    () => domainAndUri.Culture);
 
                 _pcr.Domain = domainAndUri;
                 _pcr.Culture = domainAndUri.Culture;
 
-				// canonical? not implemented at the moment
-				// if (...)
-				// {
-				//  _pcr.RedirectUrl = "...";
-				//  return true;
-				// }
-			}
-			else
+                // canonical? not implemented at the moment
+                // if (...)
+                // {
+                //  _pcr.RedirectUrl = "...";
+                //  return true;
+                // }
+            }
+            else
 			{
 				// not matching any existing domain
 				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Matches no domain", () => tracePrefix);
@@ -292,12 +292,13 @@ namespace Umbraco.Web.Routing
             var domainCache = _routingContext.UmbracoContext.Facade.DomainCache;
             var domain = DomainHelper.FindWildcardDomainInPath(domainCache.GetAll(true), nodePath, rootNodeId);
 
+            // always has a contentId and a culture
 			if (domain != null)
 			{
-				_pcr.Culture = domain.Culture;
-				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Got domain on node {1}, set culture to \"{2}\".", () => tracePrefix,
+                _pcr.Culture = domain.Culture;
+                ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}Got domain on node {1}, set culture to \"{2}\".", () => tracePrefix,
                     () => domain.ContentId, () => _pcr.Culture.Name);
-			}
+            }
 			else
 			{
 				ProfilingLogger.Logger.Debug<PublishedContentRequestEngine>("{0}No match.", () => tracePrefix);

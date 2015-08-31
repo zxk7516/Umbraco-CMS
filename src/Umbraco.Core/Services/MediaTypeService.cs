@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Umbraco.Core.Events;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence;
@@ -14,8 +15,8 @@ namespace Umbraco.Core.Services
 
         #region Constructor
 
-        public MediaTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger,
+        public MediaTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory,
                 new LockingRepository<MediaTypeRepository>(provider,
                     uow => repositoryFactory.CreateMediaTypeRepository(uow) as MediaTypeRepository,
                     LockingRepositoryReadLockIds, LockingRepositoryWriteLockIds))

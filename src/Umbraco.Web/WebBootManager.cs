@@ -11,6 +11,7 @@ using System.Web.Mvc;
 using System.Web.Routing;
 using ClientDependency.Core.Config;
 using Examine;
+using Examine.Config;
 using umbraco;
 using Umbraco.Core;
 using Umbraco.Core.Configuration;
@@ -38,6 +39,9 @@ using Umbraco.Web.Scheduling;
 using Umbraco.Web.UI.JavaScript;
 using Umbraco.Web.WebApi;
 using umbraco.BusinessLogic;
+using Umbraco.Core.Persistence;
+using Umbraco.Core.Persistence.UnitOfWork;
+using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using Umbraco.Web.Cache;
 using GlobalSettings = Umbraco.Core.Configuration.GlobalSettings;
@@ -71,6 +75,25 @@ namespace Umbraco.Web
             : base(umbracoApplication, logger)
         {
             _isForTesting = isForTesting;
+        }
+
+        /// <summary>
+        /// Creates and returns the service context for the app
+        /// </summary>
+        /// <param name="dbContext"></param>
+        /// <param name="dbFactory"></param>
+        /// <returns></returns>
+        protected override ServiceContext CreateServiceContext(DatabaseContext dbContext, IDatabaseFactory dbFactory)
+        {
+            //use a request based messaging factory
+            var evtMsgs = new RequestLifespanMessagesFactory(new SingletonUmbracoContextAccessor());
+            return new ServiceContext(
+                new RepositoryFactory(ApplicationCache, ProfilingLogger.Logger, dbContext.SqlSyntax, UmbracoConfig.For.UmbracoSettings()),
+                new PetaPocoUnitOfWorkProvider(dbFactory),
+                new FileUnitOfWorkProvider(),
+                ApplicationCache,
+                ProfilingLogger.Logger,
+                evtMsgs);
         }
 
         /// <summary>
@@ -159,15 +182,7 @@ namespace Umbraco.Web
             //Set the profiler to be the web profiler
             ProfilerResolver.Current.SetProfiler(new WebProfiler());
         }
-
-        /// <summary>
-        /// Adds custom types to the ApplicationEventsResolver
-        /// </summary>
-        protected override void InitializeApplicationEventsResolver()
-        {
-            base.InitializeApplicationEventsResolver();
-        }
-
+        
         /// <summary>
         /// Ensure that the OnApplicationStarted methods of the IApplicationEvents are called
         /// </summary>
@@ -220,10 +235,10 @@ namespace Umbraco.Web
         /// <summary>
         /// Creates the application cache based on the HttpRuntime cache
         /// </summary>
-        protected override void CreateApplicationCache()
+        protected override CacheHelper CreateApplicationCache()
         {
             //create a web-based cache helper
-            ApplicationCache = new CacheHelper();
+            return new CacheHelper();
         }
 
         /// <summary>
@@ -287,7 +302,6 @@ namespace Umbraco.Web
             }
         }
 
-
         private void RouteLocalApiController(Type controller, string umbracoPath)
         {
             var meta = PluginController.GetMetadata(controller);
@@ -309,6 +323,7 @@ namespace Umbraco.Web
             }
             route.DataTokens.Add("umbraco", "api"); //ensure the umbraco token is set
         }
+
         private void RouteLocalSurfaceController(Type controller, string umbracoPath)
         {
             var meta = PluginController.GetMetadata(controller);
@@ -370,6 +385,32 @@ namespace Umbraco.Web
             }
             else
             {
+
+                // NOTE: This is IMPORTANT! ... we don't want to rebuild any index that is already flagged to be re-indexed 
+                // on startup based on our _indexesToRebuild variable and how Examine auto-rebuilds when indexes are empty
+                // this callback is used below for the DatabaseServerMessenger startup options
+                Action rebuildIndexes = () =>
+                {
+                    //If the developer has explicitly opted out of rebuilding indexes on startup then we 
+                    // should adhere to that and not do it, this means that if they are load balancing things will be
+                    // out of sync if they are auto-scaling but there's not much we can do about that.
+                    if (ExamineSettings.Instance.RebuildOnAppStart == false) return;
+
+                    if (_indexesToRebuild.Any())
+                    {
+                        var otherIndexes = ExamineManager.Instance.IndexProviderCollection.Except(_indexesToRebuild);
+                        foreach (var otherIndex in otherIndexes)
+                        {
+                            otherIndex.RebuildIndex();
+                        }
+                    }
+                    else
+                    {
+                        //rebuild them all
+                        ExamineManager.Instance.RebuildIndex();
+                    }
+                };
+
                 ServerMessengerResolver.Current.SetServerMessenger(new BatchedDatabaseServerMessenger(
                 ApplicationContext,
                 true,
@@ -395,8 +436,8 @@ namespace Umbraco.Web
                         },
                         //rebuild indexes if the server is not synced
                         // NOTE: This will rebuild ALL indexes including the members, if developers want to target specific 
-                        // indexes then they can adjust this logic themselves.
-                        () => Examine.ExamineManager.Instance.RebuildIndex()
+                        // indexes then they can adjust this logic themselves.                        
+                        rebuildIndexes
                     }
                 }));
             }
@@ -500,7 +541,6 @@ namespace Umbraco.Web
             CultureDictionaryFactoryResolver.Current = new CultureDictionaryFactoryResolver(
                 new DefaultCultureDictionaryFactory());
         }
-
 
         private void OnInstanceOnBuildingEmptyIndexOnStartup(object sender, BuildingEmptyIndexOnStartupEventArgs args)
         {

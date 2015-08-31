@@ -1420,6 +1420,19 @@ namespace Umbraco.Core
             return string.IsNullOrEmpty(text) ? text : InvalidXmlChars.Replace(text, "");
         }
 
+        /// <summary>
+        /// Converts a string to a Guid - WARNING, depending on the string, this may not be unique
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
+        internal static Guid ToGuid(this string text)
+        {
+            var md5 = MD5.Create();
+            byte[] myStringBytes = Encoding.ASCII.GetBytes(text);
+            byte[] hash = md5.ComputeHash(myStringBytes);
+            return new Guid(hash);
+        }
+
         internal static string FormatWith(this string format, params object[] args)
         {
             return string.Format(format, args);

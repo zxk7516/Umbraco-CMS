@@ -5,10 +5,10 @@ using System.Web;
 using Newtonsoft.Json;
 using umbraco.interfaces;
 using Umbraco.Core;
-using Umbraco.Core.Logging;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Sync;
 using Umbraco.Web.Routing;
+using Umbraco.Core.Logging;
 
 namespace Umbraco.Web
 {
@@ -18,29 +18,15 @@ namespace Umbraco.Web
     /// <remarks>
     /// This binds to appropriate umbraco events in order to trigger the Boot(), Sync() & FlushBatch() calls
     /// </remarks>
-    public class BatchedDatabaseServerMessenger : DatabaseServerMessenger, IApplicationEventHandler
+    public class BatchedDatabaseServerMessenger : DatabaseServerMessenger
     {
         public BatchedDatabaseServerMessenger(ApplicationContext appContext, bool enableDistCalls, DatabaseServerMessengerOptions options)
             : base(appContext, enableDistCalls, options)
         { }
 
-        #region Application Event Handler implementation
-        
-        // note: because we implement IApplicationEventHandler directly, there is no "should execute"
-        // here and we always execute, whatever the state of the application
-
-        public void OnApplicationInitialized(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
-        { }
-
-        public void OnApplicationStarting(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
-        { }
-
-        /// <summary>
-        /// Bootup is completed, this will not execute if the application is not configured
-        /// </summary>
-        /// <param name="umbracoApplication"></param>
-        /// <param name="applicationContext"></param>
-        public void OnApplicationStarted(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
+        // invoked by BatchedDatabaseServerMessengerStartup which is an IApplicationEventHandler
+        // so that method will always run and has to deal with application status (configured...)
+        internal void Startup()
         {
             UmbracoModule.EndRequest += UmbracoModule_EndRequest;
             UmbracoModule.RouteAttempt += UmbracoModule_RouteAttempt;
@@ -49,15 +35,13 @@ namespace Umbraco.Web
                 || ApplicationContext.DatabaseContext.IsDatabaseConfigured  == false
                 || ApplicationContext.DatabaseContext.CanConnect == false)
 
-                applicationContext.ProfilingLogger.Logger.Warn<BatchedDatabaseServerMessenger>("The app is not configured or cannot connect to the database, this server cannot be initialized with " 
+                ApplicationContext.ProfilingLogger.Logger.Warn<BatchedDatabaseServerMessenger>("The app is not configured or cannot connect to the database, this server cannot be initialized with " 
                     + typeof(BatchedDatabaseServerMessenger) + ", distributed calls will not be enabled for this server");
 
             // because .ApplicationStarted triggers only once, this is thread-safe
             Initialize();
         }
         
-        #endregion
-
         private void UmbracoModule_RouteAttempt(object sender, RoutableAttemptEventArgs e)
         {
             switch (e.Outcome)

@@ -23,14 +23,14 @@ namespace Umbraco.Core.Services
     /// <summary>
     /// Represents the Media Service, which is an easy access to operations involving <see cref="IMedia"/>
     /// </summary>
-    public class MediaService : RepositoryService, IMediaService
+    public class MediaService : RepositoryService, IMediaService, IMediaServiceOperations
     {
         private IMediaTypeService _mediaTypeService;
 
         #region Constructors
 
-        public MediaService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IDataTypeService dataTypeService, IUserService userService)
-            : base(provider, repositoryFactory, logger)
+        public MediaService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory, IDataTypeService dataTypeService, IUserService userService)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         {
             // though... these are not used?
             Mandate.ParameterNotNull(dataTypeService, "dataTypeService");
@@ -244,7 +244,10 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IEnumerable<IMedia> GetByIds(IEnumerable<int> ids)
         {
-            return WithReadLocked(repository => repository.GetAll(ids.ToArray()));
+            var idsA = ids.ToArray();
+            return idsA.Length == 0
+                ? Enumerable.Empty<IMedia>()
+                : WithReadLocked(repository => repository.GetAll(idsA));
         }
 
         /// <summary>
@@ -556,9 +559,21 @@ namespace Umbraco.Core.Services
         /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
         public void Save(IMedia media, int userId = 0, bool raiseEvents = true)
         {
-            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(media), this))
-                return;
+            ((IMediaServiceOperations)this).Save (media, userId, raiseEvents);
+        }
+        
+        /// <summary>
+        /// Saves a single <see cref="IMedia"/> object
+        /// </summary>
+        /// <param name="media">The <see cref="IMedia"/> to save</param>
+        /// <param name="userId">Id of the User saving the Media</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
+        Attempt<OperationStatus> IMediaServiceOperations.Save(IMedia media, int userId, bool raiseEvents)
+        {
+            var evtMsgs = EventMessagesFactory.Get();
 
+            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(media, evtMsgs), this))
+                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
             var isNew = media.IsNewEntity();
 
             WithWriteLocked(repository =>
@@ -568,11 +583,12 @@ namespace Umbraco.Core.Services
             });
 
             if (raiseEvents)
-                Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false), this);
+                Saved.RaiseEvent(new SaveEventArgs<IMedia>(media, false, evtMsgs), this);
             var changeType = isNew ? TreeChangeTypes.RefreshBranch : TreeChangeTypes.RefreshNode;
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, changeType).ToEventArgs(), this);
             Audit(AuditType.Save, "Save Media performed by user", userId, media.Id);
+            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
         }
 
         /// <summary>
@@ -583,10 +599,22 @@ namespace Umbraco.Core.Services
         /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
         public void Save(IEnumerable<IMedia> medias, int userId = 0, bool raiseEvents = true)
         {
+            ((IMediaServiceOperations)this).Save(medias, userId, raiseEvents);
+        }
+        
+        /// <summary>
+        /// Saves a collection of <see cref="IMedia"/> objects
+        /// </summary>
+        /// <param name="medias">Collection of <see cref="IMedia"/> to save</param>
+        /// <param name="userId">Id of the User saving the Media</param>
+        /// <param name="raiseEvents">Optional boolean indicating whether or not to raise events.</param>
+        Attempt<OperationStatus> IMediaServiceOperations.Save(IEnumerable<IMedia> medias, int userId, bool raiseEvents)
+        {
             var mediasA = medias.ToArray();
 
-            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(mediasA), this))
-                return;
+            var evtMsgs = EventMessagesFactory.Get();
+            if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(mediasA, evtMsgs), this))
+                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
 
             var treeChanges = mediasA.Select(x => new TreeChange<IMedia>(x,
                 x.IsNewEntity() ? TreeChangeTypes.RefreshBranch : TreeChangeTypes.RefreshNode));
@@ -601,10 +629,11 @@ namespace Umbraco.Core.Services
             });
 
             if (raiseEvents)
-                Saved.RaiseEvent(new SaveEventArgs<IMedia>(mediasA, false), this);
+                Saved.RaiseEvent(new SaveEventArgs<IMedia>(mediasA, false, evtMsgs), this);
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(treeChanges.ToEventArgs(), this);
             Audit(AuditType.Save, "Save Media items performed by user", userId, -1);
+            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
         }
 
         #endregion
@@ -622,19 +651,36 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Id of the User deleting the Media</param>
         public void Delete(IMedia media, int userId = 0)
         {
-            if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMedia>(media), this))
-                return;
+            ((IMediaServiceOperations) this).Delete(media, userId);
+        }
+        
+        /// <summary>
+        /// Permanently deletes an <see cref="IMedia"/> object as well as all of its Children.
+        /// </summary>
+        /// <remarks>
+        /// Please note that this method will completely remove the Media from the database,
+        /// as well as associated media files from the file system.
+        /// </remarks>
+        /// <param name="media">The <see cref="IMedia"/> to delete</param>
+        /// <param name="userId">Id of the User deleting the Media</param>
+        Attempt<OperationStatus> IMediaServiceOperations.Delete(IMedia media, int userId)
+        {
+            var evtMsgs = EventMessagesFactory.Get();
+
+            if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMedia>(media, evtMsgs), this))
+                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
 
             using (ChangeSet.WithAmbient)
             {
-                WithWriteLocked(repository => DeleteLocked(media, repository));
+                WithWriteLocked(repository => DeleteLocked(media, repository, evtMsgs));
                 TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, TreeChangeTypes.Remove).ToEventArgs(), this);
             }
 
             Audit(AuditType.Delete, "Delete Media performed by user", userId, media.Id);
+            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
         }
 
-        private void DeleteLocked(IMedia media, IMediaRepository repository)
+        private void DeleteLocked(IMedia media, IMediaRepository repository, EventMessages evtMsgs)
         {
             // then recursively delete descendants, bottom-up
             // just repository.Delete + an event
@@ -656,7 +702,7 @@ namespace Umbraco.Core.Services
                 level = c.Level;
 
                 repository.Delete(c);
-                var args = new DeleteEventArgs<IMedia>(c, false); // raise event & get flagged files
+                var args = new DeleteEventArgs<IMedia>(c, false, evtMsgs); // raise event & get flagged files
                 Deleted.RaiseEvent(args, this);
                 IOHelper.DeleteFiles(args.MediaFilesToDelete, // remove flagged files
                     (file, e) => Logger.Error<MemberService>("An error occurred while deleting file attached to nodes: " + file, e));
@@ -729,16 +775,34 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Id of the User deleting the Media</param>
         public void MoveToRecycleBin(IMedia media, int userId = 0)
         {
+            ((IMediaServiceOperations) this).MoveToRecycleBin(media, userId);
+        }
+
+        /// <summary>
+        /// Deletes an <see cref="IMedia"/> object by moving it to the Recycle Bin
+        /// </summary>
+        /// <param name="media">The <see cref="IMedia"/> to delete</param>
+        /// <param name="userId">Id of the User deleting the Media</param>
+        Attempt<OperationStatus> IMediaServiceOperations.MoveToRecycleBin(IMedia media, int userId)
+        {
             var moves = new List<Tuple<IMedia, string>>();
+            var evtMsgs = EventMessagesFactory.Get();
+            var returnAttempt = false;
+            var attempt = default(Attempt<OperationStatus>);
 
             using (ChangeSet.WithAmbient)
             {
                 WithWriteLocked(repository =>
                 {
                     var originalPath = media.Path;
+
                     if (Trashing.IsRaisedEventCancelled(new MoveEventArgs<IMedia>(
                         new MoveEventInfo<IMedia>(media, originalPath, Constants.System.RecycleBinMedia)), this))
+                    {
+                        attempt = Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                        returnAttempt = true;
                         return;
+                    }
 
                     PerformMoveLocked(media, Constants.System.RecycleBinMedia, null, userId, moves, true, repository);
 
@@ -746,11 +810,16 @@ namespace Umbraco.Core.Services
                 });
             }
 
+            if (returnAttempt)
+                return attempt;
+
             var moveInfo = moves
                 .Select(x => new MoveEventInfo<IMedia>(x.Item1, x.Item2, x.Item1.ParentId))
                 .ToArray();
-            Trashed.RaiseEvent(new MoveEventArgs<IMedia>(false, moveInfo), this);
+            Trashed.RaiseEvent(new MoveEventArgs<IMedia>(false, evtMsgs, moveInfo), this);
             Audit(AuditType.Move, "Move Media to Recycle Bin performed by user", userId, media.Id);
+            
+            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
         }
 
         /// <summary>
@@ -854,6 +923,7 @@ namespace Umbraco.Core.Services
         {
             var nodeObjectType = new Guid(Constants.ObjectTypes.Media);
             var deleted = new List<IMedia>();
+            var evtMsgs = EventMessagesFactory.Get();
 
             using (ChangeSet.WithAmbient)
             {
@@ -868,7 +938,7 @@ namespace Umbraco.Core.Services
                     var medias = repository.GetByQuery(query).ToArray();
                     foreach (var media in medias)
                     {
-                        DeleteLocked(media, repository);
+                        DeleteLocked(media, repository, evtMsgs);
                         deleted.Add(media);
                     }
                 });
@@ -1053,6 +1123,7 @@ namespace Umbraco.Core.Services
         {
             var changes = new List<TreeChange<IMedia>>();
             var moves = new List<Tuple<IMedia, string>>();
+            var evtMsgs = EventMessagesFactory.Get();
 
             using (ChangeSet.WithAmbient)
             {
@@ -1061,7 +1132,7 @@ namespace Umbraco.Core.Services
                     var query = Query<IMedia>.Builder.Where(x => x.ContentTypeId == mediaTypeId);
                     var medias = repository.GetByQuery(query).ToArray();
 
-                    if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMedia>(medias), this))
+                    if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMedia>(medias, evtMsgs), this))
                         return;
 
                     // order by level, descending, so deepest first - that way, we cannot move
@@ -1081,7 +1152,7 @@ namespace Umbraco.Core.Services
 
                         // delete media
                         // triggers the deleted event (and handles the files)
-                        DeleteLocked(media, repository);
+                        DeleteLocked(media, repository, evtMsgs);
                         changes.Add(new TreeChange<IMedia>(media, TreeChangeTypes.Remove));
                     }
                 });

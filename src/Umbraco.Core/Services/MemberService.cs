@@ -34,8 +34,8 @@ namespace Umbraco.Core.Services
 
         #region Constructor
 
-        public MemberService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IMemberGroupService memberGroupService, IDataTypeService dataTypeService)
-            : base(provider, repositoryFactory, logger)
+        public MemberService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory, IMemberGroupService memberGroupService, IDataTypeService dataTypeService)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         {
             // though... these are not used?
             Mandate.ParameterNotNull(dataTypeService, "dataTypeService");

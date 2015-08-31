@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Web.Hosting;
 using CSharpTest.Net.Collections;
@@ -422,9 +423,12 @@ namespace Umbraco.Web.PublishedCache.NuCache
         private void LoadDomainsLocked()
         {
             var domains = _serviceContext.DomainService.GetAll(true);
-            foreach (var domain in domains)
-                _domainStore.Set(domain.Id,
-                    new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+            foreach (var domain in domains
+                .Where(x => x.RootContentId.HasValue && x.LanguageIsoCode.IsNullOrWhiteSpace() == false)
+                .Select(x => new Domain(x.Id, x.DomainName, x.RootContentId.Value, CultureInfo.GetCultureInfo(x.LanguageIsoCode), x.IsWildcard)))
+            {
+                _domainStore.Set(domain.Id, domain);
+            }
         }
 
         #endregion
@@ -727,7 +731,10 @@ namespace Umbraco.Web.PublishedCache.NuCache
                         case DomainCacheRefresher.ChangeTypes.Refresh:
                             var domain = _serviceContext.DomainService.GetById(payload.Id);
                             if (domain == null) continue;
-                            _domainStore.Set(domain.Id, new Domain(domain.Id, domain.DomainName, domain.RootContent.Id, domain.Language.CultureInfo, domain.IsWildcard));
+                            if (domain.RootContentId.HasValue == false) continue; // anomaly
+                            if (domain.LanguageIsoCode.IsNullOrWhiteSpace()) continue; // anomaly
+                            var culture = CultureInfo.GetCultureInfo(domain.LanguageIsoCode);
+                            _domainStore.Set(domain.Id, new Domain(domain.Id, domain.DomainName, domain.RootContentId.Value, culture, domain.IsWildcard));
                             break;
                     }
                 }

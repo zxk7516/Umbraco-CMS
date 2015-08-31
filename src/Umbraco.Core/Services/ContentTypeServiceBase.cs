@@ -15,8 +15,8 @@ namespace Umbraco.Core.Services
 {
     internal abstract class ContentTypeServiceBase : RepositoryService
     {
-        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger)
+        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         { }
 
         #region Events
@@ -81,8 +81,8 @@ namespace Umbraco.Core.Services
     internal abstract class ContentTypeServiceBase<TItem> : ContentTypeServiceBase
         where TItem : class, IContentTypeComposition
     {
-        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger)
+        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         { }
 
         #region Events
@@ -180,8 +180,8 @@ namespace Umbraco.Core.Services
         where TRepository : ContentTypeBaseRepository<TItem>, IDisposable
         where TItem : class, IContentTypeComposition
     {
-        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, LockingRepository<TRepository> lrepo)
-            : base(provider, repositoryFactory, logger)
+        protected ContentTypeServiceBase(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory, LockingRepository<TRepository> lrepo)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         {
             LRepo = lrepo;
         }

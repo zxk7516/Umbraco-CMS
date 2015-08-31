@@ -84,6 +84,7 @@ namespace Umbraco.Web.Models
                     : domainHelper.DomainForNode(int.Parse(route.Substring(0, pos)), current);
               }
 
+            // always has a contentId and a culture
             if (domain == null)
                 return GetDefaultCulture(localizationService);
 

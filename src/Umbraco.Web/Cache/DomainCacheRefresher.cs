@@ -1,6 +1,7 @@
 ﻿using System;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
+using Umbraco.Core.Models;
 using Umbraco.Core.Persistence.Repositories;
 using Umbraco.Web.PublishedCache;
 
@@ -70,7 +71,7 @@ namespace Umbraco.Web.Cache
             var payloads = GetPayload(o);
 
             var runtimeCache = ApplicationContext.Current.ApplicationCache.RuntimeCache;
-            runtimeCache.ClearCacheObjectTypes<DomainRepository.CacheableDomain>();
+            runtimeCache.ClearCacheObjectTypes<IDomain>();
 
             // note: must do what's above FIRST else the repositories still have the old cached
             // content and when the PublishedCachesService is notified of changes it does not see
@@ -112,7 +113,7 @@ namespace Umbraco.Web.Cache
 
         private static void ClearCache()
         {
-            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<DomainRepository.CacheableDomain>();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IDomain>();
         }
 
         #endregion

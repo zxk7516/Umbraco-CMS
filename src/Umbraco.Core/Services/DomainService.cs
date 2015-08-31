@@ -13,8 +13,8 @@ namespace Umbraco.Core.Services
     {
         #region Constructors
 
-        public DomainService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger)
+        public DomainService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         {
             _lrepo = new LockingRepository<DomainRepository>(UowProvider,
                 uow => RepositoryFactory.CreateDomainRepository(uow) as DomainRepository,

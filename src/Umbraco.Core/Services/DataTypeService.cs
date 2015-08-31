@@ -18,8 +18,8 @@ namespace Umbraco.Core.Services
     /// </summary>
     public class DataTypeService : RepositoryService, IDataTypeService
     {
-        public DataTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger)
-            : base(provider, repositoryFactory, logger)
+        public DataTypeService(IDatabaseUnitOfWorkProvider provider, RepositoryFactory repositoryFactory, ILogger logger, IEventMessagesFactory eventMessagesFactory)
+            : base(provider, repositoryFactory, logger, eventMessagesFactory)
         { }
 
         #region Get, Has, Is
