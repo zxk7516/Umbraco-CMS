@@ -30,6 +30,13 @@ namespace Umbraco.Web.Strategies.Migrations
                     context.Database.Execute(new Sql(string.Format("SET IDENTITY_INSERT {0} ON", sqlSyntax.GetQuotedTableName("umbracoNode"))));
 
                 EnsureLockNode(context, Constants.System.ServersLock, "0AF5E610-A310-4B6F-925F-E928D5416AF7", "LOCK: Servers");
+                EnsureLockNode(context, Constants.System.ContentTypesLock, "A88CE058-A627-46BB-878A-07C5FE3D870A", "LOCK: ContentTypes");
+                EnsureLockNode(context, Constants.System.ContentTreeLock, "3FB9211A-B4F9-449C-8725-A075AE500518", "LOCK: ContentTree");
+                EnsureLockNode(context, Constants.System.MediaTreeLock, "5B4408F9-D9FB-4145-84BB-5F0F2C35B4B0", "LOCK: MediaTree");
+                EnsureLockNode(context, Constants.System.MemberTreeLock, "FA951390-DF12-4594-8366-89CA8396D977", "LOCK: MemberTree");
+                EnsureLockNode(context, Constants.System.MediaTypesLock, "BA13E02F-E595-4415-8693-B044C83AA9A7", "LOCK: MediaTypes");
+                EnsureLockNode(context, Constants.System.MemberTypesLock, "B23EED6B-CC05-48FE-B096-B50441D0E825", "LOCK: MemberTypes");
+                EnsureLockNode(context, Constants.System.DomainsLock, "0AF5E610-A310-4B6F-925F-E928D5416AF7", "LOCK: Domains");
 
                 // turn off identity insert if db provider is not mysql
                 if (sqlSyntax.SupportsIdentityInsert())
