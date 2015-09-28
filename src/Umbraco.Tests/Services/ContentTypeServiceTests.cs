@@ -200,10 +200,10 @@ namespace Umbraco.Tests.Services
         public void Get_With_Missing_Guid()
         {
             // Arrange
-            var contentTypeService = ServiceContext.ContentTypeService;
+            var contentTypeService = ServiceContext.MediaTypeService;
 
             //Act
-            var result = contentTypeService.GetMediaType(Guid.NewGuid());
+            var result = contentTypeService.Get(Guid.NewGuid());
 
             //Assert
             Assert.IsNull(result);

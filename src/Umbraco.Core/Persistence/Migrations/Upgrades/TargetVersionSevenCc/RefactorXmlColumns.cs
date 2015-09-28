@@ -1,13 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.Logging;
+using Umbraco.Core.Persistence.SqlSyntax;
 
-namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenThreeZero
+namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
 {
     [Migration("7.3.0", 100, GlobalSettings.UmbracoMigrationName)]
     public class RefactorXmlColumns : MigrationBase
     {
+        public RefactorXmlColumns(ISqlSyntaxProvider syntax, ILogger logger)
+            : base(syntax, logger)
+        { }
+
         public override void Up()
         {
             if (ColumnExists("cmsContentXml", "Rv") == false)

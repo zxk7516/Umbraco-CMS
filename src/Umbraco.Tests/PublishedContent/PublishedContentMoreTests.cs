@@ -227,7 +227,7 @@ namespace Umbraco.Tests.PublishedContent
         static SolidFacade CreatePublishedContent()
         {
             var caches = new SolidFacade();
-            var cache = caches.InnerCache;
+            var cache = caches.InnerContentCache;
 
             var props = new[]
                     {

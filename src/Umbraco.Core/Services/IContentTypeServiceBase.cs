@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Umbraco.Core.Services
 {
@@ -9,6 +10,7 @@ namespace Umbraco.Core.Services
     public interface IContentTypeServiceBase<TItem> : IService
     {
         TItem Get(int id);
+        TItem Get(Guid key);
         TItem Get(string alias);
 
         IEnumerable<TItem> GetAll(params int[] ids);
