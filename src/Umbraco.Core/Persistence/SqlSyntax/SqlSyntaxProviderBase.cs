@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Umbraco.Core.Persistence.DatabaseAnnotations;
@@ -268,7 +269,9 @@ namespace Umbraco.Core.Persistence.SqlSyntax
         /// </remarks>
         public virtual string FormatDateTime(DateTime date, bool includeTime = true)
         {
-            return includeTime ? date.ToString("yyyyMMdd HH:mm:ss") : date.ToString("yyyyMMdd");
+            // need CultureInfo.InvariantCulture because ":" here is the "time separator" and
+            // may be converted to something else in different cultures (eg "." in DK).
+            return date.ToString(includeTime ? "yyyyMMdd HH:mm:ss" : "yyyyMMdd", CultureInfo.InvariantCulture);
         }
 
         public virtual string Format(TableDefinition table)
@@ -462,9 +465,9 @@ namespace Umbraco.Core.Persistence.SqlSyntax
             if (column.DefaultValue == null)
                 return string.Empty;
 
-            // TODO: Actually use the SystemMethods on the DTO. For now I've put a hack in to catch getdate(), not using the others at the moment
+            //hack - probably not needed with latest changes
             if (column.DefaultValue.ToString().ToLower().Equals("getdate()".ToLower()))
-                return string.Format(DefaultValueFormat, column.DefaultValue);
+                column.DefaultValue = SystemMethods.CurrentDateTime;
 
             // see if this is for a system method
             if (column.DefaultValue is SystemMethods)
