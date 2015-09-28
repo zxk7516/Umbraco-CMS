@@ -76,8 +76,10 @@ namespace Umbraco.Core.Persistence.Migrations
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
                     return val.ToString();
+                case TypeCode.DateTime:
+                    return SqlSyntax.GetQuotedValue(SqlSyntax.FormatDateTime((DateTime) val));
                 default:
-                    return SqlSyntaxContext.SqlSyntaxProvider.GetQuotedValue(val.ToString());
+                    return SqlSyntax.GetQuotedValue(val.ToString());
             }
         }
     }

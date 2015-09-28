@@ -35,7 +35,8 @@ namespace umbraco.presentation.webservices
     [ScriptService]
     public class codeEditorSave : UmbracoAuthorizedWebService
     {
-       
+
+        [Obsolete("This method has been superceded by the REST service /Umbraco/RestServices/SaveFile/SaveStylesheet which is powered by the SaveFileController.")]
         [WebMethod]
         public string SaveCss(string fileName, string oldName, string fileContents, int fileID)
         {
@@ -310,6 +311,7 @@ namespace umbraco.presentation.webservices
 		//	return "false";
 		//}
 
+        [Obsolete("This method has been superceded by the REST service /Umbraco/RestServices/SaveFile/SaveScript which is powered by the SaveFileController.")]
         [WebMethod]
         public string SaveScript(string filename, string oldName, string contents)
         {

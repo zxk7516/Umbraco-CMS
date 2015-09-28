@@ -281,16 +281,17 @@ namespace Umbraco.Core
 
         public static XmlNode GetXmlNode(this XContainer element)
         {
-            return element.GetXmlNode(new XmlDocument());
+            using (var xmlReader = element.CreateReader())
+            {
+                var xmlDoc = new XmlDocument();
+                xmlDoc.Load(xmlReader);
+                return xmlDoc.DocumentElement;
+            }
         }
 
         public static XmlNode GetXmlNode(this XContainer element, XmlDocument xmlDoc)
         {
-            using (var xmlReader = element.CreateReader())
-            {
-                xmlDoc.Load(xmlReader);
-                return xmlDoc.DocumentElement; // or .FirstChild...
-            }
+            return xmlDoc.ImportNode(element.GetXmlNode(), true);
         }
 
         // this exists because

@@ -214,6 +214,16 @@ namespace Umbraco.Tests.PublishedContent
             Assert.AreEqual(1234, content3.Prop1);
         }
 
+        [Test]
+        public void PublishedContentQueryTypedContentList()
+        {
+            var query = new PublishedContentQuery(UmbracoContext.Current.ContentCache, UmbracoContext.Current.MediaCache);
+            var result = query.TypedContent(new[] { 1, 2, 4 }).ToArray();
+            Assert.AreEqual(2, result.Length);
+            Assert.AreEqual(1, result[0].Id);
+            Assert.AreEqual(2, result[1].Id);
+        }
+
         static SolidFacade CreatePublishedContent()
         {
             var caches = new SolidFacade();

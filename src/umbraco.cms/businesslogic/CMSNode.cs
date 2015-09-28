@@ -1027,6 +1027,7 @@ namespace umbraco.cms.businesslogic
         {
             // attributes
             x.Attributes.Append(xmlHelper.addAttribute(xd, "id", this.Id.ToString()));
+            x.Attributes.Append(xmlHelper.addAttribute(xd, "key", this.UniqueId.ToString()));
             if (this.Level > 1)
                 x.Attributes.Append(xmlHelper.addAttribute(xd, "parentID", this.Parent.Id.ToString()));
             else

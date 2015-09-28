@@ -1314,7 +1314,7 @@ namespace Umbraco.Core.Services
 
         /// <summary>
         /// Copies an <see cref="IContent"/> object by creating a new Content object of the same type and copies all data from the current 
-        /// to the new copy which is returned.
+        /// to the new copy which is returned. Recursively copies all children.
         /// </summary>
         /// <param name="content">The <see cref="IContent"/> to copy</param>
         /// <param name="parentId">Id of the Content's new Parent</param>
@@ -1322,6 +1322,21 @@ namespace Umbraco.Core.Services
         /// <param name="userId">Optional Id of the User copying the Content</param>
         /// <returns>The newly created <see cref="IContent"/> object</returns>
         public IContent Copy(IContent content, int parentId, bool relateToOriginal, int userId = 0)
+        {
+            return Copy(content, parentId, relateToOriginal, true, userId);
+        }
+
+        /// <summary>
+        /// Copies an <see cref="IContent"/> object by creating a new Content object of the same type and copies all data from the current 
+        /// to the new copy which is returned.
+        /// </summary>
+        /// <param name="content">The <see cref="IContent"/> to copy</param>
+        /// <param name="parentId">Id of the Content's new Parent</param>
+        /// <param name="relateToOriginal">Boolean indicating whether the copy should be related to the original</param>
+        /// <param name="recursive">A value indicating whether to recursively copy children.</param>
+        /// <param name="userId">Optional Id of the User copying the Content</param>
+        /// <returns>The newly created <see cref="IContent"/> object</returns>
+        public IContent Copy(IContent content, int parentId, bool relateToOriginal, bool recursive, int userId = 0)
         {
             if (parentId == Constants.System.RecycleBinContent)
                 throw new InvalidOperationException("Cannot create a copy in trash.");
@@ -1353,21 +1368,24 @@ namespace Umbraco.Core.Services
                     xr.Repository.AddOrUpdate(copy);
 
                     // process descendants
-                    var copyIds = new Dictionary<int, IContent>();
-                    copyIds[content.Id] = copy;
-                    foreach (var descendant in GetDescendants(content))
+                    if (recursive)
                     {
-                        var dcopy = descendant.DeepCloneWithResetIdentities();
-                        //dcopy.ParentId = copyIds[descendant.ParentId];
-                        var descendantParentId = descendant.ParentId;
-                        ((Content) dcopy).SetLazyParentId(new Lazy<int>(() => copyIds[descendantParentId].Id));
-                        if (dcopy.Published)
-                            dcopy.ChangePublishedState(PublishedState.Saving);
-                        dcopy.CreatorId = userId;
-                        dcopy.WriterId = userId;
-                        xr.Repository.AddOrUpdate(dcopy);
+                        var copyIds = new Dictionary<int, IContent>();
+                        copyIds[content.Id] = copy;
+                        foreach (var descendant in GetDescendants(content))
+                        {
+                            var dcopy = descendant.DeepCloneWithResetIdentities();
+                            //dcopy.ParentId = copyIds[descendant.ParentId];
+                            var descendantParentId = descendant.ParentId;
+                            ((Content) dcopy).SetLazyParentId(new Lazy<int>(() => copyIds[descendantParentId].Id));
+                            if (dcopy.Published)
+                                dcopy.ChangePublishedState(PublishedState.Saving);
+                            dcopy.CreatorId = userId;
+                            dcopy.WriterId = userId;
+                            xr.Repository.AddOrUpdate(dcopy);
 
-                        copyIds[descendant.Id] = dcopy;
+                            copyIds[descendant.Id] = dcopy;
+                        }
                     }
 
                     // note: here was some code handling tags - which has been removed
