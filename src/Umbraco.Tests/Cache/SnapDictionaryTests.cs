@@ -135,9 +135,9 @@ namespace Umbraco.Tests.Cache
             Assert.IsTrue(d.Test.NextGen);
 
             var tv = d.Test.GetValues(1);
-            Assert.AreEqual(3, tv[0].Item1);
-            Assert.AreEqual(2, tv[1].Item1);
-            Assert.AreEqual(1, tv[2].Item1);
+            Assert.AreEqual(3, tv[0].Gen);
+            Assert.AreEqual(2, tv[1].Gen);
+            Assert.AreEqual(1, tv[2].Gen);
 
             Assert.AreEqual(0, d.Test.FloorGen);
 
@@ -263,9 +263,9 @@ namespace Umbraco.Tests.Cache
             Assert.IsTrue(d.Test.NextGen);
 
             var tv = d.Test.GetValues(1);
-            Assert.AreEqual(3, tv[0].Item1);
-            Assert.AreEqual(2, tv[1].Item1);
-            Assert.AreEqual(1, tv[2].Item1);
+            Assert.AreEqual(3, tv[0].Gen);
+            Assert.AreEqual(2, tv[1].Gen);
+            Assert.AreEqual(1, tv[2].Gen);
 
             Assert.AreEqual(0, d.Test.FloorGen);
 
@@ -329,7 +329,7 @@ namespace Umbraco.Tests.Cache
             await d.CollectAsync();
             var tv = d.Test.GetValues(1);
             Assert.AreEqual(1, tv.Length);
-            Assert.AreEqual(1, tv[0].Item1);
+            Assert.AreEqual(1, tv[0].Gen);
 
             var s = d.CreateSnapshot();
             Assert.AreEqual("one", s.Get(1));
@@ -337,40 +337,74 @@ namespace Umbraco.Tests.Cache
             Assert.AreEqual(1, d.Test.LiveGen);
             Assert.IsFalse(d.Test.NextGen);
 
+            Assert.AreEqual(1, d.Count);
+            Assert.AreEqual(1, d.SnapCount);
+            Assert.AreEqual(1, d.GenCount);
+
             // gen 2
             d.Clear(1);
             tv = d.Test.GetValues(1);
             Assert.AreEqual(2, tv.Length);
-            Assert.AreEqual(2, tv[0].Item1);
+            Assert.AreEqual(2, tv[0].Gen);
 
             Assert.AreEqual(2, d.Test.LiveGen);
             Assert.IsTrue(d.Test.NextGen);
+
+            Assert.AreEqual(1, d.Count);
+            Assert.AreEqual(1, d.SnapCount);
+            Assert.AreEqual(1, d.GenCount);
 
             // nothing to collect
             await d.CollectAsync();
             GC.KeepAlive(s);
             Assert.AreEqual(2, d.Test.GetValues(1).Length);
+
+            Assert.AreEqual(1, d.Count);
             Assert.AreEqual(1, d.SnapCount);
+            Assert.AreEqual(1, d.GenCount);
 
             Assert.AreEqual(2, d.Test.LiveGen);
             Assert.IsTrue(d.Test.NextGen);
 
             // collect snapshot
             // don't collect liveGen+
-            s = null;
-            GC.Collect();
+            s = null; // without being disposed
+            GC.Collect(); // should release the generation reference
             await d.CollectAsync();
-            Assert.AreEqual(1, d.Test.GetValues(1).Length);
-            Assert.AreEqual(0, d.SnapCount);
+
+            Assert.AreEqual(1, d.Test.GetValues(1).Length); // "one" value is gone
+            Assert.AreEqual(1, d.Count); // still have 1 item
+            Assert.AreEqual(0, d.SnapCount); // snapshot is gone
+            Assert.AreEqual(0, d.GenCount); // and generation has been dequeued
 
             // liveGen/nextGen
-            d.CreateSnapshot();
+            s = d.CreateSnapshot();
+            s = null;
 
             // collect liveGen
             GC.Collect();
+
+            SnapDictionary<int, string>.GenerationObject genObj;
+            Assert.IsTrue(d.Test.GenerationObjects.TryPeek(out genObj));
+            genObj = null;
+
+            // in Release mode, it works, but in Debug mode, the weak reference is still alive
+            // and for some reason we need to do this to ensure it is collected
+#if DEBUG
             await d.CollectAsync();
-            Assert.AreEqual(0, d.Test.GetValues(1).Length);
-            Assert.AreEqual(0, d.SnapCount);
+            GC.Collect();
+#endif
+
+            Assert.IsTrue(d.Test.GenerationObjects.TryPeek(out genObj));
+            Assert.IsFalse(genObj.WeakReference.IsAlive); // snapshot is gone, along with its reference
+
+            await d.CollectAsync();
+
+            Assert.AreEqual(0, d.Test.GetValues(1).Length); // null value is gone
+            Assert.AreEqual(0, d.Count); // item is gone
+            Assert.AreEqual(0, d.Test.GenerationObjects.Count);
+            Assert.AreEqual(0, d.SnapCount); // snapshot is gone
+            Assert.AreEqual(0, d.GenCount); // and generation has been dequeued
         }
 
         [Test]
@@ -517,6 +551,13 @@ namespace Umbraco.Tests.Cache
             GC.Collect();
             await d.CollectAsync();
 
+            // in Release mode, it works, but in Debug mode, the weak reference is still alive
+            // and for some reason we need to do this to ensure it is collected
+#if DEBUG
+            GC.Collect();
+            await d.CollectAsync();
+#endif
+
             Assert.AreEqual(1, d.SnapCount);
             v2 = s2.Get(1);
             Assert.AreEqual("uno", v2);
@@ -555,6 +596,13 @@ namespace Umbraco.Tests.Cache
             s1 = null;
             GC.Collect();
             await d.CollectAsync();
+
+            // in Release mode, it works, but in Debug mode, the weak reference is still alive
+            // and for some reason we need to do this to ensure it is collected
+#if DEBUG
+            GC.Collect();
+            await d.CollectAsync();
+#endif
 
             Assert.AreEqual(1, d.SnapCount);
             v2 = s2.Get(1);
