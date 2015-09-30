@@ -8,16 +8,16 @@ namespace Umbraco.Web.PublishedCache
 {
     abstract class FacadeServiceBase : IFacadeService
     {
-        private Func<IFacade> _getPublishedCachesFunc = () => UmbracoContext.Current == null ? null : UmbracoContext.Current.Facade;
+        private Func<IFacade> _getFacadeFunc = () => UmbracoContext.Current == null ? null : UmbracoContext.Current.Facade;
 
-        public Func<IFacade> GetPublishedCachesFunc
+        public Func<IFacade> GetFacadeFunc
         {
-            get { return _getPublishedCachesFunc; }
+            get { return _getFacadeFunc; }
             set
             {
                 using (Resolution.Configuration)
                 {
-                    _getPublishedCachesFunc = value;
+                    _getFacadeFunc = value;
                 }
             }
         }
@@ -26,7 +26,7 @@ namespace Umbraco.Web.PublishedCache
 
         public IFacade GetFacade()
         {
-            var caches = _getPublishedCachesFunc();
+            var caches = _getFacadeFunc();
             if (caches == null)
                 throw new Exception("Carrier's caches is null.");
             return caches;
