@@ -351,6 +351,14 @@ namespace Umbraco.Tests.Cache.PublishedCache
             Assert.AreEqual(2, store.GenCount);
             Assert.AreEqual(4, store.SnapCount);
             await store.CollectAsync();
+
+            // in Release mode, it works, but in Debug mode, the weak reference is still alive
+            // and for some reason we need to do this to ensure it is collected
+#if DEBUG
+            GC.Collect();
+            await store.CollectAsync();
+#endif
+            
             Assert.AreEqual(1, store.GenCount);
             Assert.AreEqual(2, store.SnapCount);
 
