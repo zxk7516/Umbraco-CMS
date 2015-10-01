@@ -10,7 +10,7 @@ using Umbraco.Web.PublishedCache.NuCache.DataSource;
 
 namespace Umbraco.Web.PublishedCache.NuCache
 {
-    internal class PublishedContent : PublishedContentBase
+    internal class PublishedContent : PublishedContentWithKeyBase
     {
         private readonly ContentNode _contentNode;
         // ReSharper disable once InconsistentNaming
@@ -175,7 +175,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
         #region IPublishedContent
 
         public override int Id { get { return _contentNode.Id; } }
-        public Guid Uid { get { return _contentNode.Uid; } } // should be an IPublishedContent thing!
+        public override Guid Key { get { return _contentNode.Uid; } }
         public override int DocumentTypeId { get { return _contentNode.ContentType.Id; } }
         public override string DocumentTypeAlias { get { return _contentNode.ContentType.Alias; } }
         public override PublishedItemType ItemType { get { return _contentNode.ContentType.ItemType; } }
@@ -233,7 +233,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private string ChildrenCacheKey
         {
-            get { return _childrenCacheKey ?? (_childrenCacheKey = CacheKeys.PublishedContentChildren(Uid, _isPreviewing)); }
+            get { return _childrenCacheKey ?? (_childrenCacheKey = CacheKeys.PublishedContentChildren(Key, _isPreviewing)); }
         }
 
         public override IEnumerable<IPublishedContent> Children
@@ -324,7 +324,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
 
         private string AsPreviewingCacheKey
         {
-            get { return _asPreviewingCacheKey ?? (_asPreviewingCacheKey = CacheKeys.PublishedContentAsPreviewing(Uid)); }
+            get { return _asPreviewingCacheKey ?? (_asPreviewingCacheKey = CacheKeys.PublishedContentAsPreviewing(Key)); }
         }
 
         // used by ContentCache

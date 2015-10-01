@@ -10,7 +10,7 @@ using Umbraco.Web.Models;
 
 namespace Umbraco.Web.PublishedCache.PublishedNoCache
 {
-    class PublishedContent : PublishedContentBase, IPublishedContentOrMedia
+    class PublishedContent : PublishedContentWithKeyBase, IPublishedContentOrMedia
     {
         private readonly IContent _inner;
         private readonly Lazy<string> _lazyUrlName;
@@ -46,6 +46,11 @@ namespace Umbraco.Web.PublishedCache.PublishedNoCache
         public override int Id
         {
             get { return _inner.Id; }
+        }
+
+        public override Guid Key
+        {
+            get { return _inner.Key; }
         }
 
         public override int DocumentTypeId

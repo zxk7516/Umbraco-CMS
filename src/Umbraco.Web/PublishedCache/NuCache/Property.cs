@@ -32,7 +32,7 @@ namespace Umbraco.Web.PublishedCache.NuCache
             : base(propertyType)
         {
             _dataValue = valueSource;
-            _contentUid = content.Uid;
+            _contentUid = content.Key;
             var inner = PublishedContent.UnwrapIPublishedContent(content);
             _isPreviewing = inner.IsPreviewing;
             _isMember = content.ContentType.ItemType == PublishedItemType.Member;
