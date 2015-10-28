@@ -270,6 +270,7 @@ namespace Umbraco.Web.Editors
             {
                 //publish the item and check if it worked, if not we will show a diff msg below
                 publishStatus = Services.ContentService.SaveAndPublishWithStatus(contentItem.PersistedContent, Security.CurrentUser.Id);
+                wasCancelled = publishStatus.Result.StatusType == PublishStatusType.FailedCancelledByEvent;
             }
 
             //return the updated model
@@ -314,6 +315,14 @@ namespace Umbraco.Web.Editors
             }
 
             UpdatePreviewContext(contentItem.PersistedContent.Id);
+
+            //If the item is new and the operation was cancelled, we need to return a different
+            // status code so the UI can handle it since it won't be able to redirect since there
+            // is no Id to redirect to!
+            if (wasCancelled && IsCreatingAction(contentItem.Action))
+            {
+                throw new HttpResponseException(Request.CreateValidationErrorResponse(display));
+            }
 
             return display;
         }
@@ -482,7 +491,7 @@ namespace Umbraco.Web.Editors
         {
             var toCopy = ValidateMoveOrCopy(copy);
 
-            var c = Services.ContentService.Copy(toCopy, copy.ParentId, copy.RelateToOriginal);
+            var c = Services.ContentService.Copy(toCopy, copy.ParentId, copy.RelateToOriginal, copy.Recursive);
 
             var response = Request.CreateResponse(HttpStatusCode.OK);
             response.Content = new StringContent(c.Path, Encoding.UTF8, "application/json");
@@ -593,8 +602,9 @@ namespace Umbraco.Web.Editors
                 //cannot move if the content item is not allowed at the root
                 if (toMove.ContentType.AllowedAsRoot == false)
                 {
-                    throw new HttpResponseException(
-                        Request.CreateValidationErrorResponse(Services.TextService.Localize("moveOrCopy/notAllowedAtRoot")));
+                    var notificationModel = new SimpleNotificationModel();
+                    notificationModel.AddErrorNotification(Services.TextService.Localize("moveOrCopy/notAllowedAtRoot"), "");
+                    throw new HttpResponseException( Request.CreateValidationErrorResponse(notificationModel));
                 }
             }
             else
@@ -605,19 +615,23 @@ namespace Umbraco.Web.Editors
                     throw new HttpResponseException(HttpStatusCode.NotFound);
                 }
 
+                
+
                 //check if the item is allowed under this one
                 if (parent.ContentType.AllowedContentTypes.Select(x => x.Id).ToArray()
                     .Any(x => x.Value == toMove.ContentType.Id) == false)
                 {
-                    throw new HttpResponseException(
-                        Request.CreateValidationErrorResponse(Services.TextService.Localize("moveOrCopy/notAllowedByContentType")));
+                    var notificationModel = new SimpleNotificationModel();
+                    notificationModel.AddErrorNotification(Services.TextService.Localize("moveOrCopy/notAllowedByContentType"), "");
+                    throw new HttpResponseException(Request.CreateValidationErrorResponse(notificationModel));
                 }
 
                 // Check on paths
                 if ((string.Format(",{0},", parent.Path)).IndexOf(string.Format(",{0},", toMove.Id), StringComparison.Ordinal) > -1)
                 {
-                    throw new HttpResponseException(
-                        Request.CreateValidationErrorResponse(Services.TextService.Localize("moveOrCopy/notAllowedByPath")));
+                    var notificationModel = new SimpleNotificationModel();
+                    notificationModel.AddErrorNotification(Services.TextService.Localize("moveOrCopy/notAllowedByPath"), "");
+                    throw new HttpResponseException(Request.CreateValidationErrorResponse(notificationModel));
                 }
             }
 

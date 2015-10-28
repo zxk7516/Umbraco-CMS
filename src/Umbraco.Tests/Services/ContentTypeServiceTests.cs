@@ -13,6 +13,7 @@ using Umbraco.Tests.TestHelpers.Entities;
 
 namespace Umbraco.Tests.Services
 {
+    
     [DatabaseTestBehavior(DatabaseBehavior.NewDbFileAndSchemaPerTest)]
     [TestFixture, RequiresSTA]
     public class ContentTypeServiceTests : BaseServiceTest
@@ -142,6 +143,19 @@ namespace Umbraco.Tests.Services
 
             //Assert
             Assert.AreEqual(11, descendants.Count());
+        }
+
+        [Test]
+        public void Get_With_Missing_Guid()
+        {
+            // Arrange
+            var contentTypeService = ServiceContext.ContentTypeService;
+
+            //Act
+            var result = contentTypeService.GetMediaType(Guid.NewGuid());
+
+            //Assert
+            Assert.IsNull(result);
         }
 
         [Test]
@@ -1148,6 +1162,36 @@ namespace Umbraco.Tests.Services
             var contentType = service.GetContentType("contentPage");
             var propertyGroup = contentType.PropertyGroups["Content"];
             Assert.That(propertyGroup.ParentId.HasValue, Is.False);
+        }
+
+        [Test]
+        public void Can_Remove_PropertyGroup_Without_Removing_Property_Types()
+        {
+            var service = ServiceContext.ContentTypeService;
+            var basePage = (IContentType)MockedContentTypes.CreateBasicContentType();
+            service.Save(basePage);
+
+            var authorPropertyType = new PropertyType(Constants.PropertyEditors.TextboxAlias, DataTypeDatabaseType.Ntext, "author")
+            {
+                Name = "Author",
+                Description = "",
+                Mandatory = false,
+                SortOrder = 1,
+                DataTypeDefinitionId = -88
+            };
+            var authorAdded = basePage.AddPropertyType(authorPropertyType, "Content");
+            service.Save(basePage);
+
+            basePage = service.GetContentType(basePage.Id);
+
+            var totalPt = basePage.PropertyTypes.Count();
+
+            basePage.RemovePropertyGroup("Content");
+            service.Save(basePage);
+
+            basePage = service.GetContentType(basePage.Id);
+
+            Assert.AreEqual(totalPt, basePage.PropertyTypes.Count());
         }
 
         [Test]

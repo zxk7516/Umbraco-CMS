@@ -437,6 +437,12 @@
   <area alias="headers">
     <key alias="page">Страница</key>
   </area>
+  <area alias="help">
+    <key alias="goTo">перейти к</key>
+    <key alias="helpTopicsFor">Разделы справки для</key>
+    <key alias="videoChaptersFor">Обучающие видео для</key>
+    <key alias="theBestUmbracoVideoTutorials">Лучшие обучающие видеокурсы по Umbraco</key>
+  </area>
   <area alias="imagecropper">
     <key alias="reset">Сбросить</key>
   </area>
@@ -587,6 +593,10 @@
   <area alias="media">
     <key alias="clickToUpload">Нажмите, чтобы загрузить</key>
     <key alias="dropFilesHere">Перетащите файлы сюда...</key>
+  </area>
+  <area alias="member">
+    <key alias="createNewMember">Создать нового участника</key>
+    <key alias="allMembers">Все участники</key>
   </area>
   <area alias="moveOrCopy">
     <key alias="choose">Выберите страницу...</key>
@@ -955,7 +965,7 @@
     <key alias="cacheBrowser">Обзор кэша</key>
     <key alias="contentRecycleBin">Корзина</key>
     <key alias="createdPackages">Созданные пакеты</key>
-    <key alias="datatype">Типы данных</key>
+    <key alias="dataTypes">Типы данных</key>
     <key alias="dictionary">Словарь</key>
     <key alias="installedPackages">Установленные пакеты</key>
     <key alias="installSkin">Установить тему</key>
@@ -965,10 +975,10 @@
     <key alias="macros">Макросы</key>
     <key alias="mediaTypes">Типы медиа-материалов</key>
     <key alias="member">Участники</key>
-    <key alias="memberGroup">Группы участников</key>
+    <key alias="memberGroups">Группы участников</key>
     <key alias="memberRoles">Роли участников</key>
-    <key alias="memberType">Типы участников</key>
-    <key alias="nodeTypes">Типы документов</key>
+    <key alias="memberTypes">Типы участников</key>
+    <key alias="documentTypes">Типы документов</key>
     <key alias="packager">Пакеты дополнений</key>
     <key alias="packages">Пакеты дополнений</key>
     <key alias="python">Скрипты Python</key>

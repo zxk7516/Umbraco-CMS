@@ -381,14 +381,19 @@ namespace Umbraco.Core
             if (ApplicationContext.IsConfigured == false) return;
             if (ApplicationContext.DatabaseContext.IsDatabaseConfigured == false) return;
 
+            //try now
+            if (ApplicationContext.DatabaseContext.CanConnect)
+                return;
+
             var currentTry = 0;
             while (currentTry < 5)
             {
+                //first wait, then retry
+                Thread.Sleep(1000);
+
                 if (ApplicationContext.DatabaseContext.CanConnect)
                     break;
 
-                //wait and retry
-                Thread.Sleep(1000);
                 currentTry++;
             }
 
@@ -396,7 +401,6 @@ namespace Umbraco.Core
             {
                 throw new UmbracoStartupFailedException("Umbraco cannot start. A connection string is configured but the Umbraco cannot connect to the database.");
             }
-
         }
 
         /// <summary>
@@ -428,6 +432,7 @@ namespace Umbraco.Core
                     new Lazy<Type>(() => typeof (DelimitedManifestValueValidator)),
                     new Lazy<Type>(() => typeof (EmailValidator)),
                     new Lazy<Type>(() => typeof (IntegerValidator)),
+                    new Lazy<Type>(() => typeof (DecimalValidator)),
                 });
 
             //by default we'll use the db server registrar unless the developer has the legacy

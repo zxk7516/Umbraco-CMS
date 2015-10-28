@@ -7,7 +7,8 @@ angular.module("umbraco").controller("Umbraco.Editors.Content.CopyController",
 	        searchText = value + "...";
 	    });
 
-	    $scope.relateToOriginal = false;
+	    $scope.relateToOriginal = true;
+	    $scope.recursive = true;
 	    $scope.dialogTreeEventHandler = $({});
 	    $scope.busy = false;
 	    $scope.searchInfo = {
@@ -42,7 +43,7 @@ angular.module("umbraco").controller("Umbraco.Editors.Content.CopyController",
 	            $scope.target = args.node;
 	            $scope.target.selected = true;
 	        }
-	        
+
 	    }
 
 	    function nodeExpandedHandler(ev, args) {
@@ -50,7 +51,7 @@ angular.module("umbraco").controller("Umbraco.Editors.Content.CopyController",
 
 	            //iterate children
 	            _.each(args.children, function (child) {
-	                //check if any of the items are list views, if so we need to add a custom 
+	                //check if any of the items are list views, if so we need to add a custom
 	                // child: A node to activate the search
 	                if (child.metaData.isContainer) {
 	                    child.hasChildren = true;
@@ -78,24 +79,24 @@ angular.module("umbraco").controller("Umbraco.Editors.Content.CopyController",
 	        $scope.searchInfo.results = [];
 	    }
 
-	    // method to select a search result 
+	    // method to select a search result
 	    $scope.selectResult = function (evt, result) {
 	        result.selected = result.selected === true ? false : true;
 	        nodeSelectHandler(evt, { event: evt, node: result });
 	    };
 
-	    //callback when there are search results 
+	    //callback when there are search results
 	    $scope.onSearchResults = function (results) {
 	        $scope.searchInfo.results = results;
 	        $scope.searchInfo.showSearch = true;
 	    };
-        
+
 	    $scope.copy = function () {
 
 	        $scope.busy = true;
 	        $scope.error = false;
 
-	        contentResource.copy({ parentId: $scope.target.id, id: node.id, relateToOriginal: $scope.relateToOriginal })
+	        contentResource.copy({ parentId: $scope.target.id, id: node.id, relateToOriginal: $scope.relateToOriginal, recursive: $scope.recursive })
                 .then(function (path) {
                     $scope.error = false;
                     $scope.success = true;

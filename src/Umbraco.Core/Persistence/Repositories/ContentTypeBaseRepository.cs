@@ -37,6 +37,66 @@ namespace Umbraco.Core.Persistence.Repositories
         private readonly GuidReadOnlyContentTypeBaseRepository _guidRepo;
 
         /// <summary>
+        /// The container object type - used for organizing content types
+        /// </summary>
+        protected abstract Guid ContainerObjectTypeId { get; }
+
+        public Attempt<int> CreateFolder(int parentId, string name, int userId)
+        {
+            name = name.Trim();
+
+            Mandate.ParameterNotNullOrEmpty(name, "name");
+
+            var exists = Database.FirstOrDefault<NodeDto>(
+                new Sql().Select("*")
+                    .From<NodeDto>(SqlSyntax)
+                    .Where<NodeDto>(dto => dto.ParentId == parentId && dto.Text == name && dto.NodeObjectType == ContainerObjectTypeId));
+
+            if (exists != null)
+            {
+                return Attempt.Fail(exists.NodeId, new InvalidOperationException("A folder with the same name already exists"));
+            }
+
+            var level = 0;
+            var path = "-1";
+            if (parentId > -1)
+            {
+                var parent = Database.FirstOrDefault<NodeDto>(
+                    new Sql().Select("*")
+                        .From<NodeDto>(SqlSyntax)
+                        .Where<NodeDto>(dto => dto.NodeId == parentId && dto.NodeObjectType == ContainerObjectTypeId));
+
+                if (parent == null)
+                {
+                    return Attempt.Fail(0, new NullReferenceException("No content type container found with parent id " + parentId));
+                }
+                level = parent.Level;
+                path = parent.Path;
+            }
+
+            var folder = new NodeDto
+            {
+                CreateDate = DateTime.Now,
+                Level = Convert.ToInt16(level + 1),
+                NodeObjectType = ContainerObjectTypeId,
+                ParentId = parentId,
+                Path = path,
+                SortOrder = 0,
+                Text = name,
+                Trashed = false,
+                UniqueId = Guid.NewGuid(),
+                UserId = userId
+            };
+
+            Database.Save(folder);
+            //update the path
+            folder.Path = folder.Path + "," + folder.NodeId;
+            Database.Save(folder);
+
+            return Attempt.Succeed(folder.NodeId);
+        }
+
+        /// <summary>
         /// Returns the content type ids that match the query
         /// </summary>
         /// <param name="query"></param>
@@ -1070,6 +1130,11 @@ AND umbracoNode.id <> @id",
                 out IDictionary<int, PropertyTypeCollection> allPropertyTypeCollection,
                 out IDictionary<int, PropertyGroupCollection> allPropertyGroupCollection)
             {
+                allPropertyGroupCollection = new Dictionary<int, PropertyGroupCollection>();
+                allPropertyTypeCollection = new Dictionary<int, PropertyTypeCollection>();
+
+                // query below is not safe + pointless if array is empty
+                if (contentTypeIds.Length == 0) return;
 
                 // first part Gets all property groups including property type data even when no property type exists on the group
                 // second part Gets all property types including ones that are not on a group
@@ -1105,10 +1170,8 @@ AND umbracoNode.id <> @id",
                         INNER JOIN cmsDataType as DT
                         ON PT.dataTypeId = DT.nodeId
                         LEFT JOIN cmsPropertyTypeGroup as PG
-                        ON PG.id = PT.propertyTypeGroupId");
-
-                if (contentTypeIds.Any())
-                    sqlBuilder.AppendLine(" WHERE (PT.contentTypeId in (@contentTypeIds))");
+                        ON PG.id = PT.propertyTypeGroupId
+                        WHERE (PT.contentTypeId in (@contentTypeIds))");
 
                 sqlBuilder.AppendLine(" ORDER BY (pgId)");
 
@@ -1118,9 +1181,6 @@ AND umbracoNode.id <> @id",
                     throw new InvalidOperationException("Cannot perform this lookup, too many sql parameters");
 
                 var result = db.Fetch<dynamic>(sqlBuilder.ToString(), new { contentTypeIds = contentTypeIds });
-
-                allPropertyGroupCollection = new Dictionary<int, PropertyGroupCollection>();
-                allPropertyTypeCollection = new Dictionary<int, PropertyTypeCollection>();
 
                 foreach (var contentTypeId in contentTypeIds)
                 {
