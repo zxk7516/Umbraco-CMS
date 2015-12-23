@@ -501,6 +501,7 @@ namespace umbraco
         /// Executes a macro of a given type.
         /// </summary>
         private Attempt<MacroContent> ExecuteMacroWithErrorWrapper(string msgIn, string msgOut, Func<MacroContent> getMacroContent)
+                var textService = ApplicationContext.Current.Services.TextService;
         {
             using (DisposableTimer.DebugDuration<macro>(msgIn, msgOut))
             {
@@ -516,6 +517,9 @@ namespace umbraco
                     LogHelper.WarnWithException<macro>(errorMessage, true, e);
 
                     var macroErrorEventArgs = new MacroErrorEventArgs
+
+                            var errorMessage = textService.Localize("errors/macroErrorParsingXSLTFile", new[] { XsltFile });
+                            var macroControl = GetControlForErrorBehavior("Error parsing XSLT file: \\xslt\\" + XsltFile, macroErrorEventArgs);
                     {
                         Name = Model.Name,
                         Alias = Model.Alias,
@@ -531,7 +535,8 @@ namespace umbraco
                         case MacroErrorBehaviour.Inline:
                             // do not throw, eat the exception, display the trace error message
                             return Attempt.Fail(new MacroContent { Text = errorMessage }, e);
-                        case MacroErrorBehaviour.Silent:
+                    var errorMessage = textService.Localize("errors/macroErrorReadingXSLTFile", new[] { XsltFile });
+                    var macroControl = GetControlForErrorBehavior("Error reading XSLT file: \\xslt\\" + XsltFile, macroErrorEventArgs);
                             // do not throw, eat the exception, do not display anything
                             return Attempt.Fail(new MacroContent { Text = string.Empty }, e);
                         case MacroErrorBehaviour.Content:
@@ -1009,6 +1014,8 @@ namespace umbraco
             ServicePointManager.ServerCertificateValidationCallback += ValidateRemoteCertificate;
 
             // propagate the user's context
+            //TODO: This is the worst thing ever. This will also not work if people decide to put their own
+            // custom auth system in place.
             var inCookie = StateHelper.Cookies.UserContext.RequestCookie;
             var cookie = new Cookie(inCookie.Name, inCookie.Value, inCookie.Path,
                 HttpContext.Current.Request.ServerVariables["SERVER_NAME"]);

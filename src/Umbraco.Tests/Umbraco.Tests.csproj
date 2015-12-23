@@ -177,6 +177,7 @@
     <Compile Include="ApplicationContextTests.cs" />
     <Compile Include="AttemptTests.cs" />
     <Compile Include="Cache\CacheRefresherTests.cs" />
+    <Compile Include="Models\Mapping\ContentTypeModelMappingTests.cs" />
     <Compile Include="Cache\DeepCloneRuntimeCacheProviderTests.cs" />
     <Compile Include="Cache\SnapDictionaryTests.cs" />
     <Compile Include="JsonSerializationTests.cs" />
@@ -186,6 +187,7 @@
     <Compile Include="Logging\DebugAppender.cs" />
     <Compile Include="Persistence\PetaPocoRowVersionTests.cs" />
     <Compile Include="Logging\ParallelForwarderTest.cs" />
+    <Compile Include="Mvc\RenderIndexActionSelectorAttributeTests.cs" />
     <Compile Include="Persistence\Repositories\AuditRepositoryTest.cs" />
     <Compile Include="Persistence\Repositories\DomainRepositoryTest.cs" />
     <Compile Include="Persistence\Repositories\PartialViewRepositoryTests.cs" />
@@ -369,6 +371,7 @@
     <Compile Include="Services\MacroServiceTests.cs" />
     <Compile Include="Services\UserServiceTests.cs" />
     <Compile Include="Manifest\ManifestParserTests.cs" />
+    <Compile Include="Templates\TemplateRepositoryTests.cs" />
     <Compile Include="TestHelpers\BaseSeleniumTest.cs" />
     <Compile Include="Integration\InstallPackage.cs" />
     <Compile Include="CoreXml\NavigableNavigatorTests.cs" />

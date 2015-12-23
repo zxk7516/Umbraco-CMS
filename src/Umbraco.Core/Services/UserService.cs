@@ -135,6 +135,9 @@ namespace Umbraco.Core.Services
                     IsLockedOut = false,
                     IsApproved = true
                 };
+                //adding default sections content and media
+                user.AddAllowedSection("content");
+                user.AddAllowedSection("media");
 
                 if (SavingUser.IsRaisedEventCancelled(new SaveEventArgs<IUser>(user), this))
                     return user;

@@ -165,6 +165,10 @@ namespace Umbraco.Core.Services
         {
             var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parentId, contentType);
+#error are we sure?
+            var parent = GetById(content.ParentId);
+            content.Path = string.Concat(parent.IfNotNull(x => x.Path, content.ParentId.ToString()), ",", content.Id);
+
             CreateContent(content, null, parentId, false, userId, false);
             return content;
         }
@@ -185,8 +189,12 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContent(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
+#error are we sure parent must not be null (then see content.Path below)        
+            if (parent == null) throw new ArgumentNullException("parent");
+
             var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parent, contentType);
+            content.Path = string.Concat(parent.Path, ",", content.Id);
             CreateContent(content, parent, parent.Id, true, userId, false);
             return content;
         }
@@ -207,7 +215,7 @@ namespace Umbraco.Core.Services
         public IContent CreateContentWithIdentity(string name, int parentId, string contentTypeAlias, int userId = 0)
         {
             var contentType = GetContentType(contentTypeAlias);
-            var content = new Content(name, parentId, contentType);
+            var content = new Content(name, parentId, contentType);            
             CreateContent(content, null, parentId, false, userId, true);
             return content;
         }
@@ -227,6 +235,9 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContentWithIdentity(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
+#error are we sure parent cannot be null?
+            if (parent == null) throw new ArgumentNullException("parent");
+
             var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parent, contentType);
             CreateContent(content, parent, parent.Id, true, userId, true);
@@ -377,6 +388,9 @@ namespace Umbraco.Core.Services
         /// <returns>An Enumerable list of <see cref="IContent"/> objects</returns>
         public IEnumerable<IContent> GetAncestors(IContent content)
         {
+            // null check otherwise we get exceptions
+            if (content.Path.IsNullOrWhiteSpace()) return Enumerable.Empty<IContent>();
+            
             var rootId = Constants.System.Root.ToInvariantString();
             var ids = content.Path.Split(',')
                 .Where(x => x != rootId && x != content.Id.ToString(CultureInfo.InvariantCulture)).Select(int.Parse).ToArray();

@@ -117,6 +117,9 @@ namespace Umbraco.Core.Services
         {
             var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parentId, mediaType);
+#error see content is that OK?
+            var parent = GetById(media.ParentId);
+            media.Path = string.Concat(parent.IfNotNull(x => x.Path, media.ParentId.ToString()), ",", media.Id);
             CreateMedia(media, null, parentId, false, userId, false);
             return media;
         }
@@ -137,8 +140,13 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMedia(string name, IMedia parent, string mediaTypeAlias, int userId = 0)
         {
+#error see content is that ok?
+            if (parent == null) throw new ArgumentNullException("parent");
+
             var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parent, mediaType);
+            media.Path = string.Concat(parent.Path, ",", media.Id);
+
             CreateMedia(media, null, parent.Id, false, userId, false);
             return media;
         }
@@ -179,6 +187,9 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IMedia"/></returns>
         public IMedia CreateMediaWithIdentity(string name, IMedia parent, string mediaTypeAlias, int userId = 0)
         {
+#error see parent is that OK?
+            if (parent == null) throw new ArgumentNullException("parent");
+
             var mediaType = GetMediaType(mediaTypeAlias);
             var media = new Models.Media(name, parent, mediaType);
             CreateMedia(media, parent, parent.Id, true, userId, true);
@@ -368,9 +379,7 @@ namespace Umbraco.Core.Services
             Mandate.ParameterCondition(pageSize > 0, "pageSize");
 
             var query = Query<IMedia>.Builder;
-            //if the id is -1, then just get all
-            if (id != Constants.System.Root)
-                query.Where(x => x.ParentId == id);
+            query.Where(x => x.ParentId == id);
 
             IEnumerable<IMedia> ret = null;
             long totalChildren2 = 0;

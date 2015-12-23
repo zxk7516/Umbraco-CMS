@@ -242,7 +242,13 @@ namespace Umbraco.Core.Sync
                 using (_profilingLogger.DebugDuration<DatabaseServerMessenger>("Syncing from database..."))
                 {
                     ProcessDatabaseInstructions();
-                    PruneOldInstructions();
+                    switch (_appContext.GetCurrentServerRole())
+                    {
+                        case ServerRole.Single:
+                        case ServerRole.Master:
+                            PruneOldInstructions();
+                            break;
+                    }
                 }
             }
             finally
@@ -270,9 +276,9 @@ namespace Umbraco.Core.Sync
             // to make sure we do end processing instructions at some point
 
             var sql = new Sql().Select("*")
-                .From<CacheInstructionDto>()
+                .From<CacheInstructionDto>(_appContext.DatabaseContext.SqlSyntax)
                 .Where<CacheInstructionDto>(dto => dto.Id > _lastId)
-                .OrderBy<CacheInstructionDto>(dto => dto.Id);
+                .OrderBy<CacheInstructionDto>(dto => dto.Id, _appContext.DatabaseContext.SqlSyntax);
 
             var dtos = _appContext.DatabaseContext.Database.Fetch<CacheInstructionDto>(sql);
             if (dtos.Count <= 0) return;
@@ -345,7 +351,7 @@ namespace Umbraco.Core.Sync
         private void EnsureInstructions()
         {
             var sql = new Sql().Select("*")
-                .From<CacheInstructionDto>()
+                .From<CacheInstructionDto>(_appContext.DatabaseContext.SqlSyntax)
                 .Where<CacheInstructionDto>(dto => dto.Id == _lastId);
 
             var dtos = _appContext.DatabaseContext.Database.Fetch<CacheInstructionDto>(sql);

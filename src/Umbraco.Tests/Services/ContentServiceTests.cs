@@ -144,6 +144,20 @@ namespace Umbraco.Tests.Services
         }
 
         [Test]
+        public void GetAncestors_Returns_Empty_List_When_Path_Is_Null()
+        {
+            // Arrange
+            var contentService = ServiceContext.ContentService;
+
+            // Act
+            var current = new Mock<IContent>();
+            var res = contentService.GetAncestors(current.Object);
+
+            // Assert
+            Assert.IsEmpty(res);
+        }
+
+        [Test]
         public void PublishWithStatus()
         {
             var contentType = MockedContentTypes.CreateTextpageContentType();
@@ -1794,7 +1808,8 @@ namespace Umbraco.Tests.Services
             //MCH: I'm guessing this is an issue because of the format the date is actually stored as, right? Cause we don't do any formatting when saving or loading
             Assert.That(sut.GetValue<DateTime>("dateTime").ToString("G"), Is.EqualTo(content.GetValue<DateTime>("dateTime").ToString("G")));
             Assert.That(sut.GetValue<string>("colorPicker"), Is.EqualTo("black"));
-	        Assert.That(sut.GetValue<string>("folderBrowser"), Is.Null);
+            //that one is gone in 7.4
+	        //Assert.That(sut.GetValue<string>("folderBrowser"), Is.Null);
             Assert.That(sut.GetValue<string>("ddlMultiple"), Is.EqualTo("1234,1235"));
             Assert.That(sut.GetValue<string>("rbList"), Is.EqualTo("random"));
             Assert.That(sut.GetValue<DateTime>("date").ToString("G"), Is.EqualTo(content.GetValue<DateTime>("date").ToString("G")));

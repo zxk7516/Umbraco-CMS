@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Umbraco.Core.Events;
 using Umbraco.Core.Configuration;
@@ -527,7 +528,8 @@ WHERE EXISTS(
                     //TODO: This isn't going to work very nicely because it's going to order by ID, not by letter
                     return "umbracoNode.nodeUser";
                 default:
-                    return orderBy;
+                    //ensure invalid SQL cannot be submitted
+                    return Regex.Replace(orderBy, @"[^\w\.,`\[\]@-]", "");
             }
         }
 
@@ -546,7 +548,8 @@ WHERE EXISTS(
                 case "VERSIONDATE":
                     return "UpdateDate";
                 default:
-                    return orderBy;
+                    //ensure invalid SQL cannot be submitted
+                    return Regex.Replace(orderBy, @"[^\w\.,`\[\]@-]", "");
             }
         }
 

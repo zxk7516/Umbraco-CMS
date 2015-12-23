@@ -284,6 +284,15 @@ namespace Umbraco.Web.Cache
 
         #region Macro Cache
 
+        // fixme wtf?
+        /*
+        public static void ClearAllMacroCacheOnCurrentServer(this DistributedCache dc)
+        {
+            var macroRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.MacroCacheRefresherGuid);
+            macroRefresher.RefreshAll();
+        }
+        */
+
         public static void RefreshMacroCache(this DistributedCache dc, IMacro macro)
         {
             if (macro == null) return;
@@ -412,6 +421,15 @@ namespace Umbraco.Web.Cache
             dc.RefreshSetByPayload(DistributedCache.DomainCacheRefresherGuid, payloads);
         }
 
+        // fixme wtf?
+        /*
+        public static void ClearDomainCacheOnCurrentServer(this DistributedCache dc)
+        {
+            var domainRefresher = CacheRefreshersResolver.Current.GetById(DistributedCache.DomainCacheRefresherGuid);
+            domainRefresher.RefreshAll();
+        }
+        */
+        
         #endregion
 
         #region Language Cache

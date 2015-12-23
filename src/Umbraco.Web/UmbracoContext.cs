@@ -474,14 +474,22 @@ namespace Umbraco.Web
             Security.DisposeIfDisposable();
             Security = null;
             _umbracoContext = null;
-            //ensure not to dispose this!
-            Application = null;
 
             // help caches release resources
             // (but don't create caches just to dispose them)
             // context is not multi-threaded
             if (_facade.IsValueCreated)
                 _facade.Value.DisposeIfDisposable();
+                
+            // FIXME EXPLAIN THIS - WHY WOULD WE SET THINGS TO NULL? WHAT HAPPENS IF WE DONT?
+            //Before we set these to null but in fact these are application lifespan singletons so 
+            //there's no reason we need to set them to null and this also caused a problem with packages
+            //trying to access the cache properties on RequestEnd.
+            //http://issues.umbraco.org/issue/U4-2734
+            //http://our.umbraco.org/projects/developer-tools/301-url-tracker/version-2/44327-Issues-with-URL-Tracker-in-614
+            //ContentCache = null;
+            //MediaCache = null;                 
+            //Application = null;
         }
     }
 }

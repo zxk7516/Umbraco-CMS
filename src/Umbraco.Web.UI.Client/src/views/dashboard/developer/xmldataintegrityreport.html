@@ -11,8 +11,8 @@
         cmsContentXml and cmsPreviewXml tables. It does not check the data integrity of those structures,
         nor of the Xml cache (in-memory and file).
     </p>
-    <div ng-repeat="(key, value) in items" class="umb-pane">
-        <span class="">{{value.label}}&nbsp;...</span>
+    <div ng-repeat="(key, value) in items" style="padding: 4px 0;">
+        <span><strong>{{value.label}}&nbsp;...</strong></span>
         <span ng-if="value.checking" class="text-info">Checking...</span>
         <span ng-if="!value.checking && !value.invalid" class="text-success"><strong>Ok</strong></span>
         <span ng-if="!value.checking && value.invalid" class="text-error"><strong>Error</strong></span>

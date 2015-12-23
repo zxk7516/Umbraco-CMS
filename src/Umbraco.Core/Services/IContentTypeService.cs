@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using Umbraco.Core.Models;
+using Umbraco.Core.Models.EntityBase;
 
 namespace Umbraco.Core.Services
 {
@@ -10,6 +11,21 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IContentTypeService : IContentTypeServiceBase<IContentType>
     {
+#error 'course, refactor this!
+        Attempt<string[]> ValidateComposition(IContentTypeComposition compo);
+
+        Attempt<int> CreateContentTypeContainer(int parentId, string name, int userId = 0);
+        Attempt<int> CreateMediaTypeContainer(int parentId, string name, int userId = 0);
+        void SaveContentTypeContainer(EntityContainer container, int userId = 0);
+        void SaveMediaTypeContainer(EntityContainer container, int userId = 0);
+        EntityContainer GetContentTypeContainer(int containerId);
+        EntityContainer GetContentTypeContainer(Guid containerId);
+        EntityContainer GetMediaTypeContainer(int containerId);
+        EntityContainer GetMediaTypeContainer(Guid containerId);
+        void DeleteMediaTypeContainer(int folderId, int userId = 0);
+        void DeleteContentTypeContainer(int containerId, int userId = 0);
+//error
+
         /// <summary>
         /// Gets all property type aliases.
         /// </summary>
@@ -51,5 +67,8 @@ namespace Umbraco.Core.Services
         /// </param>
         /// <returns></returns>
         IContentType Copy(IContentType original, string alias, string name, IContentType parent);
+#error 'course we don't want these here
+        Attempt<OperationStatus<MoveOperationStatusType>> MoveMediaType(IMediaType toMove, int containerId);
+        Attempt<OperationStatus<MoveOperationStatusType>> MoveContentType(IContentType toMove, int containerId);
     }
 }

@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Web;
 using System.Web.Hosting;
 using log4net;
@@ -66,6 +67,7 @@ namespace Umbraco.Core
         /// <param name="e"></param>
         protected void Application_Start(object sender, EventArgs e)
         {
+            Thread.CurrentThread.SanitizeThreadCulture();
             StartApplication(sender, e);
         }
 

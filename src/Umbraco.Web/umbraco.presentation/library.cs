@@ -601,7 +601,7 @@ namespace umbraco
             {
                 var n = global::Umbraco.Web.UmbracoContext.Current.Facade.MemberCache.CreateNodeNavigator(m.Id, false);
                 if (n != null)
-                    return n.Select(".");
+                    return n.Select("."); // vs "/node" vs "/node()" ?
             }
 
             XmlDocument xd = new XmlDocument();
