@@ -40,6 +40,11 @@ namespace Umbraco.Core.Services
         private static readonly int[] LockingRepositoryReadLockIds = { Constants.System.MemberTypesLock };
         private static readonly int[] LockingRepositoryWriteLockIds = { Constants.System.MemberTreeLock, Constants.System.MemberTypesLock };
 
+        protected override Guid ContainedObjectType
+        {
+            get { return Constants.ObjectTypes.MemberTypeGuid; }
+        }
+
         protected override void DeleteItemsOfTypes(IEnumerable<int> typeIds)
         {
             foreach (var typeId in typeIds)

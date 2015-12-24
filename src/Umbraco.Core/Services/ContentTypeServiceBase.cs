@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Events;
+using Umbraco.Core.Exceptions;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Models.EntityBase;
@@ -32,10 +33,10 @@ namespace Umbraco.Core.Services
 
         #endregion
 
-
         #region Services
 
         public static IContentTypeServiceBase<T> GetService<T>(ServiceContext services)
+            where T : IContentTypeComposition
         {
             if (typeof(T).Implements<IContentType>())
                 return services.ContentTypeService as IContentTypeServiceBase<T>;
@@ -168,6 +169,24 @@ namespace Umbraco.Core.Services
             Deleted.RaiseEvent(args, this);
         }
 
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, MoveEventArgs<TItem>> Moving;
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, MoveEventArgs<TItem>> Moved;
+
+        protected void OnMoving(MoveEventArgs<TItem> args)
+        {
+            Moving.RaiseEvent(args, this);
+        }
+
+        protected bool OnMovingCancelled(MoveEventArgs<TItem> args)
+        {
+            return Moving.IsRaisedEventCancelled(args, this);
+        }
+
+        protected void OnMoved(MoveEventArgs<TItem> args)
+        {
+            Moved.RaiseEvent(args, this);
+        }
+
         #endregion
     }
 
@@ -194,14 +213,23 @@ namespace Umbraco.Core.Services
 
         #region Validation
 
-        public void Validate(IContentTypeComposition compo)
+        public Attempt<string[]> ValidateComposition(TItem compo)
         {
             // locking the content types but it really does not matter
             // because it locks ALL content types incl. medias & members &...
-            LRepo.WithReadLocked(xr => ValidateLocked(xr.Repository, compo));
+
+            try
+            {
+                LRepo.WithReadLocked(xr => ValidateLocked(xr.Repository, compo));
+                return Attempt<string[]>.Succeed();
+            }
+            catch (InvalidCompositionException ex)
+            {
+                return Attempt.Fail(ex.PropertyTypeAliases, ex);
+            }
         }
 
-        private void ValidateLocked(TRepository repository, IContentTypeComposition compositionContentType)
+        protected void ValidateLocked(TRepository repository, TItem compositionContentType)
         {
             // performs business-level validation of the composition
             // should ensure that it is absolutely safe to save the composition
@@ -246,9 +274,7 @@ namespace Umbraco.Core.Services
                 var intersect = contentTypeDependency.PropertyTypes.Select(x => x.Alias.ToLowerInvariant()).Intersect(propertyTypeAliases).ToArray();
                 if (intersect.Length == 0) continue;
 
-                var message = string.Format("The following PropertyType aliases from the current ContentType conflict with existing PropertyType aliases: {0}.",
-                    string.Join(", ", intersect));
-                throw new Exception(message);
+                throw new InvalidCompositionException(compositionContentType.Alias, intersect.ToArray());
             }
         }
 
@@ -689,6 +715,145 @@ namespace Umbraco.Core.Services
 
             Save(clone);
             return clone;
+        }
+
+        #endregion
+
+        #region Move
+
+        public Attempt<OperationStatus<MoveOperationStatusType>> Move(TItem moving, int containerId)
+        {
+            var evtMsgs = EventMessagesFactory.Get();
+
+            if (OnMovingCancelled(new MoveEventArgs<TItem>(evtMsgs, new MoveEventInfo<TItem>(moving, moving.Path, containerId))))
+                return Attempt.Fail(new OperationStatus<MoveOperationStatusType>(MoveOperationStatusType.FailedCancelledByEvent, evtMsgs));
+
+            var moveInfo = new List<MoveEventInfo<TItem>>();
+
+            var attempt = LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    try
+                    {
+                        EntityContainer container = null;
+                        if (containerId > 0)
+                        {
+                            container = repo.Get(containerId);
+                            if (container == null || container.ContainedObjectType != ContainedObjectType)
+                                throw new DataOperationException<MoveOperationStatusType>(MoveOperationStatusType.FailedParentNotFound);
+                        }
+                        moveInfo.AddRange(xr.Repository.Move(moving, container));
+                    }
+                    catch (DataOperationException<MoveOperationStatusType> ex)
+                    {
+                        return Attempt.Fail(new OperationStatus<MoveOperationStatusType>(ex.Operation, evtMsgs));
+                    }
+                }
+
+                return Attempt.Succeed(new OperationStatus<MoveOperationStatusType>(MoveOperationStatusType.Success, evtMsgs));
+            });
+
+            if (attempt.Success == false) return attempt;
+
+            // FIXME should raise Changed events for the content type that is MOVED and ALL ITS CHILDREN IF ANY
+            // FIXME at the moment we don't have no MoveContainer don't we?!
+
+            OnMoved(new MoveEventArgs<TItem>(false, evtMsgs, moveInfo.ToArray()));
+            return attempt;
+        }
+
+        #endregion
+
+        #region Containers
+
+        protected abstract Guid ContainedObjectType { get; }
+
+        public Attempt<int> CreateContainer(int parentId, string name, int userId = 0)
+        {
+            return LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    try
+                    {
+                        var container = new EntityContainer(ContainedObjectType)
+                        {
+                            Name = name,
+                            ParentId = parentId,
+                            CreatorId = userId
+                        };
+                        repo.AddOrUpdate(container);
+                        xr.UnitOfWork.Commit();
+                        return Attempt.Succeed(container.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        return Attempt<int>.Fail(ex);
+                    }
+                    //TODO: Audit trail ?
+                }
+            });
+        }
+
+        public void SaveContainer(EntityContainer container, int userId = 0)
+        {
+            if (container.ContainedObjectType != ContainedObjectType)
+                throw new InvalidOperationException("Not a " + ContainedObjectType + " container.");
+            if (container.HasIdentity && container.IsPropertyDirty("ParentId"))
+                throw new InvalidOperationException("Cannot save a container with a modified parent, move the container instead.");
+
+            LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    repo.AddOrUpdate(container);
+                    //TODO: Audit trail ?
+                }
+            });
+        }
+
+        public EntityContainer GetContainer(int containerId)
+        {
+            return LRepo.WithReadLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    var container = repo.Get(containerId);
+                    return container != null && container.ContainedObjectType == ContainedObjectType
+                        ? container
+                        : null;
+                }
+            });
+        }
+
+        public EntityContainer GetContainer(Guid containerId)
+        {
+            return LRepo.WithReadLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    var container = repo.Get(containerId);
+                    return container != null && container.ContainedObjectType == ContainedObjectType
+                        ? container
+                        : null;
+                }
+            });
+        }
+
+        public void DeleteContainer(int containerId, int userId = 0)
+        {
+            LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                {
+                    var container = repo.Get(containerId);
+                    if (container == null) return;
+                    if (container.ContainedObjectType != ContainedObjectType) return;
+                    repo.Delete(container);
+                    //TODO: Audit trail ?
+                }
+            });
         }
 
         #endregion

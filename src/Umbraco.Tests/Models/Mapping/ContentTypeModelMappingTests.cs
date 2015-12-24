@@ -45,8 +45,7 @@ namespace Umbraco.Tests.Models.Mapping
                 //Create service context using mocks
                 new ServiceContext(
 
-                    contentService: _contentService.Object,
-                    contentTypeService:_contentTypeService.Object,
+                    contentServices: Tuple.Create(_contentService.Object, _contentTypeService.Object),
                     dataTypeService:_dataTypeService.Object,
                     entityService:_entityService.Object,
                     fileService: _fileService.Object),                    

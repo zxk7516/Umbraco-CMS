@@ -10,12 +10,6 @@ namespace Umbraco.Core.Services
     /// </summary>
     public interface IDataTypeService : IService
     {
-        Attempt<int> CreateContainer(int parentId, string name, int userId = 0);
-        void SaveContainer(EntityContainer container, int userId = 0);
-        EntityContainer GetContainer(int containerId);
-        EntityContainer GetContainer(Guid containerId);
-        void DeleteContainer(int containerId, int userId = 0);
-
         /// <summary>
         /// Gets a <see cref="IDataTypeDefinition"/> by its Name
         /// </summary>
@@ -158,6 +152,16 @@ namespace Umbraco.Core.Services
         /// <returns>PreValue as a string</returns>
         string GetPreValueAsString(int id);
 
-        Attempt<OperationStatus<MoveOperationStatusType>> Move(IDataTypeDefinition toMove, int parentId);
+        Attempt<int> CreateContainer(int parentContainerId, string name, int userId = 0);
+
+        void SaveContainer(EntityContainer container, int userId = 0);
+
+        EntityContainer GetContainer(int containerId);
+
+        EntityContainer GetContainer(Guid containerId);
+
+        void DeleteContainer(int containerId, int userId = 0);
+
+        Attempt<OperationStatus<MoveOperationStatusType>> Move(IDataTypeDefinition moving, int containerId);
     }
 }

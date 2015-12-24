@@ -490,6 +490,7 @@
     <Compile Include="Security\MembershipPasswordHasher.cs" />
     <Compile Include="SemVersionExtensions.cs" />
     <Compile Include="Serialization\ForceInt32Converter.cs" />
+    <Compile Include="ServiceContextExtensions.cs" />
     <Compile Include="ServiceProviderExtensions.cs" />
     <Compile Include="IO\ResizedImage.cs" />
     <Compile Include="IO\UmbracoMediaFile.cs" />

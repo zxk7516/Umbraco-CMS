@@ -147,6 +147,9 @@ namespace Umbraco.Core.Services
 
         #region Create
 
+        // NOTE so to create content without a parent, use the parentId value -1 but don't try a null parent
+        // this all makes little sense and should be reorg in v8
+
         /// <summary>
         /// Creates an <see cref="IContent"/> object using the alias of the <see cref="IContentType"/>
         /// that this Content should based on.
@@ -165,7 +168,7 @@ namespace Umbraco.Core.Services
         {
             var contentType = GetContentType(contentTypeAlias);
             var content = new Content(name, parentId, contentType);
-#error are we sure?
+
             var parent = GetById(content.ParentId);
             content.Path = string.Concat(parent.IfNotNull(x => x.Path, content.ParentId.ToString()), ",", content.Id);
 
@@ -189,7 +192,6 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContent(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
-#error are we sure parent must not be null (then see content.Path below)        
             if (parent == null) throw new ArgumentNullException("parent");
 
             var contentType = GetContentType(contentTypeAlias);
@@ -235,7 +237,6 @@ namespace Umbraco.Core.Services
         /// <returns><see cref="IContent"/></returns>
         public IContent CreateContentWithIdentity(string name, IContent parent, string contentTypeAlias, int userId = 0)
         {
-#error are we sure parent cannot be null?
             if (parent == null) throw new ArgumentNullException("parent");
 
             var contentType = GetContentType(contentTypeAlias);

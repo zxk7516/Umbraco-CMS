@@ -41,7 +41,7 @@ namespace Umbraco.Web.Models.Mapping
             foreach (var a in add)
             {
                 //TODO: Remove N+1 lookup
-                var addCt = applicationContext.Services.ContentTypeService.GetContentType(a);
+                var addCt = applicationContext.Services.ContentTypeService.Get(a);
                 if (addCt != null)
                     dest.AddContentType(addCt);
             }

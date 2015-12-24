@@ -39,6 +39,11 @@ namespace Umbraco.Core.Services
         private static readonly int[] LockingRepositoryReadLockIds = { Constants.System.MediaTypesLock };
         private static readonly int[] LockingRepositoryWriteLockIds = { Constants.System.MediaTreeLock, Constants.System.MediaTypesLock };
 
+        protected override Guid ContainedObjectType
+        {
+            get { return Constants.ObjectTypes.MediaTypeGuid; }
+        }
+
         protected override void DeleteItemsOfTypes(IEnumerable<int> typeIds)
         {
             foreach (var typeId in typeIds)

@@ -25,7 +25,7 @@ namespace Umbraco.Web.Editors
     /// </summary>
     [PluginController("UmbracoApi")]
     [UmbracoTreeAuthorize(Constants.Trees.MemberTypes)]    
-    public class MemberTypeController : ContentTypeControllerBase
+    public class MemberTypeController : ContentTypeControllerBase<IMemberType>
     {
         /// <summary>
         /// Constructor
@@ -81,7 +81,7 @@ namespace Umbraco.Web.Editors
 
         public IEnumerable<EntityBasic> GetAvailableCompositeMemberTypes(int contentTypeId)
         {
-            return PerformGetAvailableCompositeContentTypes(contentTypeId, UmbracoObjectTypes.MemberType);
+            return PerformGetAvailableCompositeContentTypes(contentTypeId);
         }
 
         public ContentTypeCompositionDisplay GetEmpty()
@@ -109,7 +109,7 @@ namespace Umbraco.Web.Editors
 
         public ContentTypeCompositionDisplay PostSave(ContentTypeSave contentTypeSave)
         {
-            var savedCt = PerformPostSave<IMemberType, ContentTypeCompositionDisplay>(
+            var savedCt = PerformPostSave<ContentTypeCompositionDisplay>(
                 contentTypeSave:        contentTypeSave,
                 getContentType:         i => Services.MemberTypeService.Get(i),
                 saveContentType:        type => Services.MemberTypeService.Save(type),

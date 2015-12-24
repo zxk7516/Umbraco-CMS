@@ -15,7 +15,7 @@ namespace Umbraco.Core.Models
         /// nothing to do with compositions, though a child should always be composed
         /// of its parent.</remarks>
         public static IEnumerable<T> Descendants<T>(this T contentType)
-            where T : IContentTypeBase
+            where T : IContentTypeComposition
         {
             var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
             return service.GetDescendants(contentType.Id, false);
@@ -30,7 +30,7 @@ namespace Umbraco.Core.Models
         /// nothing to do with compositions, though a child should always be composed
         /// of its parent.</remarks>
         public static IEnumerable<T> DescendantsAndSelf<T>(this T contentType)
-            where T : IContentTypeBase
+            where T : IContentTypeComposition
         {
             var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
             return service.GetDescendants(contentType.Id, true);
@@ -45,7 +45,7 @@ namespace Umbraco.Core.Models
         /// with the parent-child relationship, though a child should always be composed of
         /// its parent.</remarks>
         public static IEnumerable<T> ComposedOf<T>(this T contentType)
-            where T : IContentTypeBase
+            where T : IContentTypeComposition
         {
             var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
             return service.GetComposedOf(contentType.Id);

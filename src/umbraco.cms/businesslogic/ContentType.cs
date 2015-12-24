@@ -15,6 +15,7 @@ using umbraco.cms.businesslogic.cache;
 using umbraco.cms.businesslogic.propertytype;
 using umbraco.cms.businesslogic.web;
 using umbraco.DataLayer;
+using Umbraco.Core.Services;
 using DataTypeDefinition = umbraco.cms.businesslogic.datatype.DataTypeDefinition;
 using Language = umbraco.cms.businesslogic.language.Language;
 using PropertyType = umbraco.cms.businesslogic.propertytype.PropertyType;
@@ -559,7 +560,7 @@ namespace umbraco.cms.businesslogic
             {
                 if (m_masterContentTypes == null)
                 {
-                    var ct = ApplicationContext.Current.Services.ContentTypeService.GetContentType(Id);
+                    var ct = ApplicationContext.Current.Services.GetContentTypeService<IContentType>().Get(Id);
                     m_masterContentTypes = ct.CompositionPropertyGroups.Select(x => x.Id).ToList();
                     m_masterContentTypes = ContentTypeItem == null
                         ? new List<int>()
@@ -1230,7 +1231,7 @@ namespace umbraco.cms.businesslogic
         private void InitializeVirtualTabs()
         {
             // somewhat fixing... this whole class should be removed anyways
-            var ct = ContentTypeItem ?? ApplicationContext.Current.Services.ContentTypeService.GetContentType(Id);
+            var ct = ContentTypeItem ?? ApplicationContext.Current.Services.GetContentTypeService<IContentType>().Get(Id);
 
             var tmp1 = ct.PropertyGroups
                 .Select(x => (TabI) new Tab(x.Id, x.Name, x.SortOrder, this))
@@ -1404,7 +1405,7 @@ namespace umbraco.cms.businesslogic
             public List<PropertyType> GetAllPropertyTypes()
             {
                 // somewhat fixing... this whole class should be removed anyways
-                var ct = _contenttype.ContentTypeItem ?? ApplicationContext.Current.Services.ContentTypeService.GetContentType(_contenttype.Id);
+                var ct = _contenttype.ContentTypeItem ?? ApplicationContext.Current.Services.GetContentTypeService<IContentType>().Get(_contenttype.Id);
                 return ct.CompositionPropertyTypes
                     .OrderBy(x => x.SortOrder)
                     .Select(x => x.Id)

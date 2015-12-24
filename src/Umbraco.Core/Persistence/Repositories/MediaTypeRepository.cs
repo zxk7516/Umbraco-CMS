@@ -172,7 +172,5 @@ namespace Umbraco.Core.Persistence.Repositories
 
             entity.ResetDirtyProperties();
         }
-
-        #endregion
     }
 }

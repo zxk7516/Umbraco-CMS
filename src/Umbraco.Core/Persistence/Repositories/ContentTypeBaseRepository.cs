@@ -36,41 +36,37 @@ namespace Umbraco.Core.Persistence.Repositories
 
         private readonly GuidReadOnlyContentTypeBaseRepository _guidRepo;
 
-#error requires refactoring
-        public IEnumerable<MoveEventInfo<TEntity>> Move(TEntity toMove, EntityContainer container)
+        public IEnumerable<MoveEventInfo<TEntity>> Move(TEntity moving, EntityContainer container)
         {
             var parentId = -1;
             if (container != null)
             {
-                // Check on paths
-                if ((string.Format(",{0},", container.Path)).IndexOf(string.Format(",{0},", toMove.Id), StringComparison.Ordinal) > -1)
-                {
+                // check path
+                if ((string.Format(",{0},", container.Path)).IndexOf(string.Format(",{0},", moving.Id), StringComparison.Ordinal) > -1)
                     throw new DataOperationException<MoveOperationStatusType>(MoveOperationStatusType.FailedNotAllowedByPath);
-                }
+
                 parentId = container.Id;
             }
 
-            //used to track all the moved entities to be given to the event
+            // track moved entities
             var moveInfo = new List<MoveEventInfo<TEntity>>
             {
-                new MoveEventInfo<TEntity>(toMove, toMove.Path, parentId)
+                new MoveEventInfo<TEntity>(moving, moving.Path, parentId)
             };
 
-            //do the move to a new parent
-            toMove.ParentId = parentId;
-            //schedule it for updating in the transaction
-            AddOrUpdate(toMove);
+            // move to new parent
+            moving.ParentId = parentId;
+            AddOrUpdate(moving);
 
             //update all descendants
-            var descendants = this.GetByQuery(
-                new Query<TEntity>().Where(type => type.Path.StartsWith(toMove.Path + ",")));
+            var descendants = GetByQuery(new Query<TEntity>().Where(x => x.Path.StartsWith(moving.Path + ",")));
             foreach (var descendant in descendants)
             {
                 moveInfo.Add(new MoveEventInfo<TEntity>(descendant, descendant.Path, descendant.ParentId));
 
-                //all we're doing here is setting the parent Id to be dirty so that it resets the path/level/etc...
+                // set parentId = is dirty = resets path, level, etc
+                // works because ParentId does not 'SetPropertyValueAndDetectChange' but forces 'OnPropertyChange'
                 descendant.ParentId = descendant.ParentId;
-                //schedule it for updating in the transaction
                 AddOrUpdate(descendant);
             }
 
@@ -238,15 +234,13 @@ INNER JOIN umbracoNode ON cmsContentType.nodeId = umbracoNode.id
 WHERE cmsContentType." + SqlSyntax.GetQuotedColumnName("alias") + @"= @alias
 AND umbracoNode.nodeObjectType = @objectType
 AND umbracoNode.id <> @id",
-                new { id = dto.NodeId, alias = entity.Alias, objectType = NodeObjectTypeId });
+                new { id = dto.NodeId, alias = dto.Alias, objectType = NodeObjectTypeId });
             if (exists > 0)
             {
-                throw new DuplicateNameException("An item with the alias " + entity.Alias + " already exists");
+                throw new DuplicateNameException("An item with the alias " + dto.Alias + " already exists");
             }
 
             // repository should be write-locked when doing this, so we are safe from race-conds
-
-            var propertyGroupFactory = new PropertyGroupFactory(entity.Id);
 
             var nodeDto = dto.NodeDto;
             var o = Database.Update(nodeDto);
@@ -553,20 +547,33 @@ AND umbracoNode.id <> @id",
             //    .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
             //    .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
 
-            var sql = new Sql().Select("*")
-                .From<ContentTypeDto>()
-                .InnerJoin<NodeDto>()
-                .On<ContentTypeDto, NodeDto>(left => left.NodeId, right => right.NodeId)
-                .LeftJoin<DocumentTypeDto>()
-                .On<DocumentTypeDto, ContentTypeDto>(left => left.ContentTypeNodeId, right => right.NodeId)
-                .InnerJoin<ContentType2ContentTypeDto>()
-                .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+            // wtf?
+            //var sql = new Sql().Select("*")
+            //    .From<ContentTypeDto>()
+            //    .InnerJoin<NodeDto>()
+            //    .On<ContentTypeDto, NodeDto>(left => left.NodeId, right => right.NodeId)
+            //    .LeftJoin<DocumentTypeDto>()
+            //    .On<DocumentTypeDto, ContentTypeDto>(left => left.ContentTypeNodeId, right => right.NodeId)
+            //    .InnerJoin<ContentType2ContentTypeDto>()
+            //    .On<ContentTypeDto, ContentType2ContentTypeDto>(left => left.NodeId, right => right.ChildId)
+            //    .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId)
+            //    .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
+
+            //var dtos = Database.Fetch<DocumentTypeDto, ContentTypeDto, NodeDto>(sql);
+            //return dtos.Any()
+            //    ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
+            //    : Enumerable.Empty<TEntity>();
+
+            // fixme - test that that one works and then clear the whole damn method!
+            var sql2 = new Sql().Select("*")
+                .From<NodeDto>(SqlSyntax)
+                .InnerJoin<ContentType2ContentTypeDto>(SqlSyntax)
+                .On<NodeDto, ContentType2ContentTypeDto>(SqlSyntax, left => left.NodeId, right => right.ChildId)
                 .Where<NodeDto>(x => x.NodeObjectType == NodeObjectTypeId)
                 .Where<ContentType2ContentTypeDto>(x => x.ParentId == id);
-
-            var dtos = Database.Fetch<DocumentTypeDto, ContentTypeDto, NodeDto>(sql);
-            return dtos.Any()
-                ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
+            var dtos = Database.Fetch<NodeDto>(sql2);
+            return dtos.Any() 
+                ? GetAll(dtos.DistinctBy(x => x.NodeId).Select(x => x.NodeId).ToArray()) 
                 : Enumerable.Empty<TEntity>();
         }
 

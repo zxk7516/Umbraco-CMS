@@ -20,6 +20,7 @@ using Umbraco.Core.Events;
 using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
+using Umbraco.Core.Services;
 using umbraco.interfaces;
 using Umbraco.Web;
 using Umbraco.Web.Macros;
@@ -27,7 +28,6 @@ using Umbraco.Web.Models;
 using umbraco.BusinessLogic;
 using umbraco.cms.businesslogic.macro;
 using Umbraco.Web.Security;
-using Umbraco.Web.umbraco.presentation;
 using File = System.IO.File;
 using MacroErrorEventArgs = Umbraco.Core.Events.MacroErrorEventArgs;
 using Macro = umbraco.cms.businesslogic.macro.Macro;
@@ -500,54 +500,57 @@ namespace umbraco
         /// <summary>
         /// Executes a macro of a given type.
         /// </summary>
-        private Attempt<MacroContent> ExecuteMacroWithErrorWrapper(string msgIn, string msgOut, Func<MacroContent> getMacroContent)
-                var textService = ApplicationContext.Current.Services.TextService;
+        private Attempt<MacroContent> ExecuteMacroWithErrorWrapper(string msgIn, string msgOut, Func<MacroContent> getMacroContent, Func<string> msgErr)
         {
+            // fixme - do we REALLY want to execute all macros within a TIMER?
             using (DisposableTimer.DebugDuration<macro>(msgIn, msgOut))
             {
-                try
+                return ExecuteProfileMacroWithErrorWrapper(msgIn, msgOut, getMacroContent, msgErr);
+            }
+        }
+
+        /// <summary>
+        /// Executes a macro of a given type.
+        /// </summary>
+        private Attempt<MacroContent> ExecuteProfileMacroWithErrorWrapper(string msgIn, string msgOut, Func<MacroContent> getMacroContent, Func<string> msgErr)
+        {
+            try
+            {
+                return Attempt.Succeed(getMacroContent());
+            }
+            catch (Exception e)
+            {
+                Exceptions.Add(e);
+
+                LogHelper.WarnWithException<macro>("Failed " + msgIn, true, e);
+
+                var macroErrorEventArgs = new MacroErrorEventArgs
                 {
-                    return Attempt.Succeed(getMacroContent());
-                }
-                catch (Exception e)
+                    Name = Model.Name,
+                    Alias = Model.Alias,
+                    ItemKey = Model.ScriptName,
+                    Exception = e,
+                    Behaviour = UmbracoConfig.For.UmbracoSettings().Content.MacroErrorBehaviour
+                };
+
+                OnError(macroErrorEventArgs);
+
+                switch (macroErrorEventArgs.Behaviour)
                 {
-                    Exceptions.Add(e);
-
-                    var errorMessage = "Failed " + msgIn;
-                    LogHelper.WarnWithException<macro>(errorMessage, true, e);
-
-                    var macroErrorEventArgs = new MacroErrorEventArgs
-
-                            var errorMessage = textService.Localize("errors/macroErrorParsingXSLTFile", new[] { XsltFile });
-                            var macroControl = GetControlForErrorBehavior("Error parsing XSLT file: \\xslt\\" + XsltFile, macroErrorEventArgs);
-                    {
-                        Name = Model.Name,
-                        Alias = Model.Alias,
-                        ItemKey = Model.ScriptName,
-                        Exception = e,
-                        Behaviour = UmbracoConfig.For.UmbracoSettings().Content.MacroErrorBehaviour
-                    };
-
-                    OnError(macroErrorEventArgs);
-
-                    switch (macroErrorEventArgs.Behaviour)
-                    {
-                        case MacroErrorBehaviour.Inline:
-                            // do not throw, eat the exception, display the trace error message
-                            return Attempt.Fail(new MacroContent { Text = errorMessage }, e);
-                    var errorMessage = textService.Localize("errors/macroErrorReadingXSLTFile", new[] { XsltFile });
-                    var macroControl = GetControlForErrorBehavior("Error reading XSLT file: \\xslt\\" + XsltFile, macroErrorEventArgs);
-                            // do not throw, eat the exception, do not display anything
-                            return Attempt.Fail(new MacroContent { Text = string.Empty }, e);
-                        case MacroErrorBehaviour.Content:
-                            // do not throw, eat the exception, display the custom content
-                            return Attempt.Fail(new MacroContent { Text = macroErrorEventArgs.Html ?? string.Empty }, e);
-                        //case MacroErrorBehaviour.Throw:
-                        default:
-                            // see http://issues.umbraco.org/issue/U4-497 at the end
-                            // throw the original exception
-                            throw;
-                    }
+                    case MacroErrorBehaviour.Inline:
+                        // do not throw, eat the exception, display the trace error message
+                        return Attempt.Fail(new MacroContent { Text = msgErr() }, e);
+                    case MacroErrorBehaviour.Silent:
+                        // do not throw, eat the exception, do not display anything
+                        return Attempt.Fail(new MacroContent { Text = string.Empty }, e);
+                    case MacroErrorBehaviour.Content:
+                        // do not throw, eat the exception, display the custom content
+                        return Attempt.Fail(new MacroContent { Text = macroErrorEventArgs.Html ?? string.Empty }, e);
+                    //case MacroErrorBehaviour.Throw:
+                    default:
+                        // see http://issues.umbraco.org/issue/U4-497 at the end
+                        // throw the original exception
+                        throw;
                 }
             }
         }
@@ -573,6 +576,8 @@ namespace umbraco
             //if (node == null)
             //    return Attempt.Fail(new MacroContent { Text = "[macro]" });
 
+            var textService = ApplicationContext.Current.Services.TextService;
+
             switch (model.MacroType)
             {                   
                 case MacroTypes.PartialView:
@@ -583,7 +588,8 @@ namespace umbraco
                         {
                             var text = ExecutePartialView(model);
                             return new MacroContent { Text = text };
-                        });
+                        },
+                        () => textService.Localize("errors/macroErrorLoadingPartialView", new[] { model.ScriptName }));
 
                 case MacroTypes.Script:
                     return ExecuteMacroWithErrorWrapper(
@@ -595,7 +601,8 @@ namespace umbraco
                         {
                             var text = ExecuteScript(model);
                             return new MacroContent { Text = text };
-                        });
+                        },
+                        () => textService.Localize("errors/macroErrorLoadingMacroEngineScript", new[] { model.ScriptName }));
 
                 case MacroTypes.XSLT:
                     return ExecuteMacroWithErrorWrapper(
@@ -605,7 +612,9 @@ namespace umbraco
                         {
                             var text = ExecuteXslt(model);
                             return new MacroContent { Text = text };
-                        });
+                        },
+                        // cannot diff. between reading & parsing... bah
+                        () => textService.Localize("errors/macroErrorParsingXSLTFile", new[] { model.Xslt }));
 
                 case MacroTypes.UserControl:
                     return ExecuteMacroWithErrorWrapper(
@@ -620,7 +629,8 @@ namespace umbraco
 
                             var control = LoadUserControl(model);
                             return new MacroContent { Control = control };
-                        });
+                        },
+                        () => textService.Localize("errors/macroErrorLoadingUsercontrol", new[] { model.TypeName }));
 
                 case MacroTypes.CustomControl:
                     return ExecuteMacroWithErrorWrapper(
@@ -630,7 +640,8 @@ namespace umbraco
                         {
                             var control = LoadCustomControl(model);
                             return new MacroContent { Control = control };
-                        });
+                        },
+                        () => textService.Localize("errors/macroErrorLoadingCustomControl", new[] { model.TypeAssembly, model.TypeName }));
 
                 default:
                     return ExecuteMacroWithErrorWrapper(
@@ -639,7 +650,8 @@ namespace umbraco
                         () =>
                         {
                             throw new Exception("Unsupported macro type.");
-                        });
+                        },
+                        () => textService.Localize("errors/macroErrorUnsupportedType"));
             }
         }
 
