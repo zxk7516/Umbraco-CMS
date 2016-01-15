@@ -6,7 +6,7 @@ using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
 {
-    [Migration("7.3.0", 17, GlobalSettings.UmbracoMigrationName)]
+    [Migration("7.4.0", 1000, GlobalSettings.UmbracoMigrationName)]
     public class AddContentLockObjects : MigrationBase
     {
         public AddContentLockObjects(ISqlSyntaxProvider sqlSyntax, ILogger logger)
@@ -21,7 +21,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
             EnsureLockObject(Constants.System.MemberTreeLock, "FA951390-DF12-4594-8366-89CA8396D977", "LOCK: MemberTree");
             EnsureLockObject(Constants.System.MediaTypesLock, "BA13E02F-E595-4415-8693-B044C83AA9A7", "LOCK: MediaTypes");
             EnsureLockObject(Constants.System.MemberTypesLock, "B23EED6B-CC05-48FE-B096-B50441D0E825", "LOCK: MemberTypes");
-            EnsureLockObject(Constants.System.DomainsLock, "0AF5E610-A310-4B6F-925F-E928D5416AF7", "LOCK: Domains");
+            EnsureLockObject(Constants.System.DomainsLock, "FE7F0984-6BC9-440E-B105-4B7206B3F6E2", "LOCK: Domains");
 
         }
 

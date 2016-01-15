@@ -6,7 +6,7 @@ using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
 {
-    [Migration("7.3.0", 100, GlobalSettings.UmbracoMigrationName)]
+    [Migration("7.4.0", 1000, GlobalSettings.UmbracoMigrationName)]
     public class RefactorXmlColumns : MigrationBase
     {
         public RefactorXmlColumns(ISqlSyntaxProvider syntax, ILogger logger)
@@ -38,7 +38,7 @@ namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
                     var keyName = c.Item3.ToLowerInvariant();
                     if (dups.Contains(keyName))
                     {
-                        Logger.Warn(this.GetType(), "Duplicate constraint " + c.Item3);
+                        Logger.Warn<RefactorXmlColumns>("Duplicate constraint " + c.Item3);
                         continue;
                     }
                     dups.Add(keyName);

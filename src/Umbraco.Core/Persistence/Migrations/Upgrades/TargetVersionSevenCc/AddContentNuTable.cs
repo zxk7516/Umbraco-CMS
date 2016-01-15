@@ -7,7 +7,7 @@ using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Core.Persistence.Migrations.Upgrades.TargetVersionSevenCc
 {
-    [Migration("7.3.0", 101, GlobalSettings.UmbracoMigrationName)]
+    [Migration("7.4.0", 1000, GlobalSettings.UmbracoMigrationName)]
     class AddContentNuTable : MigrationBase
     {
         public AddContentNuTable(ISqlSyntaxProvider sqlSyntax, ILogger logger)
