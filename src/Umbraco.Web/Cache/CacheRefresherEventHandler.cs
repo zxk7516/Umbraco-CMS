@@ -102,8 +102,9 @@ namespace Umbraco.Web.Cache
 
             // public access events
             PublicAccessService.Saved += PublicAccessService_Saved;
+            PublicAccessService.Deleted += PublicAccessService_Deleted; ;
         }
-
+        
         // clear all events - for tests purposes
         // make sure that ALL events registered above are cleared
         internal void ClearEvents()
@@ -164,6 +165,7 @@ namespace Umbraco.Web.Cache
             ChangeSet.Flushed -= ChangeSetFlushed;
 
             PublicAccessService.Saved -= PublicAccessService_Saved;
+            PublicAccessService.Deleted -= PublicAccessService_Deleted;
         }
 
         private static void ChangeSetFlushed(ChangeSet sender, EventArgs args)
@@ -174,6 +176,11 @@ namespace Umbraco.Web.Cache
         #region Public access event handlers
 
         static void PublicAccessService_Saved(IPublicAccessService sender, SaveEventArgs<PublicAccessEntry> e)
+        {
+            DistributedCache.Instance.RefreshPublicAccess();
+        }
+
+        private void PublicAccessService_Deleted(IPublicAccessService sender, DeleteEventArgs<PublicAccessEntry> e)
         {
             DistributedCache.Instance.RefreshPublicAccess();
         }

@@ -161,7 +161,10 @@ namespace umbraco.cms.businesslogic.media
         protected override void setupNode()
         {
             var mediaType = ApplicationContext.Current.Services.MediaTypeService.Get(Id);
-            SetupNode(mediaType);
+
+            // If it's null, it's probably a folder
+            if (mediaType != null)
+                SetupNode(mediaType);
         }
 
         #endregion

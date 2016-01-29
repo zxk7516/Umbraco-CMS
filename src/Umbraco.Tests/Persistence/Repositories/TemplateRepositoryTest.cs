@@ -178,8 +178,8 @@ namespace Umbraco.Tests.Persistence.Repositories
                 Assert.That(_viewsFileSystem.FileExists("test.cshtml"), Is.True);
                 Assert.AreEqual(@"@inherits Umbraco.Web.Mvc.UmbracoTemplatePage
 @{
-    Layout = null;
-}", template.Content);
+" + "\t" + @"Layout = null;
+}".Lf(), template.Content.Lf());
             }
 
         }
@@ -208,8 +208,8 @@ namespace Umbraco.Tests.Persistence.Repositories
                 Assert.That(_viewsFileSystem.FileExists("test2.cshtml"), Is.True);
                 Assert.AreEqual(@"@inherits Umbraco.Web.Mvc.UmbracoTemplatePage
 @{
-    Layout = ""test.cshtml"";
-}", template2.Content);
+" + "\t" + @"Layout = ""test.cshtml"";
+}".Lf(), template2.Content.Lf());
             }
 
         }

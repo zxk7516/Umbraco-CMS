@@ -27,7 +27,8 @@ namespace Umbraco.Tests.Macros
             var cacheHelper = new CacheHelper(
                 new ObjectCacheRuntimeCacheProvider(),
                 new StaticCacheProvider(),
-                new NullCacheProvider());
+                new NullCacheProvider(),
+                new IsolatedRuntimeCache(type => new ObjectCacheRuntimeCacheProvider()));
             ApplicationContext.Current = new ApplicationContext(cacheHelper, new ProfilingLogger(Mock.Of<ILogger>(), Mock.Of<IProfiler>()));
 
             UmbracoConfig.For.SetUmbracoSettings(SettingsForTests.GetDefault());
@@ -36,7 +37,7 @@ namespace Umbraco.Tests.Macros
         [TearDown]
         public void TearDown()
         {
-            ApplicationContext.Current.ApplicationCache.ClearAllCache();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearAllCache();
             ApplicationContext.Current.DisposeIfDisposable();
             ApplicationContext.Current = null;
         }

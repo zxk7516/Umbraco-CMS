@@ -9,9 +9,10 @@
 (function () {
     "use strict";
 
-    function MemberTypesEditController($scope, $rootScope, $routeParams, $log, $filter, memberTypeResource, dataTypeResource, editorState, iconHelper, formHelper, navigationService, contentEditingHelper, notificationsService, $q, localizationService) {
+    function MemberTypesEditController($scope, $rootScope, $routeParams, $log, $filter, memberTypeResource, dataTypeResource, editorState, iconHelper, formHelper, navigationService, contentEditingHelper, notificationsService, $q, localizationService, overlayHelper, contentTypeHelper) {
 
         var vm = this;
+        var localizeSaving = localizationService.localize("general_saving");
 
         vm.save = save;
 
@@ -22,7 +23,7 @@
         vm.page.saveButtonState = "init";
         vm.page.navigation = [
 			{
-			    "name": "Design",
+			    "name": localizationService.localize("general_design"),
 			    "icon": "icon-document-dashed-line",
 			    "view": "views/membertypes/views/design/design.html",
 			    "active": true
@@ -31,26 +32,60 @@
 
         vm.page.keyboardShortcutsOverview = [
 			{
+                "name": localizationService.localize("shortcuts_shortcut"),
 			    "shortcuts": [
 					{
-					    "description": "Add tab",
+					    "description": localizationService.localize("shortcuts_addTab"),
 					    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "t" }]
 					},
 					{
-					    "description": "Add property",
+					    "description": localizationService.localize("shortcuts_addProperty"),
 					    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "p" }]
 					},
 					{
-					    "description": "Add editor",
+					    "description": localizationService.localize("shortcuts_addEditor"),
 					    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "e" }]
 					},
 					{
-					    "description": "Edit data type",
+					    "description": localizationService.localize("shortcuts_editDataType"),
 					    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "d" }]
 					}
 			    ]
 			}
         ];
+
+        contentTypeHelper.checkModelsBuilderStatus().then(function (result) {
+            vm.page.modelsBuilder = result;
+            if (result) {
+                //Models builder mode:
+                vm.page.defaultButton = {
+                    hotKey: "ctrl+s",
+                    labelKey: "buttons_save",
+                    letter: "S",
+                    type: "submit",
+                    handler: function () { vm.save(); }
+                };
+                vm.page.subButtons = [{
+                    hotKey: "ctrl+g",
+                    labelKey: "buttons_generateModels",
+                    letter: "G",
+                    handler: function () {
+
+                        vm.page.saveButtonState = "busy";
+                        notificationsService.info("Building models", "this can take abit of time, don't worry");
+
+                        contentTypeHelper.generateModels().then(function (result) {
+                            vm.page.saveButtonState = "init";
+                            //clear and add success
+                            notificationsService.success("Models Generated");
+                        }, function () {
+                            notificationsService.error("Models could not be generated");
+                            vm.page.saveButtonState = "error";
+                        });
+                    }
+                }];
+            }
+        });
 
         if ($routeParams.create) {
 
@@ -78,44 +113,51 @@
         }
 
         function save() {
+            // only save if there is no overlays open
+            if(overlayHelper.getNumberOfOverlays() === 0) {
 
-            var deferred = $q.defer();
+                var deferred = $q.defer();
 
-            vm.page.saveButtonState = "busy";
-            
-            contentEditingHelper.contentEditorPerformSave({
-                statusMessage: "Saving...",
-                saveMethod: memberTypeResource.save,
-                scope: $scope,
-                content: vm.contentType,
-                //no-op for rebind callback... we don't really need to rebind for content types
-                rebindCallback: angular.noop
-            }).then(function (data) {
-                //success            
-                syncTreeNode(vm.contentType, data.path);
+                vm.page.saveButtonState = "busy";
 
-                vm.page.saveButtonState = "success";
+                contentEditingHelper.contentEditorPerformSave({
+                    statusMessage: localizeSaving,
+                    saveMethod: memberTypeResource.save,
+                    scope: $scope,
+                    content: vm.contentType,
+                    //We do not redirect on failure for doc types - this is because it is not possible to actually save the doc
+                    // type when server side validation fails - as opposed to content where we are capable of saving the content
+                    // item if server side validation fails
+                    redirectOnFailure: false,
+                    //no-op for rebind callback... we don't really need to rebind for content types
+                    rebindCallback: angular.noop
+                }).then(function (data) {
+                    //success
+                    syncTreeNode(vm.contentType, data.path);
 
-                deferred.resolve(data);
-            }, function (err) {
-                //error
-                if (err) {
-                    editorState.set($scope.content);
-                }
-                else {
-                    localizationService.localize("speechBubbles_validationFailedHeader").then(function (headerValue) {
-                        localizationService.localize("speechBubbles_validationFailedMessage").then(function (msgValue) {
-                            notificationsService.error(headerValue, msgValue);
+                    vm.page.saveButtonState = "success";
+
+                    deferred.resolve(data);
+                }, function (err) {
+                    //error
+                    if (err) {
+                        editorState.set($scope.content);
+                    }
+                    else {
+                        localizationService.localize("speechBubbles_validationFailedHeader").then(function (headerValue) {
+                            localizationService.localize("speechBubbles_validationFailedMessage").then(function (msgValue) {
+                                notificationsService.error(headerValue, msgValue);
+                            });
                         });
-                    });
-                }
+                    }
 
-                vm.page.saveButtonState = "error";
+                    vm.page.saveButtonState = "error";
 
-                deferred.reject(err);
-            });
+                    deferred.reject(err);
+                });
 
-            return deferred.promise;
+                return deferred.promise;
+            }
 
         }
 

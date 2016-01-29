@@ -141,8 +141,8 @@ namespace Umbraco.Core.Persistence.Repositories
                                "DELETE FROM cmsPropertyData WHERE contentNodeId = @Id",
                                "DELETE FROM cmsContentVersion WHERE ContentId = @Id",
                                "DELETE FROM cmsContent WHERE nodeId = @Id",
-                               "DELETE FROM umbracoNode WHERE id = @Id",
-                               "DELETE FROM umbracoAccess WHERE nodeId = @Id"
+                               "DELETE FROM umbracoAccess WHERE nodeId = @Id",
+                               "DELETE FROM umbracoNode WHERE id = @Id"
                            };
             return list;
         }
@@ -800,11 +800,11 @@ WHERE (@path LIKE {5})",
             var contentTypes = _contentTypeRepository.GetAll(dtos.Select(x => x.ContentVersionDto.ContentDto.ContentTypeId).ToArray())
                 .ToArray();
 
-            
+
             var ids = dtos
                 .Where(dto => dto.TemplateId.HasValue && dto.TemplateId.Value > 0)
                 .Select(x => x.TemplateId.Value).ToArray();
-            
+
             //NOTE: This should be ok for an SQL 'IN' statement, there shouldn't be an insane amount of content types
             var templates = ids.Length == 0 ? Enumerable.Empty<ITemplate>() : _templateRepository.GetAll(ids).ToArray();
 

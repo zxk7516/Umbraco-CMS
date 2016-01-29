@@ -62,9 +62,9 @@ namespace Umbraco.Tests.Persistence.Repositories
             return contentTypeRepository;
         }
 
-        private EntityContainerRepository CreateContainerRepository(IDatabaseUnitOfWork unitOfWork)
+        private EntityContainerRepository CreateContainerRepository(IDatabaseUnitOfWork unitOfWork, Guid containerEntityType)
         {
-            return new EntityContainerRepository(unitOfWork, CacheHelper.CreateDisabledCacheHelper(), Mock.Of<ILogger>(), SqlSyntax);
+            return new EntityContainerRepository(unitOfWork, CacheHelper.CreateDisabledCacheHelper(), Mock.Of<ILogger>(), SqlSyntax, containerEntityType);
         }
 
         //TODO Add test to verify SetDefaultTemplates updates both AllowedTemplates and DefaultTemplate(id).
@@ -111,7 +111,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         {
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
             var unitOfWork = provider.GetUnitOfWork();
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             using (var repository = CreateRepository(unitOfWork))
             {
                 var container1 = new EntityContainer(Constants.ObjectTypes.DocumentTypeGuid) { Name = "blah1" };
@@ -158,14 +158,14 @@ namespace Umbraco.Tests.Persistence.Repositories
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
             var unitOfWork = provider.GetUnitOfWork();
             EntityContainer container;
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             {
                 container = new EntityContainer(Constants.ObjectTypes.DocumentTypeGuid) { Name = "blah" };
                 containerRepository.AddOrUpdate(container);
                 unitOfWork.Commit();
                 Assert.That(container.Id, Is.GreaterThan(0));
             }
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             {
                 var found = containerRepository.Get(container.Id);
                 Assert.IsNotNull(found);
@@ -178,19 +178,19 @@ namespace Umbraco.Tests.Persistence.Repositories
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
             var unitOfWork = provider.GetUnitOfWork();
             EntityContainer container;
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             {
                 container = new EntityContainer(Constants.ObjectTypes.DocumentTypeGuid) { Name = "blah" };
                 containerRepository.AddOrUpdate(container);
                 unitOfWork.Commit();
             }
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             {
                 // Act
                 containerRepository.Delete(container);
                 unitOfWork.Commit();
             }
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.DocumentTypeContainerGuid))
             {
                 var found = containerRepository.Get(container.Id);
                 Assert.IsNull(found);
@@ -202,7 +202,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         {
             var provider = new PetaPocoUnitOfWorkProvider(Logger);
             var unitOfWork = provider.GetUnitOfWork();
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.MediaTypeContainerGuid))
             using (var repository = CreateRepository(unitOfWork))
             {
                 var container = new EntityContainer(Constants.ObjectTypes.MediaTypeGuid) { Name = "blah" };
@@ -225,7 +225,7 @@ namespace Umbraco.Tests.Persistence.Repositories
             var unitOfWork = provider.GetUnitOfWork();
             EntityContainer container;
             IMediaType contentType;
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.MediaTypeContainerGuid))
             using (var repository = CreateMediaTypeRepository(unitOfWork))
             {
                 container = new EntityContainer(Constants.ObjectTypes.MediaTypeGuid) { Name = "blah" };
@@ -237,7 +237,7 @@ namespace Umbraco.Tests.Persistence.Repositories
                 repository.AddOrUpdate(contentType);
                 unitOfWork.Commit();
             }
-            using (var containerRepository = CreateContainerRepository(unitOfWork))
+            using (var containerRepository = CreateContainerRepository(unitOfWork, Constants.ObjectTypes.MediaTypeContainerGuid))
             using (var repository = CreateMediaTypeRepository(unitOfWork))
             {
                 // Act
@@ -297,7 +297,7 @@ namespace Umbraco.Tests.Persistence.Repositories
 
                 // there is NO mapping from display to contentType, but only from save
                 // to contentType, so if we want to test, let's to it properly!
-                var display = Mapper.Map<ContentTypeDisplay>(contentType);
+                var display = Mapper.Map<DocumentTypeDisplay>(contentType);
                 var save = MapToContentTypeSave(display);
                 var mapped = Mapper.Map<IContentType>(save);
 
@@ -358,9 +358,9 @@ namespace Umbraco.Tests.Persistence.Repositories
 
         // this is for tests only because it makes no sense at all to have such a
         // mapping defined, we only need it for the weird tests that use it
-        private ContentTypeSave MapToContentTypeSave(ContentTypeDisplay display)
+        private DocumentTypeSave MapToContentTypeSave(DocumentTypeDisplay display)
         {
-            return new ContentTypeSave
+            return new DocumentTypeSave
             {
                 // EntityBasic
                 Name = display.Name,
@@ -410,7 +410,7 @@ namespace Umbraco.Tests.Persistence.Repositories
 
                 // there is NO mapping from display to contentType, but only from save
                 // to contentType, so if we want to test, let's to it properly!
-                var display = Mapper.Map<ContentTypeDisplay>(contentType);
+                var display = Mapper.Map<DocumentTypeDisplay>(contentType);
                 var save = MapToContentTypeSave(display);
 
                 // modify...
@@ -603,7 +603,7 @@ namespace Umbraco.Tests.Persistence.Repositories
                 var allGuidIds = repository.GetAll().Select(x => x.Key).ToArray();
 
                 // Act
-                var contentTypes = repository.GetAll(allGuidIds);
+                var contentTypes = ((IReadRepository<Guid, IContentType>)repository).GetAll(allGuidIds);
                 int count =
                     DatabaseContext.Database.ExecuteScalar<int>(
                         "SELECT COUNT(*) FROM umbracoNode WHERE nodeObjectType = @NodeObjectType",

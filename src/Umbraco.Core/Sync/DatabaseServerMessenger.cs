@@ -14,6 +14,7 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Models.Rdbms;
 using Umbraco.Core.Persistence;
 using umbraco.interfaces;
+using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Core.Sync
 {
@@ -229,7 +230,7 @@ namespace Umbraco.Core.Sync
                 if (_syncing || _released || _syncEnabled == false) 
                     return;
 
-                if ((DateTime.UtcNow - _lastSync).Seconds <= _options.ThrottleSeconds)
+                if ((DateTime.UtcNow - _lastSync).TotalSeconds <= _options.ThrottleSeconds)
                     return;
 
                 _syncing = true;
@@ -334,12 +335,42 @@ namespace Umbraco.Core.Sync
         }
 
         /// <summary>
-        /// Remove old instructions from the database.
+        /// Remove old instructions from the database
         /// </summary>
+        /// <remarks>
+        /// Always leave the last (most recent) record in the db table, this is so that not all instructions are removed which would cause 
+        /// the site to cold boot if there's been no instruction activity for more than DaysToRetainInstructions.
+        /// See: http://issues.umbraco.org/issue/U4-7643#comment=67-25085
+        /// </remarks>
         private void PruneOldInstructions()
         {
-            _appContext.DatabaseContext.Database.Delete<CacheInstructionDto>("WHERE utcStamp < @pruneDate", 
-                new { pruneDate = DateTime.UtcNow.AddDays(-_options.DaysToRetainInstructions) });
+            var pruneDate = DateTime.UtcNow.AddDays(-_options.DaysToRetainInstructions);
+            var sqlSyntax = _appContext.DatabaseContext.SqlSyntax;
+
+            //NOTE: this query could work on SQL server and MySQL: 
+            /*
+                SELECT id
+                FROM    umbracoCacheInstruction
+                WHERE   utcStamp < getdate() 
+                AND id <> (SELECT MAX(id) FROM umbracoCacheInstruction)
+            */
+            // However, this will not work on SQLCE and in fact it will be slower than the query we are
+            // using if the SQL server doesn't perform it's own query optimizations (i.e. since the above 
+            // query could actually execute a sub query for every row found). So we've had to go with an
+            // inner join which is faster and works on SQLCE but it's uglier to read.
+
+            var deleteQuery = new Sql().Select("cacheIns.id")
+                .From("umbracoCacheInstruction cacheIns")
+                .InnerJoin("(SELECT MAX(id) id FROM umbracoCacheInstruction) tMax")
+                .On("cacheIns.id <> tMax.id")
+                .Where("cacheIns.utcStamp < @pruneDate", new {pruneDate = pruneDate});
+
+            var deleteSql = sqlSyntax.GetDeleteSubquery(
+                "umbracoCacheInstruction",
+                "id",
+                deleteQuery);
+
+            _appContext.DatabaseContext.Database.Execute(deleteSql);
         }
 
         /// <summary>
@@ -355,8 +386,9 @@ namespace Umbraco.Core.Sync
                 .Where<CacheInstructionDto>(dto => dto.Id == _lastId);
 
             var dtos = _appContext.DatabaseContext.Database.Fetch<CacheInstructionDto>(sql);
+
             if (dtos.Count == 0)
-                _lastId = -1;
+                _lastId = -1;                
         }
     
         /// <summary>
@@ -527,3 +559,4 @@ namespace Umbraco.Core.Sync
         #endregion
     }
 }
+ 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Umbraco.Core.Cache;
 using Umbraco.Core.Events;
 using Umbraco.Core.Exceptions;
 using Umbraco.Core.Logging;
@@ -26,50 +27,63 @@ namespace Umbraco.Core.Persistence.Repositories
             : base(work, cache, logger, sqlSyntax)
         {
         }
-        
+
+        private FullDataSetRepositoryCachePolicyFactory<IMediaType, int> _cachePolicyFactory;
+        protected override IRepositoryCachePolicyFactory<IMediaType, int> CachePolicyFactory
+        {
+            get
+            {
+                //Use a FullDataSet cache policy - this will cache the entire GetAll result in a single collection
+                return _cachePolicyFactory ?? (_cachePolicyFactory = new FullDataSetRepositoryCachePolicyFactory<IMediaType, int>(RuntimeCache, GetEntityId));
+            }
+        }
+
         protected override IMediaType PerformGet(int id)
         {
-            var contentTypes = ContentTypeQueryMapper.GetMediaTypes(
-                new[] { id }, Database, SqlSyntax, this);
-
-            var contentType = contentTypes.SingleOrDefault();
-            return contentType;
+            //use the underlying GetAll which will force cache all content types
+            return GetAll().FirstOrDefault(x => x.Id == id);
         }
 
         protected override IMediaType PerformGet(Guid id)
         {
-            var contentTypes = ContentTypeQueryMapper.GetMediaTypes(
-                new[] { id }, Database, SqlSyntax, this);
+            //use the underlying GetAll which will force cache all content types
+            return GetAll().FirstOrDefault(x => x.Key == id);
+        }
 
-            var contentType = contentTypes.SingleOrDefault();
-            return contentType;
+        protected override bool PerformExists(Guid id)
+        {
+            return GetAll().FirstOrDefault(x => x.Key == id) != null;
+        }
+
+        protected override IMediaType PerformGet(string alias)
+        {
+            //use the underlying GetAll which will force cache all content types
+            return GetAll().FirstOrDefault(x => x.Alias.InvariantEquals(alias));
         }
 
         protected override IEnumerable<IMediaType> PerformGetAll(params int[] ids)
         {
             if (ids.Any())
             {
-                return ContentTypeQueryMapper.GetMediaTypes(ids, Database, SqlSyntax, this);
+                //NOTE: This logic should never be executed according to our cache policy
+                return ContentTypeQueryMapper.GetMediaTypes(Database, SqlSyntax, this)
+                    .Where(x => ids.Contains(x.Id));
             }
-            else
-            {
-                var sql = new Sql().Select("id").From<NodeDto>(SqlSyntax).Where<NodeDto>(dto => dto.NodeObjectType == NodeObjectTypeId);
-                var allIds = Database.Fetch<int>(sql).ToArray();
-                return ContentTypeQueryMapper.GetMediaTypes(allIds, Database, SqlSyntax, this);
-            }
+
+            return ContentTypeQueryMapper.GetMediaTypes(Database, SqlSyntax, this);
         }
 
         protected override IEnumerable<IMediaType> PerformGetAll(params Guid[] ids)
         {
+            //use the underlying GetAll which will force cache all content types
+
             if (ids.Any())
             {
-                return ContentTypeQueryMapper.GetMediaTypes(ids, Database, SqlSyntax, this);
+                return GetAll().Where(x => ids.Contains(x.Key));
             }
             else
             {
-                var sql = new Sql().Select("id").From<NodeDto>(SqlSyntax).Where<NodeDto>(dto => dto.NodeObjectType == NodeObjectTypeId);
-                var allIds = Database.Fetch<int>(sql).ToArray();
-                return ContentTypeQueryMapper.GetMediaTypes(allIds, Database, SqlSyntax, this);
+                return GetAll();
             }
         }
 

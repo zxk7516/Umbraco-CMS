@@ -112,8 +112,8 @@ namespace Umbraco.Web.Cache
         #region Helpers
 
         private static void ClearCache()
-        {
-            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IDomain>();
+        {            
+            ClearAllIsolatedCacheByEntityType<IDomain>();
         }
 
         #endregion

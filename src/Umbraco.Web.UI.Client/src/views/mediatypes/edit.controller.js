@@ -9,8 +9,9 @@
 (function () {
     "use strict";
 
-    function MediaTypesEditController($scope, $routeParams, mediaTypeResource, dataTypeResource, editorState, contentEditingHelper, formHelper, navigationService, iconHelper, contentTypeHelper, notificationsService, $filter, $q, localizationService) {
+    function MediaTypesEditController($scope, $routeParams, mediaTypeResource, dataTypeResource, editorState, contentEditingHelper, formHelper, navigationService, iconHelper, contentTypeHelper, notificationsService, $filter, $q, localizationService, overlayHelper) {
         var vm = this;
+        var localizeSaving = localizationService.localize("general_saving");
 
         vm.save = save;
 
@@ -21,18 +22,18 @@
         vm.page.saveButtonState = "init";
         vm.page.navigation = [
 			{
-			    "name": "Design",
+			    "name": localizationService.localize("general_design"),
 			    "icon": "icon-document-dashed-line",
 			    "view": "views/mediatypes/views/design/design.html",
 			    "active": true
 			},
 			{
-			    "name": "List view",
+			    "name": localizationService.localize("general_listView"),
 			    "icon": "icon-list",
 			    "view": "views/mediatypes/views/listview/listview.html"
 			},
 			{
-			    "name": "Permissions",
+			    "name": localizationService.localize("general_rights"),
 			    "icon": "icon-keychain",
 			    "view": "views/mediatypes/views/permissions/permissions.html"
 			}
@@ -40,59 +41,92 @@
 
         vm.page.keyboardShortcutsOverview = [
 			{
-			    "name": "Sections",
+			    "name": localizationService.localize("main_sections"),
 			    "shortcuts": [
 					{
-					    "description": "Navigate sections",
+					    "description": localizationService.localize("shortcuts_navigateSections"),
 					    "keys": [{ "key": "1" }, { "key": "3" }],
 					    "keyRange": true
 					}
 			    ]
 			},
 			{
-			    "name": "Design",
+			    "name": localizationService.localize("general_design"),
 			    "shortcuts": [
 				{
-				    "description": "Add tab",
+				    "description": localizationService.localize("shortcuts_addTab"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "t" }]
 				},
 				{
-				    "description": "Add property",
+				    "description": localizationService.localize("shortcuts_addProperty"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "p" }]
 				},
 				{
-				    "description": "Add editor",
+				    "description": localizationService.localize("shortcuts_addEditor"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "e" }]
 				},
 				{
-				    "description": "Edit data type",
+				    "description": localizationService.localize("shortcuts_editDataType"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "d" }]
 				}
 			    ]
 			},
 		{
-		    "name": "List view",
+		    "name": localizationService.localize("general_listView"),
 		    "shortcuts": [
 				{
-				    "description": "Toggle list view",
+				    "description": localizationService.localize("shortcuts_toggleListView"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "l" }]
 				}
 		    ]
 		},
 		{
-		    "name": "Permissions",
+		    "name": localizationService.localize("general_rights"),
 		    "shortcuts": [
 				{
-				    "description": "Toggle allow as root",
+				    "description": localizationService.localize("shortcuts_toggleAllowAsRoot"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "r" }]
 				},
 				{
-				    "description": "Add child node",
+				    "description": localizationService.localize("shortcuts_addChildNode"),
 				    "keys": [{ "key": "alt" }, { "key": "shift" }, { "key": "c" }]
 				}
 		    ]
 		}
         ];
+
+        contentTypeHelper.checkModelsBuilderStatus().then(function (result) {
+            vm.page.modelsBuilder = result;
+            if (result) {
+                //Models builder mode:
+                vm.page.defaultButton = {
+                    hotKey: "ctrl+s",
+                    labelKey: "buttons_save",
+                    letter: "S",
+                    type: "submit",
+                    handler: function () { vm.save(); }
+                };
+                vm.page.subButtons = [{
+                    hotKey: "ctrl+g",
+                    labelKey: "buttons_generateModels",
+                    letter: "G",
+                    handler: function () {
+
+                        vm.page.saveButtonState = "busy";
+                        notificationsService.info("Building models", "this can take abit of time, don't worry");
+
+                        contentTypeHelper.generateModels().then(function(result) {
+                            vm.page.saveButtonState = "init";
+                            //clear and add success
+                            notificationsService.success("Models Generated");                            
+                        }, function() {
+                            notificationsService.error("Models could not be generated");
+                            vm.page.saveButtonState = "error";
+                        });
+                    }
+                }];
+            }
+        });
 
         if ($routeParams.create) {
             vm.page.loading = true;
@@ -120,56 +154,59 @@
         /* ---------- SAVE ---------- */
 
         function save() {
-            var deferred = $q.defer();
 
-            vm.page.saveButtonState = "busy";
+            // only save if there is no overlays open
+            if(overlayHelper.getNumberOfOverlays() === 0) {
 
-            // reformat allowed content types to array if id's
-            vm.contentType.allowedContentTypes = contentTypeHelper.createIdArray(vm.contentType.allowedContentTypes);
+                var deferred = $q.defer();
 
-            contentEditingHelper.contentEditorPerformSave({
-                statusMessage: "Saving...",
-                saveMethod: mediaTypeResource.save,
-                scope: $scope,
-                content: vm.contentType,
-                //no-op for rebind callback... we don't really need to rebind for content types
-                rebindCallback: angular.noop
-            }).then(function (data) {
-                //success            
-                syncTreeNode(vm.contentType, data.path);
+                vm.page.saveButtonState = "busy";
 
-                vm.page.saveButtonState = "success";
+                // reformat allowed content types to array if id's
+                vm.contentType.allowedContentTypes = contentTypeHelper.createIdArray(vm.contentType.allowedContentTypes);
 
-                deferred.resolve(data);
-            }, function (err) {
-                //error
-                if (err) {
-                    editorState.set($scope.content);
-                }
-                else {
-                    localizationService.localize("speechBubbles_validationFailedHeader").then(function (headerValue) {
-                        localizationService.localize("speechBubbles_validationFailedMessage").then(function (msgValue) {
-                            notificationsService.error(headerValue, msgValue);
+                contentEditingHelper.contentEditorPerformSave({
+                    statusMessage: localizeSaving,
+                    saveMethod: mediaTypeResource.save,
+                    scope: $scope,
+                    content: vm.contentType,
+                    //We do not redirect on failure for doc types - this is because it is not possible to actually save the doc
+                    // type when server side validation fails - as opposed to content where we are capable of saving the content
+                    // item if server side validation fails
+                    redirectOnFailure: false,
+                    //no-op for rebind callback... we don't really need to rebind for content types
+                    rebindCallback: angular.noop
+                }).then(function (data) {
+                    //success
+                    syncTreeNode(vm.contentType, data.path);
+
+                    vm.page.saveButtonState = "success";
+
+                    deferred.resolve(data);
+                }, function (err) {
+                    //error
+                    if (err) {
+                        editorState.set($scope.content);
+                    }
+                    else {
+                        localizationService.localize("speechBubbles_validationFailedHeader").then(function (headerValue) {
+                            localizationService.localize("speechBubbles_validationFailedMessage").then(function (msgValue) {
+                                notificationsService.error(headerValue, msgValue);
+                            });
                         });
-                    });
-                }
+                    }
 
-                vm.page.saveButtonState = "error";
+                    vm.page.saveButtonState = "error";
 
-                deferred.reject(err);
-            });
+                    deferred.reject(err);
+                });
 
-            return deferred.promise;
+                return deferred.promise;
+            }
         }
 
         function init(contentType) {
-            //get available composite types
-            mediaTypeResource.getAvailableCompositeContentTypes(contentType.id).then(function (result) {
-                contentType.availableCompositeContentTypes = result;
-                // convert legacy icons
-                iconHelper.formatContentTypeIcons(contentType.availableCompositeContentTypes);
-            });
-
+           
             // set all tab to inactive
             if (contentType.groups.length !== 0) {
                 angular.forEach(contentType.groups, function (group) {

@@ -33,7 +33,7 @@ namespace Umbraco.Tests.Persistence.Repositories
 
         private EntityContainerRepository CreateContainerRepository(IDatabaseUnitOfWork unitOfWork)
         {
-            return new EntityContainerRepository(unitOfWork, CacheHelper.CreateDisabledCacheHelper(), Mock.Of<ILogger>(), SqlSyntax);
+            return new EntityContainerRepository(unitOfWork, CacheHelper.CreateDisabledCacheHelper(), Mock.Of<ILogger>(), SqlSyntax, Constants.ObjectTypes.MediaTypeContainerGuid);
         }
 
         [Test]
@@ -90,7 +90,7 @@ namespace Umbraco.Tests.Persistence.Repositories
             EntityContainer container;
             using (var containerRepository = CreateContainerRepository(unitOfWork))
             {
-                container = new EntityContainer(Constants.ObjectTypes.DataTypeGuid) { Name = "blah" };
+                container = new EntityContainer(Constants.ObjectTypes.MediaTypeGuid) { Name = "blah" };
                 containerRepository.AddOrUpdate(container);
                 unitOfWork.Commit();
                 Assert.That(container.Id, Is.GreaterThan(0));
@@ -110,9 +110,10 @@ namespace Umbraco.Tests.Persistence.Repositories
             EntityContainer container;
             using (var containerRepository = CreateContainerRepository(unitOfWork))
             {
-                container = new EntityContainer(Constants.ObjectTypes.DataTypeGuid) { Name = "blah" };
+                container = new EntityContainer(Constants.ObjectTypes.MediaTypeGuid) { Name = "blah" };
                 containerRepository.AddOrUpdate(container);
                 unitOfWork.Commit();
+                Assert.That(container.Id, Is.GreaterThan(0));
             }
             using (var containerRepository = CreateContainerRepository(unitOfWork))
             {
@@ -135,7 +136,7 @@ namespace Umbraco.Tests.Persistence.Repositories
             using (var containerRepository = CreateContainerRepository(unitOfWork))
             using (var repository = CreateRepository(unitOfWork))
             {
-                var container = new EntityContainer(Constants.ObjectTypes.DataTypeGuid) { Name = "blah" };
+                var container = new EntityContainer(Constants.ObjectTypes.MediaTypeGuid) { Name = "blah" };
                 containerRepository.AddOrUpdate(container);
                 unitOfWork.Commit();
 
@@ -340,7 +341,7 @@ namespace Umbraco.Tests.Persistence.Repositories
 
                 // Act
 
-                var mediaTypes = repository.GetAll(allGuidIds);
+                var mediaTypes = ((IReadRepository<Guid, IMediaType>)repository).GetAll(allGuidIds);
 
                 int count =
                     DatabaseContext.Database.ExecuteScalar<int>(

@@ -59,7 +59,8 @@ namespace umbraco.presentation.developer.packages {
 
             }
 
-            ApplicationContext.Current.ApplicationCache.ClearAllCache();
+            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearAllCache();
+            ApplicationContext.Current.ApplicationCache.IsolatedRuntimeCache.ClearAllCaches();
 
             // note: should be managed automatically by services and caches
             //library.RefreshContent();

@@ -222,8 +222,9 @@ namespace umbraco.cms.businesslogic.packager
 
                     }
                 }
+                
                 foreach (DocumentType d in dtl)
-                {
+                {                   
                     docTypes.AppendChild(d.ToXml(_packageManifest));
                 }
 
@@ -372,7 +373,7 @@ namespace umbraco.cms.businesslogic.packager
             }
 
         }
-
+        
         // cannot read the XML from the content cache navigator here, because we do not want
         // the property value converter to run - we want the raw values, so we have to serialize
         // the content to XML by ourselves.
@@ -410,13 +411,11 @@ namespace umbraco.cms.businesslogic.packager
 
         private void AddDocumentType(DocumentType dt, ref List<DocumentType> dtl)
         {
-            if (dt.MasterContentType != 0)
+            if (dt.MasterContentType != 0 && dt.Parent.nodeObjectType == Constants.ObjectTypes.DocumentTypeGuid)
             {
                 //first add masters
                 var mDocT = new DocumentType(dt.MasterContentType);
-
                 AddDocumentType(mDocT, ref dtl);
-
             }
 
             if (dtl.Contains(dt) == false)

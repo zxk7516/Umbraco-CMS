@@ -81,7 +81,8 @@ namespace Umbraco.Web.Editors
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        [EnsureUserPermissionForContent("id")]
+        [OutgoingEditorModelEvent]
+        [EnsureUserPermissionForContent("id")]        
         public ContentItemDisplay GetById(int id)
         {
             var foundContent = GetObjectFromRequest(() => Services.ContentService.GetById(id));            
@@ -116,6 +117,7 @@ namespace Umbraco.Web.Editors
         /// If this is a container type, we'll remove the umbContainerView tab for a new item since
         /// it cannot actually list children if it doesn't exist yet.
         /// </returns>
+        [OutgoingEditorModelEvent]
         public ContentItemDisplay GetEmpty(string contentTypeAlias, int parentId)
         {
             var contentType = Services.ContentTypeService.Get(contentTypeAlias);
@@ -654,9 +656,17 @@ namespace Umbraco.Web.Editors
                             new[] {string.Format("{0} ({1})", status.ContentItem.Name, status.ContentItem.Id)}).Trim());
                     break;
                 case PublishStatusType.FailedHasExpired:
-                    //TODO: We should add proper error messaging for this!
+                    display.AddWarningNotification(
+                        Services.TextService.Localize("publish"),
+                        Services.TextService.Localize("publish/contentPublishedFailedExpired",
+                            new[]
+                            {
+                                string.Format("{0} ({1})", status.ContentItem.Name, status.ContentItem.Id),
+                            }).Trim());
+                    break;
                 case PublishStatusType.FailedIsTrashed:
                     //TODO: We should add proper error messaging for this!
+                    break;
                 case PublishStatusType.FailedContentInvalid:
                     display.AddWarningNotification(
                         Services.TextService.Localize("publish"),

@@ -8,6 +8,8 @@ using Umbraco.Core.Services;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.PublishedCache.XmlPublishedCache;
 
+// fixme - should use ClearAllIsolatedCacheByEntityType<IContent>(); etc everywhere, see 7.4!!
+
 namespace Umbraco.Web.Cache
 {
     /// <summary>

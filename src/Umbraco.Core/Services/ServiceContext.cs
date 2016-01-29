@@ -284,19 +284,20 @@ namespace Umbraco.Core.Services
                 _dataTypeService = new Lazy<IDataTypeService>(() => new DataTypeService(provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_fileService == null)
-                _fileService = new Lazy<IFileService>(() => new FileService(fileProvider, provider, repositoryFactory));
+                _fileService = new Lazy<IFileService>(() => new FileService(fileProvider, provider, repositoryFactory, logger, eventMessagesFactory));
 
             if (_localizationService == null)
                 _localizationService = new Lazy<ILocalizationService>(() => new LocalizationService(provider, repositoryFactory, logger, eventMessagesFactory));
 
-            if (_packagingService == null)
-                _packagingService = new Lazy<IPackagingService>(() => new PackagingService(logger, ContentService, ContentTypeService, MediaService, _macroService.Value, _dataTypeService.Value, _fileService.Value, _localizationService.Value, _userService.Value, repositoryFactory, provider));
-
             if (_entityService == null)
                 _entityService = new Lazy<IEntityService>(() => new EntityService(
-                    provider, repositoryFactory, logger, eventMessagesFactory, 
+                    provider, repositoryFactory, logger, eventMessagesFactory,
                     ContentService, ContentTypeService, MediaService, MediaTypeService, MemberService, MemberTypeService, _dataTypeService.Value,
+                    //TODO: Consider making this an isolated cache instead of using the global one
                     cache.RuntimeCache));
+            
+            if (_packagingService == null)
+                _packagingService = new Lazy<IPackagingService>(() => new PackagingService(logger, _contentService.Value, _contentTypeService.Value, _mediaService.Value, _macroService.Value, _dataTypeService.Value, _fileService.Value, _localizationService.Value, _entityService.Value, _userService.Value, repositoryFactory, provider));
 
             if (_relationService == null)
                 _relationService = new Lazy<IRelationService>(() => new RelationService(provider, repositoryFactory, logger, eventMessagesFactory, _entityService.Value));

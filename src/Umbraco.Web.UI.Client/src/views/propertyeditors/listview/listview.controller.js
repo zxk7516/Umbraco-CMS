@@ -20,7 +20,8 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
         getListResultsCallback = contentResource.getPagedResults;
         deleteItemCallback = contentResource.deleteByKey;
         getIdCallback = function(selected) {
-            return selected.key;
+            var selectedKey = getItemKey(selected.id);
+            return selectedKey;
         };
         createEditUrlCallback = function(item) {
             return "/" + $scope.entityType + "/" + $scope.entityType + "/edit/" + item.key + "?page=" + $scope.options.pageNumber + "&listName=" + $scope.contentId;
@@ -155,22 +156,13 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
     /*Pagination is done by an array of objects, due angularJS's funky way of monitoring state
     with simple values */
 
-    $scope.reloadView = function (id) {
+    $scope.reloadView = function(id) {
 
-      $scope.viewLoaded = false;
+        $scope.viewLoaded = false;
 
-      listViewHelper.clearSelection($scope.listViewResultSet.items, $scope.folders, $scope.selection);
+        listViewHelper.clearSelection($scope.listViewResultSet.items, $scope.folders, $scope.selection);
 
-         if($scope.entityType === 'media') {
-
-             mediaResource.getChildFolders($scope.contentId)
-                .then(function(folders) {
-                   $scope.folders = folders;
-                });
-
-         }
-
-        getListResultsCallback(id, $scope.options).then(function (data) {
+        getListResultsCallback(id, $scope.options).then(function(data) {
 
             $scope.actionInProgress = false;
 
@@ -178,9 +170,21 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
 
             //update all values for display
             if ($scope.listViewResultSet.items) {
-                _.each($scope.listViewResultSet.items, function (e, index) {
+                _.each($scope.listViewResultSet.items, function(e, index) {
                     setPropertyValues(e);
                 });
+            }
+
+            if ($scope.entityType === 'media') {
+
+                mediaResource.getChildFolders($scope.contentId)
+                    .then(function(folders) {
+                        $scope.folders = folders;
+                        $scope.viewLoaded = true;
+                    });
+
+            } else {
+                $scope.viewLoaded = true;
             }
 
             //NOTE: This might occur if we are requesting a higher page number than what is actually available, for example
@@ -193,38 +197,36 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
                 $scope.reloadView(id);
             }
 
-            $scope.viewLoaded = true;
-
         });
     };
 
-    $scope.$watch(function() {
-        return $scope.options.filter;
-    }, _.debounce(function(newVal, oldVal) {
+    var searchListView = _.debounce(function(){
         $scope.$apply(function() {
-            if (newVal !== null && newVal !== undefined && newVal !== oldVal) {
-                $scope.options.pageNumber = 1;
-                $scope.actionInProgress = true;
-                $scope.reloadView($scope.contentId);
-            }
+            makeSearch();
         });
-    }, 1000));
+    }, 500);
 
-    $scope.filterResults = function (ev) {
+    $scope.forceSearch = function (ev) {
         //13: enter
-
         switch (ev.keyCode) {
             case 13:
-                $scope.options.pageNumber = 1;
-                $scope.actionInProgress = true;
-                $scope.reloadView($scope.contentId);
+                makeSearch();
                 break;
         }
     };
 
-    $scope.enterSearch = function ($event) {
-        $($event.target).next().focus();
+    $scope.enterSearch = function() {
+        $scope.viewLoaded = false;
+        searchListView();
     };
+
+    function makeSearch() {
+        if ($scope.options.filter !== null && $scope.options.filter !== undefined) {
+            $scope.options.pageNumber = 1;
+            //$scope.actionInProgress = true;
+            $scope.reloadView($scope.contentId);
+        }
+    }
 
     $scope.isAnythingSelected = function() {
        if ($scope.selection.length === 0) {
@@ -274,28 +276,28 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
             if (!(result.data && angular.isArray(result.data.notifications)))
                 showNotificationsAndReset(result, true, getSuccessMsg(selected.length));
         });
-    };
+    }
 
     $scope.delete = function () {
         applySelected(
-            function (selected, index) { return deleteItemCallback(getIdCallback(selected[index])) },
-            function (count, total) { return "Deleted " + count + " out of " + total + " item" + (total > 1 ? "s" : "") },
-            function (total) { return "Deleted " + total + " item" + (total > 1 ? "s" : "") },
+            function (selected, index) { return deleteItemCallback(getIdCallback(selected[index])); },
+            function (count, total) { return "Deleted " + count + " out of " + total + " item" + (total > 1 ? "s" : ""); },
+            function (total) { return "Deleted " + total + " item" + (total > 1 ? "s" : ""); },
             "Sure you want to delete?");
     };
 
     $scope.publish = function () {
         applySelected(
             function (selected, index) { return contentResource.publishById(getIdCallback(selected[index])); },
-            function (count, total) { return "Published " + count + " out of " + total + " item" + (total > 1 ? "s" : "") },
-            function (total) { return "Published " + total + " item" + (total > 1 ? "s" : "") });
+            function (count, total) { return "Published " + count + " out of " + total + " item" + (total > 1 ? "s" : ""); },
+            function (total) { return "Published " + total + " item" + (total > 1 ? "s" : ""); });
     };
 
     $scope.unpublish = function() {
         applySelected(
             function (selected, index) { return contentResource.unPublish(getIdCallback(selected[index])); },
-            function (count, total) { return "Unpublished " + count + " out of " + total + " item" + (total > 1 ? "s" : "") },
-            function (total) { return "Unpublished " + total + " item" + (total > 1 ? "s" : "") });
+            function (count, total) { return "Unpublished " + count + " out of " + total + " item" + (total > 1 ? "s" : ""); },
+            function (total) { return "Unpublished " + total + " item" + (total > 1 ? "s" : ""); });
     };
 
     $scope.move = function() {
@@ -379,7 +381,7 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
         }
 
         return value;
-    };
+    }
 
     /** This ensures that the correct value is set for each item in a row, we don't want to call a function during interpolation or ng-bind as performance is really bad that way */
     function setPropertyValues(result) {
@@ -414,14 +416,14 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
         });
 
 
-    };
+    }
 
     function isDate(val) {
         if (angular.isString(val)) {
             return val.match(/^(\d{4})\-(\d{2})\-(\d{2})\ (\d{2})\:(\d{2})\:(\d{2})$/);
         }
         return false;
-    };
+    }
 
     function initView() {
         //default to root id if the id is undefined
@@ -436,7 +438,7 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
         $scope.isTrashed = id === "-20" || id === "-21";
 
         $scope.reloadView($scope.contentId);
-    };
+    }
 
     function getLocalizedKey(alias) {
 
@@ -462,6 +464,15 @@ function listViewController($rootScope, $scope, $routeParams, $injector, $cookie
                 return "general_username";
         }
         return alias;
+    }
+
+    function getItemKey(itemId) {
+        for (var i = 0; i < $scope.listViewResultSet.items.length; i++) {
+            var item = $scope.listViewResultSet.items[i];
+            if (item.id === itemId) {
+                return item.key;
+            }
+        }
     }
 
     //GO!

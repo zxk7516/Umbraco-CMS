@@ -173,7 +173,7 @@ namespace Umbraco.Web.Cache
                     prefix =>
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(prefix));
 
-            ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheObjectTypes<IMacro>();
+            ClearAllIsolatedCacheByEntityType<IMacro>();
 
             ClearMacroContentCache();
 
@@ -190,7 +190,11 @@ namespace Umbraco.Web.Cache
                     alias =>
                     ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheByKeySearch(alias));
 
-                ApplicationContext.Current.ApplicationCache.RuntimeCache.ClearCacheItem(RepositoryBase.GetCacheIdKey<IMacro>(payload.Id));
+                var macroRepoCache = ApplicationContext.Current.ApplicationCache.IsolatedRuntimeCache.GetCache<IMacro>();
+                if (macroRepoCache)
+                {
+                    macroRepoCache.Result.ClearCacheItem(RepositoryBase.GetCacheIdKey<IMacro>(payload.Id));
+                }
             });
 
             base.Refresh(jsonPayload);

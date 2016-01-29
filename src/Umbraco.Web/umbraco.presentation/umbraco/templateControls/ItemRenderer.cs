@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -275,6 +276,7 @@ namespace umbraco.presentation.templateControls
         /// <param name="currentField">The field that should be fetched.</param>
         /// <returns>The contents of the <paramref name="currentField"/> from the <paramref name="nodeIdInt"/> content object</returns>
         [Obsolete("This is no longer used in the codebase and will be removed in future versions")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         protected virtual string GetContentFromDatabase(AttributeCollectionAdapter itemAttributes, int nodeIdInt, string currentField)
         {
             var c = new Content(nodeIdInt);
@@ -301,9 +303,10 @@ namespace umbraco.presentation.templateControls
             // Add the content to the cache
             if (!string.IsNullOrEmpty(tempElementContent))
             {
-                ApplicationContext.Current.ApplicationCache.InsertCacheItem(
+                ApplicationContext.Current.ApplicationCache.RuntimeCache.InsertCacheItem(
                     string.Format("{0}{1}_{2}", CacheKeys.ContentItemCacheKey, nodeIdInt, currentField),
-                    CacheItemPriority.Default, () => tempElementContent);
+                    priority:       CacheItemPriority.Default, 
+                    getCacheItem:   () => tempElementContent);
             }
             return tempElementContent;
         }
@@ -315,9 +318,10 @@ namespace umbraco.presentation.templateControls
         /// <param name="field">The field.</param>
         /// <returns>The cached contents of the <paramref name="field"/> from the <paramref name="nodeIdInt"/> content object</returns>
         [Obsolete("This is no longer used in the codebase and will be removed in future versions")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         protected virtual object GetContentFromCache(int nodeIdInt, string field)
         {
-            var content = ApplicationContext.Current.ApplicationCache.GetCacheItem<object>(
+            var content = ApplicationContext.Current.ApplicationCache.RuntimeCache.GetCacheItem<object>(
                 string.Format("{0}{1}_{2}", CacheKeys.ContentItemCacheKey, nodeIdInt, field));
             return content;
         }
