@@ -286,7 +286,7 @@ namespace Umbraco.Core.Services
         #region ContentTypes
 
         /// <summary>
-        /// Exports an <see cref="IContentType"/> to xml as an <see cref="XElement"/>
+        /// Exports an <see cref="TItem"/> to xml as an <see cref="XElement"/>
         /// </summary>
         /// <param name="contentType">ContentType to export</param>
         /// <param name="raiseEvents">Optional parameter indicating whether or not to raise events</param>
@@ -470,18 +470,18 @@ namespace Umbraco.Core.Services
                     var folders = foldersAttribute.Value.Split('/');
                     var rootFolder = HttpUtility.UrlDecode(folders[0]);
                     //level 1 = root level folders, there can only be one with the same name
-                    var current = _contentTypeService.GetContentTypeContainers(rootFolder, 1).FirstOrDefault();
+                    var current = _contentTypeService.GetContainers(rootFolder, 1).FirstOrDefault();
 
                     if (current == null)
                     {
-                        var tryCreateFolder = _contentTypeService.CreateContentTypeContainer(-1, rootFolder);
+                        var tryCreateFolder = _contentTypeService.CreateContainer(-1, rootFolder);
                         if (tryCreateFolder == false)
                         {
                             _logger.Error<PackagingService>("Could not create folder: " + rootFolder, tryCreateFolder.Exception);
                             throw tryCreateFolder.Exception;
                         }
                         var rootFolderId = tryCreateFolder.Result.Entity.Id;
-                        current = _contentTypeService.GetContentTypeContainer(rootFolderId);
+                        current = _contentTypeService.GetContainer(rootFolderId);
                     }
 
                     importedFolders.Add(alias, current.Id);
@@ -505,16 +505,16 @@ namespace Umbraco.Core.Services
             if (found)
             {
                 var containerId = children.Single(x => x.Name.InvariantEquals(folderName)).Id;
-                return _contentTypeService.GetContentTypeContainer(containerId);
+                return _contentTypeService.GetContainer(containerId);
             }
 
-            var tryCreateFolder = _contentTypeService.CreateContentTypeContainer(current.Id, folderName);
+            var tryCreateFolder = _contentTypeService.CreateContainer(current.Id, folderName);
             if (tryCreateFolder == false)
             {
                 _logger.Error<PackagingService>("Could not create folder: " + folderName, tryCreateFolder.Exception);
                 throw tryCreateFolder.Exception;
             }
-            return _contentTypeService.GetContentTypeContainer(tryCreateFolder.Result.Entity.Id);
+            return _contentTypeService.GetContainer(tryCreateFolder.Result.Entity.Id);
         }
 
         private IContentType CreateContentTypeFromXml(XElement documentType)

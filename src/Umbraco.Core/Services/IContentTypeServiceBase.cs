@@ -15,6 +15,8 @@ namespace Umbraco.Core.Services
         TItem Get(Guid key);
         TItem Get(string alias);
 
+        int Count();
+
         IEnumerable<TItem> GetAll(params int[] ids);
 
         IEnumerable<TItem> GetDescendants(int id, bool andSelf); // parent-child axis
@@ -33,11 +35,14 @@ namespace Umbraco.Core.Services
         Attempt<string[]> ValidateComposition(TItem compo);
 
 
-        Attempt<int> CreateContainer(int parentContainerId, string name, int userId = 0);
-        void SaveContainer(EntityContainer container, int userId = 0);
+        Attempt<OperationStatus<EntityContainer, OperationStatusType>> CreateContainer(int parentContainerId, string name, int userId = 0);
+        Attempt<OperationStatus> SaveContainer(EntityContainer container, int userId = 0);
         EntityContainer GetContainer(int containerId);
         EntityContainer GetContainer(Guid containerId);
-        void DeleteContainer(int containerId, int userId = 0);
+        IEnumerable<EntityContainer> GetContainers(int[] containerIds);
+        IEnumerable<EntityContainer> GetContainers(TItem contentType);
+        IEnumerable<EntityContainer> GetContainers(string folderName, int level);
+        Attempt<OperationStatus> DeleteContainer(int containerId, int userId = 0);
 
         Attempt<OperationStatus<MoveOperationStatusType>> Move(TItem moving, int containerId);
     }

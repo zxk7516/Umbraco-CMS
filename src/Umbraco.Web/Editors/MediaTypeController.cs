@@ -43,7 +43,7 @@ namespace Umbraco.Web.Editors
 
         public int GetCount()
         {
-            return Services.ContentTypeService.CountContentTypes();
+            return Services.ContentTypeService.Count();
         }
         public MediaTypeDisplay GetById(int id)
         {

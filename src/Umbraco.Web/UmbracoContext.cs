@@ -507,10 +507,12 @@ namespace Umbraco.Web
 
             //If not running in a web ctx, ensure the thread based instance is nulled
             _umbracoContext = null;
+
             // help caches release resources
             // (but don't create caches just to dispose them)
             // context is not multi-threaded
             if (_facade.IsValueCreated)
+                _facade.Value.DisposeIfDisposable();
         }
     }
 }

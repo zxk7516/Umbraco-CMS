@@ -59,20 +59,6 @@ namespace Umbraco.Core.Persistence.Repositories
             return GetAll().FirstOrDefault(x => x.Alias.InvariantEquals(alias));
         }
 
-        protected override IEnumerable<IContentType> PerformGetAll(params Guid[] ids)
-        {
-            //use the underlying GetAll which will force cache all content types
-
-            if (ids.Any())
-            {
-                return GetAll().Where(x => ids.Contains(x.Key));
-            }
-            else
-            {
-                return GetAll();
-            }
-        }
-
         protected override bool PerformExists(Guid id)
         {
             return GetAll().FirstOrDefault(x => x.Key == id) != null;
@@ -92,14 +78,8 @@ namespace Umbraco.Core.Persistence.Repositories
 
         protected override IEnumerable<IContentType> PerformGetAll(params Guid[] ids)
         {
-            if (ids.Any())
-            {
-                //NOTE: This logic should never be executed according to our cache policy
-                return ContentTypeQueryMapper.GetContentTypes(Database, SqlSyntax, this, _templateRepository)
-                    .Where(x => ids.Contains(x.Key));
-            }
-
-            return ContentTypeQueryMapper.GetContentTypes(Database, SqlSyntax, this, _templateRepository);
+            //use the underlying GetAll which will force cache all content types
+            return ids.Any() ? GetAll().Where(x => ids.Contains(x.Key)) : GetAll();
         }
 
         protected override IEnumerable<IContentType> PerformGetByQuery(IQuery<IContentType> query)
@@ -114,7 +94,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 ? GetAll(dtos.DistinctBy(x => x.ContentTypeDto.NodeId).Select(x => x.ContentTypeDto.NodeId).ToArray())
                 : Enumerable.Empty<IContentType>();
         }
-        
+
         /// <summary>
         /// Gets all entities of the specified <see cref="PropertyType"/> query
         /// </summary>

@@ -80,7 +80,7 @@ namespace Umbraco.Core.Services
         IEnumerable<ITemplate> ImportTemplates(XElement element, int userId = 0, bool raiseEvents = true);
 
         /// <summary>
-        /// Exports an <see cref="IContentType"/> to xml as an <see cref="XElement"/>
+        /// Exports an <see cref="TItem"/> to xml as an <see cref="XElement"/>
         /// </summary>
         /// <param name="contentType">ContentType to export</param>
         /// <param name="raiseEvents">Optional parameter indicating whether or not to raise events</param>

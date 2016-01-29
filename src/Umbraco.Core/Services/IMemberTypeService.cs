@@ -5,12 +5,12 @@ using Umbraco.Core.Models;
 namespace Umbraco.Core.Services
 {
     public interface IMemberTypeService : IService
-    { 
+    {
         /// <summary>
-        /// Gets a list of all available <see cref="IContentType"/> objects
+        /// Gets a list of all available <see cref="IMemberType"/> objects
         /// </summary>
         /// <param name="ids">Optional list of ids</param>
-        /// <returns>An Enumerable list of <see cref="IContentType"/> objects</returns>
+        /// <returns>An Enumerable list of <see cref="IMemberType"/> objects</returns>
         IEnumerable<IMemberType> GetAll(params int[] ids);
 
         /// <summary>

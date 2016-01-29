@@ -154,7 +154,7 @@ namespace Umbraco.Core.Services
         IEnumerable<IMedia> GetDescendants(int id);
 
         /// <summary>
-        /// Gets a collection of <see cref="IMedia"/> objects by the Id of the <see cref="IContentType"/>
+        /// Gets a collection of <see cref="IMedia"/> objects by the Id of the <see cref="IMediaType"/>
         /// </summary>
         /// <param name="id">Id of the <see cref="IMediaType"/></param>
         /// <returns>An Enumerable list of <see cref="IMedia"/> objects</returns>

@@ -187,6 +187,42 @@ namespace Umbraco.Core.Services
             Moved.RaiseEvent(args, this);
         }
 
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, SaveEventArgs<EntityContainer>> SavingContainer;
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, SaveEventArgs<EntityContainer>> SavedContainer;
+
+        protected void OnSavingContainer(SaveEventArgs<EntityContainer> args)
+        {
+            SavingContainer.RaiseEvent(args, this);
+        }
+
+        protected bool OnSavingContainerCancelled(SaveEventArgs<EntityContainer> args)
+        {
+            return SavingContainer.IsRaisedEventCancelled(args, this);
+        }
+
+        protected void OnSavedContainer(SaveEventArgs<EntityContainer> args)
+        {
+            SavedContainer.RaiseEvent(args, this);
+        }
+
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, DeleteEventArgs<EntityContainer>> DeletingContainer;
+        public static event TypedEventHandler<ContentTypeServiceBase<TItem>, DeleteEventArgs<EntityContainer>> DeletedContainer;
+
+        protected void OnDeletingContainer(DeleteEventArgs<EntityContainer> args)
+        {
+            DeletingContainer.RaiseEvent(args, this);
+        }
+
+        protected bool OnDeletingContainerCancelled(DeleteEventArgs<EntityContainer> args)
+        {
+            return DeletingContainer.IsRaisedEventCancelled(args, this);
+        }
+
+        protected void OnDeletedContainer(DeleteEventArgs<EntityContainer> args)
+        {
+            DeletedContainer.RaiseEvent(args, this);
+        }
+
         #endregion
     }
 
@@ -366,10 +402,10 @@ namespace Umbraco.Core.Services
             }
             change.ChangeTypes |= changeTypes;
         }
-        
+
         #endregion
 
-        #region Get, Has, Is
+        #region Get, Has, Is, Count
 
         public TItem Get(int id)
         {
@@ -468,6 +504,11 @@ namespace Umbraco.Core.Services
 
                 return composed.ToArray();
             });
+        }
+
+        public int Count()
+        {
+            return LRepo.WithReadLocked(xr => xr.Repository.Count());
         }
 
         #endregion
@@ -732,7 +773,7 @@ namespace Umbraco.Core.Services
 
             var attempt = LRepo.WithWriteLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     try
                     {
@@ -769,11 +810,12 @@ namespace Umbraco.Core.Services
 
         protected abstract Guid ContainedObjectType { get; }
 
-        public Attempt<int> CreateContainer(int parentId, string name, int userId = 0)
+        public Attempt<OperationStatus<EntityContainer, OperationStatusType>> CreateContainer(int parentId, string name, int userId = 0)
         {
+            var evtMsgs = EventMessagesFactory.Get();
             return LRepo.WithWriteLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     try
                     {
@@ -783,41 +825,63 @@ namespace Umbraco.Core.Services
                             ParentId = parentId,
                             CreatorId = userId
                         };
+
+                        if (OnSavingContainerCancelled(new SaveEventArgs<EntityContainer>(container, evtMsgs)))
+                        {
+                            return Attempt.Fail(new OperationStatus<EntityContainer, OperationStatusType>(container, OperationStatusType.FailedCancelledByEvent, evtMsgs));
+                        }
+
                         repo.AddOrUpdate(container);
                         xr.UnitOfWork.Commit();
-                        return Attempt.Succeed(container.Id);
+
+                        OnSavedContainer(new SaveEventArgs<EntityContainer>(container, evtMsgs));
+                        //TODO: Audit trail ?
+
+                        return Attempt.Succeed(new OperationStatus<EntityContainer, OperationStatusType>(container, OperationStatusType.Success, evtMsgs));
                     }
                     catch (Exception ex)
                     {
-                        return Attempt<int>.Fail(ex);
+                        return Attempt.Fail(new OperationStatus<EntityContainer, OperationStatusType>(null, OperationStatusType.FailedExceptionThrown, evtMsgs), ex);
                     }
                     //TODO: Audit trail ?
                 }
             });
         }
 
-        public void SaveContainer(EntityContainer container, int userId = 0)
+        public Attempt<OperationStatus> SaveContainer(EntityContainer container, int userId = 0)
         {
             if (container.ContainedObjectType != ContainedObjectType)
                 throw new InvalidOperationException("Not a " + ContainedObjectType + " container.");
             if (container.HasIdentity && container.IsPropertyDirty("ParentId"))
                 throw new InvalidOperationException("Cannot save a container with a modified parent, move the container instead.");
 
+            var evtMsgs = EventMessagesFactory.Get();
+
+            if (OnSavingContainerCancelled(new SaveEventArgs<EntityContainer>(container, evtMsgs)))
+            {
+                return OperationStatus.Cancelled(evtMsgs);
+            }
+
             LRepo.WithWriteLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     repo.AddOrUpdate(container);
-                    //TODO: Audit trail ?
                 }
             });
+
+            OnSavedContainer(new SaveEventArgs<EntityContainer>(container, evtMsgs));
+
+            //TODO: Audit trail ?
+
+            return OperationStatus.Success(evtMsgs);
         }
 
         public EntityContainer GetContainer(int containerId)
         {
             return LRepo.WithReadLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     var container = repo.Get(containerId);
                     return container != null && container.ContainedObjectType == ContainedObjectType
@@ -831,7 +895,7 @@ namespace Umbraco.Core.Services
         {
             return LRepo.WithReadLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     var container = repo.Get(containerId);
                     return container != null && container.ContainedObjectType == ContainedObjectType
@@ -841,16 +905,64 @@ namespace Umbraco.Core.Services
             });
         }
 
-        public void DeleteContainer(int containerId, int userId = 0)
+        public IEnumerable<EntityContainer> GetContainers(params int[] ids)
         {
-            LRepo.WithWriteLocked(xr =>
+            return LRepo.WithReadLocked(xr =>
             {
-                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork))
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
+                {
+                    return repo.GetAll(ids);
+                }
+            });
+        }
+
+        public IEnumerable<EntityContainer> GetContainers(string name, int level)
+        {
+            return LRepo.WithReadLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
+                {
+                    return repo.Get(name, level);
+                }
+            });
+        }
+
+        public IEnumerable<EntityContainer> GetContainers(TItem contentType)
+        {
+            var ancestorIds = contentType.Path.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x =>
+                {
+                    var asInt = x.TryConvertTo<int>();
+                    return asInt ? asInt.Result : int.MinValue;
+                })
+                .Where(x => x != int.MinValue && x != contentType.Id)
+                .ToArray();
+
+            return GetContainers(ancestorIds);
+        }
+
+        public Attempt<OperationStatus> DeleteContainer(int containerId, int userId = 0)
+        {
+            var evtMsgs = EventMessagesFactory.Get();
+            return LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
                 {
                     var container = repo.Get(containerId);
-                    if (container == null) return;
-                    if (container.ContainedObjectType != ContainedObjectType) return;
+                    if (container == null) return OperationStatus.NoOperation(evtMsgs);
+
+                    if (OnDeletingContainerCancelled(new DeleteEventArgs<EntityContainer>(container, evtMsgs)))
+                    {
+                        return Attempt.Fail(new OperationStatus(OperationStatusType.FailedCancelledByEvent, evtMsgs));
+                    }
+
                     repo.Delete(container);
+                    xr.UnitOfWork.Commit();
+                    //TODO: Audit trail ?
+
+                    OnDeletedContainer(new DeleteEventArgs<EntityContainer>(container, evtMsgs));
+
+                    return OperationStatus.Success(evtMsgs);
                     //TODO: Audit trail ?
                 }
             });

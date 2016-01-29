@@ -737,7 +737,7 @@ namespace Umbraco.Core.Services
             var evtMsgs = EventMessagesFactory.Get();
             
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(content, evtMsgs), this))
-                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                return OperationStatus.Cancelled(evtMsgs);
 
             var isNew = content.IsNewEntity();
 
@@ -761,7 +761,7 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(new TreeChange<IContent>(content, changeType).ToEventArgs(), this);
             Audit(AuditType.Save, "Save Content performed by user", userId, content.Id);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         /// <summary>
@@ -795,7 +795,7 @@ namespace Umbraco.Core.Services
             var contentsA = contents.ToArray();
 
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IContent>(contentsA, evtMsgs), this))
-                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                return OperationStatus.Cancelled(evtMsgs);
 
             var treeChanges = contentsA.Select(x => new TreeChange<IContent>(x,
                 x.IsNewEntity() ? TreeChangeTypes.RefreshBranch : TreeChangeTypes.RefreshNode));
@@ -822,7 +822,7 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(treeChanges.ToEventArgs(), this);
             Audit(AuditType.Save, "Bulk Save content performed by user", userId == -1 ? 0 : userId, Constants.System.Root);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         /// <summary>
@@ -1005,7 +1005,7 @@ namespace Umbraco.Core.Services
                 {
                     if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IContent>(content, evtMsgs), this))
                     {
-                        attempt = Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                        attempt = OperationStatus.Cancelled(evtMsgs);
                         returnAttempt = true;
                         return;
                     }
@@ -1026,7 +1026,7 @@ namespace Umbraco.Core.Services
                 return attempt;
 
             Audit(AuditType.Delete, "Delete Content performed by user", userId, content.Id);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         private void DeleteLocked(IContent content, IContentRepository repository, EventMessages evtMsgs)
@@ -1149,7 +1149,7 @@ namespace Umbraco.Core.Services
                     if (Trashing.IsRaisedEventCancelled(new MoveEventArgs<IContent>(
                         new MoveEventInfo<IContent>(content, originalPath, Constants.System.RecycleBinContent)), this))
                     {
-                        attempt = Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                        attempt = OperationStatus.Cancelled(evtMsgs);
                         returnAttempt = true;
                         return;
                     }
@@ -1175,7 +1175,7 @@ namespace Umbraco.Core.Services
             Trashed.RaiseEvent(new MoveEventArgs<IContent>(false, moveInfo), this);
             Audit(AuditType.Move, "Move Content to Recycle Bin performed by user", userId, content.Id);
 
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         /// <summary>

@@ -580,7 +580,7 @@ namespace Umbraco.Core.Services
             var evtMsgs = EventMessagesFactory.Get();
 
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(media, evtMsgs), this))
-                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                return OperationStatus.Cancelled(evtMsgs);
             var isNew = media.IsNewEntity();
 
             WithWriteLocked(repository =>
@@ -595,7 +595,7 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(new TreeChange<IMedia>(media, changeType).ToEventArgs(), this);
             Audit(AuditType.Save, "Save Media performed by user", userId, media.Id);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         /// <summary>
@@ -621,7 +621,7 @@ namespace Umbraco.Core.Services
 
             var evtMsgs = EventMessagesFactory.Get();
             if (raiseEvents && Saving.IsRaisedEventCancelled(new SaveEventArgs<IMedia>(mediasA, evtMsgs), this))
-                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                return OperationStatus.Cancelled(evtMsgs);
 
             var treeChanges = mediasA.Select(x => new TreeChange<IMedia>(x,
                 x.IsNewEntity() ? TreeChangeTypes.RefreshBranch : TreeChangeTypes.RefreshNode));
@@ -640,7 +640,7 @@ namespace Umbraco.Core.Services
             using (ChangeSet.WithAmbient)
                 TreeChanged.RaiseEvent(treeChanges.ToEventArgs(), this);
             Audit(AuditType.Save, "Save Media items performed by user", userId, -1);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         #endregion
@@ -675,7 +675,7 @@ namespace Umbraco.Core.Services
             var evtMsgs = EventMessagesFactory.Get();
 
             if (Deleting.IsRaisedEventCancelled(new DeleteEventArgs<IMedia>(media, evtMsgs), this))
-                return Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                return OperationStatus.Cancelled(evtMsgs);
 
             using (ChangeSet.WithAmbient)
             {
@@ -684,7 +684,7 @@ namespace Umbraco.Core.Services
             }
 
             Audit(AuditType.Delete, "Delete Media performed by user", userId, media.Id);
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         private void DeleteLocked(IMedia media, IMediaRepository repository, EventMessages evtMsgs)
@@ -806,7 +806,7 @@ namespace Umbraco.Core.Services
                     if (Trashing.IsRaisedEventCancelled(new MoveEventArgs<IMedia>(
                         new MoveEventInfo<IMedia>(media, originalPath, Constants.System.RecycleBinMedia)), this))
                     {
-                        attempt = Attempt.Fail(OperationStatus.Cancelled(evtMsgs));
+                        attempt = OperationStatus.Cancelled(evtMsgs);
                         returnAttempt = true;
                         return;
                     }
@@ -826,7 +826,7 @@ namespace Umbraco.Core.Services
             Trashed.RaiseEvent(new MoveEventArgs<IMedia>(false, evtMsgs, moveInfo), this);
             Audit(AuditType.Move, "Move Media to Recycle Bin performed by user", userId, media.Id);
             
-            return Attempt.Succeed(OperationStatus.Success(evtMsgs));
+            return OperationStatus.Success(evtMsgs);
         }
 
         /// <summary>

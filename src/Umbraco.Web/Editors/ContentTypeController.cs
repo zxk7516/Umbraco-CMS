@@ -222,7 +222,7 @@ namespace Umbraco.Web.Editors
             IContentType ct;
             if (parentId != Constants.System.Root)
             {
-                var parent = Services.ContentTypeService.GetContentType(parentId);
+                var parent = Services.ContentTypeService.Get(parentId);
                 ct = parent != null ? new ContentType(parent, string.Empty) : new ContentType(parentId);
             }
             else

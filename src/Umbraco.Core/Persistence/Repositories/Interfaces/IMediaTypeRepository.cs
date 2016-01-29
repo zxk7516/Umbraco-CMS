@@ -11,7 +11,7 @@ namespace Umbraco.Core.Persistence.Repositories
         /// Gets all entities of the specified <see cref="PropertyType"/> query
         /// </summary>
         /// <param name="query"></param>
-        /// <returns>An enumerable list of <see cref="IContentType"/> objects</returns>
+        /// <returns>An enumerable list of <see cref="IMediaType"/> objects</returns>
         IEnumerable<IMediaType> GetByQuery(IQuery<PropertyType> query);
 
         IEnumerable<MoveEventInfo<IMediaType>> Move(IMediaType toMove, EntityContainer container);
