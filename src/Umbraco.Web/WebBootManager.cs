@@ -481,24 +481,24 @@ namespace Umbraco.Web
 
             var facadeService =
                 // use the Xml cache
-                new PublishedCache.XmlPublishedCache.FacadeService(
-                        ApplicationContext.Current.Services,
-                        ApplicationContext.Current.DatabaseContext, 
-                        ApplicationContext.Current.ApplicationCache.RequestCache,
-                        _isForTesting, false);
+                //new PublishedCache.XmlPublishedCache.FacadeService(
+                //        ApplicationContext.Current.Services,
+                //        ApplicationContext.Current.DatabaseContext, 
+                //        ApplicationContext.Current.ApplicationCache.RequestCache,
+                //        _isForTesting, false);
                 // use the NoCache
                 //new PublishedCache.PublishedNoCache.FacadeService(
                 //    () => ApplicationContext.Current.Services);
                 // use the NuCache
-                //new PublishedCache.NuCache.FacadeService(
-                //    new PublishedCache.NuCache.FacadeService.Options
-                //    {
-                //        FacadeCacheIsApplicationRequestCache = true
-                //    },
-                //    ApplicationContext.Current.MainDom,
-                //    ApplicationContext.Current.Services,
-                //    ApplicationContext.Current.DatabaseContext,
-                //    LoggerResolver.Current.Logger);
+                new PublishedCache.NuCache.FacadeService(
+                    new PublishedCache.NuCache.FacadeService.Options
+                    {
+                        FacadeCacheIsApplicationRequestCache = true
+                    },
+                    ApplicationContext.Current.MainDom,
+                    ApplicationContext.Current.Services,
+                    ApplicationContext.Current.DatabaseContext,
+                    LoggerResolver.Current.Logger);
             FacadeServiceResolver.Current = new FacadeServiceResolver(facadeService);
 
             GlobalConfiguration.Configuration.Services.Replace(typeof(IHttpControllerSelector),
