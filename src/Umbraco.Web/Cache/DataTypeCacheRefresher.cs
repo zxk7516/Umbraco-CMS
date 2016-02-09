@@ -87,8 +87,6 @@ namespace Umbraco.Web.Cache
                 var dataTypeCache = ApplicationContext.Current.ApplicationCache.IsolatedRuntimeCache.GetCache<IDataTypeDefinition>();
                 if (dataTypeCache)
                     dataTypeCache.Result.ClearCacheByKeySearch(string.Format("{0}{1}", CacheKeys.DataTypePreValuesCacheKey, payload.Id));
-                
-                PublishedContentType.ClearDataType(payload.Id);
             });
 
             // notify
