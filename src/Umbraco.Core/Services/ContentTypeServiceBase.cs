@@ -32,22 +32,6 @@ namespace Umbraco.Core.Services
         }
 
         #endregion
-
-        #region Services
-
-        public static IContentTypeServiceBase<T> GetService<T>(ServiceContext services)
-            where T : IContentTypeComposition
-        {
-            if (typeof(T).Implements<IContentType>())
-                return services.ContentTypeService as IContentTypeServiceBase<T>;
-            if (typeof(T).Implements<IMediaType>())
-                return services.MediaTypeService as IContentTypeServiceBase<T>;
-            if (typeof(T).Implements<IMemberType>())
-                return services.MemberTypeService as IContentTypeServiceBase<T>;
-            throw new ArgumentException("Type " + typeof(T).FullName + " does not have a service.");
-        }
-
-        #endregion
     }
 
     internal static class ContentTypeServiceBaseChangeExtensions
@@ -431,7 +415,8 @@ namespace Umbraco.Core.Services
 
         public IEnumerable<TItem> GetAll(params Guid[] ids)
         {
-            return LRepo.WithReadLocked(xr => xr.Repository.GetAll(ids));
+            // note: IReadRepository<Guid, TEntity> is explicitely implemented, need to cast the repo
+            return LRepo.WithReadLocked(xr => ((IReadRepository<Guid, TItem>) xr.Repository).GetAll(ids));
         }
 
         public IEnumerable<TItem> GetChildren(int id)
@@ -508,7 +493,8 @@ namespace Umbraco.Core.Services
 
         public int Count()
         {
-            return LRepo.WithReadLocked(xr => xr.Repository.Count());
+            var query = new Query<TItem>();
+            return LRepo.WithReadLocked(xr => xr.Repository.Count(query));
         }
 
         #endregion

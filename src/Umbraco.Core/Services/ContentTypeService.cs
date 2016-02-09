@@ -60,6 +60,11 @@ namespace Umbraco.Core.Services
             return LRepo.WithReadLocked(xr => xr.Repository.GetAllPropertyTypeAliases());
         }
 
+        public IEnumerable<string> GetAllContentTypeAliases(params Guid[] guids)
+        {
+            return LRepo.WithReadLocked(xr => xr.Repository.GetAllContentTypeAliases(guids));
+        }
+
         #region Legacy Events
 
         // NOTE

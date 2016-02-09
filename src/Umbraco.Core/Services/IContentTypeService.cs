@@ -15,6 +15,7 @@ namespace Umbraco.Core.Services
         /// Gets all property type aliases.
         /// </summary>
         /// <returns></returns>
+        // fixme - get *all* of them: content, media & member - should move to another service/class
         IEnumerable<string> GetAllPropertyTypeAliases();
 
         /// <summary>
@@ -25,6 +26,7 @@ namespace Umbraco.Core.Services
         /// it will only return content type aliases for the object types specified
         /// </param>
         /// <returns></returns>
+        // fixme - get *all* of them: content, media & member - should move to another service/class
         IEnumerable<string> GetAllContentTypeAliases(params Guid[] objectTypes);
 
         /// <summary>

@@ -17,7 +17,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<T> Descendants<T>(this T contentType)
             where T : IContentTypeComposition
         {
-            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            var service = ApplicationContext.Current.Services.GetContentTypeService<T>();
             return service.GetDescendants(contentType.Id, false);
         }
 
@@ -32,7 +32,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<T> DescendantsAndSelf<T>(this T contentType)
             where T : IContentTypeComposition
         {
-            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            var service = ApplicationContext.Current.Services.GetContentTypeService<T>();
             return service.GetDescendants(contentType.Id, true);
         }
 
@@ -47,7 +47,7 @@ namespace Umbraco.Core.Models
         public static IEnumerable<T> ComposedOf<T>(this T contentType)
             where T : IContentTypeComposition
         {
-            var service = ContentTypeServiceBase.GetService<T>(ApplicationContext.Current.Services);
+            var service = ApplicationContext.Current.Services.GetContentTypeService<T>();
             return service.GetComposedOf(contentType.Id);
         }
     }

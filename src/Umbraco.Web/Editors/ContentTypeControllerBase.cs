@@ -281,12 +281,13 @@ namespace Umbraco.Web.Editors
         /// <param name="contentTypeSave"></param>
         /// <param name="composition"></param>
         /// <returns></returns>
-        private HttpResponseException CreateCompositionValidationExceptionIfInvalid<TContentTypeSave, TPropertyType, TContentTypeDisplay>(TContentTypeSave contentTypeSave, IContentTypeComposition composition)
+        private HttpResponseException CreateCompositionValidationExceptionIfInvalid<TContentTypeSave, TPropertyType, TContentTypeDisplay>(TContentTypeSave contentTypeSave, TContentType composition)
             where TContentTypeSave : ContentTypeSave<TPropertyType>
             where TPropertyType : PropertyTypeBasic
             where TContentTypeDisplay : ContentTypeCompositionDisplay
         {
-            var validateAttempt = Services.ContentTypeService.ValidateComposition(composition);
+            var service = ApplicationContext.Services.GetContentTypeService<TContentType>();
+            var validateAttempt = service.ValidateComposition(composition);
             if (validateAttempt == false)
             {
                 //if it's not successful then we need to return some model state for the property aliases that

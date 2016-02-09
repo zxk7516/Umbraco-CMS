@@ -111,7 +111,7 @@ namespace Umbraco.Web.Cache
 
         #region Helpers
 
-        private static void ClearCache()
+        private void ClearCache()
         {            
             ClearAllIsolatedCacheByEntityType<IDomain>();
         }
