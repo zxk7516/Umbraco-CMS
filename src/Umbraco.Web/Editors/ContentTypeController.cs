@@ -18,6 +18,7 @@ using Umbraco.Core.Strings;
 using Umbraco.Web.WebApi;
 using Umbraco.Web.WebApi.Filters;
 using Umbraco.Core.Logging;
+using Umbraco.Web.Models;
 
 namespace Umbraco.Web.Editors
 {
@@ -99,6 +100,7 @@ namespace Umbraco.Web.Editors
 
         /// <summary>
         /// Returns the avilable compositions for this content type
+        /// This has been wrapped in a dto instead of simple parameters to support having multiple parameters in post request body
         /// </summary>
         /// <param name="contentTypeId"></param>
         /// <param name="filterContentTypes">
@@ -111,11 +113,10 @@ namespace Umbraco.Web.Editors
         /// be looked up via the db, they need to be passed in.
         /// </param>
         /// <returns></returns>
-        public HttpResponseMessage GetAvailableCompositeContentTypes(int contentTypeId, 
-            [FromUri]string[] filterContentTypes,
-            [FromUri]string[] filterPropertyTypes)
+        [HttpPost]
+        public HttpResponseMessage GetAvailableCompositeContentTypes(GetAvailableCompositionsFilter filter)
         {
-            var result = PerformGetAvailableCompositeContentTypes(contentTypeId, filterContentTypes, filterPropertyTypes)
+            var result = PerformGetAvailableCompositeContentTypes(filter.ContentTypeId, filter.FilterContentTypes, filter.FilterPropertyTypes)
                 .Select(x => new
                 {
                     contentType = x.Item1,
