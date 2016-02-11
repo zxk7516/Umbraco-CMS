@@ -87,7 +87,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                 var iscanon = DomainHelper.ExistsDomainInPath(_domainCache.GetAll(false), content.Path, domainRootNodeId) == false;
                 // and only if this is the canonical url (the one GetUrl would return)
                 if (iscanon)
-                    _routesCache.Store(contentId, route);
+                    _routesCache.Store(content.Id, route);
             }
 
             return content;
@@ -192,7 +192,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // we add this check - we look for the document matching "/" and if it's not us, then
             // we do not hide the top level path
             // it has to be taken care of in GetByRoute too so if
-            // "/foo" fails (looking for "/*/foo") we try also "/foo". 
+            // "/foo" fails (looking for "/*/foo") we try also "/foo".
             // this does not make much sense anyway esp. if both "/foo/" and "/bar/foo" exist, but
             // that's the way it works pre-4.10 and we try to be backward compat for the time being
             if (content.Parent == null)
@@ -215,7 +215,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
         private IPublishedContent ConvertToDocument(XmlNode xmlNode, bool isPreviewing, ICacheProvider cacheProvider)
 		{
-		    return xmlNode == null 
+		    return xmlNode == null
                 ? null
                 : (new XmlPublishedContent(xmlNode, isPreviewing, cacheProvider, _contentTypeCache)).CreateModel();
 		}
@@ -409,7 +409,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 					// umbraco does not consistently guarantee that sortOrder starts with 0
 					// so the one that we want is the one with the smallest sortOrder
 					// read http://stackoverflow.com/questions/1128745/how-can-i-use-xpath-to-find-the-minimum-value-of-an-attribute-in-a-set-of-elemen
-                    
+
 					// so that one does not work, because min(@sortOrder) maybe 1
 					// xpath = "/root/*[@isDoc and @sortOrder='0']";
 
@@ -451,7 +451,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     else
                     {
                         xpathBuilder.AppendFormat(XPathStrings.ChildDocumentByUrlName, part);
-                        
+
                     }
                 }
 

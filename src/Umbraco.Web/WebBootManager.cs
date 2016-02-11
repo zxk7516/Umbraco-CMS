@@ -577,9 +577,6 @@ namespace Umbraco.Web
             // return
             foreach (var index in indexes)
                 yield return index;
-
-            // and clear
-            IndexesToRebuild.Clear();
         }
 
 
