@@ -31,10 +31,10 @@
 
                   <div class="umb-panel-header-name" ng-if="nameLocked">{{ name }}</div>
 
-                  <umb-generate-alias class="umb-panel-header-alias" 
-                                      ng-if="!hideAlias" 
-                                      alias="$parent.alias" 
-                                      alias-from="$parent.name" 
+                  <umb-generate-alias class="umb-panel-header-alias"
+                                      ng-if="!hideAlias"
+                                      alias="$parent.alias"
+                                      alias-from="$parent.name"
                                       enable-lock="true"
                                       server-validation-field="Alias"></umb-generate-alias>
 
@@ -47,6 +47,19 @@
                     ng-model="$parent.description" />
 
                </div>
+
+               <umb-button
+                    type="button"
+                    action="createVariation()"
+                    label="Create variation">
+                </umb-button>
+
+                <umb-button
+                    type="button"
+                    button-style="link"
+                    action="showVariations()"
+                    label="Variations">
+                </umb-button>
 
             </div>
 

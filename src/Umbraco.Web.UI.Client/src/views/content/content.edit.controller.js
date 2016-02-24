@@ -2,11 +2,11 @@
  * @ngdoc controller
  * @name Umbraco.Editors.Content.EditController
  * @function
- * 
+ *
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http) {
+function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -20,6 +20,7 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.page.listViewPath = null;
     $scope.page.isNew = $routeParams.create;
     $scope.page.buttonGroupState = "init";
+    $scope.page.variations = [];
 
     function init(content) {
 
@@ -44,6 +45,8 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
                 entityResource.getAncestors(content.id, "document")
                .then(function (anc) {
                    $scope.ancestors = anc;
+                   $scope.page.variations = variationsHelper.getVariations();
+                   console.log($scope.page.variations);
                });
             }
         }
@@ -61,8 +64,8 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
             //it's a child item, just sync the ui node to the parent
             navigationService.syncTree({ tree: "content", path: path.substring(0, path.lastIndexOf(",")).split(","), forceReload: initialLoad !== true });
-            
-            //if this is a child of a list view and it's the initial load of the editor, we need to get the tree node 
+
+            //if this is a child of a list view and it's the initial load of the editor, we need to get the tree node
             // from the server so that we can load in the actions menu.
             umbRequestHelper.resourcePromise(
                 $http.get(content.treeNodeUrl),
@@ -85,7 +88,7 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
             content: $scope.content,
             action: args.action
         }).then(function (data) {
-            //success            
+            //success
             init($scope.content);
             syncTreeNode($scope.content, data.path);
 
@@ -125,7 +128,7 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
                 $scope.content = data;
 
-                init($scope.content);                
+                init($scope.content);
 
                 resetLastListPageNumber($scope.content);
 
@@ -212,9 +215,9 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         if (!$scope.busy) {
 
-            // Chromes popup blocker will kick in if a window is opened 
+            // Chromes popup blocker will kick in if a window is opened
             // outwith the initial scoped request. This trick will fix that.
-            //  
+            //
             var previewWindow = $window.open('preview/?id=' + content.id, 'umbpreview');
             $scope.save().then(function (data) {
                 // Build the correct path so both /#/ and #/ work.
@@ -225,6 +228,32 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         }
 
+    };
+
+    $scope.variationsAreVisible = false;
+
+    $scope.showVariations = function() {
+        $scope.variationsAreVisible = true;
+    };
+
+    $scope.hideVariations = function() {
+        $scope.variationsAreVisible = false;
+    };
+
+    $scope.createVariation = function(variation) {
+        variationsHelper.createVariation(variation);
+    };
+
+    $scope.clickVariation = function(variation, event, index) {
+        alert("click variation");
+    };
+
+    $scope.cloneVariation = function(variation, event, index) {
+        variationsHelper.cloneVariation(variation, event, index);
+    };
+
+    $scope.deleteVariation = function(variation, event, index) {
+        variationsHelper.deleteVariation(variation, event, index);
     };
 
 }

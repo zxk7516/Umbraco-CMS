@@ -24,6 +24,17 @@
                     }
                 };
             };
+
+            scope.createVariation = function() {
+                alert("fjeiofjeiow");
+            };
+
+            scope.showVariations = function() {
+                if(scope.onShowVariations) {
+                    scope.onShowVariations();
+                }
+            };
+
         }
 
         var directive = {
@@ -44,7 +55,8 @@
                 hideAlias: "@",
                 description: "=",
                 hideDescription: "@",
-                navigation: "="
+                navigation: "=",
+                onShowVariations: "="
             },
             link: link
         };

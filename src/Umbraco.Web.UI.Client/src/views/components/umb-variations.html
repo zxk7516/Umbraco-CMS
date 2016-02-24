@@ -1,0 +1,126 @@
+<div class="umb-variations">
+
+    <div ng-if="!newVariationIsVisible">
+        <div class="umb-variations__title-wrapper">
+            <div class="umb-variations__title">Variations ({{ variations.length }})</div>
+            <a href="" class="umb-variations__create-new" ng-click="showNewVariation()">Create variation</a>
+        </div>
+
+        <small class="umb-variations__help-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vulputate velit a velit consectetur luctus. Etiam in malesuada turpis.</small>
+
+        <input class="umb-variations__filter -full-width-input" ng-show="variations.length > 4" ng-model="searchTerm" placeholder="Filter variations"></input>
+
+        <!-- VARIATIONS LIST -->
+        <ul class="umb-variations__list">
+
+            <li class="umb-variations__list-item">
+
+                <div class="umb-variations__variation-top-bar -no-margin-bottom">
+
+                    <div class="umb-variations__name-wrapper">
+                        <div class="umb-variations__published-state" ng-class="{'-published': master.published}"></div>
+                        <div class="umb-variations__name">{{ master.name }} (Original)</div>
+                    </div>
+
+                    <div class="umb-variations__actions">
+                        <div class="umb-variations__action" ng-click="cloneVariation(master)">
+                            <i class="icon-document"></i>
+                        </div>
+                    </div>
+
+                </div>
+
+            </li>
+
+            <li class="umb-variations__list-item" ng-repeat="variation in variations | filter:searchTerm" ng-click="clickVariation(variation)">
+
+                <div class="umb-variations__variation-top-bar">
+
+                    <div class="umb-variations__name-wrapper">
+                        <div class="umb-variations__published-state" ng-if="!variation.editMode"></div>
+                        <div class="umb-variations__name" ng-if="!variation.editMode">{{ variation.name }}</div>
+                        <div ng-if="variation.editMode">
+                            <label>Name</label>
+                            <input class="umb-variations__name-input -full-width-input" ng-model="variation.name" placeholder="Enter variation name..." focus-when="{{variation.editMode}}" />
+                        </div>
+                    </div>
+
+                    <div class="umb-variations__actions" ng-if="!variation.editMode">
+                        <div class="umb-variations__action" ng-click="editVariation(variation, $event, $index)">
+                            <i class="icon-edit"></i>
+                        </div>
+                        <div class="umb-variations__action" ng-click="cloneVariation(variation, $event, $index)">
+                            <i class="icon-documents"></i>
+                        </div>
+                        <div class="umb-variations__action" ng-click="deleteVariation(variation, $event, $index)">
+                            <i class="icon-trash"></i>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="umb-variations__description" ng-if="!variation.editMode">{{ variation.description }}</div>
+
+                <div ng-if="variation.editMode">
+                    <label>Description</label>
+                    <textarea class="umb-variations__description -full-width-textarea" ng-model="variation.description" umb-auto-resize></textarea>
+                </div>
+
+                <div ng-if="variation.editMode">
+
+                    <umb-button
+                        type="link"
+                        action="closeVariationEditMode(variation)"
+                        label="Cancel">
+                    </umb-button>
+
+                    <umb-button
+                       type="button"
+                       button-style="success"
+                       action=""
+                       label="Save">
+                    </umb-button>
+
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="umb-variation__create" ng-if="newVariationIsVisible">
+        <div class="umb-variation__create-title">
+            Create new variation
+        </div>
+        <div class="umb-variations__help-text">
+            Create new variation of your original content. For great examples go to umbraco.com/documentation
+        </div>
+
+        <div class="umb-variation__create-form">
+
+            <div class="umb-control-group -no-border -no-padding-bottom">
+                <label for="umb-variation__create-form-title">Title</label>
+                <input id="umb-variation-create-form-title" class="umb-variation__create-form-title -full-width-input" ng-model="newVariation.name" type="text" placeholder="Give a title to your variation"/>
+            </div>
+
+            <div class="umb-control-group -no-border -no-padding-bottom">
+                <label for="umb-variation-create-form-description">Description</label>
+                <textarea class="umb-variation__create-form-description -full-width-textarea" ng-model="newVariation.description" name="" id="umb-variation-create-form-description" placeholder="Add a description to your variation" umb-auto-resize></textarea>
+            </div>
+
+            <div class="umb-variation__create-form-actions">
+                <umb-button
+                    type="link"
+                    action="hideNewVariation()"
+                    label="Close">
+                </umb-button>
+                <umb-button
+                   type="button"
+                   button-style="success"
+                   action="createVariation(newVariation)"
+                   label="Create variation">
+                </umb-button>
+            </div>
+
+        </div>
+    </div>
+
+</div>

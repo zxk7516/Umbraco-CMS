@@ -15,7 +15,8 @@
             tabs="content.tabs"
             hide-icon="true"
             hide-description="true"
-            hide-alias="true">
+            hide-alias="true"
+            on-show-variations="showVariations">
          </umb-editor-header>
 
 
@@ -80,6 +81,20 @@
          </umb-editor-footer>
 
       </umb-editor-view>
+
+      <umb-editor-backdrop ng-if="variationsAreVisible">
+
+          <umb-variations
+            master="content"
+            variations="page.variations"
+            on-create-variation="createVariation"
+            on-click-variation="clickVariation"
+            on-clone-variation="cloneVariation"
+            on-delete-variation="deleteVariation">
+          </umb-variations>
+
+
+      </umb-editor-backdrop>
 
    </form>
 </div>
