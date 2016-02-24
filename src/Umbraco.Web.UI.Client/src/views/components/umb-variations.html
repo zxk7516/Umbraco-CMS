@@ -3,10 +3,10 @@
     <div ng-if="!newVariationIsVisible">
         <div class="umb-variations__title-wrapper">
             <div class="umb-variations__title">Variations ({{ variations.length }})</div>
-            <a href="" class="umb-variations__create-new" ng-click="showNewVariation()">Create variation</a>
+            <a href="" class="umb-variations__create-new" ng-click="showNewVariation()">Create new variation</a>
         </div>
 
-        <small class="umb-variations__help-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec vulputate velit a velit consectetur luctus. Etiam in malesuada turpis.</small>
+        <p class="umb-variations__help-text">Manage multiple variations of your content here. Create, duplicate or delete variations.</p>
 
         <input class="umb-variations__filter -full-width-input" ng-show="variations.length > 4" ng-model="searchTerm" placeholder="Filter variations"></input>
 
@@ -39,8 +39,8 @@
                     <div class="umb-variations__name-wrapper">
                         <div class="umb-variations__published-state" ng-if="!variation.editMode"></div>
                         <div class="umb-variations__name" ng-if="!variation.editMode">{{ variation.name }}</div>
-                        <div ng-if="variation.editMode">
-                            <label>Name</label>
+                        <div class="umb-variations__edit-form" ng-if="variation.editMode">
+                            <label>Variant name</label>
                             <input class="umb-variations__name-input -full-width-input" ng-model="variation.name" placeholder="Enter variation name..." focus-when="{{variation.editMode}}" />
                         </div>
                     </div>
@@ -61,15 +61,16 @@
 
                 <div class="umb-variations__description" ng-if="!variation.editMode">{{ variation.description }}</div>
 
-                <div ng-if="variation.editMode">
-                    <label>Description</label>
+                <div class="umb-variations__edit-form" ng-if="variation.editMode">
+                    <label>Variant description</label>
                     <textarea class="umb-variations__description -full-width-textarea" ng-model="variation.description" umb-auto-resize></textarea>
                 </div>
 
-                <div ng-if="variation.editMode">
+                <div class="umb-variations__actions" ng-if="variation.editMode">
 
                     <umb-button
                         type="link"
+                        button-style="link"
                         action="closeVariationEditMode(variation)"
                         label="Cancel">
                     </umb-button>
@@ -109,6 +110,7 @@
             <div class="umb-variation__create-form-actions">
                 <umb-button
                     type="link"
+                    button-style="link"
                     action="hideNewVariation()"
                     label="Close">
                 </umb-button>

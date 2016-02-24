@@ -97,14 +97,18 @@
     font-weight: bold;
 }
 
+.umb-variations__edit-form {
+    width: 100%;
+}
+
 .umb-variations__name-input:focus,
 .umb-variations__name-input:active {
     outline: none;
 }
 
 .umb-variations__description {
-    font-size: 11px;
-    line-height: 1.5em;
+    font-size: 13px;
+    line-height: 1.5;
     margin-bottom: 0;
     resize: none;
 }
@@ -117,6 +121,7 @@
 .umb-variations__actions {
     display: flex;
     flex-direction: row;
+    justify-content: flex-end;
 }
 
 .umb-variations__action {
@@ -148,11 +153,20 @@
 	flex-direction: column;
 }
 
-.umb-variation__create-form label {
+.umb-variation__form label,
+.umb-variations__edit-form label {
 	font-weight: bold;
 }
 
 .umb-variation__create-form-actions {
 	display: flex;
 	justify-content: flex-end;
+}
+
+.umb-variations__edit-form {
+    margin-bottom: 10px;
+}
+
+.umb-variations__edit-form + .umb-variations__actions {
+    margin-top: 30px;
 }
