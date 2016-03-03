@@ -1,4 +1,85 @@
 .umb-navigation {
     display: flex;
+    align-items: center;
+
 	background: #EEEEEE;
+
+    height: 60px;
+}
+
+
+.umb-navigation-link {
+    display: flex;
+    align-items: center;
+
+    padding: 0 30px;
+    height: 60px;
+
+    &:hover {
+        text-decoration: none;
+        background: #e2e2e2;
+    }
+
+    &:focus {
+        text-decoration: none;
+    }
+}
+
+
+.umb-navigation-link.-current {
+    color: @blue;
+}
+
+.umb-navigation-link.open {
+    background: #e2e2e2;
+}
+
+
+
+
+.umb-navigation__right {
+    display: flex;
+    align-items: center;
+
+    margin-left: auto;
+}
+
+
+#avatar-img {
+    border-radius: 50%;
+    margin: 0 0 0 10px;
+}
+
+
+
+.umb-sections__tray {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+
+    position: absolute;
+    z-index: 1;
+
+    width: 100%;
+
+    background: white;
+}
+
+.umb-sections__tray .umb-navigation-link:hover {
+    background: #ececec;
+}
+
+
+.umb-navigation-more {
+    width: 22px;
+    height: auto;
+}
+
+.umb-navigation-more__path {
+    fill: #7F7F7F;
+}
+
+.umb-navigation-link:hover .umb-navigation-more__path,
+.umb-navigation-link.open .umb-navigation-more__path {
+    fill: #000;
 }

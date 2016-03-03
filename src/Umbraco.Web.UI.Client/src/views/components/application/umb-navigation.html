@@ -9,19 +9,24 @@
         sections="sections">
     </umb-sections>
 
-    <div class="help">
-        <a href class="help" hotkey="ctrl+shift+h" ng-click="helpClick()" prevent-default>
-            <i class="icon-help-alt"></i>
-            <span><localize key="sections_help">Help</localize></span>
-        </a>
+    <div class="umb-navigation__right">
+
+        <div class="help">
+            <a class="umb-navigation-link" href class="help" hotkey="ctrl+shift+h" ng-click="helpClick()" prevent-default>
+                <i class="icon-help-alt"></i>
+                <span><localize key="sections_help">Help</localize></span>
+            </a>
+        </div>
+
+        <div>
+            <a class="umb-navigation-link" href="#" ng-click="avatarClick()" hotkey="ctrl+shift+u" title="{{user.name}}" prevent-default>
+                <span>{{user.name}}</span>
+                <img id="avatar-img" ng-src="{{avatar[0].value}}" ng-srcset="{{avatar[1].value}} 2x, {{avatar[2].value}} 3x" />
+            </a>
+        </div>
+
     </div>
 
-    <div>
-        <a href="#" ng-click="avatarClick()" hotkey="ctrl+shift+u" title="{{user.name}}" prevent-default>
-            <span>{{user.name}}</span>
-            <img id="avatar-img" ng-src="{{avatar[0].value}}" ng-srcset="{{avatar[1].value}} 2x, {{avatar[2].value}} 3x" />
-        </a>
-    </div>
 
     <!-- navigation container -->
 

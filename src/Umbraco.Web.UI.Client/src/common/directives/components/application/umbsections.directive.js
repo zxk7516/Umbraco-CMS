@@ -11,7 +11,7 @@ function sectionsDirective($timeout, $window, navigationService, treeService, se
         link: function (scope, element, attr, ctrl) {
 
             //setup scope vars
-			scope.maxSections = 7;
+			scope.maxSections = 3;
 			scope.overflowingSections = 0;
             scope.sections = [];
             scope.currentSection = appState.getSectionState("currentSection");
@@ -34,16 +34,25 @@ function sectionsDirective($timeout, $window, navigationService, treeService, se
 				sectionResource.getSections()
 					.then(function (result) {
 						scope.sections = result;
-						calculateHeight();
+
+                        // hide overflowing sections
+                        scope.totalSections = scope.sections.length;
+
+                        if(scope.totalSections > scope.maxSections){
+                            scope.needTray = true;
+                            scope.overflowingSections = scope.maxSections - scope.totalSections;
+                        }
+
+						// calculateHeight();
 					});
 			}
 
 			function calculateHeight(){
 				$timeout(function(){
 					//total height minus room for avatar and help icon
-					var height = $(window).height()-200;
+					var height = $(window).width();
 					scope.totalSections = scope.sections.length;
-					scope.maxSections = Math.floor(height / 70);
+					scope.maxSections = Math.floor(width / 70);
 					scope.needTray = false;
 
 					if(scope.totalSections > scope.maxSections){
@@ -84,7 +93,7 @@ function sectionsDirective($timeout, $window, navigationService, treeService, se
 			});
 
 			//on page resize
-			window.onresize = calculateHeight;
+			// window.onresize = calculateHeight;
 
 			scope.sectionClick = function (event, section) {
 
