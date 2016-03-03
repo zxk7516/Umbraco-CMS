@@ -1,24 +1,40 @@
 // Sections
 // -------------------------
-
-ul.sections {
-	margin: 0;
-	display: block;
-	background: @blackLight;
-	height: 100%;
-	width: 80px;
-    border-right: 1px solid @grayDark;
+.umb-sections {
+	//margin: 0;
+	//display: block;
+	//background: @blackLight;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	//height: 100%;
+	//width: 80px;
+    //border-right: 1px solid @grayDark;
 }
 
-ul.sections li {
+.umb-sections__section {
 	display: block;
-	border-left: 4px @blackLight solid;
-	-webkit-transition: all .3s linear;
-	-moz-transition: all .3s linear;
-	transition: all .3s linear;
+	padding: 0 30px;
+	//border-left: 4px @blackLight solid;
+	//-webkit-transition: all .3s linear;
+	//-moz-transition: all .3s linear;
+	//transition: all .3s linear;
 }
 
-ul.sections li [class^="icon-"]:before, 
+.umb-sections__section:hover {
+	background: #E2E2E2;
+	text-decoration: none;
+}
+
+.umb-sections__section.-current,
+.umb-sections__section:focus {
+	outline: none;
+	text-decoration: none;
+	color: @blue;
+}
+
+/*
+ul.sections li [class^="icon-"]:before,
 ul.sections li [class*=" icon-"]:before{
 	font-size: 30px;
 	margin: 1px 0 0 0;
@@ -27,12 +43,15 @@ ul.sections li [class*=" icon-"]:before{
 	-moz-transition: all .3s linear;
 	transition: all .3s linear;
 }
+*/
 
-ul.sections:hover li [class^="icon-"]:before, 
+/*
+ul.sections:hover li [class^="icon-"]:before,
 ul.sections:hover li [class*=" icon-"]:before {
 	opacity: 1
 }
-
+*/
+/*
 ul.sections li a {
 	display: block;
 	text-decoration: none;
@@ -43,7 +62,7 @@ ul.sections li a {
 	width: 100%;
 	height: 100%;
 	margin: 0 0 0 -4px;
-    cursor: pointer; // make sure IE10 displays pointer cursor for expand and help sections. 
+    cursor: pointer; // make sure IE10 displays pointer cursor for expand and help sections.
 }
 
 ul.sections a span {
@@ -59,11 +78,12 @@ ul.sections a span {
 ul.sections:hover a span {
 	opacity: 1
 }
-
+*/
 
 // Avatar, Section & Help icons
 // -------------------------
 
+/*
 ul.sections li.avatar {
 	height: 75px;
 	padding: 22px 0 2px 0;
@@ -84,7 +104,8 @@ ul.sections li.avatar a img {
 	border-radius: 50%;
 	width: 30px;
 }
-
+*/
+/*
 .faded ul.sections li {
 	opacity: 0.4
 }
@@ -101,7 +122,7 @@ ul.sections li.current a{
     padding-left: 0px;
 }
 
-ul.sections li.help {	
+ul.sections li.help {
 	margin: 0;
 	position: absolute;
 	bottom: 0;
@@ -113,9 +134,11 @@ ul.sections li.help {
 ul.sections li.help a {
 	border-bottom: none;
 }
+*/
 
 // Section slide-out tray for additional apps
 // -------------------------
+
 li.expand a, li.expand{border: none !Important;}
 
 li.expand {
@@ -125,7 +148,7 @@ li.expand {
         -o-transition: all 1s !important;
         -moz-transition: all 1s !important;
         transition: all 1s !important;
-        
+
         &:before {
             -ms-transform: rotate(180deg) !important; /* IE 9 */
             -webkit-transform: rotate(180deg) !important; /* Chrome, Safari, Opera */
@@ -147,7 +170,7 @@ ul.sections-tray {
     & > li {
         // 5px (instead of 4px) because of vertical border
         border-left-width: 5px;
-        
+
         &.current, &:hover {
             border-left-width: 5px;
         }
