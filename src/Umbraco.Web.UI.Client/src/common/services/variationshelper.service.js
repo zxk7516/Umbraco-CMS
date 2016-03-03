@@ -3,32 +3,43 @@
 
     function variationsHelper() {
 
-        var variations = [
-            {
-                "name": "EN",
-                "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque pulvinar ornare risus",
-                "published": false
-            },
-            {
-                "name": "DA",
-                "description": " Etiam at erat vitae risus sagittis porta quis vitae ex. Suspendisse finibus tellus nec purus convallis ullamcorper. Nullam finibus pharetra leo.",
-                "published": false
-            }
-        ];
+        var variations = [];
+
+        function setMaster(master) {
+            master.master = true;
+            variations.push(master);
+        }
 
         function getVariations() {
             return variations;
         }
 
         function createVariation(variation) {
-            variations.push(variation);
+            var newVariation = angular.copy(variation);
+            newVariation.master = false;
+            variations.push(newVariation);
         }
 
-        function cloneVariation(variation, event, index) {
-            var variationCopy = angular.copy(variation);
-            variationCopy.name = variationCopy.name + " Copy";
-            variationCopy.editMode = true;
-            variations.splice(index+1, 0, variationCopy);
+        function saveVariation(updatedVariation) {
+
+            for(var i = 0; i < variations.length; i++) {
+
+                var variation = variations[i];
+
+                if(variation.id === updatedVariation) {
+                    variation.name = updatedVariation.name;
+                    variation.description = updatedVariation.description;
+                }
+            }
+
+        }
+
+        function cloneVariation(variation) {
+            var variationClone = angular.copy(variation);
+            variationClone.master = false;
+            variationClone.published = false;
+            variations.push(variationClone);
+            console.log(variations);
         }
 
         function deleteVariation(variation, event, index) {
@@ -36,8 +47,10 @@
         }
 
         var service = {
+            setMaster: setMaster,
             getVariations: getVariations,
             createVariation: createVariation,
+            saveVariation: saveVariation,
             cloneVariation: cloneVariation,
             deleteVariation: deleteVariation
         };

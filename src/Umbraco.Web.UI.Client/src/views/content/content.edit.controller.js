@@ -6,7 +6,7 @@
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper) {
+function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper, localizationService) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -21,6 +21,22 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.page.isNew = $routeParams.create;
     $scope.page.buttonGroupState = "init";
     $scope.page.variations = [];
+    $scope.page.navigation = [
+        {
+            name: "Variations",
+            icon: "icon-documents",
+            action: function() {
+                $scope.showVariations();
+            }
+        },
+        {
+            name: "Actions",
+            icon: "icon-list",
+            action: function() {
+                alert("actions");
+            }
+        }
+    ];
 
     function init(content) {
 
@@ -45,8 +61,7 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
                 entityResource.getAncestors(content.id, "document")
                .then(function (anc) {
                    $scope.ancestors = anc;
-                   $scope.page.variations = variationsHelper.getVariations();
-                   console.log($scope.page.variations);
+                   variationsHelper.setMaster($scope.content);
                });
             }
         }
@@ -233,6 +248,8 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.variationsAreVisible = false;
 
     $scope.showVariations = function() {
+        $scope.page.variations = variationsHelper.getVariations();
+        console.log($scope.page.variations);
         $scope.variationsAreVisible = true;
     };
 
@@ -245,7 +262,13 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     };
 
     $scope.clickVariation = function(variation, event, index) {
-        alert("click variation");
+        $scope.content = null;
+        $scope.content = variation;
+        $scope.hideVariations();
+    };
+
+    $scope.saveVariation = function(variation, event, index) {
+        variationsHelper.saveVariation(variation);
     };
 
     $scope.cloneVariation = function(variation, event, index) {

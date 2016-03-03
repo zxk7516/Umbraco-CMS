@@ -10,13 +10,13 @@
       <umb-editor-view ng-if="!page.loading" umb-tabs>
 
          <umb-editor-header
-            menu="page.menu"
             name="content.name"
             tabs="content.tabs"
+            navigation="page.navigation"
             hide-icon="true"
             hide-description="true"
             hide-alias="true"
-            on-show-variations="showVariations">
+            variation-name="content.variationName">
          </umb-editor-header>
 
 
@@ -82,12 +82,14 @@
 
       </umb-editor-view>
 
-      <umb-editor-backdrop ng-if="variationsAreVisible">
+      <umb-editor-backdrop
+        ng-if="variationsAreVisible"
+        on-close-backdrop="hideVariations">
 
           <umb-variations
-            master="content"
             variations="page.variations"
             on-create-variation="createVariation"
+            on-save-variation="saveVariation"
             on-click-variation="clickVariation"
             on-clone-variation="cloneVariation"
             on-delete-variation="deleteVariation">

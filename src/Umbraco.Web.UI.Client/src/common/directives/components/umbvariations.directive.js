@@ -17,32 +17,56 @@
                 if(scope.onCreateVariation) {
                     scope.onCreateVariation(newVariation, event, index);
                     scope.newVariationIsVisible = false;
+                    scope.cloneVariationIsVisible = false;
                 }
             };
 
             scope.clickVariation = function(variation, event, index) {
-                if(scope.onClickVariation) {
-                    scope.onCreateVariation(variation, event, index);
+                if(scope.onClickVariation && !variation.editMode) {
+                    scope.onClickVariation(variation, event, index);
                 }
             };
 
-            scope.editVariation = function(variation) {
-                variation.editMode = true;
+            scope.openEditVariation = function(variation, event, index) {
+                scope.selectedVariation = variation;
+                scope.selectedVariation.variatonNameCopy = angular.copy(variation.variatonNameCopy);
+                scope.editVariationIsVisible = true;
+                event.stopPropagation();
             };
 
-            scope.closeVariationEditMode = function(variation) {
-                variation.editMode = false;
+            scope.hideEditVariation = function(event) {
+                scope.editVariationIsVisible = false;
             };
 
-            scope.cloneVariation = function(variation, event, index) {
+            scope.saveVariation = function(variation, event, index) {
+                if(scope.onSaveVariation) {
+                    scope.onSaveVariation(variation, event, index);
+                    scope.editVariationIsVisible = false;
+                }
+            };
+
+            scope.openCloneVariation = function(variation, event) {
+                scope.selectedVariation = angular.copy(variation);
+                scope.selectedVariation.nameCopy = angular.copy(variation.name);
+                scope.cloneVariationIsVisible = true;
+                event.stopPropagation();
+            };
+
+            scope.hideCloneVariation = function() {
+                scope.cloneVariationIsVisible = false;
+            };
+
+            scope.cloneVariation = function(variation) {
                 if(scope.onCloneVariation) {
-                    scope.onCloneVariation(variation, event, index);
+                    scope.onCloneVariation(variation);
+                    scope.cloneVariationIsVisible = false;
                 }
             };
 
             scope.deleteVariation = function(variation, event, index) {
                 if(scope.onDeleteVariation) {
                     scope.onDeleteVariation(variation, event, index);
+                    event.stopPropagation();
                 }
             };
 
@@ -53,8 +77,9 @@
             replace: true,
             templateUrl: 'views/components/umb-variations.html',
             scope: {
-                master: "=",
                 variations: "=",
+                onClickVariation: "=",
+                onSaveVariation: "=",
                 onCreateVariation: "=",
                 onCloneVariation: "=",
                 onDeleteVariation: "="

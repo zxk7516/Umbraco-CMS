@@ -25,16 +25,6 @@
                 };
             };
 
-            scope.createVariation = function() {
-                alert("fjeiofjeiow");
-            };
-
-            scope.showVariations = function() {
-                if(scope.onShowVariations) {
-                    scope.onShowVariations();
-                }
-            };
-
         }
 
         var directive = {
@@ -56,7 +46,8 @@
                 description: "=",
                 hideDescription: "@",
                 navigation: "=",
-                onShowVariations: "="
+                published: "=",
+                variationName: "=",
             },
             link: link
         };
