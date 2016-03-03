@@ -41,10 +41,10 @@ body {
 }
 
 #contentwrapper, #contentcolumn {
-  position: absolute;
-  top: 0px; bottom: 0px; right: 0px; left: 80px;
-  z-index: 10;
-  margin: 0
+  // position: absolute;
+  // top: 0px; bottom: 0px; right: 0px; left: 80px;
+  // z-index: 10;
+  // margin: 0
 }
 
 #umb-notifications-wrapper {
@@ -73,12 +73,10 @@ body {
 
 #applications {
   z-index: 1000;
-  height: 100%;
-  left: 0px;
-  top: 0;
-  bottom: 0;
-  position: absolute;
-  text-align: center
+  text-align: center;
+
+    width: 100%;
+
 }
 
 #applications-tray {
@@ -199,10 +197,10 @@ body {
     z-index:9999 !important;
 }
 
-@media (min-width: 1101px) {
-  #contentwrapper, #umb-notifications-wrapper {left: 440px;}
-  #speechbubble {left: 360px;}
-}
+// @media (min-width: 1101px) {
+//   #contentwrapper, #umb-notifications-wrapper {left: 440px;}
+//   #speechbubble {left: 360px;}
+// }
 
 //empty section modification
 .emptySection #contentwrapper, .emptySection #umb-notifications-wrapper {left: 80px;}
