@@ -13,7 +13,7 @@
           el.find("a:first").tab('show');
 
           //enable the tab drop
-          el.tabdrop();
+          //el.tabdrop();
 
         });
 
@@ -29,7 +29,7 @@
       scope.$on('$destroy', function () {
 
           //ensure to destroy tabdrop (unbinds window resize listeners)
-          el.tabdrop("destroy");
+          //el.tabdrop("destroy");
 
           unbindModelWatch();
 
