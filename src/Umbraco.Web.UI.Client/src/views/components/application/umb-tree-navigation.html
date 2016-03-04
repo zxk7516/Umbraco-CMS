@@ -1,9 +1,10 @@
 <div class="umb-tree-navigation">
 
-    <!-- the search -->
+    <!-- the search
     <div ng-controller="Umbraco.SearchController" ng-if="authenticated">
+    -->
 
-        <!-- Search form -->
+        <!-- Search form
         <form class="form-search" novalidate>
             <i class="icon-search"></i>
             <input type="text"
@@ -15,8 +16,9 @@
                 placeholder="@placeholders_search"
                 ng-keydown="navigateResults($event)"/>
         </form>
+        -->
 
-        <!-- Search results -->
+        <!-- Search results
         <div ng-show="showSearchResults">
 
             <ul class="umb-tree">
@@ -48,9 +50,12 @@
                 </li>
             </ul>
         </div>
-
+        -->
+    <!--
     </div>
+    --->
 
+    <!--
     <div ng-show="!showSearchResults">
         <umb-tree
             cachekey="_"
@@ -58,5 +63,12 @@
             section="{{currentSection}}" >
         </umb-tree>
     </div>
+    --->
+
+    <umb-tree
+        cachekey="_"
+        eventhandler="treeEventHandler"
+        section="{{currentSection}}" >
+    </umb-tree>
 
 </div>
