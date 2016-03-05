@@ -17,7 +17,11 @@
             hide-alias="true">
          </umb-editor-header>
 
-         <umb-editor-container>
+         <umb-editor-toolbar umb-tabs>
+             <umb-tabs-nav ng-if="content.tabs" model="content.tabs"></umb-tabs-nav>
+         </umb-editor-toolbar>
+
+         <umb-editor-container umb-tabs>
 
             <umb-tabs-content view="true" class="form-horizontal">
                <umb-tab id="tab{{tab.id}}" rel="{{tab.id}}" ng-repeat="tab in content.tabs">
