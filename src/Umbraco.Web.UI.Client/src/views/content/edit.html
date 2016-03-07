@@ -22,10 +22,14 @@
 
              <umb-tabs-nav ng-if="content.tabs" model="content.tabs"></umb-tabs-nav>
 
+                 <a href="" ng-click="toggleGenericProperties()">
+                     <i class="icon-info"></i>
+                 </a>
          </umb-editor-toolbar>
 
          <umb-editor-container>
 
+             <div class="umb-editor-container-test">
             <umb-tabs-content class="form-horizontal" view="true">
                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in content.tabs" rel="{{tab.id}}">
 
@@ -35,6 +39,16 @@
 
                </umb-tab>
             </umb-tabs-content>
+             </div>
+
+             <div class="umb-editor-container-sidebar" ng-if="showGenericProperties">
+
+                 <h4>Properties</h4>
+                 <umb-property ng-repeat="property in genericProperties.properties" property="property">
+                    <umb-editor model="property"></umb-editor>
+                 </umb-property>
+
+             </div>
 
          </umb-editor-container>
 

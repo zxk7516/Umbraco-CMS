@@ -20,6 +20,8 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.page.listViewPath = null;
     $scope.page.isNew = $routeParams.create;
     $scope.page.buttonGroupState = "init";
+    $scope.showGenericProperties = false;
+    $scope.genericProperties = {};
 
     function init(content) {
 
@@ -161,6 +163,8 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
                 resetLastListPageNumber($scope.content);
 
+                setGenericProperties($scope.content);
+
                 $scope.page.loading = false;
 
             });
@@ -226,6 +230,23 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
         }
 
     };
+
+    $scope.toggleGenericProperties = function() {
+        if($scope.showGenericProperties === true) {
+            $scope.showGenericProperties = false;
+        } else {
+            $scope.showGenericProperties = true;
+        }
+    };
+
+    function setGenericProperties(content) {
+        for(var i = 0; i < content.tabs.length; i++) {
+            var tab = content.tabs[i];
+            if(tab.alias === "Generic properties") {
+                $scope.genericProperties = tab;
+            }
+        }
+    }
 
 }
 

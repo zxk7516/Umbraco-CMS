@@ -119,6 +119,22 @@
 
 .umb-editor-container {
     flex: 1 1 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+}
+
+.umb-editor-container-test {
+    flex: 1 1 auto;
+    padding: 30px 20px;
+    overflow-y: auto;
+}
+
+.umb-editor-container-sidebar {
+    flex: 0 0 350px;
+    padding: 30px 20px;
+    border-left: 1px solid @grayLight;
+    overflow-y: auto;
 }
 
 .umb-editor-drawer {
@@ -128,7 +144,7 @@
 .umb-tree-navigation {
     display: flex;
     flex-direction: column;
-    flex: 0 0 350px;
+    flex: 0 0 250px;
     border-right: 1px solid @grayLight;
     overflow-y: auto;
     padding-bottom: 20px;
