@@ -10,45 +10,20 @@
       <umb-editor-view ng-if="!page.loading">
 
          <umb-editor-header
-            menu="page.menu"
             name="content.name"
-            tabs="content.tabs"
+            navigation="page.navigation"
             hide-icon="true"
             hide-description="true"
             hide-alias="true">
          </umb-editor-header>
 
-         <umb-editor-toolbar umb-tabs>
-
-             <umb-tabs-nav ng-if="content.tabs" model="content.tabs"></umb-tabs-nav>
-
-                 <a href="" ng-click="toggleGenericProperties()">
-                     <i class="icon-info"></i>
-                 </a>
-         </umb-editor-toolbar>
-
          <umb-editor-container>
 
-             <div class="umb-editor-container-test">
-            <umb-tabs-content class="form-horizontal" view="true">
-               <umb-tab id="tab{{tab.id}}" ng-repeat="tab in content.tabs" rel="{{tab.id}}">
-
-                  <umb-property ng-repeat="property in tab.properties" property="property">
-                     <umb-editor model="property"></umb-editor>
-                  </umb-property>
-
-               </umb-tab>
-            </umb-tabs-content>
-             </div>
-
-             <div class="umb-editor-container-sidebar" ng-if="showGenericProperties">
-
-                 <h4>Properties</h4>
-                 <umb-property ng-repeat="property in genericProperties.properties" property="property">
-                    <umb-editor model="property"></umb-editor>
-                 </umb-property>
-
-             </div>
+             <umb-editor-sub-views
+                ng-if="!page.loading"
+                 sub-views="page.navigation"
+                 model="content">
+             </umb-editor-sub-views>
 
          </umb-editor-container>
 

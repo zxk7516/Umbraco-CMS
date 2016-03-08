@@ -1,8 +1,9 @@
 .umb-navigation {
     display: flex;
-    flex: 0 0 50px;
+    flex: 0 0 @navigationBarHeight;
     align-items: center;
     border-bottom: 1px solid @grayLight;
+    box-sizing: border-box;
 }
 
 
@@ -107,21 +108,22 @@
 .umb-editor-wrapper {
     display: flex;
     flex-direction: column;
-
-    height: ~"(calc(~'100vh' - ~'50px'))";
+    height: ~"(calc(~'100vh' - ~'@{navigationBarHeight}'))";
 }
 
 .umb-editor-header {
-    flex: 0 0 59px;
+    flex: 0 0 @editorHeaderHeight;
     display: flex;
     align-items: center;
+    box-sizing: border-box;
 }
 
 .umb-editor-container {
     flex: 1 1 auto;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: row;
+    overflow-y: auto;
+    //display: flex;
+    //flex-direction: row;
 }
 
 .umb-editor-container-test {

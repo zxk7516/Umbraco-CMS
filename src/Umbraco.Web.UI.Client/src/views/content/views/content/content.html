@@ -1,0 +1,82 @@
+<umb-editor-sub-view ng-controller="Umbraco.Editors.Content.ContentController as vm">
+
+    <umb-editor-sub-view-header umb-tabs>
+
+        <umb-tabs-nav ng-if="model.tabs" model="model.tabs"></umb-tabs-nav>
+        <div>
+
+            <a href="" ng-repeat="tool in editorToolbar" ng-click="tool.action()">
+                <i ng-class="tool.icon"></i>
+            </a>
+
+            <a href="" ng-click="vm.toggleGenericProperties()">
+                <i class="icon-info"></i>
+            </a>
+        </div>
+
+    </umb-editor-sub-view-header>
+
+    <umb-editor-sub-view-container>
+
+        <umb-editor-sub-view-content>
+
+            <umb-tabs-content class="form-horizontal" view="true">
+                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in model.tabs" rel="{{tab.id}}">
+
+                    <umb-property ng-repeat="property in tab.properties" property="property">
+                        <umb-editor model="property"></umb-editor>
+                    </umb-property>
+
+                </umb-tab>
+            </umb-tabs-content>
+
+        </umb-editor-sub-view-content>
+
+        <umb-editor-sub-view-sidebar ng-if="vm.showGenericProperties">
+
+
+            <umb-tabs-nav style="margin-bottom: 20px;" ng-if="vm.sidebarTabs" model="vm.sidebarTabs"></umb-tabs-nav>
+
+            <umb-tabs-content>
+
+                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in vm.sidebarTabs" rel="{{tab.id}}">
+
+                    <div ng-if="tab.alias==='details'">
+                        <umb-property ng-repeat="property in vm.genericProperties.properties" property="property">
+                            <umb-editor model="property"></umb-editor>
+                        </umb-property>
+                    </div>
+
+                    <div ng-if="tab.alias==='activity'">
+                        <ul>
+                            <li>Activity item 1
+                                <a href="">Rollback</a>
+                            </li>
+                            <li>Activity item 2
+                                <a href="">Rollback</a>
+                            </li>
+                            <li>Activity item 3
+                                <a href="">Rollback</a>
+                            </li>
+                            <li>Activity item 4
+                                <a href="">Rollback</a>
+                            </li>
+                            <li>Activity item 5
+                                <a href="">Rollback</a>
+                            </li>
+                            <li>Activity item 6
+                                <a href="">Rollback</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                </umb-tab>
+
+            </umb-tabs-content>
+
+
+        </umb-editor-sub-view-sidebar>
+
+    </umb-editor-sub-view-container>
+
+</umb-editor-sub-view>
