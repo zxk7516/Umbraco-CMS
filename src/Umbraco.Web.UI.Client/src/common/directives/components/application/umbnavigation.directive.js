@@ -3,12 +3,14 @@
 * @name umbraco.directives.directive:umbNavigation
 * @restrict E
 **/
-function umbNavigationDirective() {
+function umbNavigationDirective(appState) {
     return {
         restrict: "E",    // restrict to an element
         replace: true,   // replace the html element with the template
         templateUrl: 'views/components/application/umb-navigation.html',
         link: function (scope, element, attr, ctrl) {
+
+            scope.showTreeNavigation = appState.getGlobalState("showNavigation");
 
             scope.avatarClick = function(){
 
@@ -55,10 +57,21 @@ function umbNavigationDirective() {
 
             };
 
+
             function closeHelpDialog() {
                 scope.helpDialog.show = false;
                 scope.helpDialog = null;
             }
+
+
+            scope.showTree = function () {
+                scope.showTreeNavigation = appState.getGlobalState("showNavigation");
+                if(scope.showTreeNavigation === true) {
+                    appState.setGlobalState("showNavigation", false);
+                } else {
+                    appState.setGlobalState("showNavigation", true);
+                }
+			};
 
         }
     };

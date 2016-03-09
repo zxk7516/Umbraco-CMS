@@ -4,8 +4,14 @@
     function TreeNavigation(appState) {
 
         function link(scope, el, attr, ctrl) {
-
+            scope.showTreeNavigation = false;
             scope.currentSection = appState.getSectionState("currentSection");
+
+            scope.$watch(function(){
+               return appState.getGlobalState("showNavigation");
+            }, function (newValue) {
+                scope.showTreeNavigation = newValue;
+            });
 
         }
 

@@ -157,3 +157,59 @@
 .umb-panel-header-content-wrapper {
     width: 100%;
 }
+
+
+
+.umb-toggle-tree {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    height: 50px;
+    width: 20px;
+    padding: 0 20px;
+
+    cursor: pointer;
+}
+
+.umb-toggle-icon {
+    margin: 0 auto 0 0;
+    width: 20px;
+    height: 2px;
+    background-color: @grayLight;
+    transition: all 80ms ease;
+    display: block;
+}
+
+.umb-toggle-icon:before,
+.umb-toggle-icon:after {
+    content: '';
+    width: 20px;
+    height: 2px;
+    display: block;
+    background-color: @grayLight;
+    transition: all 80ms ease;
+}
+
+.umb-toggle-icon:before {
+    transform: translate(0, -5px);
+    width: 15px;
+}
+
+.umb-toggle-icon:after {
+    transform: translate(0, 3px);
+    width: 9px;
+}
+
+.umb-toggle-tree:hover .umb-toggle-icon,
+.umb-toggle-tree:hover .umb-toggle-icon:before,
+.umb-toggle-tree:hover .umb-toggle-icon:after {
+    background-color: @grayMed;
+}
+
+.umb-toggle-tree.-open .umb-toggle-icon,
+.umb-toggle-tree.-open .umb-toggle-icon:before,
+.umb-toggle-tree.-open .umb-toggle-icon:after {
+    width: 20px;
+    background-color: @grayDark;
+}

@@ -4,6 +4,13 @@
     ng-mouseleave="leaveTree($event)"
     ng-mouseenter="enterTree($event)">
 
+    <div  class="umb-toggle-tree"
+          ng-click="showTree()"
+          ng-class="{'-open':showTreeNavigation}">
+
+        <div class="umb-toggle-icon"></div>
+    </div>
+
     <umb-sections
         ng-if="authenticated"
         sections="sections">
