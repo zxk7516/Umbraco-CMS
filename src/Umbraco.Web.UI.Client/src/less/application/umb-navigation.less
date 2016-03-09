@@ -14,10 +14,12 @@
     padding: 0 20px;
     height: 50px;
     font-size: 13px;
+    
+    cursor: pointer;
 
     &:hover {
         text-decoration: none;
-        background: #e2e2e2;
+        background: @grayLight;
     }
 
     &:focus {
@@ -31,10 +33,8 @@
 }
 
 .umb-navigation-link.open {
-    background: #e2e2e2;
+    background: @grayLight;
 }
-
-
 
 
 .umb-navigation__right {
@@ -54,15 +54,23 @@
 
 .umb-sections__tray {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: flex-start;
 
     position: absolute;
     z-index: 1;
 
-    width: 100%;
+    width: 220px;
+    top: @navigationBarHeight;
 
     background: white;
+
+    transform: translate(-42px, 0px);
+}
+
+.umb-sections__tray .umb-navigation-link {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .umb-sections__tray .umb-navigation-link:hover {

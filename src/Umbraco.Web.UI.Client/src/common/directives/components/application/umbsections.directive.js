@@ -11,7 +11,7 @@ function sectionsDirective($timeout, $window, navigationService, treeService, se
         link: function (scope, element, attr, ctrl) {
 
             //setup scope vars
-			scope.maxSections = 3;
+			scope.maxSections = 5;
 			scope.overflowingSections = 0;
             scope.sections = [];
             scope.currentSection = appState.getSectionState("currentSection");
