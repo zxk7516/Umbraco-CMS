@@ -14,7 +14,7 @@
     padding: 0 20px;
     height: 50px;
     font-size: 13px;
-    
+
     cursor: pointer;
 
     &:hover {
@@ -173,7 +173,7 @@
     align-items: center;
     justify-content: center;
 
-    height: 50px;
+    height: 49px;
     width: 20px;
     padding: 0 20px;
 
@@ -209,6 +209,11 @@
     width: 9px;
 }
 
+.umb-toggle-tree:hover,
+.umb-toggle-tree.-open {
+    background: @grayLighter;
+}
+
 .umb-toggle-tree:hover .umb-toggle-icon,
 .umb-toggle-tree:hover .umb-toggle-icon:before,
 .umb-toggle-tree:hover .umb-toggle-icon:after {
@@ -219,5 +224,5 @@
 .umb-toggle-tree.-open .umb-toggle-icon:before,
 .umb-toggle-tree.-open .umb-toggle-icon:after {
     width: 20px;
-    background-color: @grayDark;
+    background-color: @grayMed;
 }
