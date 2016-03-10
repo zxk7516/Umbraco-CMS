@@ -1,9 +1,12 @@
 (function() {
     'use strict';
 
-    function EditorHeaderDirective(iconHelper) {
+    function EditorHeaderDirective(iconHelper, variationsHelper) {
 
         function link(scope, el, attr, ctrl) {
+
+            scope.showVariationsQuickSwitch = false;
+            scope.variations = variationsHelper.getVariations();
 
             scope.openIconPicker = function() {
                 scope.dialogModel = {
@@ -23,6 +26,10 @@
                         scope.dialogModel = null;
                     }
                 };
+            };
+
+            scope.toggleVariationsQuickSwitch = function() {
+                scope.showVariationsQuickSwitch = !scope.showVariationsQuickSwitch;
             };
         }
 

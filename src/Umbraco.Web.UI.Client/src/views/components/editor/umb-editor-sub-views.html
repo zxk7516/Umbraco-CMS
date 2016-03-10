@@ -3,7 +3,7 @@
        id="sub-view-{{$index}}"
        ng-repeat="subView in subViews"
        ng-include="subView.view"
-       ng-show="activeView.name == subView.name"
+       ng-show="subView.active"
        ng-class="'sub-view-' + subView.name"
        val-sub-view>
     </div>

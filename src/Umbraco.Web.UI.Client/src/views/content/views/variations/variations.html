@@ -1,0 +1,53 @@
+<umb-editor-sub-view ng-controller="Umbraco.Editors.Content.VariationsController as vm">
+
+    <umb-editor-sub-view-container>
+
+        <umb-editor-sub-view-content>
+
+            <umb-variations
+                variations="vm.variations"
+                on-save-variation="vm.saveVariation"
+                on-click-variation="vm.clickVariation"
+                on-clone-variation="vm.cloneVariation"
+                on-delete-variation="vm.deleteVariation">
+            </umb-variations>
+
+        </umb-editor-sub-view-content>
+
+        <umb-editor-sub-view-sidebar>
+            <h5>Languages</h5>
+            <ul class="umb-variations__matches">
+                <li class="umb-variations__match">
+                    <i class="icon-umb-translation"></i>
+                    <span>Danish</span>
+                </li>
+                <li class="umb-variations__match">
+                    <i class="icon-umb-translation"></i>
+                    <span>Dutch</span>
+                </li>
+                <li class="umb-variations__match">
+                    <i class="icon-umb-translation"></i>
+                    <span>French</span>
+                </li>
+                <li class="umb-variations__match">
+                    <i class="icon-umb-translation"></i>
+                    <span>Swedish</span>
+                </li>
+            </ul>
+
+            <h5>Segments</h5>
+            <ul class="umb-variations__matches">
+                <li class="umb-variations__match">
+                    <i class="icon-user-females"></i>
+                    <span>Something</span>
+                </li>
+                <li class="umb-variations__match">
+                    <i class="icon-user-females"></i>
+                    <span>Something</span>
+                </li>
+            </ul>
+        </umb-editor-sub-view-sidebar>
+
+    </umb-editor-sub-view-container>
+
+</umb-editor-sub-view>

@@ -2,11 +2,11 @@
  * @ngdoc controller
  * @name Umbraco.Editors.Content.EditController
  * @function
- * 
+ *
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http) {
+function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -32,6 +32,21 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
             "name": "Analytics",
             "icon": "icon-activity",
             "view": "views/content/views/analytics/analytics.html"
+        },
+        {
+            "name": "Variations",
+            "icon": "icon-documents",
+            "view": "views/content/views/variations/variations.html"
+        },
+        {
+            "name": "Permissions",
+            "icon": "icon-keychain",
+            "view": "views/content/views/permissions/permissions.html"
+        },
+        {
+            "name": "Notifications",
+            "icon": "icon-megaphone",
+            "view": "views/content/views/notifications/notifications.html"
         }
     ];
 

@@ -29,6 +29,18 @@
                         required />
                    </ng-form>
 
+                   <a class="umb-variations-quick-switcher__toggle" ng-if="variations.length - 1 > 0" href="" ng-click="toggleVariationsQuickSwitch()">
+                       <i class="icon-documents"></i>
+                   </a>
+
+                   <div class="umb-variations-quick-switcher_variations shadow-depth-2" ng-if="showVariationsQuickSwitch">
+                       <a class="umb-variations-quick-switcher__variation" ng-repeat="variation in variations | filter:{ master: '!'+true }" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">{{variation.variationName}}</span>
+                           <span class="umb-variations-quick-switcher__variation-description">({{variation.variationDescription}})</span>
+                       </a>
+                   </div>
+
                   <div class="umb-panel-header-name" ng-if="nameLocked">{{ name }}</div>
 
                   <umb-generate-alias class="umb-panel-header-alias"
