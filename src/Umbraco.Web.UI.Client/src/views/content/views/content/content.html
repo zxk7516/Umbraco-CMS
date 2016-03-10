@@ -30,6 +30,10 @@
                 </umb-tab>
             </umb-tabs-content>
 
+            <umb-empty-state position="center" ng-if="model.tabs.length === 0">
+                Some text here about no content can be added
+            </umb-empty-state>
+
         </umb-editor-sub-view-content>
 
         <umb-editor-sub-view-sidebar ng-if="vm.showGenericProperties">

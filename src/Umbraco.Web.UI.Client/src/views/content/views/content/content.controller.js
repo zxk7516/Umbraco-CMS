@@ -22,6 +22,26 @@
 
         vm.toggleGenericProperties = toggleGenericProperties;
 
+        function activate() {
+            setGenericProperties($scope.model.tabs);
+            $scope.model.tabs = removeGenericPropertiesTab($scope.model.tabs);
+        }
+
+        function removeGenericPropertiesTab(tabs) {
+
+            var newTabsArray = [];
+
+            for(var i = 0; i < tabs.length; i++) {
+                var tab = tabs[i];
+                if(tab.alias !== "Generic properties") {
+                    newTabsArray.push(tab);
+                }
+            }
+
+            return newTabsArray;
+
+        }
+
         function toggleGenericProperties() {
             if(vm.showGenericProperties === true) {
                 vm.showGenericProperties = false;
@@ -30,16 +50,16 @@
             }
         }
 
-        function setGenericProperties(content) {
-            for(var i = 0; i < content.tabs.length; i++) {
-                var tab = content.tabs[i];
+        function setGenericProperties(tabs) {
+            for(var i = 0; i < tabs.length; i++) {
+                var tab = tabs[i];
                 if(tab.alias === "Generic properties") {
                     vm.genericProperties = tab;
                 }
             }
         }
 
-        setGenericProperties($scope.model);
+        activate();
 
     }
 
