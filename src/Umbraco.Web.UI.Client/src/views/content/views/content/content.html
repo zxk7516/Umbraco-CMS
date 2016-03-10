@@ -2,9 +2,11 @@
 
     <umb-editor-sub-view-header umb-tabs>
 
-        <umb-tabs-nav ng-if="model.tabs" model="model.tabs"></umb-tabs-nav>
-        <div>
+        <div class="umb-editor-sub-view-header__content-left">
+            <umb-tabs-nav ng-if="model.tabs" model="model.tabs"></umb-tabs-nav>
+        </div>
 
+        <div class="umb-editor-sub-view-header__content-right">
             <a href="" ng-repeat="tool in editorToolbar" ng-click="tool.action()">
                 <i ng-class="tool.icon"></i>
             </a>
