@@ -20,28 +20,36 @@
             hide-alias="true">
          </umb-editor-header>
 
+         <umb-editor-toolbar umb-tabs>
+             <umb-tabs-nav ng-if="dashboard.tabs" model="dashboard.tabs"></umb-tabs-nav>
+         </umb-editor-toolbar>
+
          <umb-editor-container>
 
-            <umb-tabs-content view="true">
-               <umb-tab id="tab{{tab.id}}" ng-repeat="tab in dashboard.tabs" rel="{{tab.id}}">
+             <div class="umb-editor-content">
 
-                  <div ng-repeat="property in tab.properties" ng-switch on="property.serverSide">
+                 <umb-tabs-content view="true">
+                    <umb-tab id="tab{{tab.id}}" ng-repeat="tab in dashboard.tabs" rel="{{tab.id}}">
 
-                     <div class="span12 clearfix" ng-switch-when="false">
-                        <h3 ng-show="property.caption">{{property.caption}}</h3>
-                        <div ng-include="property.path"></div>
-                     </div>
+                       <div ng-repeat="property in tab.properties" ng-switch on="property.serverSide">
 
-                     <div class="span12 umb-dashboard-control clearfix" ng-switch-when="true">
-                        <h3 ng-show="property.caption">{{property.caption}}</h3>
+                          <div ng-switch-when="false">
+                             <h3 ng-show="property.caption">{{property.caption}}</h3>
+                             <div ng-include="property.path"></div>
+                          </div>
 
-                        <iframe ng-src="dashboard/usercontrolproxy.aspx?ctrl={{ property.path}}"></iframe>
-                     </div>
+                          <div class="span12 umb-dashboard-control clearfix" ng-switch-when="true">
+                             <h3 ng-show="property.caption">{{property.caption}}</h3>
 
-                  </div>
+                             <iframe ng-src="dashboard/usercontrolproxy.aspx?ctrl={{ property.path}}"></iframe>
+                          </div>
 
-               </umb-tab>
-            </umb-tabs-content>
+                       </div>
+
+                    </umb-tab>
+                 </umb-tabs-content>
+
+             </div>
 
          </umb-editor-container>
 
