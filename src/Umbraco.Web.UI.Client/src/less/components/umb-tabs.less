@@ -8,3 +8,30 @@
     margin: 0;
     margin-right: 20px;
 }
+
+.umb-editor-sub-view-sidebar .umb-tabs-nav {
+    display: flex;
+    border-bottom: 1px solid @grayLight;
+}
+
+.umb-editor-sub-view-sidebar .umb-tabs-nav__tab {
+    border-bottom: 1px solid transparent;
+    padding-bottom: 5px;
+    transform: translate(0, 1px);
+    margin-right: 0;
+    flex: 1 1 100%;
+}
+
+.umb-editor-sub-view-sidebar .umb-tabs-nav__tab + .umb-tabs-nav__tab {
+    padding-left: 10px;
+}
+
+.umb-editor-sub-view-sidebar .umb-tabs-nav__tab:hover {
+    text-decoration: none !important;
+    border-bottom: 1px solid @blue;
+}
+
+.umb-editor-sub-view-sidebar .umb-tabs-nav__tab:focus,
+.umb-editor-sub-view-sidebar .umb-tabs-nav__tab:active {
+    text-decoration: none !important;
+}
