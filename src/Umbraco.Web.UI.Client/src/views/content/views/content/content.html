@@ -40,82 +40,95 @@
 
         <umb-editor-sub-view-sidebar ng-if="vm.showGenericProperties">
 
+            <div class="umb-editor-sub-view-sidebar-header">
+                <div class="umb-editor-sub-view-sidebar-title">
+                    Document Information
 
-            <umb-tabs-nav style="margin-bottom: 20px;" ng-if="vm.sidebarTabs" model="vm.sidebarTabs"></umb-tabs-nav>
+                    <i class="icon-wrong" ng-click="vm.toggleGenericProperties()"></i>
+                </div>
 
-            <umb-tabs-content>
+                <umb-tabs-nav ng-if="vm.sidebarTabs" model="vm.sidebarTabs"></umb-tabs-nav>
+            </div>
 
-                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in vm.sidebarTabs" rel="{{tab.id}}">
+            <div class="umb-editor-sub-view-sidebar-container">
 
-                    <div ng-if="tab.alias==='details'">
-                        <umb-property ng-repeat="property in vm.genericProperties.properties" property="property">
-                            <umb-editor model="property"></umb-editor>
-                        </umb-property>
-                    </div>
+                <umb-tabs-content>
 
-                    <div ng-if="tab.alias==='activity'">
-                        <ul class="umb-activity">
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 1
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 2
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 3
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 4
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 5
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                            <li class="umb-activity-item">
-                                <span class="umb-activity-item-name">
-                                    Activity item 6
-                                </span>
-                                <a class="umb-activity-item-rollback" href="">
-                                    Rollback
-                                    <i class="icon-refresh"></i>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                    <umb-tab id="tab{{tab.id}}" ng-repeat="tab in vm.sidebarTabs" rel="{{tab.id}}">
 
-                </umb-tab>
+                        <div ng-if="tab.alias==='details'">
+                            <umb-property ng-repeat="property in vm.genericProperties.properties" property="property">
+                                <umb-editor model="property"></umb-editor>
+                            </umb-property>
+                        </div>
 
-            </umb-tabs-content>
+                        <div ng-if="tab.alias==='activity'">
+                            <ul class="umb-activity">
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 1
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 2
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 3
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 4
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 5
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                                <li class="umb-activity-item">
+                                    <span class="umb-activity-item-name">
+                                        Activity item 6
+                                    </span>
+                                    <a class="umb-activity-item-rollback" href="">
+                                        Rollback
+                                        <i class="icon-refresh"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
 
+                    </umb-tab>
+
+                </umb-tabs-content>
+            </div>
+
+            <div class="umb-editor-sub-view-sidebar-footer">
+                flax
+            </div>
 
         </umb-editor-sub-view-sidebar>
 
