@@ -15,23 +15,72 @@
 }
 
 .umb-editor-sub-view-sidebar .umb-tabs-nav__tab {
-    border-bottom: 1px solid transparent;
-    padding-bottom: 5px;
-    transform: translate(0, 1px);
+    border-bottom: 3px solid transparent;
+    padding-bottom: 8px;
     margin-right: 0;
     flex: 1 1 100%;
-}
 
-.umb-editor-sub-view-sidebar .umb-tabs-nav__tab + .umb-tabs-nav__tab {
-    padding-left: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: @grayMed;
 }
 
 .umb-editor-sub-view-sidebar .umb-tabs-nav__tab:hover {
     text-decoration: none !important;
-    border-bottom: 1px solid @blue;
+    border-color: @blue;
+    color: @black;
 }
 
 .umb-editor-sub-view-sidebar .umb-tabs-nav__tab:focus,
 .umb-editor-sub-view-sidebar .umb-tabs-nav__tab:active {
     text-decoration: none !important;
+}
+
+
+// Umb activity demo css
+.umb-activity {
+    padding: 0;
+    margin: 0;
+}
+
+
+
+.umb-activity-item {
+    border: 1px solid transparent;
+    padding: 10px;
+
+    list-style: none;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+
+.umb-activity-item:hover {
+    border-color: @grayLight;
+}
+
+.umb-activity-item:hover .umb-activity-item-rollback i {
+    color: @blue;
+}
+
+.umb-activity-item-name {
+    display: block;
+    width: 100%;
+    font-size: 15px;
+    margin-bottom: 5px;
+}
+
+.umb-activity-item-rollback {
+    font-size: 13px;
+    color: @grayMed;
+    font-weight: normal;
+}
+
+
+
+.umb-activity-item + .umb-activity-item {
+    margin-top: 5px;
 }
