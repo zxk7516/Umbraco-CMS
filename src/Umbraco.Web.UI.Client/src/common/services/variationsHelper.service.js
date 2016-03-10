@@ -39,7 +39,6 @@
             variationClone.master = false;
             variationClone.published = false;
             variations.push(variationClone);
-            console.log(variations);
         }
 
         function deleteVariation(variation, event, index) {

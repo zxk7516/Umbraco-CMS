@@ -5,8 +5,6 @@
 
         function link(scope, el, attr, ctrl) {
 
-            console.log("from directive", scope.variations);
-
             scope.showNewVariation = function() {
                 scope.newVariationIsVisible = true;
             };
