@@ -23,15 +23,19 @@
 
          <umb-editor-container umb-tabs>
 
-            <umb-tabs-content view="true" class="form-horizontal">
-               <umb-tab id="tab{{tab.id}}" rel="{{tab.id}}" ng-repeat="tab in content.tabs">
+             <div class="umb-editor-content">
 
-                  <umb-property property="property" ng-repeat="property in tab.properties">
-                     <umb-editor model="property"></umb-editor>
-                  </umb-property>
+                 <umb-tabs-content view="true" class="form-horizontal">
+                    <umb-tab id="tab{{tab.id}}" rel="{{tab.id}}" ng-repeat="tab in content.tabs">
 
-               </umb-tab>
-            </umb-tabs-content>
+                       <umb-property property="property" ng-repeat="property in tab.properties">
+                          <umb-editor model="property"></umb-editor>
+                       </umb-property>
+
+                    </umb-tab>
+                 </umb-tabs-content>
+
+             </div>
 
          </umb-editor-container>
 
