@@ -4,6 +4,7 @@
         ng-repeat="tab in model"
         data-toggle="tab"
         href="#tab{{tab.id}}"
+        ng-hide="tab.hidden"
         val-tab>
         {{ tab.label }}
     </a>

@@ -24,22 +24,17 @@
 
         function activate() {
             setGenericProperties($scope.model.tabs);
-            $scope.model.tabs = removeGenericPropertiesTab($scope.model.tabs);
+            hideGenericPropertiesTab($scope.model.tabs);
         }
 
-        function removeGenericPropertiesTab(tabs) {
-
-            var newTabsArray = [];
+        function hideGenericPropertiesTab(tabs) {
 
             for(var i = 0; i < tabs.length; i++) {
                 var tab = tabs[i];
-                if(tab.alias !== "Generic properties") {
-                    newTabsArray.push(tab);
+                if(tab.alias === "Generic properties") {
+                    tab.hidden = true;
                 }
             }
-
-            return newTabsArray;
-
         }
 
         function toggleGenericProperties() {
