@@ -23,7 +23,7 @@
         <umb-editor-sub-view-content>
 
             <umb-tabs-content class="form-horizontal" view="true">
-                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in model.tabs" rel="{{tab.id}}">
+                <umb-tab id="tab{{tab.id}}" ng-repeat="tab in model.tabs" rel="{{tab.id}}" ng-hide="tab.hidden">
 
                     <umb-property ng-repeat="property in tab.properties" property="property">
                         <umb-editor model="property"></umb-editor>
@@ -32,7 +32,7 @@
                 </umb-tab>
             </umb-tabs-content>
 
-            <umb-empty-state position="center" ng-if="model.tabs.length === 0">
+            <umb-empty-state position="center" ng-if="model.tabs.length - 1 === 0">
                 Some text here about no content can be added
             </umb-empty-state>
 
