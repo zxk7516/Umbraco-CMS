@@ -3,7 +3,7 @@
 * @name umbraco.directives.directive:umbNavigation
 * @restrict E
 **/
-function umbNavigationDirective(appState) {
+function umbNavigationDirective(appState, $location) {
     return {
         restrict: "E",    // restrict to an element
         replace: true,   // replace the html element with the template
@@ -11,6 +11,22 @@ function umbNavigationDirective(appState) {
         link: function (scope, element, attr, ctrl) {
 
             scope.showTreeNavigation = appState.getGlobalState("showNavigation");
+
+            scope.searchClick = function() {
+                scope.searchOverlay = {
+                    view: "search",
+                    show: true,
+                    submit: function(model) {
+                        $location.path(model.selectedItem.editorPath);
+                        scope.searchOverlay.show = false;
+                        scope.searchOverlay = null;
+                    },
+                    close: function(oldModel) {
+                        scope.searchOverlay.show = false;
+                        scope.searchOverlay = null;
+                    }
+                };
+            };
 
             scope.avatarClick = function(){
 

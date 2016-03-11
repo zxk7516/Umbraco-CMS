@@ -18,6 +18,12 @@
 
     <div class="umb-navigation__right">
 
+        <div class="search">
+            <a class="umb-navigation-link" href class="help" hotkey="ctrl+shift+s" ng-click="searchClick()" prevent-default>
+                <span>Search</span>
+            </a>
+        </div>
+
         <div class="help">
             <a class="umb-navigation-link" href class="help" hotkey="ctrl+shift+h" ng-click="helpClick()" prevent-default>
                 <span><localize key="sections_help">Help</localize></span>
@@ -35,6 +41,13 @@
 
 
     <!-- navigation container -->
+
+    <umb-overlay
+        ng-if="searchOverlay.show"
+        model="searchOverlay"
+        view="searchOverlay.view"
+        position="full">
+    </umb-overlay>
 
     <umb-overlay
       ng-if="helpDialog.show"
