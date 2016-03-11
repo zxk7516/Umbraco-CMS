@@ -495,3 +495,71 @@ input.umb-panel-header-description {
 .umb-editor-drawer-content__left-side {
 	margin-right: auto;
 }
+
+
+
+
+.large-search {
+    font-size: 18px;
+    padding-top: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid @grayLight;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.large-search,
+.umb-tree.large-search-results {
+    width: 90%;
+    max-width: 960px;
+    min-width: auto;
+
+    margin: 0 auto;
+}
+
+.large-search .icon-search {
+    color: @black;
+    position: static;
+    font-size: 22px;
+}
+
+.large-search .umb-search-field {
+    border-bottom: none;
+    font-size: 22px;
+    text-indent: 10px;
+    padding-left: 0 !important;
+    line-height: 60px;
+}
+
+
+.umb-tree.large-search-results .umb-search-group-item-link {
+    padding: 10px 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: 60px;
+}
+
+.umb-tree.large-search-results .umb-search-group-item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    position: relative;
+    overflow: visible;
+}
+
+.umb-tree.large-search-results .umb-search-group-item-link .icon {
+    font-size: 24px;
+}
+
+.umb-tree.large-search-results .umb-search-group-item-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.umb-tree.large-search-results .search-subtitle {
+    padding-left: 0;
+}
