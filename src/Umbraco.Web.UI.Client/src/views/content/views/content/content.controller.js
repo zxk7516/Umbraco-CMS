@@ -18,7 +18,8 @@
             id: 2,
             label: "Activity",
             alias: "activity"
-        }];
+        }
+    ];
 
         vm.toggleGenericProperties = toggleGenericProperties;
 
