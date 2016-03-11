@@ -60,10 +60,12 @@
 
         <section id="contentwrapper">
             <umb-tree-navigation></umb-tree-navigation>
-            <div id="contentcolumn" ng-view></div>
+            <div id="contentcolumn">
+                <ng-view></ng-view>
+                <umb-notifications></umb-notifications>
+            </div>
         </section>
 
-        <umb-notifications></umb-notifications>
 
     </div>
 
