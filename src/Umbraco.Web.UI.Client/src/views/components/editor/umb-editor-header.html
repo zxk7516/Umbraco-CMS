@@ -31,10 +31,14 @@
 
                   <div class="umb-panel-header-name" ng-if="nameLocked">{{ name }}</div>
 
-                  <umb-generate-alias class="umb-panel-header-alias" 
-                                      ng-if="!hideAlias" 
-                                      alias="$parent.alias" 
-                                      alias-from="$parent.name" 
+                  <a class="umb-variations-quick-switcher__toggle" href="" ng-click="toggleVariationsQuickSwitch()">
+                      <i class="icon-documents"></i>
+                  </a>
+
+                  <umb-generate-alias class="umb-panel-header-alias"
+                                      ng-if="!hideAlias"
+                                      alias="$parent.alias"
+                                      alias-from="$parent.name"
                                       enable-lock="true"
                                       server-validation-field="Alias"></umb-generate-alias>
 

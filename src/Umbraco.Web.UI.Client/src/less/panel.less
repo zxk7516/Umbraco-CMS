@@ -493,3 +493,66 @@ input.umb-panel-header-description {
 .umb-editor-drawer-content__left-side {
 	margin-right: auto;
 }
+
+
+
+/* --- VARIATIONS --- */
+.umb-variations-quick-switcher__toggle {
+	position: absolute;
+    top: 6px;
+    right: 10px;
+	font-size: 16px;
+}
+
+.umb-variations-quick-switcher_variations {
+	position: absolute;
+	top: 40px;
+	left: 0;
+	right: 0;
+	z-index: 20;
+	background-color: #ffffff;
+	max-height: 200px;
+	overflow-y: scroll;
+}
+
+.umb-variations-quick-switcher__variation {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 10px 15px;
+}
+
+.umb-variations-quick-switcher__variation:last-child {
+	border-bottom: none;
+}
+
+.umb-variations-quick-switcher__variation:hover,
+.umb-variations-quick-switcher__variation:focus {
+	background-color: @grayLighter;
+	text-decoration: none;
+	outline: none;
+}
+
+.umb-variations-quick-switcher__variation-published-state {
+	display: block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: @grayLight;
+	margin-right: 10px;
+}
+
+.umb-variations-quick-switcher__variation-published-state.-published {
+	background-color: @green;
+}
+
+.umb-variations-quick-switcher__variation-name {
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.umb-variations-quick-switcher__variation-description {
+	font-size: 12px;
+	color: @gray;
+	margin-left: 10px;
+}
