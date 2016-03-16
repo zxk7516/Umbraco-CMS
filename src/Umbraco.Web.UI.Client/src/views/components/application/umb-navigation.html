@@ -65,8 +65,14 @@
 
             </div>
 
+            <umb-website-selector
+                websites="websites"
+                on-create-website="createWebsite"
+                on-click-website="clickWebsite">
+            </umb-website-selector>
+
             <!-- the tree -->
-            <div id="tree" class="umb-modalcolumn-body" ng-if="authenticated">
+            <div id="tree" ng-if="authenticated && websites.length > 0">
                 <umb-tree
                     cachekey="_"
                     eventhandler="treeEventHandler"
@@ -87,6 +93,12 @@
                 </umb-context-menu>
             </div>
 
+            <umb-overlay
+                ng-if="createWebsiteOverlay.show"
+                model="createWebsiteOverlay"
+                view="createWebsiteOverlay.view"
+                position="tree">
+            </umb-overlay>
 
             <!-- Tree dialogs -->
             <div id="dialog" class='umb-modalcolumn fill shadow'

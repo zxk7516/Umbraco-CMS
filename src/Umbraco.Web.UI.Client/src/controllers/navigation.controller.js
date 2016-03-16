@@ -155,6 +155,53 @@ function NavigationController($scope, $rootScope, $location, $log, $routeParams,
         }
     };
 
+    $scope.websites = [
+        {
+            name: "English",
+            language: "en-UK",
+            selected: true
+        },
+        {
+            name: "Dansk",
+            language: "da-DK",
+            selected: false
+        }
+    ];
+
+    $scope.createWebsite = function() {
+
+        $scope.createWebsiteOverlay = {
+            view: "createwebsite",
+            title: "Create website",
+            submitButtonLabel: "Create website",
+            show: true,
+            submit: function(model) {
+
+                // deselct all current sites
+                for(var i = 0; i < $scope.websites.length; i++) {
+                    var website = $scope.websites[i];
+                    website.selected = false;
+                }
+
+                // set new site to selected and push to scope
+                model.website.selected = true;
+                $scope.websites.push(model.website);
+
+                // clsoe overlay
+                $scope.createWebsiteOverlay.show = false;
+                $scope.createWebsiteOverlay = null;
+            },
+            close: function() {
+                $scope.createWebsiteOverlay.show = false;
+                $scope.createWebsiteOverlay = null;
+            }
+        };
+
+    };
+
+    $scope.clickWebsite = function(website) {
+    };
+
     //ensure to unregister from all events!
     $scope.$on('$destroy', function () {
         for (var e in evts) {

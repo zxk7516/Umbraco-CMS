@@ -1,0 +1,26 @@
+<div ng-controller="Umbraco.Overlay.CreateWebsiteOverlay as vm">
+
+    <div class="umb-control-group control-group">
+        <label>Website name</label>
+        <input type="text" ng-model="model.website.name" />
+    </div>
+
+    <div class="umb-control-group control-group">
+        <label>Website language</label>
+        <select ng-model="model.website.language">
+            <option value="aa-DJ">Afar (Djinouti) [aa-DJ]</option>
+            <option value="aa-ER">Afar (Eritrea) [aa-ER]</option>
+            <option value="aa-ET">Afar (Ethiopia) [aa-ET]</option>
+        </select>
+    </div>
+
+    <div class="umb-control-group control-group">
+        <label>Create blank</label>
+        <input type="checkbox" ng-model="model.website.blank" />
+        <label>Copy all</label>
+        <input type="checkbox" ng-model="model.website.copyAll" />
+        <label>Copy selected</label>
+        <input type="checkbox" ng-model="model.website.copySelected" />
+    </div>
+
+</div>
