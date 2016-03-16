@@ -1,7 +1,7 @@
 //used for the media picker dialog
 angular.module("umbraco")
     .controller("Umbraco.Overlays.MediaPickerController",
-        function ($scope, mediaResource, umbRequestHelper, entityResource, $log, mediaHelper, eventsService, treeService, $element, $timeout, $cookies, $cookieStore, localizationService) {
+        function ($scope, mediaResource, umbRequestHelper, entityResource, $log, mediaHelper, eventsService, treeService, $element, $timeout, $cookies, $cookieStore, localizationService, $filter) {
 
             if(!$scope.model.title) {
                 $scope.model.title = localizationService.localize("defaultdialogs_selectMedia");
@@ -102,6 +102,8 @@ angular.module("umbraco")
                    .then(function(data) {
                       $scope.searchTerm = "";
                       $scope.images = data.items ? data.items : [];
+
+                      $scope.images = $filter('orderBy')($scope.images, 'updateDate', true);
 
                       // set already selected images to selected
                       for (var folderImageIndex = 0; folderImageIndex < $scope.images.length; folderImageIndex++) {
