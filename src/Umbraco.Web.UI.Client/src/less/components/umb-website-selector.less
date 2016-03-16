@@ -32,6 +32,15 @@
     text-decoration: none;
 }
 
+.umb-website-selector__dropdown-toggle-content {
+    display: flex;
+    align-items: center;
+}
+
+.umb-website-selector__dropdown-toggle-name {
+    margin-right: 5px;
+}
+
 .umb-website-selector__dropdown {
     position: absolute;
     top: 50px;
@@ -50,11 +59,13 @@
 }
 
 .umb-website-selector__website-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding-top: 10px;
-    padding-bottom: 10px;
-    padding-left: 20px;
     padding-right: 20px;
-    display: block;
+    padding-bottom: 10px;
+    padding-left: 38px;
 }
 
 .umb-website-selector__website-link:hover,
@@ -76,18 +87,19 @@
 .umb-website-selector__dropdown-arrow {
     width: 0;
 	height: 0;
+    margin-right: 10px;
 }
 
 .umb-website-selector__dropdown-arrow.-down {
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid @gray;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid @gray;
 }
 
 .umb-website-selector__dropdown-arrow.-up {
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 6px solid @gray;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid @gray;
 }
 
 .umb-website-selector__dropdown-action:hover {

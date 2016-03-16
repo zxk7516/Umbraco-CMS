@@ -5,20 +5,24 @@
     </span>
 
     <a class="umb-website-selector__dropdown-toggle" ng-if="websites.length > 0" href="" ng-click="toggleWebsiteDropDown()">
-        <div>
-            <span>{{ selectedWebsite.name }}</span>
+        <div class="umb-website-selector__dropdown-toggle-content">
+            <span ng-if="showWebsiteDropdown" class="umb-website-selector__dropdown-arrow -up"></span>
+            <span ng-if="!showWebsiteDropdown" class="umb-website-selector__dropdown-arrow -down"></span>
+            <span class="umb-website-selector__dropdown-toggle-name">{{ selectedWebsite.name }}</span>
             <small>({{ selectedWebsite.language }})</small>
         </div>
-        <span ng-if="showWebsiteDropdown" class="umb-website-selector__dropdown-arrow -up"></span>
-        <span ng-if="!showWebsiteDropdown" class="umb-website-selector__dropdown-arrow -down"></span>
+        <div class="umb-dots"></div>
     </a>
 
     <div class="umb-website-selector__dropdown shadow-depth-3" ng-show="showWebsiteDropdown">
         <ul class="umb-website-selector__websites">
             <li class="umb-website-selector__website" ng-repeat="website in websites | filter:{ selected: '!'+true }">
                 <a class="umb-website-selector__website-link" ng-click="clickWebsite(website)" href="" ng-class="{'-selecetd': website.selected}">
-                    <span class="umb-website-selector__website-name">{{ website.name}}</span>
-                    <small>({{ website.language }})</small>
+                    <div>
+                        <span class="umb-website-selector__website-name">{{ website.name}}</span>
+                        <small>({{ website.language }})</small>
+                    </div>
+                    <div class="umb-dots"></div>
                 </a>
             </li>
         </ul>

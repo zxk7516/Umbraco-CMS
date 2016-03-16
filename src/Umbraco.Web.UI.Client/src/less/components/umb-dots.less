@@ -1,0 +1,26 @@
+.umb-dots {
+    position: relative;
+    width: 5px;
+    height: 5px;
+    background-color: @gray;
+    border-radius: 50%;
+}
+
+.umb-dots:before,
+.umb-dots:after {
+    display: block;
+    position: absolute;
+	content: '';
+    width: 5px;
+    height: 5px;
+    background-color: @gray;
+    border-radius: 50%;
+}
+
+.umb-dots:before {
+    transform: translateX(-8px);
+}
+
+.umb-dots:after {
+    transform: translateX(8px);
+}
