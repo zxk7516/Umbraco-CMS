@@ -1,7 +1,21 @@
 <div class="umb-property-editor" ng-class="{'-not-clickable': preview}">
 
-    <div class="umb-property-editor-sync__button">
+    <div class="umb-property-editor__dropdown-toggle" ng-click="toggleDropdown()">
         Syncs from _name_ &dtrif;
+    </div>
+
+    <div class="umb-property-editor__dropdown shadow-depth-2" ng-if="showDropdown" on-outside-click="closeDropdown()">
+        <ul class="umb-property-editor__dropdown-items">
+            <li class="umb-property-editor__dropdown-item">
+                <a class="umb-property-editor__dropdown-link" href="">Test 1</a>
+            </li>
+            <li class="umb-property-editor__dropdown-item">
+                <a class="umb-property-editor__dropdown-link" href="">Test 2</a>
+            </li>
+            <li class="umb-property-editor__dropdown-item">
+                <a class="umb-property-editor__dropdown-link" href="">Test 3</a>
+            </li>
+        </ul>
     </div>
 
     <div ng-include="propertyEditorView"></div>

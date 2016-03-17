@@ -19,9 +19,7 @@
     z-index: 0;
 }
 
-
-
-.umb-property-editor-sync__button {
+.umb-property-editor__dropdown-toggle {
     position: absolute;
     left: 0;
     top: 0;
@@ -31,4 +29,35 @@
     font-weight: bold;
     background: white;
     padding: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+.umb-property-editor__dropdown {
+    position: absolute;
+    z-index: 10;
+    width: 200px;
+    height: 200px;
+    background: #ffffff;
+}
+
+.umb-property-editor__dropdown-items {
+    list-style: none;
+    margin-bottom: 0;
+    margin-left: 0;
+}
+
+.umb-property-editor__dropdown-item {
+
+}
+
+
+.umb-property-editor__dropdown-link {
+    padding: 5px 20px;
+    display: block;
+
+}
+
+.umb-property-editor__dropdown-link:hover {
+    background-color: @grayLighter;
+    text-decoration: none;
 }

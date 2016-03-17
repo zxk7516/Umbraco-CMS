@@ -1,7 +1,7 @@
 /**
 * @ngdoc directive
 * @function
-* @name umbraco.directives.directive:umbPropertyEditor 
+* @name umbraco.directives.directive:umbPropertyEditor
 * @requires formController
 * @restrict E
 **/
@@ -14,10 +14,10 @@ var _umbPropertyEditor = function (umbPropEditorHelper) {
                 isPreValue: "@",
                 preview: "@"
             },
-            
+
             require: "^form",
             restrict: 'E',
-            replace: true,      
+            replace: true,
             templateUrl: 'views/components/property/umb-property-editor.html',
             link: function (scope, element, attrs, ctrl) {
 
@@ -25,10 +25,19 @@ var _umbPropertyEditor = function (umbPropEditorHelper) {
                 //it get's carried down to the child scopes of this!
                 //we'll also maintain the current form name.
                 scope[ctrl.$name] = ctrl;
+                scope.showDropdown = false;
 
                 if(!scope.model.alias){
                    scope.model.alias = Math.random().toString(36).slice(2);
                 }
+
+                scope.toggleDropdown = function() {
+                    scope.showDropdown = !scope.showDropdown;
+                };
+
+                scope.closeDropdown = function() {
+                    scope.showDropdown = false;
+                };
 
                 scope.$watch("model.view", function(val){
                     scope.propertyEditorView = umbPropEditorHelper.getViewPath(scope.model.view, scope.isPreValue);
