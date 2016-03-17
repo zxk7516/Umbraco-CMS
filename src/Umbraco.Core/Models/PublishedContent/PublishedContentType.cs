@@ -12,6 +12,7 @@ namespace Umbraco.Core.Models.PublishedContent
     public class PublishedContentType
     {
         private readonly PublishedPropertyType[] _propertyTypes;
+        private readonly HashSet<string> _compositionAliases;
 
         // fast alias-to-index xref containing both the raw alias and its lowercase version
         private readonly Dictionary<string, int> _indexes = new Dictionary<string, int>();
@@ -36,6 +37,7 @@ namespace Umbraco.Core.Models.PublishedContent
             Id = contentType.Id;
             Alias = contentType.Alias;
             ItemType = itemType;
+            _compositionAliases = new HashSet<string>(contentType.CompositionAliases(), StringComparer.InvariantCultureIgnoreCase);
             var propertyTypes = contentType.CompositionPropertyTypes
                 .Select(x => new PublishedPropertyType(this, x));
             if (itemType == PublishedItemType.Member)
@@ -45,16 +47,17 @@ namespace Umbraco.Core.Models.PublishedContent
         }
 
         // internal so it can be used for unit tests
-        internal PublishedContentType(int id, string alias, IEnumerable<PublishedPropertyType> propertyTypes)
-            : this(id, alias, PublishedItemType.Content, propertyTypes)
+        internal PublishedContentType(int id, string alias, IEnumerable<string> compositionAliases, IEnumerable<PublishedPropertyType> propertyTypes)
+            : this(id, alias, PublishedItemType.Content, compositionAliases, propertyTypes)
         { }
 
         // internal so it can be used for unit tests
-        internal PublishedContentType(int id, string alias, PublishedItemType itemType, IEnumerable<PublishedPropertyType> propertyTypes)
+        internal PublishedContentType(int id, string alias, PublishedItemType itemType, IEnumerable<string> compositionAliases, IEnumerable<PublishedPropertyType> propertyTypes)
         {
             Id = id;
             Alias = alias;
             ItemType = itemType;
+            _compositionAliases = new HashSet<string>(compositionAliases, StringComparer.InvariantCultureIgnoreCase);
             if (itemType == PublishedItemType.Member)
                 propertyTypes = WithMemberProperties(propertyTypes);
             _propertyTypes = propertyTypes.ToArray();
@@ -64,8 +67,8 @@ namespace Umbraco.Core.Models.PublishedContent
         }
 
         // create detached content type - ie does not match anything in the DB
-        internal PublishedContentType(string alias, IEnumerable<PublishedPropertyType> propertyTypes)
-            : this (0, alias, propertyTypes)
+        internal PublishedContentType(string alias, IEnumerable<string> compositionAliases, IEnumerable<PublishedPropertyType> propertyTypes)
+            : this(0, alias, compositionAliases, propertyTypes)
         { }
 
         private void InitializeIndexes()
@@ -126,6 +129,7 @@ namespace Umbraco.Core.Models.PublishedContent
         public int Id { get; private set; }
         public string Alias { get; private set; }
         public PublishedItemType ItemType { get; private set; }
+        public HashSet<string> CompositionAliases { get { return _compositionAliases; } }
 
         #endregion
 

@@ -208,7 +208,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     return indexer;
                 }
                 catch (Exception ex)
-                {                
+                {
                     LogHelper.Error<PublishedMediaCache>("Could not retrieve the InternalIndexer", ex);
                     //something didn't work, continue returning null.
                 }
@@ -252,6 +252,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             // it is called, but at least it should NOT hit the database
             // nor Lucene each time, relying on the memory cache instead
 
+	        if (id <= 0) return null; // fail fast
+
 	        var cacheValues = GetCacheValues(id, GetUmbracoMediaCacheValues);
 
 	        return cacheValues == null ? null : CreateFromCacheValues(cacheValues);
@@ -267,11 +269,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 				{
 					//first check in Examine as this is WAY faster
 					var criteria = searchProvider.CreateSearchCriteria("media");
-				    
+
                     var filter = criteria.Id(id).Not().Field(UmbracoContentIndexer.IndexPathFieldName, "-1,-21,".MultipleCharacterWildcard());
                     //the above filter will create a query like this, NOTE: That since the use of the wildcard, it automatically escapes it in Lucene.
                     //+(+__NodeId:3113 -__Path:-1,-21,*) +__IndexType:media
-                    
+
 					var results = searchProvider.Search(filter.Compile());
 					if (results.Any())
 					{
@@ -285,7 +287,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 					//Catch the exception here for the time being, and just fallback to GetMedia
 					//TODO: Need to fix examine in LB scenarios!
                     LogHelper.Error<PublishedMediaCache>("Could not load data from Examine index for media", ex);
-				}	
+				}
 			}
 
             LogHelper.Warn<PublishedMediaCache>(
@@ -301,8 +303,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 	    {
             if (media != null && media.Current != null)
             {
-                return media.Current.Name.InvariantEquals("error") 
-                    ? null 
+                return media.Current.Name.InvariantEquals("error")
+                    ? null
                     : ConvertFromXPathNavigator(media.Current);
             }
 
@@ -315,10 +317,10 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
 		internal CacheValues ConvertFromSearchResult(SearchResult searchResult)
 		{
-			//NOTE: Some fields will not be included if the config section for the internal index has been 
+			//NOTE: Some fields will not be included if the config section for the internal index has been
             //mucked around with. It should index everything and so the index definition should simply be:
             // <IndexSet SetName="InternalIndexSet" IndexPath="~/App_Data/TEMP/ExamineIndexes/Internal/" />
-			
+
 
 			var values = new Dictionary<string, string>(searchResult.Fields);
 			//we need to ensure some fields exist, because of the above issue
@@ -363,7 +365,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			{
 			    values["nodeTypeAlias"] = xpath.Name;
 			}
-			
+
 			var result = xpath.SelectChildren(XPathNodeType.Element);
 			//add the attributes e.g. id, parentId etc
 			if (result.Current != null && result.Current.HasAttributes)
@@ -380,7 +382,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 						if (values.ContainsKey(result.Current.Name) == false)
 						{
 						    values[result.Current.Name] = result.Current.Value;
-						}						
+						}
 					}
 					result.Current.MoveToParent();
 				}
@@ -413,8 +415,8 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		}
 
 		/// <summary>
-		/// We will need to first check if the document was loaded by Examine, if so we'll need to check if this property exists 
-		/// in the results, if it does not, then we'll have to revert to looking up in the db. 
+		/// We will need to first check if the document was loaded by Examine, if so we'll need to check if this property exists
+		/// in the results, if it does not, then we'll have to revert to looking up in the db.
 		/// </summary>
 		/// <param name="dd"> </param>
 		/// <param name="alias"></param>
@@ -449,7 +451,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		/// <param name="xpath"></param>
 		/// <returns></returns>
 		private IEnumerable<IPublishedContent> GetChildrenMedia(int parentId, XPathNavigator xpath = null)
-		{	
+		{
 
 			//if there is no navigator, try examine first, then re-look it up
 			if (xpath == null)
@@ -462,7 +464,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 					{
 						//first check in Examine as this is WAY faster
 						var criteria = searchProvider.CreateSearchCriteria("media");
-                        
+
                         var filter = criteria.ParentId(parentId).Not().Field(UmbracoContentIndexer.IndexPathFieldName, "-1,-21,".MultipleCharacterWildcard());
                         //the above filter will create a query like this, NOTE: That since the use of the wildcard, it automatically escapes it in Lucene.
                         //+(+parentId:3113 -__Path:-1,-21,*) +__IndexType:media
@@ -483,7 +485,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                         {
                             results = searchProvider.Search(filter.Compile());
                         }
-						
+
 						if (results.Any())
 						{
                             // var medias = results.Select(ConvertFromSearchResult);
@@ -510,7 +512,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 						//Currently examine is throwing FileNotFound exceptions when we have a loadbalanced filestore and a node is published in umbraco
 						//See this thread: http://examine.cdodeplex.com/discussions/264341
 						//Catch the exception here for the time being, and just fallback to GetMedia
-					}	
+					}
 				}
 
                 //falling back to get media
@@ -562,13 +564,13 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             //    // will leave it here as it must have done something!
             //    if (x.Name != "contents")
             //    {
-            //        //make sure it's actually a node, not a property 
+            //        //make sure it's actually a node, not a property
             //        if (!string.IsNullOrEmpty(x.GetAttribute("path", "")) &&
             //            !string.IsNullOrEmpty(x.GetAttribute("id", "")))
             //        {
             //            mediaList.Add(ConvertFromXPathNavigator(x));
             //        }
-            //    }	
+            //    }
             //}
 
 			return mediaList;
@@ -578,7 +580,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 		/// An IPublishedContent that is represented all by a dictionary.
 		/// </summary>
 		/// <remarks>
-		/// This is a helper class and definitely not intended for public use, it expects that all of the values required 
+		/// This is a helper class and definitely not intended for public use, it expects that all of the values required
 		/// to create an IPublishedContent exist in the dictionary by specific aliases.
 		/// </remarks>
 		internal class DictionaryPublishedContent : PublishedContentWithKeyBase
@@ -592,7 +594,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             private static readonly string[] IgnoredKeys = { "version", "isDoc" };
 
 			public DictionaryPublishedContent(
-				IDictionary<string, string> valueDictionary, 
+				IDictionary<string, string> valueDictionary,
 				Func<int, IPublishedContent> getParent,
 				Func<int, XPathNavigator, IEnumerable<IPublishedContent>> getChildren,
 				Func<DictionaryPublishedContent, string, IPublishedProperty> getProperty,
@@ -636,7 +638,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 						if (int.TryParse(val, out pId))
 						{
 							ParentId = pId;
-						}						
+						}
 					}, "parentID");
 
 			    _contentType = contentTypeCache.Get(PublishedItemType.Media, _documentTypeAlias);
@@ -651,7 +653,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
                     string value;
                     const bool isPreviewing = false; // false :: never preview a media
                     var property = valueDictionary.TryGetValue(alias, out value) == false
-                        ? new XmlPublishedProperty(propertyType, isPreviewing) 
+                        ? new XmlPublishedProperty(propertyType, isPreviewing)
                         : new XmlPublishedProperty(propertyType, isPreviewing, value);
                     _properties.Add(property);
 			    }
@@ -699,7 +701,7 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 			internal bool LoadedFromExamine { get; private set; }
 
 			//private readonly Func<DictionaryPublishedContent, IPublishedContent> _getParent;
-		    private readonly Lazy<IPublishedContent> _getParent; 
+		    private readonly Lazy<IPublishedContent> _getParent;
 			//private readonly Func<DictionaryPublishedContent, IEnumerable<IPublishedContent>> _getChildren;
 		    private readonly Lazy<IEnumerable<IPublishedContent>> _getChildren;
 			private readonly Func<DictionaryPublishedContent, string, IPublishedProperty> _getProperty;
@@ -967,15 +969,15 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             // we do clear a lot of things... but the cache refresher is somewhat
             // convoluted and it's hard to tell what to clear exactly ;-(
-            
+
             // clear the parent - NOT (why?)
             //var exist = (CacheValues) cache.GetCacheItem(key);
             //if (exist != null)
             //    cache.ClearCacheItem(PublishedMediaCacheKey + GetValuesValue(exist.Values, "parentID"));
-            
+
             // clear the item
             cache.ClearCacheItem(key);
-            
+
             // clear all children - in case we moved and their path has changed
 	        var fid = "/" + sid + "/";
             cache.ClearCacheObjectTypes<CacheValues>((k, v) =>

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Net;
@@ -22,9 +23,9 @@ using Umbraco.Web.Models;
 
 namespace Umbraco.Web.Editors
 {
-    //TODO:  We'll need to be careful about the security on this controller, when we start implementing 
+    //TODO:  We'll need to be careful about the security on this controller, when we start implementing
     // methods to modify content types we'll need to enforce security on the individual methods, we
-    // cannot put security on the whole controller because things like 
+    // cannot put security on the whole controller because things like
     //  GetAllowedChildren, GetPropertyTypeScaffold, GetAllPropertyTypeAliases are required for content editing.
 
     /// <summary>
@@ -126,7 +127,7 @@ namespace Umbraco.Web.Editors
         }
 
         [UmbracoTreeAuthorize(
-            Constants.Trees.DocumentTypes, Constants.Trees.Content, 
+            Constants.Trees.DocumentTypes, Constants.Trees.Content,
             Constants.Trees.MediaTypes, Constants.Trees.Media,
             Constants.Trees.MemberTypes, Constants.Trees.Members)]
         public ContentPropertyDisplay GetPropertyTypeScaffold(int id)
@@ -163,13 +164,13 @@ namespace Umbraco.Web.Editors
 
             return Request.CreateResponse(HttpStatusCode.OK);
         }
-        
+
         public HttpResponseMessage PostCreateContainer(int parentId, string name)
         {
             var result = Services.ContentTypeService.CreateContainer(parentId, name, Security.CurrentUser.Id);
 
             return result
-                ? Request.CreateResponse(HttpStatusCode.OK, result.Result) //return the id 
+                ? Request.CreateResponse(HttpStatusCode.OK, result.Result) //return the id
                 : Request.CreateNotificationValidationErrorResponse(result.Exception.Message);
         }
 
@@ -200,7 +201,7 @@ namespace Umbraco.Web.Editors
 
                         //make sure the template alias is set on the default and allowed template so we can map it back
                         ctSave.DefaultTemplate = template.Alias;
-                        
+
                     }
                 });
 
@@ -228,7 +229,7 @@ namespace Umbraco.Web.Editors
             }
             else
                 ct = new ContentType(parentId);
-            
+
             ct.Icon = "icon-document";
 
             var dto = Mapper.Map<IContentType, DocumentTypeDisplay>(ct);
@@ -299,7 +300,7 @@ namespace Umbraco.Web.Editors
         }
 
         /// <summary>
-        /// Move the media type
+        /// Move the content type
         /// </summary>
         /// <param name="move"></param>
         /// <returns></returns>
@@ -309,6 +310,18 @@ namespace Umbraco.Web.Editors
                 move,
                 getContentType: i => Services.ContentTypeService.Get(i),
                 doMove: (type, i) => Services.ContentTypeService.Move(type, i));
+        }
+
+        /// Copy the content type
+        /// </summary>
+        /// <param name="copy"></param>
+        /// <returns></returns>
+        public HttpResponseMessage PostCopy(MoveOrCopy copy)
+        {
+            return PerformCopy(
+                copy,
+                getContentType: i => Services.ContentTypeService.Get(i),
+                doCopy: (type, i) => Services.ContentTypeService.Copy(type, i));
         }
     }
 }

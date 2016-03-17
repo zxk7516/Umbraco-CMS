@@ -20,7 +20,7 @@ namespace Umbraco.Web
     /// </summary>
     public class UmbracoContext : DisposableObject, IDisposeOnRequestEnd
     {
-        private const string HttpContextItemName = "Umbraco.Web.UmbracoContext";
+        internal const string HttpContextItemName = "Umbraco.Web.UmbracoContext";
         private static readonly object Locker = new object();
 
         private bool _replacing;
@@ -478,9 +478,8 @@ namespace Umbraco.Web
                 var request = GetRequestFromContext();
                 if (request == null || request.Url == null)
                     return null;
-
-                var currentUrl = request.Url.AbsolutePath;
-                if (currentUrl.StartsWith(IOHelper.ResolveUrl(SystemDirectories.Umbraco))) return null;
+            
+                if (request.Url.IsBackOfficeRequest(HttpRuntime.AppDomainAppVirtualPath)) return null;
                 if (Security.CurrentUser == null) return null;
 
                 var previewToken = request.GetPreviewCookieValue(); // may be null or empty
