@@ -124,7 +124,7 @@ namespace Umbraco.Tests.Cache.PublishedCache
 
         private void SetGetContentByIdOverride(ContentStore2.Snapshot snapshot)
         {
-            Web.PublishedCache.NuCache.PublishedContent.GetContentByIdFunc = ((cache, preview, id) =>
+            Umbraco.Web.PublishedCache.NuCache.PublishedContent.GetContentByIdFunc = ((cache, preview, id) =>
             {
                 var n = snapshot.Get(id);
                 if (preview == false) return n.Published;

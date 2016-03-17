@@ -45,5 +45,6 @@ namespace Umbraco.Core.Services
         Attempt<OperationStatus> DeleteContainer(int containerId, int userId = 0);
 
         Attempt<OperationStatus<MoveOperationStatusType>> Move(TItem moving, int containerId);
+        Attempt<OperationStatus<TItem, MoveOperationStatusType>> Copy(TItem copying, int containerId);
     }
 }

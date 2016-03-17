@@ -744,6 +744,55 @@ namespace Umbraco.Core.Services
             return clone;
         }
 
+        public Attempt<OperationStatus<TItem, MoveOperationStatusType>> Copy(TItem toCopy, int containerId)
+        {
+            var evtMsgs = EventMessagesFactory.Get();
+
+            TItem copy;
+
+            var attempt = LRepo.WithWriteLocked(xr =>
+            {
+                using (var repo = RepositoryFactory.CreateEntityContainerRepository(xr.UnitOfWork, EntityContainer.GetContainerObjectType(ContainedObjectType)))
+                {
+                    try
+                    {
+                        if (containerId > 0)
+                        {
+                            var container = repo.Get(containerId);
+                            if (container == null)
+                                throw new DataOperationException<MoveOperationStatusType>(MoveOperationStatusType.FailedParentNotFound);
+                        }
+                        var alias = xr.Repository.GetUniqueAlias(toCopy.Alias);
+                        // fixme - that casting is somewhat ugly
+                        copy = (TItem) ((ContentTypeCompositionBase) (object) toCopy).DeepCloneWithResetIdentities(alias);
+                        copy.Name = copy.Name + " (copy)"; // might not be unique
+
+                        // if it has a parent, and the parent is a content type, unplug composition
+                        // all other compositions remain in place in the copied content type
+                        if (copy.ParentId > 0)
+                        {
+                            var parent = xr.Repository.Get(copy.ParentId);
+                            if (parent != null)
+                                copy.RemoveContentType(parent.Alias);
+                        }
+
+                        copy.ParentId = containerId;
+                        xr.Repository.AddOrUpdate(copy);
+                    }
+                    catch (DataOperationException<MoveOperationStatusType> ex)
+                    {
+                        return Attempt.Fail(new OperationStatus<TItem, MoveOperationStatusType>(null, ex.Operation, evtMsgs));
+                    }
+
+                }
+
+                return Attempt.Succeed(new OperationStatus<TItem, MoveOperationStatusType>(copy, MoveOperationStatusType.Success, evtMsgs));
+            });
+
+            // fixme no events?
+            return attempt;
+        }
+
         #endregion
 
         #region Move
