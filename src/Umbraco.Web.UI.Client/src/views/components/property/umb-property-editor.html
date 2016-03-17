@@ -1,22 +1,42 @@
 <div class="umb-property-editor" ng-class="{'-not-clickable': preview}">
 
-    <div class="umb-property-editor__dropdown-toggle" ng-click="toggleDropdown()">
-        Syncs from _name_ &dtrif;
+    <div class="umb-property-editor__dropdown-toggling">
+
+        <div class="umb-property-editor__dropdown-toggle" ng-click="toggleDropdown()">
+            <i class="icon-sync"></i>Get content from Original &nbsp; &dtrif;
+        </div>
+
+        <div class="umb-property-editor__dropdown shadow-depth-2" ng-if="showDropdown" on-outside-click="closeDropdown()">
+            <ul class="umb-property-editor__dropdown-items">
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link -sync-off" href="">
+                        <i class="icon-block"></i>Edit content
+                    </a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">Danish</a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">German</a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">Spanish</a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">Finnish</a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">Albanian</a>
+                </li>
+                <li class="umb-property-editor__dropdown-item">
+                    <a class="umb-property-editor__dropdown-link" href="">Indian</a>
+                </li>
+            </ul>
+        </div>
+
     </div>
 
-    <div class="umb-property-editor__dropdown shadow-depth-2" ng-if="showDropdown" on-outside-click="closeDropdown()">
-        <ul class="umb-property-editor__dropdown-items">
-            <li class="umb-property-editor__dropdown-item">
-                <a class="umb-property-editor__dropdown-link" href="">Test 1</a>
-            </li>
-            <li class="umb-property-editor__dropdown-item">
-                <a class="umb-property-editor__dropdown-link" href="">Test 2</a>
-            </li>
-            <li class="umb-property-editor__dropdown-item">
-                <a class="umb-property-editor__dropdown-link" href="">Test 3</a>
-            </li>
-        </ul>
-    </div>
+
 
     <div ng-include="propertyEditorView"></div>
 </div>
