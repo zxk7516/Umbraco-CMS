@@ -6,6 +6,7 @@
         var variations = [];
 
         function setMaster(master) {
+            variations = [];
             master.master = true;
             variations.push(master);
         }
