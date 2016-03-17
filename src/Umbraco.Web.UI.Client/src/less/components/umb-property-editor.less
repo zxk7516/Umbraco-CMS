@@ -1,3 +1,31 @@
 .umb-property-editor.-not-clickable {
     pointer-events: none;
 }
+
+.umb-property-editor {
+    position: relative;
+}
+
+.umb-property-editor:before {
+    content: "";
+    background-image: url('https://a.slack-edge.com/9e77/img/bkg_inactive.png');
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.umb-property-editor:after {
+    content: "Syncs from iPhone (Original) ▾";
+
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    font-weight: bold;
+    background: white;
+    padding: 0 5px 5px 0;
+}
