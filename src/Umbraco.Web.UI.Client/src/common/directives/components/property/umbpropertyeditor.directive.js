@@ -25,69 +25,15 @@ var _umbPropertyEditor = function (umbPropEditorHelper) {
                 //it get's carried down to the child scopes of this!
                 //we'll also maintain the current form name.
                 scope[ctrl.$name] = ctrl;
-                scope.showDropdown = false;
-                scope.syncsContent = true;
-                scope.selectedVariation = {};
-                scope.variations = [
-                    {
-                        name: "Danish",
-                        master: true,
-                        selected: true
-                    },
-                    {
-                        name: "German"
-                    },
-                    {
-                        name: "Spanish"
-                    },
-                    {
-                        name: "Finnish"
-                    }
-                ];
 
                 if(!scope.model.alias){
                    scope.model.alias = Math.random().toString(36).slice(2);
                 }
 
-                function activate() {
-
-                    for(var i = 0; i < scope.variations.length; i++ ) {
-                        var variation = scope.variations[i];
-                        if(variation.selected) {
-                            scope.selectedVariation = variation;
-                        }
-                    }
-                }
-
-                scope.toggleDropdown = function() {
-                    scope.showDropdown = !scope.showDropdown;
-                };
-
-                scope.closeDropdown = function() {
-                    scope.showDropdown = false;
-                };
-
-                scope.editContent = function() {
-                    scope.syncsContent = false;
-                    scope.showDropdown = false;
-                };
-
-                scope.syncContent = function(selectedVariation) {
-                    for(var i = 0; i < scope.variations.length; i++ ) {
-                        var variation = scope.variations[i];
-                        variation.selected = false;
-                    }
-                    selectedVariation.selected = true;
-                    scope.selectedVariation = selectedVariation;
-                    scope.syncsContent = true;
-                    scope.showDropdown = false;
-                };
-
                 scope.$watch("model.view", function(val){
                     scope.propertyEditorView = umbPropEditorHelper.getViewPath(scope.model.view, scope.isPreValue);
                 });
 
-                activate();
             }
         };
     };
