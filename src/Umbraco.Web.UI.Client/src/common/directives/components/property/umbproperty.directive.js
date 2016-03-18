@@ -31,6 +31,18 @@ angular.module("umbraco.directives")
                     },
                     {
                         name: "Finnish"
+                    },
+                    {
+                        name: "Albanian"
+                    },
+                    {
+                        name: "Russian"
+                    },
+                    {
+                        name: "Norwegian"
+                    },
+                    {
+                        name: "Swedish"
                     }
                 ];
 
