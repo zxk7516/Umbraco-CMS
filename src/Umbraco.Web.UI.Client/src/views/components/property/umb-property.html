@@ -25,7 +25,10 @@
                                         <i class="icon-edit"></i>Edit content
                                     </a>
                                 </li>
-                                <li class="umb-property-editor__dropdown-item" ng-repeat="variation in variations">
+                                <li class="umb-property-editor__dropdown-filter">
+                                    <input type="search"class="-full-width-input" placeholder="Search for variants" ng-model="searchTerm" umb-auto-focus>
+                                </li>
+                                <li class="umb-property-editor__dropdown-item" ng-repeat="variation in variations | filter:searchTerm">
                                     <a class="umb-property-editor__dropdown-link" ng-click="syncContent(variation)" href="">{{ variation.name }}</a>
                                 </li>
                             </ul>
