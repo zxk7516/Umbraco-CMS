@@ -9,13 +9,13 @@
                 <label class="control-label" ng-hide="property.hideLabel" for="{{property.alias}}" ng-attr-title="{{propertyAlias}}">
                     {{property.label}}
 
-                    <small ng-bind-html="property.description"></small>
+                    <small ng-if="property.description" ng-bind-html="property.description"></small>
 
                     <div class="umb-property-editor__dropdown-toggling" ng-class="{'-active' : showDropdown}">
 
                         <div class="umb-property-editor__dropdown-toggle" ng-click="toggleDropdown()">
-                            <div ng-if="syncsContent"><i class="icon-sync"></i>Gets content from {{ selectedVariation.name }} &dtrif;</div>
-                            <div ng-if="!syncsContent"><i class="icon-sync"></i> Get content from &dtrif;</div>
+                            <div ng-if="syncsContent"><i class="icon-sync"></i>from {{ selectedVariation.name }} &dtrif;</div>
+                            <div ng-if="!syncsContent"><i class="icon-sync"></i>from &dtrif;</div>
                         </div>
 
                         <div class="umb-property-editor__dropdown shadow-depth-2" ng-if="showDropdown" on-outside-click="closeDropdown()">
