@@ -14,8 +14,8 @@
                     <div class="umb-property-editor__dropdown-toggling" ng-class="{'-active' : showDropdown}">
 
                         <div class="umb-property-editor__dropdown-toggle" ng-click="toggleDropdown()">
-                            <div ng-if="syncsContent"><i class="icon-sync"></i>from {{ selectedVariation.name }} &dtrif;</div>
-                            <div ng-if="!syncsContent"><i class="icon-sync"></i>from &dtrif;</div>
+                            <div ng-if="property.variation"><i class="icon-sync"></i>from {{ property.variation.name }} &dtrif;</div>
+                            <div ng-if="!property.variation"><i class="icon-sync"></i>from &dtrif;</div>
                         </div>
 
                         <div class="umb-property-editor__dropdown shadow-depth-2" ng-if="showDropdown" on-outside-click="closeDropdown()">
