@@ -31,6 +31,10 @@
             scope.toggleVariationsQuickSwitch = function() {
                 scope.showVariationsQuickSwitch = !scope.showVariationsQuickSwitch;
             };
+
+            scope.hideVariationsQuickSwitch = function() {
+                scope.showVariationsQuickSwitch = false;
+            };
         }
 
         var directive = {

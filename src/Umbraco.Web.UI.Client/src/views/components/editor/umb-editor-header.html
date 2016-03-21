@@ -15,6 +15,10 @@
 
                <div class="umb-panel-header-title-wrapper">
 
+                   <!--
+                   <div class="umb-editor-header__published-state"></div>
+                   --->
+
                    <ng-form name="headerNameForm">
                        <input
                         type="text"
@@ -27,13 +31,56 @@
                         ng-class="{'name-is-empty': $parent.name===null || $parent.name===''}"
                         umb-auto-focus
                         required />
+                        <!--
+                        <div>
+                            <div>
+                                <i class="icon-documents"></i>
+                                <div></div>
+                            </div>
+                        </div>
+                        -->
                    </ng-form>
 
-                   <a class="umb-variations-quick-switcher__toggle" ng-if="variations.length - 1 > 0" href="" ng-click="toggleVariationsQuickSwitch()">
-                       <i class="icon-documents"></i>
+                   <!-- ng-if="variations.length - 1 > 0" -->
+                   <a class="umb-variations-quick-switcher__toggle" href="" ng-click="toggleVariationsQuickSwitch()">
+                       <!--
+                       <i class="icon-documents umb-variations-quick-switcher__toggle-icon"></i>
+                        --->
+                       <span class="umb-variations-quick-switcher__toggle-number">6</span>
+                       <span class="umb-variations-quick-switcher__toggle-arrow">&dtrif;</span>
                    </a>
 
-                   <div class="umb-variations-quick-switcher_variations shadow-depth-2" ng-if="showVariationsQuickSwitch">
+                   <div class="umb-variations-quick-switcher_variations shadow-depth-2" ng-if="showVariationsQuickSwitch" on-outside-click="hideVariationsQuickSwitch()">
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">Danish</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(Danish translation)</span>
+                       </a>
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">Dutch</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(Dutch translation)</span>
+                       </a>
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">German</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(German translation)</span>
+                       </a>
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">Italian</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(Italian translation)</span>
+                       </a>
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">Spanish</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(Spanish translation)</span>
+                       </a>
+                       <a class="umb-variations-quick-switcher__variation" href="">
+                           <span class="umb-variations-quick-switcher__variation-published-state"></span>
+                           <span class="umb-variations-quick-switcher__variation-name">Swedish</span>
+                           <span class="umb-variations-quick-switcher__variation-description">(Swedish translation)</span>
+                       </a>
                        <a class="umb-variations-quick-switcher__variation" ng-repeat="variation in variations | filter:{ master: '!'+true }" href="">
                            <span class="umb-variations-quick-switcher__variation-published-state"></span>
                            <span class="umb-variations-quick-switcher__variation-name">{{variation.variationName}}</span>
