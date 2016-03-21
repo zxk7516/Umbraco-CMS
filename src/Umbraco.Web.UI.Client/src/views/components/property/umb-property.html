@@ -22,10 +22,10 @@
 
                             <div class="umb-property-editor__dropdown-item">
                                 <a class="umb-property-editor__dropdown-link -sync-off" ng-click="editContent()" href="">
-                                    <i class="icon-edit"></i>Edit content
+                                    <i class="icon-sync"></i>Off
                                 </a>
                             </div>
-                            <div class="umb-property-editor__dropdown-filter">
+                            <div class="umb-property-editor__dropdown-filter" ng-if="variations.length > 9">
                                 <input type="search"class="-full-width-input" placeholder="Search for variants" ng-model="searchTerm" umb-auto-focus>
                             </div>
 
