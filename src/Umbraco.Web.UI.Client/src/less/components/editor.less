@@ -67,6 +67,27 @@
 	height: 10px;
 }
 
+/* ----- LANGUAGE AND VARIATION */
+.umb-editor-header__selected-variations {
+	display: flex;
+	flex-direction: row;
+	margin-top: 10px;
+}
+
+.umb-editor-header__selected-variation {
+	display: flex;
+	flex-direction: row;
+	font-size: 12px;
+}
+
+.umb-editor-header__selected-variation:first-child {
+	margin-right: 15px;
+}
+
+.umb-editor-header__selected-variation-icon {
+	margin-right: 5px;
+}
+
 /* --- VARIATIONS --- */
 .umb-variations-quick-switcher__toggle {
 	position: absolute;
@@ -103,13 +124,16 @@
 
 .umb-variations-quick-switcher_variations {
 	position: absolute;
-	top: 100%;
+	top: 30px;
 	left: 0;
 	right: 0;
 	z-index: 20;
 	background-color: #ffffff;
 	max-height: 200px;
 	overflow-y: scroll;
+	list-style: none;
+	margin-left: 0;
+	margin-bottom: 0;
 }
 
 .umb-variations-quick-switcher__variation {
@@ -119,25 +143,47 @@
 	padding: 10px 15px;
 }
 
+.umb-variations-quick-switcher__variation-stroke {
+	border-left: 1px solid @grayLight;
+	padding-left: 10px;
+}
+
+.umb-variations-quick-switcher__subnav {
+	list-style: none;
+	margin-left: 0;
+	margin-bottom: 0;
+	border-bottom: 1px dashed @grayLight;
+}
+
 .umb-variations-quick-switcher__variation:last-child {
 	border-bottom: none;
 }
 
 .umb-variations-quick-switcher__variation:hover,
 .umb-variations-quick-switcher__variation:focus {
-	background-color: @grayLighter;
 	text-decoration: none;
 	outline: none;
 }
 
+.umb-variations-quick-switcher__variation:hover,
+.umb-variations-quick-switcher__variation.-active {
+	background-color: @grayLighter;
+}
+
 .umb-variations-quick-switcher__variation-published-state {
 	display: block;
-	width: 8px;
-	height: 8px;
+	width: 6px;
+	height: 6px;
 	border-radius: 50%;
 	background-color: @grayLight;
 	margin-right: 10px;
 }
+
+.umb-variations-quick-switcher__variation-toggle {
+	font-size: 11px;
+	margin-left: auto;
+}
+
 
 .umb-variations-quick-switcher__variation-published-state.-published {
 	background-color: @green;
@@ -146,6 +192,11 @@
 .umb-variations-quick-switcher__variation-name {
 	font-size: 12px;
 	font-weight: bold;
+}
+
+.umb-variations-quick-switcher__variation-icon {
+	color: @gray;
+	margin-right: 5px;
 }
 
 .umb-variations-quick-switcher__variation-description {
