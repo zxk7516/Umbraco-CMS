@@ -45,6 +45,7 @@
                             <div class="umb-variations__name-wrapper">
                                 <i class="umb-variations__name-icon icon-documents"></i>
                                 <div class="umb-variations__name">{{ variation.name }}</div>
+                                <div class="umb-variations__description" ng-if="variation.description">({{ variation.description }})</div>
                             </div>
 
                             <div class="umb-variations__tags" ng-if="variation.segments">
@@ -53,7 +54,6 @@
 
                         </div>
 
-                        <div class="umb-variations__description" ng-if="variation.description">{{ variation.description }}</div>
                     </div>
 
                 </li>
