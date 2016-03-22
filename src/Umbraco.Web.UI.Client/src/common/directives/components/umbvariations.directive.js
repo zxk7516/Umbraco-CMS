@@ -80,7 +80,7 @@
                 },
                 {
                     language: "Italian",
-                    published: false
+                    published: true
                 },
                 {
                     language: "Spanish",

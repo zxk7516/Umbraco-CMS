@@ -22,14 +22,12 @@
                     <i class="icon-globe-alt"></i>
                     {{ language.language }}
                 </div>
-                <!--
-                <div class="umb-variations__actions">
-                    <div class="umb-variations__action" ng-click="openCloneVariation(variation, $event, $index)">
-                        <i class="icon-documents"></i>
-                        <span>Createvariation</span>
+
+                <div class="umb-variations__actions" ng-if="language.published">
+                    <div class="umb-variations__action">
+                        <span>Create variation</span>
                     </div>
                 </div>
-                --->
 
             </div>
 
@@ -60,6 +58,7 @@
 
                 </li>
             </ul>
+
         </div>
 
 
