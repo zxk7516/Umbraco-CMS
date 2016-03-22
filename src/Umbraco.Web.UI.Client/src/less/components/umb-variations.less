@@ -1,6 +1,6 @@
 .umb-variations {
     width: 100%;
-    max-width: 550px;
+    max-width: 960px;
     padding: 0 20px;
     margin-right: auto;
     margin-left: auto;
@@ -30,18 +30,90 @@
     margin-bottom: 10px;
 }
 
+/* ---------- VARIATIONS LANG GROUP ---------- */
+
+.umb-varations__lang-group {
+    border: 1px solid @grayLight;
+
+    margin-bottom: 75px;
+}
+
+.umb-varations__lang-group-info {
+    padding: 20px;
+
+    display: flex;
+}
+
+.umb-varations__lang-group-info__name {
+    font-size: 16px;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+
+    flex: 1 1 auto;
+}
+
+.umb-varations__lang-group-info__name i {
+    margin-right: 5px;
+}
+
+.umb-varations__lang-group-info__name small {
+    margin-left: 5px;
+    color: @grayMed;
+    font-weight: normal;
+    font-size: 13px;
+}
+
+.umb-varations__lang-group .umb-variations__action span {
+    font-size: 12px;
+    margin-left: 5px;
+    font-weight: bold;
+}
+
+
+.umb-varations__lang-group-info .umb-variations__action {
+    color: @blue;
+    display: flex;
+}
+
+.umb-varations__lang-group-info .umb-variations__action:hover {
+    color: @blueDark;
+}
+
+.umb-variations__no-variations {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    padding: 0 20px 40px;
+}
+
+.umb-variations__no-variations-message {
+    display: block;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #999;
+}
+
 /* ---------- VARIATIONS LIST ---------- */
 
 .umb-variations__list {
     list-style: none;
-    margin-left: 0;
-    margin-bottom: 150px;
+    margin: 0;
 }
 
 .umb-variations__list-item-wrapper {
     display: flex;
     flex-direction: row;
-    margin-bottom: 10px;
+}
+
+.umb-variations__list-item-wrapper + .umb-variations__list-item-wrapper {
+    .umb-variations__list-item {
+        border-top: 1px solid @grayLight;
+    }
 }
 
 .umb-variations__list-item {
@@ -97,8 +169,13 @@
 }
 
 .umb-variations__name {
-    font-weight: bold;
     font-size: 13px;
+    color: @grayMed;
+}
+
+.umb-variations__name span {
+    font-weight: bold;
+    color: @black;
 }
 
 .umb-variations__edit-form {
@@ -111,10 +188,13 @@
 }
 
 .umb-variations__description {
-    font-size: 12px;
     margin-bottom: 0;
-    margin-top: 10px;
+    margin-top: 8px;
     resize: none;
+
+    margin-left: 20px;
+    font-size: 13px;
+    color: @grayMed;
 }
 
 .umb-variations__description-input {
@@ -128,9 +208,16 @@
 }
 
 .umb-variations__action {
-    margin-left: 10px;
     font-size: 18px;
     cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+}
+
+.umb-variations__action + .umb-variations__action {
+    margin-left: 20px;
 }
 
 .umb-variations__action:hover {
