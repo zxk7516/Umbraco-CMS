@@ -30,12 +30,16 @@
     margin-bottom: 10px;
 }
 
-/* ---------- VARIATIONS LANG GROUP ---------- */
 
+
+/* ---------- VARIATIONS LANG GROUP ---------- */
 .umb-varations__lang-group {
     border: 1px solid @grayLight;
 
     margin-bottom: 75px;
+
+
+    border-radius: 2px;
 }
 
 .umb-varations__lang-group-info {
@@ -98,8 +102,9 @@
     color: #999;
 }
 
-/* ---------- VARIATIONS LIST ---------- */
 
+
+/* ---------- VARIATIONS LIST ---------- */
 .umb-variations__list {
     list-style: none;
     margin: 0;
@@ -114,6 +119,11 @@
     .umb-variations__list-item {
         border-top: 1px solid @grayLight;
     }
+}
+
+.umb-variations__list-item-wrapper:last-of-type .umb-variations__list-item {
+    border-bottom-right-radius: 2px;
+    border-bottom-left-radius: 2px;
 }
 
 .umb-variations__list-item {
@@ -171,6 +181,14 @@
 .umb-variations__name {
     font-size: 13px;
     color: @grayMed;
+
+    display: flex;
+    align-items: center;
+}
+
+.umb-variations__name i {
+    margin-right: 5px;
+    font-size: 16px;
 }
 
 .umb-variations__name span {
@@ -192,7 +210,6 @@
     margin-top: 8px;
     resize: none;
 
-    margin-left: 20px;
     font-size: 13px;
     color: @grayMed;
 }
@@ -224,8 +241,9 @@
     color: @blue;
 }
 
-/* --- CREATE VARIATION --- */
 
+
+/* ---------- CREATE VARIATION ---------- */
 .umb-variation__create-title {
 	color: @black;
 	font-weight: bold;
@@ -257,8 +275,9 @@
     margin-top: 30px;
 }
 
-/* MATCHES */
 
+
+/* ---------- MATCHES ---------- */
 .umb-variations__matches {
     list-style: none;
     margin-bottom: 0;

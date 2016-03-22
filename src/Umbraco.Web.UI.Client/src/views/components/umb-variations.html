@@ -15,7 +15,7 @@
             <div class="umb-varations__lang-group-info">
 
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
-                    <i class="icon-globe-alt"></i>
+                    <i class="icon-umb-translation"></i>
                     Danish
                 </div>
 
@@ -37,8 +37,12 @@
                         <div class="umb-variations__variation-top-bar">
 
                             <div class="umb-variations__name-wrapper">
-                                <div class="umb-variations__name" ng-if="variation.master">Danish - <span>Tablets</span></div>
-                                <div class="umb-variations__name" ng-if="!variation.master">Danish - <span>{{ variation.variationName }}</span></div>
+                                <div class="umb-variations__name" ng-if="variation.master">
+                                    <i class="icon-documents"></i> Danish - <span>Tablets</span>
+                                </div>
+                                <div class="umb-variations__name" ng-if="!variation.master">
+                                    <i class="icon-documents"></i> Danish - <span>{{ variation.variationName }}</span>
+                                </div>
                             </div>
 
                             <div class="umb-variations__actions">
@@ -70,7 +74,7 @@
         <div class="umb-varations__lang-group">
             <div class="umb-varations__lang-group-info">
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
-                    <i class="icon-globe-alt"></i>
+                    <i class="icon-umb-translation"></i>
                     German
                 </div>
 
@@ -92,8 +96,12 @@
                         <div class="umb-variations__variation-top-bar">
 
                             <div class="umb-variations__name-wrapper">
-                                <div class="umb-variations__name" ng-if="variation.master">German - <span>Tablets</span></div>
-                                <div class="umb-variations__name" ng-if="!variation.master">German - <span>{{ variation.variationName }}</span></div>
+                                <div class="umb-variations__name" ng-if="variation.master">
+                                    <i class="icon-documents"></i> German - <span>Tablets</span>
+                                </div>
+                                <div class="umb-variations__name" ng-if="!variation.master">
+                                    <i class="icon-documents"></i> German - <span>{{ variation.variationName }}</span>
+                                </div>
                             </div>
 
                             <div class="umb-variations__actions">
@@ -126,7 +134,7 @@
             <div class="umb-varations__lang-group-info">
 
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
-                    <i class="icon-globe-alt"></i>English
+                    <i class="icon-umb-translation"></i>English
                 </div>
             </div>
 
