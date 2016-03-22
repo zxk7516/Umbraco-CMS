@@ -95,14 +95,25 @@
     right: 0;
 	display: flex;
 	align-items: center;
-	border-left: 1px solid @grayLight;
+	border: 1px solid @grayLight;
 	padding-left: 15px;
 	padding-right: 15px;
 	height: 30px;
+
+	box-sizing: border-box;
 }
+
+.umb-variations-quick-switcher__toggle.-active,
+.umb-variations-quick-switcher__toggle.-active:hover {
+	background: @blue;
+	border-color: @blue;
+	color: @white;
+}
+
 
 .umb-variations-quick-switcher__toggle:hover {
 	background-color: @grayLighter;
+	border-color: @grayLight;
 }
 
 .umb-variations-quick-switcher__toggle:hover,
@@ -116,6 +127,8 @@
 
 .umb-variations-quick-switcher__toggle-number {
 	margin-right: 10px;
+	font-size: 13px;
+	font-weight: bold;
 }
 
 .umb-variations-quick-switcher__toggle-arrow {
@@ -127,20 +140,21 @@
 	top: 30px;
 	left: 0;
 	right: 0;
-	z-index: 20;
+	z-index: 6200;
 	background-color: #ffffff;
-	max-height: 200px;
+	max-height: 300px;
 	overflow-y: scroll;
 	list-style: none;
 	margin-left: 0;
 	margin-bottom: 0;
 }
 
+
 .umb-variations-quick-switcher__variation {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 10px 15px;
+	padding: 15px;
 }
 
 .umb-variations-quick-switcher__variation-stroke {
@@ -152,7 +166,6 @@
 	list-style: none;
 	margin-left: 0;
 	margin-bottom: 0;
-	border-bottom: 1px dashed @grayLight;
 }
 
 .umb-variations-quick-switcher__variation:last-child {
@@ -180,7 +193,7 @@
 }
 
 .umb-variations-quick-switcher__variation-toggle {
-	font-size: 11px;
+	font-size: 13px;
 	margin-left: auto;
 }
 
@@ -190,7 +203,7 @@
 }
 
 .umb-variations-quick-switcher__variation-name {
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: bold;
 }
 
