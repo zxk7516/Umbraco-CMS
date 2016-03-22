@@ -5,6 +5,93 @@
 
         function link(scope, el, attr, ctrl) {
 
+            scope.variations = [
+                {
+                    language: "Danish",
+                    master: true,
+                    published: true,
+                    variations: [
+                        {
+                            name: "Mobile",
+                            description: "Danish content for mobile",
+                            published: true,
+                            segments: [
+                                {
+                                    name: "Mobile"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    language: "Dutch",
+                    published: true,
+                    variations: [
+                        {
+                            name: "Mobile",
+                            description: "Dutch content for mobile",
+                            segments: [
+                                {
+                                    name: "Mobile"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    language: "English (United States)",
+                    published: true,
+                    variations: [
+                        {
+                            name: "Mobile",
+                            description: "English content for mobile",
+                            published: true,
+                            segments: [
+                                {
+                                    name: "Mobile"
+                                }
+                            ]
+                        },
+                        {
+                            name: "Job campaign: Front-end developer",
+                            description: "Landing page for job thing 1",
+                            published: true,
+                            segments: [
+                                {
+                                    name: "Front-end developer"
+                                }
+                            ]
+                        },
+                        {
+                            name: "Job campaign: Back-end developer",
+                            description: "Landing page for job thing 2",
+                            published: true,
+                            segments: [
+                                {
+                                    name: "Back-end developer"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    language: "German",
+                    published: true
+                },
+                {
+                    language: "Italian",
+                    published: false
+                },
+                {
+                    language: "Spanish",
+                    published: false
+                },
+                {
+                    language: "Swedish",
+                    published: false
+                }
+            ];
+
             scope.showNewVariation = function() {
                 scope.newVariationIsVisible = true;
             };

@@ -30,22 +30,32 @@
     margin-bottom: 10px;
 }
 
+.umb-varations__published-state {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: @grayLight;
+    margin-right: 10px;
+}
+
+.umb-varations__published-state.-published {
+    background-color: @green;
+}
+
 /* ---------- VARIATIONS LANG GROUP ---------- */
 
 .umb-varations__lang-group {
     border: 1px solid @grayLight;
-
-    margin-bottom: 75px;
+    margin-bottom: 30px;
 }
 
 .umb-varations__lang-group-info {
-    padding: 20px;
-
+    padding: 15px;
     display: flex;
 }
 
 .umb-varations__lang-group-info__name {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
 
     display: flex;
@@ -117,7 +127,7 @@
 }
 
 .umb-variations__list-item {
-    padding: 15px 20px;
+    padding: 15px;
     background-color: @grayLighter;
     flex: 3 1 auto;
 }
@@ -170,12 +180,12 @@
 
 .umb-variations__name {
     font-size: 13px;
-    color: @grayMed;
-}
-
-.umb-variations__name span {
     font-weight: bold;
     color: @black;
+}
+
+.umb-variations__name-icon {
+    margin-right: 5px;
 }
 
 .umb-variations__edit-form {
@@ -191,8 +201,6 @@
     margin-bottom: 0;
     margin-top: 8px;
     resize: none;
-
-    margin-left: 20px;
     font-size: 13px;
     color: @grayMed;
 }
@@ -271,4 +279,18 @@
     cursor: grab;
     border-left: 2px solid @blue;
     margin-bottom: 5px;
+}
+
+/* TAGS */
+
+.umb-variations__tags {
+
+}
+
+.umb-variations__tag {
+    background-color: @blue;
+    font-size: 11px;
+    padding-left: 5px;
+    padding-right: 5px;
+    color: #ffffff;
 }
