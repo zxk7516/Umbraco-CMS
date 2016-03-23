@@ -5,6 +5,20 @@
 
         function link(scope, el, attr, ctrl) {
 
+            scope.newVariation = {};
+
+            scope.segments = [
+                {
+                    name: "Mobile"
+                },
+                {
+                    name: "Front-end developer"
+                },
+                {
+                    name: "back-end developer"
+                }
+            ];
+
             scope.variations = [
                 {
                     language: "Danish",
@@ -92,61 +106,39 @@
                 }
             ];
 
-            scope.showNewVariation = function() {
-                scope.newVariationIsVisible = true;
+            scope.showNewVariation = function(language) {
+                language.showNewVariation = true;
             };
 
-            scope.hideNewVariation = function() {
-                scope.newVariationIsVisible = false;
+            scope.hideNewVariation = function(language) {
+                language.showNewVariation = false;
             };
 
-            scope.clickVariation = function(variation, event, index) {
-                if(scope.onClickVariation && !variation.editMode) {
-                    scope.onClickVariation(variation, event, index);
-                }
+            scope.toggleEditVariation = function(selectedVariation) {
+                selectedVariation.editVariation = !selectedVariation.editVariation;
             };
 
-            scope.openEditVariation = function(variation, event, index) {
-                scope.selectedVariation = variation;
-                scope.selectedVariation.variatonNameCopy = angular.copy(variation.variatonNameCopy);
-                scope.editVariationIsVisible = true;
-                event.stopPropagation();
+            scope.createNewVariation = function(newVariation, language) {
+                language.variations.unshift(newVariation);
+                language.showNewVariation = false;
+                scope.newVariation = {
+                    name: "",
+                    description: "",
+                    segments: []
+                };
             };
 
-            scope.hideEditVariation = function(event) {
-                scope.editVariationIsVisible = false;
+            scope.saveVariation = function(variation, language) {
+                variation.editVariation = false;
             };
 
-            scope.saveVariation = function(variation, event, index) {
-                if(scope.onSaveVariation) {
-                    scope.onSaveVariation(variation, event, index);
-                    scope.editVariationIsVisible = false;
-                }
+            scope.deleteVariation = function(variation, language) {
+                var index  = language.variations.indexOf(variation);
+                language.variations.splice(index, 1);
             };
 
-            scope.openCloneVariation = function(variation, event) {
-                scope.selectedVariation = angular.copy(variation);
-                scope.selectedVariation.nameCopy = angular.copy(variation.name);
-                scope.cloneVariationIsVisible = true;
-                event.stopPropagation();
-            };
-
-            scope.hideCloneVariation = function() {
-                scope.cloneVariationIsVisible = false;
-            };
-
-            scope.cloneVariation = function(variation) {
-                if(scope.onCloneVariation) {
-                    scope.onCloneVariation(variation);
-                    scope.cloneVariationIsVisible = false;
-                }
-            };
-
-            scope.deleteVariation = function(variation, event, index) {
-                if(scope.onDeleteVariation) {
-                    scope.onDeleteVariation(variation, event, index);
-                    event.stopPropagation();
-                }
+            scope.hideEditVariation = function(variation) {
+                variation.editVariation = false;
             };
 
         }

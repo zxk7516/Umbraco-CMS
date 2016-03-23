@@ -7,8 +7,10 @@
             <div class="umb-variations__title">Variations</div>
         </div>
 
-        <!--
+
         <p class="umb-variations__help-text">Manage multiple variations of your content here. Create, duplicate or delete variations.</p>
+
+        <!--
 
         <input class="umb-variations__filter -full-width-input" ng-show="variations.length > 4" ng-model="searchTerm" placeholder="Filter variations"></input>
         -->
@@ -24,9 +26,56 @@
                 </div>
 
                 <div class="umb-variations__actions" ng-if="language.published">
-                    <div class="umb-variations__action">
+                    <div class="umb-variations__action" ng-click="showNewVariation(language)">
                         <span>Create variation</span>
                     </div>
+                </div>
+
+            </div>
+
+            <!-- CREATE -->
+            <div class="umb-variations__edit-list-item" ng-if="language.showNewVariation">
+
+                <div class="umb-variations__form-group">
+                    <label class="umb-variations__label">Name</label>
+                    <input class="-full-width-input" type="text" ng-model="newVariation.name" umb-auto-focus />
+                </div>
+
+                <div class="umb-variations__form-group">
+                    <label class="umb-variations__label">Description</label>
+                    <input class="-full-width-input" type="text" ng-model="newVariation.description" />
+                </div>
+
+                <div class="umb-variations__form-group">
+                    <label class="umb-variations__label">Segments</label>
+
+                    <!--
+                    <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
+                       <option value="">Segments</option>
+                    </select>
+                    --->
+
+                    <div class="umb-variations__tags" ng-if="newVariation.segments">
+                        <div class="umb-variations__tag" ng-repeat="segment in newVariation.segments">{{segment.name}}</div>
+                    </div>
+                </div>
+
+                <div class="umb-variations__form-group">
+
+                    <umb-button
+                        action="createNewVariation(newVariation, language)"
+                        button-style="success"
+                        label="Create variation"
+                        type="button">
+                    </umb-button>
+
+                    <umb-button
+                        action="hideNewVariation(language)"
+                        button-style="link"
+                        label="Cancel"
+                        type="button">
+                    </umb-button>
+
                 </div>
 
             </div>
@@ -36,7 +85,8 @@
 
                 <li class="umb-variations__list-item-wrapper" ng-repeat="variation in language.variations">
 
-                    <div class="umb-variations__list-item">
+                    <!-- VIEW -->
+                    <div class="umb-variations__list-item" ng-click="toggleEditVariation(variation)" ng-class="{'-edit-mode': variation.editVariation}">
 
                         <div class="umb-variations__variation-top-bar">
 
@@ -56,109 +106,64 @@
 
                     </div>
 
+                    <!-- EDIT -->
+                    <div class="umb-variations__edit-list-item" ng-if="variation.editVariation">
+
+                        <div class="umb-variations__form-group">
+                            <label class="umb-variations__label">Name</label>
+                            <input class="-full-width-input" type="text" ng-model="variation.name" umb-auto-focus/>
+                        </div>
+
+                        <div class="umb-variations__form-group">
+                            <label class="umb-variations__label">Description</label>
+                            <input class="-full-width-input" type="text" ng-model="variation.description" />
+                        </div>
+
+                        <div class="umb-variations__form-group">
+                            <label class="umb-variations__label">Segments</label>
+                            <!--
+                            <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
+                               <option value="">Segments</option>
+                            </select>
+                            --->
+
+                            <div class="umb-variations__tags" ng-if="variation.segments">
+                                <div class="umb-variations__tag" ng-repeat="segment in variation.segments">{{segment.name}}</div>
+                            </div>
+
+                        </div>
+
+                        <div class="umb-variations__form-group">
+                            
+                            <umb-button
+                                action="saveVariation(variation, language)"
+                                button-style="success"
+                                label="Save variation"
+                                type="button">
+                            </umb-button>
+
+                            <umb-button
+                                action="deleteVariation(variation, language)"
+                                label="delete variation"
+                                type="button">
+                            </umb-button>
+
+                            <umb-button
+                                action="hideEditVariation(variation)"
+                                button-style="link"
+                                label="Cancel"
+                                type="button">
+                            </umb-button>
+
+                        </div>
+
+                    </div>
+
                 </li>
             </ul>
 
         </div>
 
-
-        <!-- VARIATIONS LANG GROUP
-        <div class="umb-varations__lang-group">
-            <div class="umb-varations__lang-group-info">
-
-                <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
-                    <i class="icon-globe-alt"></i>English
-                </div>
-            </div>
-
-            <div class="umb-variations__no-variations">
-                <div class="umb-variations__no-variations-message">
-                    It looks like you haven't created any variations yet.
-                </div>
-                <button class="btn umb-button__button btn-success" ng-click="openCloneVariation(variation, $event, $index)">
-                    Create variation
-                </button>
-            </div>
-
-        </div>
-        -->
-
-    </div>
-
-    <div class="umb-variation__create" ng-if="editVariationIsVisible">
-        <div class="umb-variation__create-title">
-            Edit "{{ selectedVariation.nameCopy }}"
-        </div>
-        <div class="umb-variations__help-text">
-            Edit variation of "{{ selectedVariation.nameCopy }}". For great examples go to umbraco.com/documentation
-        </div>
-
-        <div class="umb-variation__create-form">
-
-            <div class="umb-control-group -no-border -no-padding-bottom">
-                <label for="umb-variation__create-form-title">Title</label>
-                <input id="umb-variation-create-form-title" class="umb-variation__create-form-title -full-width-input" ng-model="selectedVariation.variationName" type="text" placeholder="Give a title to your variation" focus-when="{{editVariationIsVisible}}"/>
-            </div>
-
-            <div class="umb-control-group -no-border -no-padding-bottom">
-                <label for="umb-variation-create-form-description">Description</label>
-                <textarea class="umb-variation__create-form-description -full-width-textarea" ng-model="selectedVariation.variationDescription" name="" id="umb-variation-create-form-description" placeholder="Add a description to your variation" umb-auto-resize></textarea>
-            </div>
-
-            <div class="umb-variation__create-form-actions">
-                <umb-button
-                    type="link"
-                    button-style="link"
-                    action="hideEditVariation()"
-                    label="Close">
-                </umb-button>
-                <umb-button
-                   type="button"
-                   button-style="success"
-                   action="saveVariation(selectedVariation)"
-                   label="Save variation">
-                </umb-button>
-            </div>
-
-        </div>
-    </div>
-
-    <div class="umb-variation__create" ng-if="cloneVariationIsVisible">
-        <div class="umb-variation__create-title">
-            Copy "{{ selectedVariation.nameCopy }}"
-        </div>
-        <div class="umb-variations__help-text">
-            Copy variation of "{{ selectedVariation.nameCopy }}". For great examples go to umbraco.com/documentation
-        </div>
-
-        <div class="umb-variation__create-form">
-
-            <div class="umb-control-group -no-border -no-padding-bottom">
-                <label for="umb-variation__create-form-title">Title</label>
-                <input id="umb-variation-create-form-title" class="umb-variation__create-form-title -full-width-input" ng-model="selectedVariation.variationName" type="text" placeholder="Give a title to your variation" focus-when="{{cloneVariationIsVisible}}"/>
-            </div>
-
-            <div class="umb-control-group -no-border -no-padding-bottom">
-                <label for="umb-variation-create-form-description">Description</label>
-                <textarea class="umb-variation__create-form-description -full-width-textarea" ng-model="selectedVariation.variationDescription" name="" id="umb-variation-create-form-description" placeholder="Add a description to your variation" umb-auto-resize></textarea>
-            </div>
-
-            <div class="umb-variation__create-form-actions">
-                <umb-button
-                    type="link"
-                    button-style="link"
-                    action="hideCloneVariation($event)"
-                    label="Close">
-                </umb-button>
-                <umb-button
-                   type="button"
-                   button-style="success"
-                   action="cloneVariation(selectedVariation)"
-                   label="Make copy">
-                </umb-button>
-            </div>
-
-        </div>
     </div>
 
 </div>
