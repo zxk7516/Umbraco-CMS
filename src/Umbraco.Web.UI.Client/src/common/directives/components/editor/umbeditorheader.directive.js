@@ -8,55 +8,6 @@
             scope.showVariationsQuickSwitch = false;
             scope.variations = variationsHelper.getVariations();
 
-            scope.variations = [
-                {
-                    language: "Danish",
-                    master: true,
-                    published: true,
-                    variations: [
-                        {
-                            name: "Mobile",
-                            description: "Danish content for mobile",
-                            published: true
-                        }
-                    ]
-                },
-                {
-                    language: "Dutch",
-                    published: true,
-                    variations: [
-                        {
-                            name: "Mobile",
-                            description: "Dutch content for mobile"
-                        }
-                    ]
-                },
-                {
-                    language: "English (United States)",
-                    published: true,
-                    variations: [
-                        {
-                            name: "Mobile",
-                            description: "English content for mobile",
-                            published: true
-                        }
-                    ]
-                },
-                {
-                    language: "German",
-                    published: true
-                },
-                {
-                    language: "Italian",
-                },
-                {
-                    language: "Spanish",
-                },
-                {
-                    language: "Swedish",
-                }
-            ];
-
             scope.openIconPicker = function() {
                 scope.dialogModel = {
                     view: "iconpicker",
