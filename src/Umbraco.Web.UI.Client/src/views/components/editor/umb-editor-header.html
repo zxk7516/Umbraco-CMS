@@ -49,7 +49,7 @@
                    </ng-form>
 
                    <!-- ng-if="variations.length - 1 > 0" -->
-                   <a class="umb-variations-quick-switcher__toggle" href="" ng-click="toggleVariationsQuickSwitch()" ng-class="{'-active' : showVariationsQuickSwitch}">
+                   <a class="umb-variations-quick-switcher__toggle" ng-if="variations" href="" ng-click="toggleVariationsQuickSwitch()" ng-class="{'-active' : showVariationsQuickSwitch}">
                        <span class="umb-variations-quick-switcher__toggle-arrow">&dtrif;</span>
                    </a>
 
