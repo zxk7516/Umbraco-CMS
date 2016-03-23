@@ -36,9 +36,30 @@
                 scope.showVariationsQuickSwitch = false;
             };
 
-            scope.toggleSubItems = function(item) {
+            scope.toggleSubItems = function(item, $event) {
                 item.showSubItems = !item.showSubItems;
+                $event.preventDefault();
+                $event.stopPropagation();
+
             };
+
+            scope.selectItem = function(language, variation) {
+
+                if(language) {
+                    scope.language = language.language;
+                } else {
+                    scope.language = "";
+                }
+
+                if(variation) {
+                    scope.variation = variation.name;
+                } else {
+                    scope.variation = "";
+                }
+                
+                scope.showVariationsQuickSwitch = false;
+            };
+
         }
 
         var directive = {
