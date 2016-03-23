@@ -57,7 +57,7 @@
 
                    <ul class="umb-variations-quick-switcher_variations shadow-depth-2" ng-if="showVariationsQuickSwitch" on-outside-click="hideVariationsQuickSwitch()">
 
-                       <li ng-repeat="variation in variations">
+                       <li ng-repeat="variation in variations" ng-class="{'-active' : variation.showSubItems}">
 
                            <a class="umb-variations-quick-switcher__variation" href="">
                                <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': variation.published}"></span>
