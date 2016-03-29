@@ -137,14 +137,18 @@
     cursor: pointer;
 }
 
+.umb-variations__list-item.-edit-mode {
+    background-color: @grayLighter;
+}
+
+.umb-variations__list-item.-edit-mode:hover {
+    background-color: darken(@grayLighter, 2%);
+}
+
 .umb-variations__list-item.-active {
     background-color: @blue;
 }
 
-.umb-variations__list-item.-edit-mode {
-    background-color: rgba(0,100,205,0.04);
-
-}
 
 .umb-variations__variation-top-bar {
     display: flex;
@@ -271,8 +275,8 @@
     flex-direction: column;
     width: 100%;
     padding: 15px 30px;
-    background-color: rgba(0,100,205,0.04);
     box-sizing: border-box;
+    background-color: @grayLighter;
 }
 
 /* MATCHES */
@@ -307,7 +311,6 @@
 }
 
 /* FORM */
-
 .umb-variations__form-group {
     margin-bottom: 10px;
 }
@@ -315,4 +318,8 @@
 .umb-variations__label {
     font-weight: bold;
     color: @black;
+}
+
+.umb-variations__label + .umb-variations__tags {
+    margin-top: 10px;
 }
