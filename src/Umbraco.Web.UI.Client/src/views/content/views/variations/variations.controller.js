@@ -13,7 +13,6 @@
         vm.deleteVariation = deleteVariation;
 
         function activate() {
-            //variationsHelper.setMaster($scope.model);
             vm.variations = variationsHelper.getVariations();
         }
 

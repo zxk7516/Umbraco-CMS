@@ -66,11 +66,11 @@
 
                            <ul class="umb-variations-quick-switcher__subnav" ng-if="variation.showSubItems">
                                <li ng-repeat="test in variation.variations">
-                                   <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(variation, test)">
+                                   <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(test)">
                                        <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': test.published}"></span>
                                        <i class="umb-variations-quick-switcher__variation-icon icon-documents"></i>
-                                       <span class="umb-variations-quick-switcher__variation-name">{{ test.name }}</span>
-                                       <span class="umb-variations-quick-switcher__variation-description">({{ test.description }})</span>
+                                       <span class="umb-variations-quick-switcher__variation-name">{{ test.variationName }}</span>
+                                       <span class="umb-variations-quick-switcher__variation-description">({{ test.variationDescription }})</span>
                                    </a>
                                </li>
                            </ul>

@@ -32,13 +32,22 @@
             };
 
             scope.createNewVariation = function(newVariation, language) {
-                language.variations.unshift(newVariation);
+
+                var variation = angular.copy(language);
+                variation.variationName = newVariation.name;
+                variation.variationDescription = newVariation.description;
+                variation.segments = newVariation.segments;
+
+                language.variations.unshift(variation);
+
                 language.showNewVariation = false;
+
                 scope.newVariation = {
                     name: "",
                     description: "",
                     segments: []
                 };
+
             };
 
             scope.saveVariation = function(variation, language) {

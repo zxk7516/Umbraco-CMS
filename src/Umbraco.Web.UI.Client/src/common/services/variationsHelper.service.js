@@ -3,8 +3,9 @@
 
     function variationsHelper() {
 
-        //var variations = [];
+        var variations = [];
 
+        /*
         var variations = [
             {
                 language: "Danish",
@@ -91,6 +92,7 @@
                 published: false
             }
         ];
+        */
 
         function setMaster(master) {
             variations = [];

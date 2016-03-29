@@ -78,7 +78,28 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
                });
             }
         }
+
+        // fake variations
+        // set up English locale as master
+        var english = angular.copy(content);
+        english.language = "English (United States)";
+        english.variations = [];
+        variationsHelper.setMaster(english);
+
+        var danish = angular.copy(content);
+        danish.language = "Danish";
+        danish.name = "Hjem";
+        danish.variations = [];
+        variationsHelper.createVariation(danish);
+
+        $scope.variations = variationsHelper.getVariations();
+
     }
+
+    $scope.changeVariation = function(variation) {
+        $scope.content = null;
+        $scope.content = variation;
+    };
 
     /** Syncs the content item to it's tree node - this occurs on first load and after saving */
     function syncTreeNode(content, path, initialLoad) {

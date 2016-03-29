@@ -6,7 +6,6 @@
         function link(scope, el, attr, ctrl) {
 
             scope.showVariationsQuickSwitch = false;
-            scope.variations = variationsHelper.getVariations();
 
             scope.openIconPicker = function() {
                 scope.dialogModel = {
@@ -43,21 +42,11 @@
 
             };
 
-            scope.selectItem = function(language, variation) {
-
-                if(language) {
-                    scope.language = language.language;
-                } else {
-                    scope.language = "";
+            scope.selectItem = function(variation) {
+                if(scope.onSelectItem) {
+                    scope.onSelectItem(variation);
+                    scope.showVariationsQuickSwitch = false;
                 }
-
-                if(variation) {
-                    scope.variation = variation.name;
-                } else {
-                    scope.variation = "";
-                }
-                
-                scope.showVariationsQuickSwitch = false;
             };
 
         }
@@ -73,6 +62,10 @@
                 actions: "=",
                 name: "=",
                 nameLocked: "=",
+                variation: "=",
+                language: "=",
+                variations: "=",
+                onSelectItem: "=",
                 menu: "=",
                 icon: "=",
                 hideIcon: "@",
