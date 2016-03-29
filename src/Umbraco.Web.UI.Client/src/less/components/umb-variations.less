@@ -65,6 +65,11 @@
     flex: 1 1 auto;
 }
 
+.umb-varations__lang-group-info__link:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .umb-varations__lang-group-info__name i {
     margin-right: 5px;
 }
@@ -77,7 +82,7 @@
 }
 
 .umb-varations__lang-group .umb-variations__action span {
-    font-size: 12px;
+    font-size: 13px;
     margin-left: 5px;
     font-weight: bold;
 }
@@ -121,9 +126,7 @@
 }
 
 .umb-variations__list-item-wrapper + .umb-variations__list-item-wrapper {
-    .umb-variations__list-item {
-        border-top: 1px solid @grayLight;
-    }
+    border-top: 1px solid @grayLighter;
 }
 
 .umb-variations__list-item {
@@ -132,22 +135,20 @@
     flex: 3 1 auto;
 }
 
-.umb-variations__list-item:hover {
-    background-color: darken(@grayLighter, 2%);
+
+.umb-variations__list-item__edit {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.umb-variations__list-item__edit:hover {
+    background: rgba(0, 0, 0, 0.1);
     cursor: pointer;
 }
 
-.umb-variations__list-item.-edit-mode {
-    background-color: @grayLighter;
-}
-
-.umb-variations__list-item.-edit-mode:hover {
-    background-color: darken(@grayLighter, 2%);
-}
-
-.umb-variations__list-item.-active {
-    background-color: @blue;
-}
 
 
 .umb-variations__variation-top-bar {
@@ -183,6 +184,11 @@
     color: @black;
 }
 
+.umb-variations__name:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .umb-variations__name-icon {
     margin-right: 5px;
 }
@@ -201,7 +207,7 @@
     margin-left: 5px;
     resize: none;
     font-size: 12px;
-    color: @black;
+    color: @grayMed;
 }
 
 .umb-variations__description-input {
@@ -268,13 +274,14 @@
 
 .form-group-actions {
     margin-top: 30px;
+    margin-bottom: 0;
 }
 
 .umb-variations__edit-list-item {
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: 15px 30px;
+    padding: 20px 30px;
     box-sizing: border-box;
     background-color: @grayLighter;
 }
@@ -299,21 +306,37 @@
 
 .umb-variations__tags {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .umb-variations__tag {
-    background-color: @grayMed;
-    font-size: 11px;
-    color: #ffffff;
+    display: flex;
+    flex: 0 0 100%;
 
-    border-radius: 3px;
-    padding: 1px 6px;
+    overflow: hidden;
+    box-sizing: border-box;
+    text-overflow: ellipsis;
+
+    font-size: 13px;
+}
+
+.umb-variations__tag + .umb-variations__tag {
+    margin-top: 5px;
+}
+
+.umb-variations__tag .checkbox {
+    margin-right: 5px;
+}
+
+.umb-variations__tag .checkbox:checked + span {
+    font-weight: bold;
 }
 
 /* FORM */
 .umb-variations__form-group {
     margin-bottom: 10px;
 }
+
 
 .umb-variations__label {
     font-weight: bold;

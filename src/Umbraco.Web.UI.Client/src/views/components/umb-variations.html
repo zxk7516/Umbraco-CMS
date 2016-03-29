@@ -22,7 +22,7 @@
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
                     <div class="umb-varations__published-state" ng-class="{'-published': language.published}"></div>
                     <i class="icon-globe-alt"></i>
-                    {{ language.language }}
+                    <a href="" class="umb-varations__lang-group-info__link">{{ language.language }}</a>
                 </div>
 
                 <div class="umb-variations__actions" ng-if="language.published">
@@ -86,7 +86,7 @@
                 <li class="umb-variations__list-item-wrapper" ng-repeat="variation in language.variations">
 
                     <!-- VIEW -->
-                    <div class="umb-variations__list-item" ng-click="toggleEditVariation(variation)" ng-class="{'-edit-mode': variation.editVariation}">
+                    <div class="umb-variations__list-item"  ng-class="{'-edit-mode': variation.editVariation}">
 
                         <div class="umb-variations__variation-top-bar">
 
@@ -98,8 +98,8 @@
                                 <div class="umb-variations__description" ng-if="variation.variationDescription">({{ variation.variationDescription }})</div>
                             </div>
 
-                            <div class="umb-variations__tags" ng-if="variation.segments">
-                                <div class="umb-variations__tag" ng-repeat="segment in variation.segments">{{segment.name}}</div>
+                            <div class="umb-variations__list-item__edit" ng-click="toggleEditVariation(variation)">
+                                Edit
                             </div>
 
                         </div>
@@ -121,15 +121,43 @@
 
                         <div class="umb-variations__form-group">
                             <label class="umb-variations__label">Segments</label>
-                            <!--
-                            <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
-                               <option value="">Segments</option>
-                            </select>
-                            --->
 
-                            <div class="umb-variations__tags" ng-if="variation.segments">
-                                <div class="umb-variations__tag" ng-repeat="segment in variation.segments">{{segment.name}}</div>
+                            <!-- <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
+                               <option value="">Segments</option>
+                            </select> -->
+
+                            <div class="umb-variations__tags">
+
+                                <label class="umb-variations__tag">
+                                    <input type="checkbox" class="checkbox" checked>
+                                    <span>Mobil </span>
+                                </label>
+
+                                <label class="umb-variations__tag">
+                                    <input type="checkbox" class="checkbox" checked>
+                                    <span>Tablet </span>
+                                </label>
+
+                                <label class="umb-variations__tag">
+                                    <input type="checkbox" class="checkbox">
+                                    <span>Email Campagin March 2016 </span>
+                                </label>
+
+                                <label class="umb-variations__tag">
+                                    <input type="checkbox" class="checkbox">
+                                    <span>Codegarden Attendees </span>
+                                </label>
+
+                                <label class="umb-variations__tag">
+                                    <input type="checkbox" class="checkbox">
+                                    <span>Codegarden Attendees from abroad </span>
+                                </label>
+
                             </div>
+
+                            <!-- <div class="umb-variations__tags" ng-if="variation.segments">
+                                <div class="umb-variations__tag" ng-repeat="segment in variation.segments">{{segment.name}}</div>
+                            </div> -->
 
                         </div>
 
