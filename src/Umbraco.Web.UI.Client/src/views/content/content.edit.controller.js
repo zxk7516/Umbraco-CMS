@@ -83,6 +83,7 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
         // set up English locale as master
         var english = angular.copy(content);
         english.language = "English (United States)";
+        english.active = true;
         english.variations = [];
         variationsHelper.setMaster(english);
 

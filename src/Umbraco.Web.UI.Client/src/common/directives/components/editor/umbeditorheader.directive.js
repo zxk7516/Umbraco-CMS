@@ -5,7 +5,20 @@
 
         function link(scope, el, attr, ctrl) {
 
+            scope.showVariationsQuickSwitchToggle = false;
             scope.showVariationsQuickSwitch = false;
+
+            function activate() {
+                showVariationsQuickSwitch(scope.variations);
+            }
+
+            function showVariationsQuickSwitch(variations) {
+                if(variations && variations.length > 1 || variations && variations.length === 1 && variations[0].variations && variations[0].variations.length > 0) {
+                    scope.showVariationsQuickSwitchToggle = true;
+                } else {
+                    scope.showVariationsQuickSwitchToggle = false;
+                }
+            }
 
             scope.openIconPicker = function() {
                 scope.dialogModel = {
@@ -42,12 +55,36 @@
 
             };
 
-            scope.selectItem = function(variation) {
+            scope.selectItem = function(item) {
                 if(scope.onSelectItem) {
-                    scope.onSelectItem(variation);
+                    
+                    for(var i = 0; i < scope.variations.length; i++) {
+                        var language = scope.variations[i];
+                        language.active = false;
+
+                        if(language.variations && language.variations.length > 0) {
+                            for(var variationIndex = 0; variationIndex < language.variations.length; variationIndex++) {
+                                var variation = language.variations[variationIndex];
+                                variation.active = false;
+                            }
+
+                        }
+                    }
+
+                    // set selected item to active
+                    item.active = true;
+
+                    scope.onSelectItem(item);
                     scope.showVariationsQuickSwitch = false;
+
                 }
             };
+
+            scope.$watch('variations', function(newValue, oldValue){
+                showVariationsQuickSwitch(newValue);
+            }, true);
+
+            activate();
 
         }
 

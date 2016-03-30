@@ -21,8 +21,14 @@
 
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
                     <div class="umb-varations__published-state" ng-class="{'-published': language.published}"></div>
-                    <i class="icon-globe-alt"></i>
-                    <a href="" class="umb-varations__lang-group-info__link">{{ language.language }}</a>
+                    <div ng-if="variations.length === 1">
+                    <a href="" class="umb-varations__lang-group-info__link">{{ language.name }}</a>
+                        <small>(Original)</small>
+                    </div>
+                    <div ng-if="variations.length > 1">
+                        <i class="icon-globe-alt" ng-if="variations.length > 1"></i>
+                        {{ language.language }}
+                    </div>
                 </div>
 
                 <div class="umb-variations__actions" ng-if="language.published">

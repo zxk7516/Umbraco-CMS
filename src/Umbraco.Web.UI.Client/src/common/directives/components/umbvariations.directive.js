@@ -37,6 +37,7 @@
                 variation.variationName = newVariation.name;
                 variation.variationDescription = newVariation.description;
                 variation.segments = newVariation.segments;
+                variation.active = false;
 
                 language.variations.unshift(variation);
 

@@ -34,7 +34,7 @@
 
                         <div class="umb-editor-header__selected-variations" ng-if="language || variation">
 
-                            <div class="umb-editor-header__selected-variation" ng-if="language">
+                            <div class="umb-editor-header__selected-variation" ng-if="language && variations.length > 1">
                                 <i class="umb-editor-header__selected-variation-icon icon-umb-translation"></i>
                                 <div>{{ language }}</div>
                             </div>
@@ -48,29 +48,35 @@
 
                    </ng-form>
 
-                   <!-- ng-if="variations.length - 1 > 0" -->
-                   <a class="umb-variations-quick-switcher__toggle" ng-if="variations" href="" ng-click="toggleVariationsQuickSwitch()" ng-class="{'-active' : showVariationsQuickSwitch}">
+                   <a class="umb-variations-quick-switcher__toggle" href="" ng-if="showVariationsQuickSwitchToggle" ng-click="toggleVariationsQuickSwitch()" ng-class="{'-active' : showVariationsQuickSwitch}">
                        <span class="umb-variations-quick-switcher__toggle-arrow">&dtrif;</span>
                    </a>
 
                    <ul class="umb-variations-quick-switcher_variations shadow-depth-2" ng-if="showVariationsQuickSwitch" on-outside-click="hideVariationsQuickSwitch()">
 
+                       <!-- Multiple languages -->
                        <li ng-repeat="variation in variations" ng-class="{'-active' : variation.showSubItems}">
 
-                           <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(variation)">
+                           <a class="umb-variations-quick-switcher__variation" href ng-if="variations.length === 1" ng-click="selectItem(variation)" ng-class="{'-active': variation.active}">
+                               <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': variation.published}"></span>
+                               <span class="umb-variations-quick-switcher__variation-name">{{variation.name}}</span>
+                               <span class="umb-variations-quick-switcher__variation-description">(Original)</span>
+                           </a>
+
+                           <a class="umb-variations-quick-switcher__variation" href ng-if="variations.length > 1" ng-click="selectItem(variation)" ng-class="{'-active': variation.active}">
                                <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': variation.published}"></span>
                                <i class="umb-variations-quick-switcher__variation-icon icon-umb-translation"></i>
                                <span class="umb-variations-quick-switcher__variation-name">{{variation.language}}</span>
                                <span class="umb-variations-quick-switcher__variation-toggle" ng-if="variation.variations" ng-click="toggleSubItems(variation, $event)">variations &dtrif;</span>
                            </a>
 
-                           <ul class="umb-variations-quick-switcher__subnav" ng-if="variation.showSubItems">
+                           <ul class="umb-variations-quick-switcher__subnav" ng-if="variation.showSubItems || variations.length === 1">
                                <li ng-repeat="test in variation.variations">
-                                   <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(test)">
+                                   <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(test)" ng-class="{'-active': test.active}">
                                        <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': test.published}"></span>
                                        <i class="umb-variations-quick-switcher__variation-icon icon-documents"></i>
                                        <span class="umb-variations-quick-switcher__variation-name">{{ test.variationName }}</span>
-                                       <span class="umb-variations-quick-switcher__variation-description">({{ test.variationDescription }})</span>
+                                       <span class="umb-variations-quick-switcher__variation-description" ng-if="test.variationDescription">({{ test.variationDescription }})</span>
                                    </a>
                                </li>
                            </ul>
