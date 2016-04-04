@@ -125,27 +125,33 @@
     flex-direction: column;
 }
 
-.umb-variations__list-item-wrapper + .umb-variations__list-item-wrapper {
-    border-top: 1px solid @grayLighter;
-}
-
 .umb-variations__list-item {
     padding: 15px;
-    background-color: @grayLighter;
     flex: 3 1 auto;
+    border-top: 1px solid @grayLight;
+}
+
+
+.umb-variations__list-item.-edit-mode {
+    background: @grayLighter;
+    border-top-color: #e7e7e7;
+}
+
+.umb-variations__list-item.-edit-mode + .umb-variations__edit-list-item {
+    border-top-color: @grayLighter;
 }
 
 
 .umb-variations__list-item__edit {
-    background: rgba(0, 0, 0, 0.06);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 12px;
     font-weight: bold;
+    background: rgba(0, 0, 0, 0.05);
 }
 
 .umb-variations__list-item__edit:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.09);
     cursor: pointer;
 }
 
@@ -283,7 +289,8 @@
     width: 100%;
     padding: 20px 30px;
     box-sizing: border-box;
-    background-color: @grayLighter;
+    background-color: @white;
+    border-top: 1px solid @grayLight;
 }
 
 /* MATCHES */
