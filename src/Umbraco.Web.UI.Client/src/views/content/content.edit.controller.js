@@ -6,7 +6,7 @@
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper) {
+function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper, eventsService) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -100,6 +100,16 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.changeVariation = function(variation) {
         $scope.content = null;
         $scope.content = variation;
+    };
+
+    $scope.openInSplitView = function(variation) {
+
+        var view = {
+            id: variation.id,
+            view: "views/content/edit.html"
+        };
+
+        eventsService.emit("splitView.open", view);
     };
 
     /** Syncs the content item to it's tree node - this occurs on first load and after saving */

@@ -80,6 +80,15 @@
                 }
             };
 
+            scope.openInSplitView = function(item, $event) {
+                if(scope.onOpenInSplitView) {
+                    scope.onOpenInSplitView(item);
+                    scope.showVariationsQuickSwitch = false;
+                    $event.preventDefault();
+                    $event.stopPropagation();
+                }
+            };
+
             scope.$watch('variations', function(newValue, oldValue){
                 showVariationsQuickSwitch(newValue);
             }, true);
@@ -103,6 +112,7 @@
                 language: "=",
                 variations: "=",
                 onSelectItem: "=",
+                onOpenInSplitView: "=",
                 menu: "=",
                 icon: "=",
                 hideIcon: "@",

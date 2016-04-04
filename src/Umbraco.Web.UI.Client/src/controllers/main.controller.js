@@ -8,7 +8,7 @@
  * The main application controller
  * 
  */
-function MainController($scope, $rootScope, $location, $routeParams, $timeout, $http, $log, appState, treeService, notificationsService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper, tmhDynamicLocale) {
+function MainController($scope, $rootScope, $location, $routeParams, $timeout, $http, $log, appState, treeService, notificationsService, userService, navigationService, historyService, updateChecker, assetsService, eventsService, umbRequestHelper, tmhDynamicLocale, $templateCache) {
 
     //the null is important because we do an explicit bool check on this in the view
     //the avatar is by default the umbraco logo    
@@ -19,7 +19,7 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
         { value: "assets/img/application/logo@3x.png" }
     ];
     $scope.touchDevice = appState.getGlobalState("touchDevice");
-    
+    $scope.splitView = {};
 
     $scope.removeNotification = function (index) {
         notificationsService.remove(index);
@@ -125,6 +125,23 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
             show:  true
         };
     }));
+
+    evts.push(eventsService.on("splitView.open", function(name, view) {
+
+        var updateTime = Date.now();
+
+        $scope.splitView = {
+            id: view.id,
+            view: view.view + "?updated=" + updateTime,
+            show: true
+        };
+
+    }));
+
+    $scope.closeSplitView = function() {
+        $scope.splitView.show = false;
+        $scope.splitView = null;
+    };
 
     //ensure to unregister from all events!
     $scope.$on('$destroy', function () {

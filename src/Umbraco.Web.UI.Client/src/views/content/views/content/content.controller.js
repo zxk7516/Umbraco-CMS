@@ -26,6 +26,7 @@
         function activate() {
             setGenericProperties($scope.model.tabs);
             hideGenericPropertiesTab($scope.model.tabs);
+            setUniqueTabId($scope.model.tabs);
         }
 
         function hideGenericPropertiesTab(tabs) {
@@ -51,6 +52,15 @@
                 var tab = tabs[i];
                 if(tab.alias === "Generic properties") {
                     vm.genericProperties = tab;
+                }
+            }
+        }
+
+        function setUniqueTabId(tabs) {
+            for(var i = 0; i < tabs.length; i++) {
+                var tab = tabs[i];
+                if(tab.alias !== "Generic properties") {
+                    tab.id = Math.floor(Math.random() * 10000000000) + 1;
                 }
             }
         }

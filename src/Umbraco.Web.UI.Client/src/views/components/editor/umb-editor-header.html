@@ -67,16 +67,20 @@
                                <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': variation.published}"></span>
                                <i class="umb-variations-quick-switcher__variation-icon icon-umb-translation"></i>
                                <span class="umb-variations-quick-switcher__variation-name">{{variation.language}}</span>
+                               <!--
                                <span class="umb-variations-quick-switcher__variation-toggle" ng-if="variation.variations" ng-click="toggleSubItems(variation, $event)">variations &dtrif;</span>
+                               --->
+                               <span class="umb-variations-quick-switcher__variation-toggle" ng-if="onOpenInSplitView && !variation.active" ng-click="openInSplitView(variation, $event)">Open in splitview</span>
                            </a>
 
-                           <ul class="umb-variations-quick-switcher__subnav" ng-if="variation.showSubItems || variations.length === 1">
+                           <ul class="umb-variations-quick-switcher__subnav">
                                <li ng-repeat="test in variation.variations">
                                    <a class="umb-variations-quick-switcher__variation" href ng-click="selectItem(test)" ng-class="{'-active': test.active}">
                                        <span class="umb-variations-quick-switcher__variation-published-state" ng-class="{'-published': test.published}"></span>
                                        <i class="umb-variations-quick-switcher__variation-icon icon-documents"></i>
                                        <span class="umb-variations-quick-switcher__variation-name">{{ test.variationName }}</span>
                                        <span class="umb-variations-quick-switcher__variation-description" ng-if="test.variationDescription">({{ test.variationDescription }})</span>
+                                       <span class="umb-variations-quick-switcher__variation-toggle" ng-if="onOpenInSplitView && !test.active" ng-click="openInSplitView(test, $event)">Open in splitview</span>
                                    </a>
                                </li>
                            </ul>
