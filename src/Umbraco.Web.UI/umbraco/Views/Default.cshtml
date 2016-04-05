@@ -61,18 +61,18 @@
         <section id="contentwrapper">
             <umb-tree-navigation></umb-tree-navigation>
             <div id="contentcolumn" class="splitview--views" ng-cloak>
-                
+
                 <div class="splitview--view">
                     <ng-view></ng-view>
                 </div>
-                
-                <div class="splitview--divider"></div>
-                
+
+                <div class="splitview--divider" ng-if="splitView.show"></div>
+
                 <div class="splitview--view" ng-if="splitView.show">
                     <div class="splitview--close" ng-click="closeSplitView()">Close</div>
                     <div ng-include="splitView.view"></div>
                 </div>
-                
+
                 <umb-notifications></umb-notifications>
             </div>
         </section>
