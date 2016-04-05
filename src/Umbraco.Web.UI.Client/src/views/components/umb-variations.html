@@ -54,15 +54,15 @@
 
                 <div class="umb-variations__form-group">
                     <label class="umb-variations__label">Segments</label>
-
-                    <!--
-                    <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
-                       <option value="">Segments</option>
-                    </select>
-                    --->
-
-                    <div class="umb-variations__tags" ng-if="newVariation.segments">
-                        <div class="umb-variations__tag" ng-repeat="segment in newVariation.segments">{{segment.name}}</div>
+                    <div class="umb-variations__tags">
+                        <label class="umb-variations__tag" ng-repeat="segment in segments">
+                            <input
+                                type="checkbox"
+                                class="checkbox"
+                                checklist-model="newVariation.segments"
+                                checklist-value="segment.id">
+                            <span>{{segment.name}}</span>
+                        </label>
                     </div>
                 </div>
 
@@ -117,54 +117,26 @@
 
                         <div class="umb-variations__form-group">
                             <label class="umb-variations__label">Name</label>
-                            <input class="-full-width-input" type="text" ng-model="variation.name" umb-auto-focus/>
+                            <input class="-full-width-input" type="text" ng-model="variation.variationName" umb-auto-focus/>
                         </div>
 
                         <div class="umb-variations__form-group">
                             <label class="umb-variations__label">Description</label>
-                            <input class="-full-width-input" type="text" ng-model="variation.description" />
+                            <input class="-full-width-input" type="text" ng-model="variation.variationDescription" />
                         </div>
 
                         <div class="umb-variations__form-group">
                             <label class="umb-variations__label">Segments</label>
-
-                            <!-- <select class="umb-dropdown" ng-options="segment.name for segment in segments" ng-model="selectedSegment" ng-change="vm.changeSegment(selectedSegment)">
-                               <option value="">Segments</option>
-                            </select> -->
-
                             <div class="umb-variations__tags">
-
-                                <label class="umb-variations__tag">
-                                    <input type="checkbox" class="checkbox" checked>
-                                    <span>Mobil </span>
+                                <label class="umb-variations__tag" ng-repeat="segment in segments">
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox"
+                                        checklist-model="variation.segments"
+                                        checklist-value="segment.id">
+                                    <span>{{segment.name}}</span>
                                 </label>
-
-                                <label class="umb-variations__tag">
-                                    <input type="checkbox" class="checkbox" checked>
-                                    <span>Tablet </span>
-                                </label>
-
-                                <label class="umb-variations__tag">
-                                    <input type="checkbox" class="checkbox">
-                                    <span>Email Campagin March 2016 </span>
-                                </label>
-
-                                <label class="umb-variations__tag">
-                                    <input type="checkbox" class="checkbox">
-                                    <span>Codegarden Attendees </span>
-                                </label>
-
-                                <label class="umb-variations__tag">
-                                    <input type="checkbox" class="checkbox">
-                                    <span>Codegarden Attendees from abroad </span>
-                                </label>
-
                             </div>
-
-                            <!-- <div class="umb-variations__tags" ng-if="variation.segments">
-                                <div class="umb-variations__tag" ng-repeat="segment in variation.segments">{{segment.name}}</div>
-                            </div> -->
-
                         </div>
 
                         <div class="umb-variations__form-group form-group-actions">

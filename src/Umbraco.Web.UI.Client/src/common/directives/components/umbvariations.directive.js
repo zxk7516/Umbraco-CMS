@@ -9,13 +9,28 @@
 
             scope.segments = [
                 {
-                    name: "Mobile"
+                    name: "Mobile",
+                    id: 1
                 },
                 {
-                    name: "Front-end developer"
+                    name: "Tablet",
+                    id: 2
                 },
                 {
-                    name: "back-end developer"
+                    name: "Email Subscriber",
+                    id: 3
+                },
+                {
+                    name: "Email Campagin March 2016",
+                    id: 4
+                },
+                {
+                    name: "Codegarden Attendees",
+                    id: 5
+                },
+                {
+                    name: "Codegarden Attendees from abroad",
+                    id: 6
                 }
             ];
 
