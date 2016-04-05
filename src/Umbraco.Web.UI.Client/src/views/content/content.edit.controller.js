@@ -29,11 +29,6 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
             "active": true
         },
         {
-            "name": "Analytics",
-            "icon": "icon-activity",
-            "view": "views/content/views/analytics/analytics.html"
-        },
-        {
             "name": "Variations",
             "icon": "icon-documents",
             "view": "views/content/views/variations/variations.html"
