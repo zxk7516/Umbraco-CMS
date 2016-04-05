@@ -138,9 +138,14 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
 
     }));
 
+    $rootScope.$on('$routeChangeSuccess', function(event, current, previous) {
+        $scope.closeSplitView();
+    });
+
     $scope.closeSplitView = function() {
         $scope.splitView.show = false;
-        $scope.splitView = null;
+        $scope.splitView.id = null;
+        $scope.splitView.view = null;
     };
 
     //ensure to unregister from all events!
