@@ -1,22 +1,21 @@
 <div class="umb-variations">
 
-    <div ng-if="!newVariationIsVisible && !editVariationIsVisible && !cloneVariationIsVisible">
+    <umb-empty-state
+        ng-if="(variations | filter:{active:true}).length === 0"
+        position="center">
+        It is not possible to make variations of a variation
+    </umb-empty-state>
 
+    <div ng-if="(variations | filter:{active:true}).length > 0">
 
         <div class="umb-variations__title-wrapper">
             <div class="umb-variations__title">Variations</div>
         </div>
 
-
         <p class="umb-variations__help-text">Manage multiple variations of your content here. Create, duplicate or delete variations.</p>
 
-        <!--
-
-        <input class="umb-variations__filter -full-width-input" ng-show="variations.length > 4" ng-model="searchTerm" placeholder="Filter variations"></input>
-        -->
-
         <!-- VARIATIONS LANG GROUP -->
-        <div class="umb-varations__lang-group" ng-repeat="language in variations">
+        <div class="umb-varations__lang-group" ng-repeat="language in variations | filter:{active:true}">
             <div class="umb-varations__lang-group-info">
 
                 <div class="umb-varations__lang-group-info__name" ng-click="clickVariation(variation, $event, $index)">
@@ -87,7 +86,7 @@
             </div>
 
             <!-- VARIATIONS LIST -->
-            <ul class="umb-variations__list">
+            <ul class="umb-variations__list" ui-sortable="variationsSortableOptions" ng-model="language.variations">
 
                 <li class="umb-variations__list-item-wrapper" ng-repeat="variation in language.variations">
 

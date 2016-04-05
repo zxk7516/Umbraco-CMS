@@ -34,6 +34,15 @@
                 }
             ];
 
+            scope.variationsSortableOptions = {
+                distance: 10,
+                tolerance: "pointer",
+                opacity: 0.7,
+                scroll: true,
+                cursor: "move",
+                zIndex: 6000
+            };
+
             scope.showNewVariation = function(language) {
                 language.showNewVariation = true;
             };
