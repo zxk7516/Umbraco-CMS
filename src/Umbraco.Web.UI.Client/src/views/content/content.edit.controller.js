@@ -6,7 +6,7 @@
  * @description
  * The controller for the content editor
  */
-function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper, eventsService) {
+function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $window, $filter, appState, contentResource, entityResource, navigationService, notificationsService, angularHelper, serverValidationManager, contentEditingHelper, treeService, fileManager, formHelper, umbRequestHelper, keyboardService, umbModelMapper, editorState, $http, variationsHelper, eventsService) {
 
     //setup scope vars
     $scope.defaultButton = null;
@@ -20,32 +20,6 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
     $scope.page.listViewPath = null;
     $scope.page.isNew = $routeParams.create;
     $scope.page.buttonGroupState = "init";
-
-    $scope.page.navigation = [
-        {
-            "name": "Content",
-            "icon": "icon-document",
-            "view": "views/content/views/content/content.html",
-            "active": true
-        },
-        {
-            "name": "Variations",
-            "icon": "icon-documents",
-            "view": "views/content/views/variations/variations.html"
-        },
-        {
-            "name": "Permissions",
-            "icon": "icon-keychain",
-            "view": "views/content/views/permissions/permissions.html"
-        },
-        {
-            "name": "Notifications",
-            "icon": "icon-megaphone",
-            "view": "views/content/views/notifications/notifications.html"
-        }
-    ];
-
-
 
     function init(content) {
 
@@ -90,6 +64,40 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         $scope.variations = variationsHelper.getVariations();
 
+        // fake apps
+        $scope.page.navigation = [
+            {
+                "name": "Variations",
+                "icon": "icon-documents",
+                "view": "views/content/views/variations/variations.html"
+            },
+            {
+                "name": "Permissions",
+                "icon": "icon-keychain",
+                "view": "views/content/views/permissions/permissions.html"
+            },
+            {
+                "name": "Notifications",
+                "icon": "icon-megaphone",
+                "view": "views/content/views/notifications/notifications.html"
+            }
+        ];
+
+        for(var i = 0; i < content.tabs.length; i++) {
+            var tab = content.tabs[i];
+            var app = {
+                "name": tab.label,
+                "icon": "icon-document",
+                "view": "views/content/views/default/default.html",
+                "properties": tab.properties,
+                "sortOrder": i + 1
+            };
+            $scope.page.navigation.push(app);
+        }
+
+        $scope.page.navigation = $filter('orderBy')($scope.page.navigation, 'sortOrder');
+        $scope.page.navigation[0].active = true;
+        
     }
 
     $scope.changeVariation = function(variation) {
