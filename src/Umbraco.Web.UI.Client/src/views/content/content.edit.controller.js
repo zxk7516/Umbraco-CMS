@@ -72,6 +72,11 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
                 "view": "views/content/views/variations/variations.html"
             },
             {
+                "name": "Activity",
+                "icon": "icon-activity",
+                "view": "views/content/views/activity/activity.html"
+            },
+            {
                 "name": "Permissions",
                 "icon": "icon-keychain",
                 "view": "views/content/views/permissions/permissions.html"
