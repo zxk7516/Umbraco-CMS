@@ -102,7 +102,12 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         $scope.page.navigation = $filter('orderBy')($scope.page.navigation, 'sortOrder');
         $scope.page.navigation[0].active = true;
-        
+
+        if($scope.variations && $scope.variations.length > 0) {
+            $scope.content = null;
+            $scope.content = $scope.variations[0];
+        }
+
     }
 
     $scope.changeVariation = function(variation) {
