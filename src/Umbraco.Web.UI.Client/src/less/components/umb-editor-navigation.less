@@ -1,12 +1,25 @@
 .umb-sub-views-nav {
   list-style: none;
-  display: flex;
   margin: 0;
+
+  display: flex;
+  flex-wrap: wrap;
+
+  align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .umb-sub-views-nav-items {
     display: flex;
-    align-items: flex-end;
+    justify-content: center;
+
+    width: 80px;
+    height: 61px;
+}
+
+.umb-sub-views-nav-items .umb-navigation-more {
+    height: 20px;
+    margin: 0;
 }
 
 .umb-sub-views-nav-item {
@@ -19,6 +32,11 @@
   flex-wrap: wrap;
 
   align-items: center;
+
+  max-width: 100%;
+  text-overflow: ellipsis;
+
+  box-sizing: border-box;
 }
 
 .umb-sub-views-nav-item:focus {
@@ -49,4 +67,6 @@
     vertical-align: baseline;
     margin: 10px 0 0 0;
     line-height: 1;
+
+    white-space: nowrap;
 }
