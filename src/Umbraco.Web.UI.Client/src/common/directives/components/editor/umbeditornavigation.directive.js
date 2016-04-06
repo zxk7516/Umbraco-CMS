@@ -6,10 +6,21 @@
       function link(scope, el, attr, ctrl) {
 
          scope.showNavigation = true;
+         scope.showDropdown = false;
+         scope.maxNavigationItems = 5;
+         scope.overflowingNavigationsItems = 0;
+         scope.needDropdown = false;
 
          scope.clickNavigationItem = function(selectedItem) {
+
             setItemToActive(selectedItem);
+
             runItemAction(selectedItem);
+
+            if(scope.showDropdown) {
+                scope.closeDropdown();
+            }
+
          };
 
          function runItemAction(selectedItem) {
@@ -40,7 +51,28 @@
                scope.showNavigation = false;
             }
 
+            hideOverflowingNavigationItems();
+
          }
+
+         function hideOverflowingNavigationItems() {
+
+             scope.totalNavigationItems = scope.navigation.length;
+
+             if(scope.totalNavigationItems > scope.maxNavigationItems){
+                 scope.needDropdown = true;
+                 scope.overflowingNavigationsItems = scope.maxNavigationItems - scope.totalNavigationItems;
+             }
+
+         }
+
+         scope.toggleDropdown = function() {
+             scope.showDropdown = !scope.showDropdown;
+         };
+
+         scope.closeDropdown = function() {
+             scope.showDropdown = false;
+         };
 
          activate();
 
