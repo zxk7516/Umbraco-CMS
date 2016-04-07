@@ -139,7 +139,7 @@
 	z-index: 6200;
 	background-color: #ffffff;
 	max-height: 300px;
-	overflow-y: scroll;
+	overflow-y: auto;
 	list-style: none;
 	margin-left: 0;
 	margin-bottom: 0;
@@ -169,7 +169,8 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 10px 15px;
+	height: 60px;
+	padding: 0 15px;
 }
 
 .umb-variations-quick-switcher__variation-stroke {
@@ -196,6 +197,10 @@
 .umb-variations-quick-switcher__variation:hover,
 .umb-variations-quick-switcher__variation.-active {
 	background-color: @grayLighter;
+}
+
+.umb-variations-quick-switcher__variation.-active {
+	background-color: rgb(238, 246, 254);
 }
 
 .umb-variations-quick-switcher__variation-published-state {
@@ -231,7 +236,7 @@
 }
 
 .umb-variations-quick-switcher__variation-icon {
-	color: @gray;
+	color: @grayLight;
 	margin-right: 5px;
 }
 
