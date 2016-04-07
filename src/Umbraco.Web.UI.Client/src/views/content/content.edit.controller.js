@@ -58,9 +58,13 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         var danish = angular.copy(content);
         danish.language = "Danish";
-        danish.name = "Hjem";
         danish.variations = [];
         variationsHelper.createVariation(danish);
+
+        var spanish = angular.copy(content);
+        spanish.language = "Spanish";
+        spanish.variations = [];
+        variationsHelper.createVariation(spanish);
 
         $scope.variations = variationsHelper.getVariations();
 
