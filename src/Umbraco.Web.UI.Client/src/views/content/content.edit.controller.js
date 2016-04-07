@@ -68,6 +68,17 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
 
         $scope.variations = variationsHelper.getVariations();
 
+        makeTabsToApps(content);
+
+        if($scope.variations && $scope.variations.length > 0) {
+            $scope.content = null;
+            $scope.content = $scope.variations[0];
+        }
+
+    }
+
+    function makeTabsToApps(content) {
+
         // fake apps
         $scope.page.navigation = [
             {
@@ -101,22 +112,26 @@ function ContentEditController($scope, $rootScope, $routeParams, $q, $timeout, $
                 "properties": tab.properties,
                 "sortOrder": i + 1
             };
+
+            if(app.name === "SEO") {
+                app.icon = "icon-search";
+            } else if(app.name === "Properties") {
+                app.name = "Settings";
+                app.icon = "icon-settings";
+            }
+
             $scope.page.navigation.push(app);
         }
 
         $scope.page.navigation = $filter('orderBy')($scope.page.navigation, 'sortOrder');
         $scope.page.navigation[0].active = true;
 
-        if($scope.variations && $scope.variations.length > 0) {
-            $scope.content = null;
-            $scope.content = $scope.variations[0];
-        }
-
     }
 
     $scope.changeVariation = function(variation) {
         $scope.content = null;
         $scope.content = variation;
+        makeTabsToApps($scope.content);
     };
 
     $scope.openInSplitView = function(variation) {
