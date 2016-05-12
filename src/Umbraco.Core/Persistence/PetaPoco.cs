@@ -346,7 +346,7 @@ namespace Umbraco.Core.Persistence
 		void CleanupTransaction()
 		{
 			OnEndTransaction();
-            Console.WriteLine($"[{Thread.CurrentThread.ManagedThreadId}] Cleanup " + _transactionCancelled);
+            //Console.WriteLine($"[{Thread.CurrentThread.ManagedThreadId}] Cleanup " + _transactionCancelled);
 			if (_transactionCancelled)
 				_transaction.Rollback();
 			else

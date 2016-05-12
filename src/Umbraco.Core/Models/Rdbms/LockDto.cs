@@ -8,11 +8,22 @@ namespace Umbraco.Core.Models.Rdbms
     [ExplicitColumns]
     internal class LockDto
     {
+        public LockDto()
+        {
+            Value = 1;
+        }
+
         [Column("id")]
-        [PrimaryKeyColumn(Name = "PK_structure")]
+        [PrimaryKeyColumn(Name = "PK_umbracoLock")]
         public int Id { get; set; }
 
         [Column("value")]
-        public int Value { get; set; } = 1;
+        [NullSetting(NullSetting = NullSettings.NotNull)]
+        public int Value { get; set; }
+
+        [Column("name")]
+        [NullSetting(NullSetting = NullSettings.NotNull)]
+        [Length(64)]
+        public string Name { get; set; }
     }
 }

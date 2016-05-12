@@ -82,12 +82,12 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
 
             // cache if we have a content and not previewing
             if (content != null && preview == false && _routesCache != null)
-                AddToCacheIfDeepestRoute(umbracoContext, content, route);
+                AddToCacheIfDeepestRoute(content, route);
 
             return content;
         }
 
-        private void AddToCacheIfDeepestRoute(UmbracoContext umbracoContext, IPublishedContent content, string route)
+        private void AddToCacheIfDeepestRoute(IPublishedContent content, string route)
         {
             var domainRootNodeId = route.StartsWith("/") ? -1 : int.Parse(route.Substring(0, route.IndexOf('/')));
             // so we have a route that maps to a content... say "1234/path/to/content" - however, there could be a
@@ -132,11 +132,11 @@ namespace Umbraco.Web.PublishedCache.XmlPublishedCache
             var loopId = preview || _routesCache == null ? 0 : _routesCache.GetNodeId(route); // might be cached already in case of collision
             if (loopId == 0)
             {
-                var content = DetermineIdByRoute(umbracoContext, preview, route, GlobalSettings.HideTopLevelNodeFromPath);
+                var content = DetermineIdByRoute(preview, route, GlobalSettings.HideTopLevelNodeFromPath);
 
                 // add the other route to cache so next time we have it already
-            if (route != null && preview == false && _routesCache != null)
-                    AddToCacheIfDeepestRoute(umbracoContext, content, route);
+                if (route != null && preview == false && _routesCache != null)
+                    AddToCacheIfDeepestRoute(content, route);
 
                 loopId = content == null ? 0 : content.Id; // though... 0 here would be quite weird?
             }
