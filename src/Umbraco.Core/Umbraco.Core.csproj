@@ -400,6 +400,7 @@
     <Compile Include="Models\Rdbms\DocumentPublishedReadOnlyDto.cs" />
     <Compile Include="Models\Rdbms\ExternalLoginDto.cs" />
     <Compile Include="Models\Rdbms\MigrationDto.cs" />
+    <Compile Include="Models\Rdbms\LockDto.cs" />
     <Compile Include="Models\Rdbms\UmbracoDeployChecksumDto.cs" />
     <Compile Include="Models\Rdbms\UmbracoDeployDependencyDto.cs" />
     <Compile Include="Models\UmbracoDomain.cs" />

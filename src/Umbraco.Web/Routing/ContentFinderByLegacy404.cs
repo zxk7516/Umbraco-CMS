@@ -26,7 +26,7 @@ namespace Umbraco.Web.Routing
 		    var errorCulture = CultureInfo.CurrentUICulture;
 		    if (pcr.HasDomain)
 		    {
-		        errorCulture = CultureInfo.GetCultureInfo(pcr.UmbracoDomain.LanguageIsoCode);
+		        errorCulture = pcr.Domain.Culture;
 		    }
 		    else
 		    {
@@ -42,9 +42,10 @@ namespace Umbraco.Web.Routing
                 }
 		        if (node != null)
 		        {
-		            var d = DomainHelper.FindWildcardDomainInPath(pcr.RoutingContext.UmbracoContext.Application.Services.DomainService.GetAll(true), node.Path, null);
-		            if (d != null && string.IsNullOrWhiteSpace(d.LanguageIsoCode) == false)
-		                errorCulture = CultureInfo.GetCultureInfo(d.LanguageIsoCode);
+                    var domainCache = pcr.RoutingContext.UmbracoContext.Facade.DomainCache;
+                    var d = DomainHelper.FindWildcardDomainInPath(domainCache.GetAll(true), node.Path, null);
+		            if (d != null)
+		                errorCulture = d.Culture;
 		        }
             }
 
