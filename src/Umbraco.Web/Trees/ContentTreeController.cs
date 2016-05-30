@@ -18,6 +18,7 @@ using umbraco.BusinessLogic.Actions;
 using umbraco.businesslogic;
 using umbraco.cms.businesslogic.web;
 using umbraco.interfaces;
+using Umbraco.Web.Models.ContentEditing;
 using Constants = Umbraco.Core.Constants;
 
 namespace Umbraco.Web.Trees
@@ -35,7 +36,7 @@ namespace Umbraco.Web.Trees
     [Tree(Constants.Applications.Content, Constants.Trees.Content)]
     [PluginController("UmbracoTrees")]
     [CoreTree]
-    public class ContentTreeController : ContentTreeControllerBase
+    public class ContentTreeController : ContentTreeControllerBase, ISearchableTree
     {
        
         protected override TreeNode CreateRootNode(FormDataCollection queryStrings)
@@ -244,5 +245,14 @@ namespace Umbraco.Web.Trees
             return menu;
         }
 
+        /// <summary>
+        /// Peforms the search for this tree
+        /// </summary>
+        /// <param name="searchText"></param>
+        /// <returns></returns>
+        public IEnumerable<SearchResultItem> Search(string searchText)
+        {
+            throw new NotImplementedException("TODO: Implemenent ISearchableTree");
+        }
     }
 }

@@ -114,6 +114,7 @@ namespace Umbraco.Core.ObjectResolution
         private readonly List<Func<IEnumerable<Type>>> _typeListProducerList = new List<Func<IEnumerable<Type>>>();
         private readonly List<Type> _excludedTypesList = new List<Type>();
         private Lazy<List<Type>> _resolvedTypes;
+        private readonly List<Func<HashSet<Type>, HashSet<Type>>> _filters = new List<Func<HashSet<Type>, HashSet<Type>>>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManyObjectsResolverBase{TResolver, TResolved}"/> class with an empty list of objects,
@@ -161,8 +162,29 @@ namespace Umbraco.Core.ObjectResolution
                     AddValidAndNoDuplicate(resolvedTypes, type);
                 }
 
-                return resolvedTypes;
+                //apply filters
+                var hashSet = new HashSet<Type>(resolvedTypes);
+                foreach (var filter in _filters)
+                {
+                    hashSet = filter(hashSet);
+                }
+
+                return hashSet.ToList();
             });
+        }
+
+        /// <summary>
+        /// This adds a filter to the resolver which will execute when the types are actually resolved
+        /// </summary>
+        /// <param name="filter"></param>
+        /// <remarks>
+        /// This is useful for developers who might wish to add/remove/replace types that are resolved. Developers
+        /// cannot simply add/remove/replace types directly on startup because the resolution is lazy so a filter needs
+        /// to be applied instead.
+        /// </remarks>
+        protected void AddFilter(Func<HashSet<Type>, HashSet<Type>> filter)
+        {
+            _filters.Add(filter);
         }
 
         /// <summary>

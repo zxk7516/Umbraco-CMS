@@ -47,6 +47,7 @@ using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using Umbraco.Web.Editors;
+using Umbraco.Web.Trees;
 using GlobalSettings = Umbraco.Core.Configuration.GlobalSettings;
 using ProfilingViewEngine = Umbraco.Core.Profiling.ProfilingViewEngine;
 
@@ -315,7 +316,7 @@ namespace Umbraco.Web
             }
 
             //need to get the plugin controllers that are unique to each area (group by)
-            var pluginSurfaceControlleres = pluginControllers.Where(x => !PluginController.GetMetadata(x).AreaName.IsNullOrWhiteSpace());
+            var pluginSurfaceControlleres = pluginControllers.Where(x => PluginController.GetMetadata(x).AreaName.IsNullOrWhiteSpace() == false);
             var groupedAreas = pluginSurfaceControlleres.GroupBy(controller => PluginController.GetMetadata(controller).AreaName);
             //loop through each area defined amongst the controllers
             foreach (var g in groupedAreas)
@@ -369,6 +370,17 @@ namespace Umbraco.Web
         protected override void InitializeResolvers()
         {
             base.InitializeResolvers();
+
+            SearchableTreeResolver.Current = new SearchableTreeResolver(
+                ServiceProvider,
+                LoggerResolver.Current.Logger,
+                () =>
+                {
+                    //return the ISearchableTree's based on the resolved API controllers since we know that in the 
+                    // core the only ISearchableTree instances are the actual tree controllers
+                    var apiControllers = UmbracoApiControllerResolver.Current.RegisteredUmbracoApiControllers;
+                    return apiControllers.Where(x => x.IsAssignableFrom(typeof(ISearchableTree)));
+                });
 
             XsltExtensionsResolver.Current = new XsltExtensionsResolver(ServiceProvider, LoggerResolver.Current.Logger, () => PluginManager.ResolveXsltExtensions());
 

@@ -168,6 +168,13 @@ namespace Umbraco.Web.Trees
                     Name = RootNodeDisplayName
                 };
 
+            //check if there's an ISearchableTree for this alias
+            var searchTree = SearchableTreeResolver.Current.Find(TreeAlias);
+            if (searchTree != null)
+            {
+                node.AdditionalData["ISearchableTree"] = TreeAlias;
+            }
+
             return node;
         }
 
