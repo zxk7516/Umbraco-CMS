@@ -1311,6 +1311,7 @@
     <Compile Include="Strings\ContentBaseExtensions.cs" />
     <Compile Include="Strings\Diff.cs" />
     <Compile Include="Sync\BatchedWebServiceServerMessenger.cs" />
+    <Compile Include="Sync\ColdBootType.cs" />
     <Compile Include="Sync\IServerRegistrar2.cs" />
     <Compile Include="Sync\ServerRole.cs" />
     <Compile Include="Sync\DatabaseServerMessenger.cs" />

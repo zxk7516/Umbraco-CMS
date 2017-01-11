@@ -43,6 +43,11 @@ namespace Umbraco.Core.Sync
         protected DatabaseServerMessengerOptions Options { get; private set; }
         protected ApplicationContext ApplicationContext { get { return _appContext; } }
 
+        /// <summary>
+        /// Returns the cold boot type detected for the current app domain
+        /// </summary>
+        public ColdBootType ColdBootType { get; private set; }
+
         public DatabaseServerMessenger(ApplicationContext appContext, bool distributedEnabled, DatabaseServerMessengerOptions options)
             : base(distributedEnabled)
         {
@@ -146,11 +151,12 @@ namespace Umbraco.Core.Sync
         /// </remarks>
         private void Initialize()
         {
+            ColdBootType = ColdBootType.NoColdBoot;
+
             lock (_locko)
             {
                 if (_released) return;
-
-                var coldboot = false;
+                
                 if (_lastId < 0) // never synced before
                 {
                     // we haven't synced - in this case we aren't going to sync the whole thing, we will assume this is a new
@@ -159,7 +165,7 @@ namespace Umbraco.Core.Sync
                         + " The server will build its caches and indexes, and then adjust its last synced Id to the latest found in"
                         + " the database and maintain cache updates based on that Id.");
 
-                    coldboot = true;
+                    ColdBootType = ColdBootType.NeverSynced;
                 }
                 else
                 {
@@ -175,11 +181,11 @@ namespace Umbraco.Core.Sync
                             + " to the latest found in the database and maintain cache updates based on that Id.",
                             () => count, () => Options.MaxProcessingInstructionCount);
 
-                        coldboot = true;
+                        ColdBootType = ColdBootType.ExceedsMaxProcessingInstructionCount;
                     }
                 }
 
-                if (coldboot)
+                if (ColdBootType != ColdBootType.NoColdBoot)
                 {
                     // go get the last id in the db and store it
                     // note: do it BEFORE initializing otherwise some instructions might get lost
