@@ -21,6 +21,26 @@ app.run(['userService', '$log', '$rootScope', '$location', 'navigationService', 
                 eventsService.emit("app.ready", data);
                 returnToPath = null, returnToSearch = null;
             });
+
+            
+            //initialize instance
+            var enjoyhint_instance = new EnjoyHint({});
+
+            //simple config. 
+            //Only one step - highlighting(with description) "New" button 
+            //hide EnjoyHint after a click on the button.
+            var enjoyhint_script_steps = [
+            {
+                'click .sections' : 'Do some stuff'
+            }  
+            ]; 
+
+            //set script config
+            enjoyhint_instance.set(enjoyhint_script_steps);
+
+            //run Enjoyhint script
+            enjoyhint_instance.run();
+
         });
 
         /** execute code on each successful route */

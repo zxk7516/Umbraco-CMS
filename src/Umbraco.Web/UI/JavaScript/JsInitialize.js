@@ -26,6 +26,8 @@
     'lib/umbraco/LegacyUmbClientMgr.js',
     'lib/umbraco/LegacySpeechBubble.js',
 
+    'lib/enjoyhint/enjoyhint.js',
+
     'js/app.js',
 
     'js/umbraco.resources.js',
