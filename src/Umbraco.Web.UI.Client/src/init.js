@@ -30,9 +30,15 @@ app.run(['userService', '$log', '$rootScope', '$location', 'navigationService', 
             //Only one step - highlighting(with description) "New" button 
             //hide EnjoyHint after a click on the button.
             var enjoyhint_script_steps = [
-            {
-                'click .sections' : 'Do some stuff'
-            }  
+                {
+                    "next .sections": "Welcome to Umbraco, these items on the right are called sections and make up Umbraco.",
+                    "showSkip": false
+                },
+                {
+                    "click #settings": "Lets get started. Click the Settings section.",
+                    "shape": "circle",
+                    "showSkip": false
+                }  
             ]; 
 
             //set script config
