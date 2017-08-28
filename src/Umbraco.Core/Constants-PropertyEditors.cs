@@ -263,6 +263,11 @@ namespace Umbraco.Core
             public const string NoEditAlias = "Umbraco.NoEdit";
 
             /// <summary>
+            /// DataTypeDefinitionId for the build-in no-edit datatype.
+            /// </summary>
+            public const int NoEditDataTypeDefinitionId = -92;
+
+            /// <summary>
             /// Guid for the Picker Relations datatype.
             /// </summary>
             [Obsolete("GUIDs are no longer used to reference Property Editors, use the Alias constant instead. This will be removed in future versions")]
@@ -343,6 +348,11 @@ namespace Umbraco.Core
             public const string TextboxMultipleAlias = "Umbraco.TextboxMultiple";
 
             /// <summary>
+            /// DataTypeDefinitionId for the build-in textarea datatype.
+            /// </summary>
+            public const int TextboxMultipleDataTypeDefinitionId = -89;
+
+            /// <summary>
             /// Guid for the TinyMCE v3 wysiwyg datatype.
             /// </summary>
             [Obsolete("GUIDs are no longer used to reference Property Editors, use the Alias constant instead. This will be removed in future versions")]
@@ -363,6 +373,11 @@ namespace Umbraco.Core
             /// Alias for the True/False (Ja/Nej) datatype.
             /// </summary>
             public const string TrueFalseAlias = "Umbraco.TrueFalse";
+
+            /// <summary>
+            /// DataTypeDefinitionId for the build-in true/false datatype.
+            /// </summary>
+            public const int TrueFalseDataTypeDefinitionId = -49;
 
             /// <summary>
             /// Guid for the Ultimate Picker datatype.
@@ -436,6 +451,11 @@ namespace Umbraco.Core
             /// Alias for the email address property editor
             /// </summary>
             public const string EmailAddressAlias = "Umbraco.EmailAddress";
+
+            /// <summary>
+            /// Alias for the nested content property editor.
+            /// </summary>
+            public const string NestedContentAlias = "Umbraco.NestedContent";
 
             public static class PreValueKeys
             {

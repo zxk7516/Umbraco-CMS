@@ -220,64 +220,73 @@ namespace Umbraco.Core
 		                        Comments,
 		                        new PropertyType(PropertyEditors.TextboxMultipleAlias, DataTypeDatabaseType.Ntext, true, Comments)
 		                            {
-		                                Name = CommentsLabel
-		                            }
+		                                Name = CommentsLabel,
+		                                DataTypeDefinitionId = PropertyEditors.TextboxMultipleDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        FailedPasswordAttempts,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Integer, true, FailedPasswordAttempts)
 		                            {
-		                                Name = FailedPasswordAttemptsLabel
-		                            }
+		                                Name = FailedPasswordAttemptsLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        IsApproved,
 		                        new PropertyType(PropertyEditors.TrueFalseAlias, DataTypeDatabaseType.Integer, true, IsApproved)
 		                            {
-		                                Name = IsApprovedLabel
+		                                Name = IsApprovedLabel,
+                                        DataTypeDefinitionId = PropertyEditors.TrueFalseDataTypeDefinitionId
 		                            }
 		                    },
 		                    {
 		                        IsLockedOut,
 		                        new PropertyType(PropertyEditors.TrueFalseAlias, DataTypeDatabaseType.Integer, true, IsLockedOut)
 		                            {
-		                                Name = IsLockedOutLabel
-		                            }
+		                                Name = IsLockedOutLabel,
+		                                DataTypeDefinitionId = PropertyEditors.TrueFalseDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        LastLockoutDate,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Date, true, LastLockoutDate)
 		                            {
-		                                Name = LastLockoutDateLabel
-		                            }
+		                                Name = LastLockoutDateLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        LastLoginDate,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Date, true, LastLoginDate)
 		                            {
-		                                Name = LastLoginDateLabel
-		                            }
+		                                Name = LastLoginDateLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        LastPasswordChangeDate,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Date, true, LastPasswordChangeDate)
 		                            {
-		                                Name = LastPasswordChangeDateLabel
-		                            }
+		                                Name = LastPasswordChangeDateLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        PasswordAnswer,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Nvarchar, true, PasswordAnswer)
 		                            {
-		                                Name = PasswordAnswerLabel
-		                            }
+		                                Name = PasswordAnswerLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    },
 		                    {
 		                        PasswordQuestion,
 		                        new PropertyType(PropertyEditors.NoEditAlias, DataTypeDatabaseType.Nvarchar, true, PasswordQuestion)
 		                            {
-		                                Name = PasswordQuestionLabel
-		                            }
+		                                Name = PasswordQuestionLabel,
+		                                DataTypeDefinitionId = PropertyEditors.NoEditDataTypeDefinitionId
+                                    }
 		                    }
 		                };
 		        } 

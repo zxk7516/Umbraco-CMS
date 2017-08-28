@@ -283,6 +283,7 @@ namespace Umbraco.Core.Persistence.Repositories
                 if (dbTypeAttempt)
                 {
                     //this reset's it's current data type reference which will be re-assigned based on the property editor assigned on the next line
+                    // fixme - uh? setting DataTypeId is not going to set DataTypeDefinitionId?
                     propertyType.DataTypeDefinitionId = 0;
                     propertyType.DataTypeId = GetPropertyEditorForBuiltInProperty(propertyType.Alias, propertyType.DataTypeId, stdProps).Result;
                 }
@@ -324,16 +325,10 @@ namespace Umbraco.Core.Persistence.Repositories
             DataTypeDatabaseType dbType,
             Dictionary<string, PropertyType> standardProps)
         {
-            var aliases = standardProps.Select(x => x.Key).ToArray();
-
-            //check if it is built in
-            if (aliases.Contains(propAlias))
-            {
-                //return the pre-determined db type for this property
-                return Attempt<DataTypeDatabaseType>.Succeed(standardProps.Single(x => x.Key == propAlias).Value.DataTypeDatabaseType);
-            }
-
-            return Attempt<DataTypeDatabaseType>.Fail(dbType);
+            PropertyType type;
+            return standardProps.TryGetValue(propAlias, out type)
+                ? Attempt.Succeed(type.DataTypeDatabaseType) // build-in, get the pre-determined db type
+                : Attempt.Fail(dbType);
         }
 
         /// <summary>
@@ -350,16 +345,10 @@ namespace Umbraco.Core.Persistence.Repositories
             Guid propertyEditor,
             Dictionary<string, PropertyType> standardProps)
         {
-            var aliases = standardProps.Select(x => x.Key).ToArray();
-
-            //check if it is built in
-            if (aliases.Contains(propAlias))
-            {
-                //return the pre-determined db type for this property
-                return Attempt<Guid>.Succeed(standardProps.Single(x => x.Key == propAlias).Value.DataTypeId);
-            }
-
-            return Attempt<Guid>.Fail(propertyEditor);
+            PropertyType type;
+            return standardProps.TryGetValue(propAlias, out type)
+                ? Attempt.Succeed(type.DataTypeId) // build-in, get the pre-determined data type id
+                : Attempt.Fail(propertyEditor);
         }
     }
 }
