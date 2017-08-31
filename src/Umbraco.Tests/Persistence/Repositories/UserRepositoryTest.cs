@@ -68,7 +68,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Add_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -89,7 +89,7 @@ namespace Umbraco.Tests.Persistence.Repositories
             var group = MockedUserGroup.CreateUserGroup();
 
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateUserGroupRepository(unitOfWork))
             {
@@ -119,7 +119,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Multiple_Adds_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -142,7 +142,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Verify_Fresh_Entity_Is_Not_Dirty()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -168,7 +168,7 @@ namespace Umbraco.Tests.Persistence.Repositories
             var media = MockedMedia.CreateSimpleMedia(mt, "asdf", -1);
 
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             IContentTypeRepository contentTypeRepo;
             IMediaTypeRepository mediaTypeRepo;
@@ -227,7 +227,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Delete_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -256,7 +256,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         //public void Can_Perform_Delete_On_UserRepository_With_Permissions_Assigned()
         //{
         //    // Arrange
-        //    var provider = new PetaPocoUnitOfWorkProvider(Logger);
+        //    var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
         //    var unitOfWork = provider.GetUnitOfWork();
         //using (var repository = CreateRepository(unitOfWork))
         //{
@@ -285,7 +285,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Get_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             using (var userGroupRepository = CreateUserGroupRepository(unitOfWork))
@@ -304,7 +304,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_GetByQuery_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -323,7 +323,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_GetAll_By_Param_Ids_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -343,7 +343,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_GetAll_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -363,7 +363,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Exists_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
@@ -381,7 +381,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Can_Perform_Count_On_UserRepository()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repository = CreateRepository(unitOfWork))
             {
