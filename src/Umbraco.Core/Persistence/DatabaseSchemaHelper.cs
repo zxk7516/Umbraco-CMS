@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Logging;
@@ -17,6 +19,9 @@ namespace Umbraco.Core.Persistence
         private readonly ILogger _logger;
         private readonly ISqlSyntaxProvider _syntaxProvider;
         private readonly BaseDataCreation _baseDataCreation;
+
+        internal bool LogCommands { get; set; }
+        internal List<UmbracoDatabase.CommandInfo> Commands { get; private set; }
 
         public DatabaseSchemaHelper(Database db, ILogger logger, ISqlSyntaxProvider syntaxProvider)
         {
@@ -77,8 +82,14 @@ namespace Umbraco.Core.Persistence
         {
             _logger.Info<Database>("Initializing database schema creation");
 
+            if (LogCommands) ((UmbracoDatabase) _db).LogCommands = true;
             var creation = new DatabaseSchemaCreation(_db, _logger, _syntaxProvider);
             creation.InitializeDatabaseSchema();
+            if (LogCommands)
+            {
+                Commands = ((UmbracoDatabase) _db).Commands;
+                ((UmbracoDatabase) _db).LogCommands = false;
+            }
 
             _logger.Info<Database>("Finalized database schema creation");
         }

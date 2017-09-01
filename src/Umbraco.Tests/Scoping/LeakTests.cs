@@ -70,6 +70,7 @@ namespace Umbraco.Tests.Scoping
         [TearDown]
         public override void TearDown()
         {
+            // this should kill the database
             base.TearDown();
 
             // the leaked scope should be gone

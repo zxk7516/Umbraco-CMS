@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Configuration;
-using System.Threading;
 using System.Web.Routing;
 using System.Xml;
 using NUnit.Framework;
 using Umbraco.Core;
-using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Persistence;
@@ -13,7 +11,6 @@ using Umbraco.Core.Persistence.Mappers;
 using Umbraco.Core.Persistence.SqlSyntax;
 using Umbraco.Core.Persistence.UnitOfWork;
 using Umbraco.Core.PropertyEditors;
-using Umbraco.Core.Publishing;
 using Umbraco.Core.Services;
 using Umbraco.Web;
 using Umbraco.Web.PublishedCache;
@@ -21,7 +18,6 @@ using Umbraco.Web.PublishedCache.XmlPublishedCache;
 using Umbraco.Web.Security;
 using umbraco.BusinessLogic;
 using Umbraco.Core.Events;
-using Umbraco.Core.IO;
 using Umbraco.Core.Scoping;
 
 namespace Umbraco.Tests.TestHelpers
@@ -34,25 +30,35 @@ namespace Umbraco.Tests.TestHelpers
     [TestFixture, RequiresSTA]
     public abstract class BaseDatabaseFactoryTest : BaseUmbracoApplicationTest
     {
-        //This is used to indicate that this is the first test to run in the test session, if so, we always
-        //ensure a new database file is used.
-        private static volatile bool _firstRunInTestSession = true;
-        private static readonly object Locker = new object();
-        private bool _firstTestInFixture = true;
+        // indicates whether a test has already run for this session
+        private static volatile bool _hasRunInTestSession;
 
-        //Used to flag if its the first test in the current session
+        // indicates whether a test has already run for this feature
+        private bool _hasRunInFeature = true;
+
+        // indicates whether the current test is the first test of the test session
         private bool _isFirstRunInTestSession;
-        //Used to flag if its the first test in the current fixture
-        private bool _isFirstTestInFixture;
+
+        // indicates whether the current test is the first test of the fixture
+        private bool _isFirstRunInFeature;
+
+        // indicates whether a database with schema has been created for the fixture
+        private bool _hasFeatureSchemaDatabase;
+
+        private static readonly object Locker = new object();
 
         private ApplicationContext _appContext;
-
-        private string _dbPath;
-        //used to store (globally) the pre-built db with schema and initial data
-        
         private DefaultDatabaseFactory _dbFactory;
+        private DatabaseBehavior _databaseBehavior;
+        private static TestDatabase _localDbDatabase; // one for *all* tests!
+        private static TestDatabase _sqlCeTestDatabase; // one for *all* tests!
+        private TestDatabase _testDatabase;
 
-        private DatabaseTestHelper _dbTestHelper;
+        protected virtual SupportedTestDatabase SupportedTestDatabase
+        {
+            // unknown = use what's best
+            get { return SupportedTestDatabase.Unknown; }
+        }
 
         [SetUp]
         public override void Initialize()
@@ -66,7 +72,34 @@ namespace Umbraco.Tests.TestHelpers
             // but these test classes are all weird, not going to change it now - v8
             SafeCallContext.Clear();
 
-            _dbTestHelper = new DatabaseTestHelper(TestHelper.CurrentAssemblyDirectory, ProfilingLogger);
+            switch (SupportedTestDatabase)
+            {
+                case SupportedTestDatabase.LocalDb:
+                    // Get will throw if LocalDb is not available
+                    _testDatabase = _localDbDatabase ?? (_localDbDatabase = TestDatabase.Get(TestHelper.CurrentAssemblyDirectory, SupportedTestDatabase));
+                    break;
+                case SupportedTestDatabase.SqlCe:
+                    // SqlCe is always available
+                    _testDatabase = _sqlCeTestDatabase ?? (_sqlCeTestDatabase = TestDatabase.Get(TestHelper.CurrentAssemblyDirectory, SupportedTestDatabase));
+                    break;
+                case SupportedTestDatabase.Unknown:
+                    if (_localDbDatabase == null)
+                    {
+                        // use what we can
+                        if (TestDatabase.LocalDbIsAvailable)
+                            _testDatabase = _localDbDatabase = TestDatabase.Get(TestHelper.CurrentAssemblyDirectory, SupportedTestDatabase);
+                        else
+                            _testDatabase = _sqlCeTestDatabase ?? (_sqlCeTestDatabase = TestDatabase.Get(TestHelper.CurrentAssemblyDirectory, SupportedTestDatabase));
+                    }
+                    else
+                    {
+                        // use LocalDb
+                        _testDatabase = _localDbDatabase;
+                    }
+                    break;
+                default:
+                    throw new NotSupportedException(SupportedTestDatabase.ToString());
+            }
 
             _dbFactory = new DefaultDatabaseFactory(
                 GetDbConnectionString(),
@@ -80,14 +113,14 @@ namespace Umbraco.Tests.TestHelpers
             if (scopeProvider.AmbientScope != null)
                 scopeProvider.AmbientScope.Dispose(); // removes scope from context
 
-            base.Initialize();            
+            base.Initialize();
 
             using (ProfilingLogger.TraceDuration<BaseDatabaseFactoryTest>("init"))
             {
                 //TODO: Somehow make this faster - takes 5s +
 
                 DatabaseContext.Initialize(_dbFactory.ProviderName, _dbFactory.ConnectionString);
-                CreateDatabase();
+
                 InitializeDatabase();
 
                 //ensure the configuration matches the current version for tests
@@ -127,19 +160,20 @@ namespace Umbraco.Tests.TestHelpers
         {
             get
             {
+                if (_databaseBehavior != DatabaseBehavior.Unknown) return _databaseBehavior;
                 var att = GetType().GetCustomAttribute<DatabaseTestBehaviorAttribute>(false);
-                return att != null ? att.Behavior : DatabaseBehavior.NoDatabasePerFixture;
+                return _databaseBehavior = att != null ? att.Behavior : DatabaseBehavior.NoDatabasePerFixture;
             }
         }
 
         protected virtual ISqlSyntaxProvider GetSyntaxProvider()
         {
-            return _dbTestHelper.GetSyntaxProvider();
+            return _testDatabase.SqlSyntaxProvider;
         }
 
         protected virtual string GetDbProviderName()
         {
-            return _dbTestHelper.GetDbProviderName();
+            return _testDatabase.ProviderName;
         }
 
         /// <summary>
@@ -147,48 +181,68 @@ namespace Umbraco.Tests.TestHelpers
         /// </summary>
         protected virtual string GetDbConnectionString()
         {
-            return _dbTestHelper.GetDbConnectionString();
+            return _testDatabase.ConnectionString;
         }
-        
-        /// <summary>
-        /// Creates the database if required
-        /// </summary>
-        protected virtual void CreateDatabase()
+
+        protected virtual void InitializeDatabase()
         {
+            if (_isFirstRunInTestSession)
+                _testDatabase.Clear();
+
             if (DatabaseTestBehavior == DatabaseBehavior.NoDatabasePerFixture)
                 return;
-            
-            var connString = GetDbConnectionString();
 
-            //Set the legacy connection string just in case something is referencing it
-            ConfigurationManager.AppSettings.Set(Constants.System.UmbracoConnectionName, connString);
+            var cstr = GetDbConnectionString();
 
-            _dbPath = _dbTestHelper.GetDbPath();
+            // set the legacy connection string just in case something is referencing it
+            ConfigurationManager.AppSettings.Set(Constants.System.UmbracoConnectionName, cstr);
 
-            //create a new database file if
-            // - is the first test in the session
-            // - the database file doesn't exist
-            // - NewDbFileAndSchemaPerTest
-            // - _isFirstTestInFixture + DbInitBehavior.NewDbFileAndSchemaPerFixture
-
-            //if this is the first test in the session, always ensure a new db file is created
-            if (_isFirstRunInTestSession
-                || _dbTestHelper.DbExists == false
-                || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest
-                || DatabaseTestBehavior == DatabaseBehavior.EmptyDbFilePerTest
-                || (_isFirstTestInFixture && DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture))
+            switch (DatabaseTestBehavior)
             {
-                try
-                {
-                    _dbTestHelper.CreateNewDb(ApplicationContext, DatabaseTestBehavior);
-                }
-                catch (Exception ex)
-                {
-                    //if this doesn't work we have to make sure everything is reset! otherwise
-                    // well run into issues because we've already set some things up
-                    TearDown();
-                    throw ex;
-                }
+                case DatabaseBehavior.EmptyDbFilePerTest:
+                    // we need to create a new, empty database for this test
+                    AttachEmptyDatabase();
+                    break;
+
+                case DatabaseBehavior.NewDbFileAndSchemaPerFixture:
+                    if (_hasFeatureSchemaDatabase) return;
+                    // else we need to create a database for this feature
+                    AttachSchemaDatabase();
+                    _hasFeatureSchemaDatabase = true;
+                    break;
+
+                case DatabaseBehavior.NewDbFileAndSchemaPerTest:
+                    // we need to create a new, schema database for this test
+                    AttachSchemaDatabase();
+                    break;
+            }
+        }
+
+        protected void AttachEmptyDatabase()
+        {
+            if (_testDatabase.HasEmpty)
+            {
+                _testDatabase.AttachEmpty();
+            }
+            else
+            {
+                _testDatabase.Create();
+                _testDatabase.CaptureEmpty();
+            }
+        }
+
+        protected void AttachSchemaDatabase()
+        {
+            if (_testDatabase.HasSchema)
+            {
+                _testDatabase.AttachSchema();
+            }
+            else
+            {
+                AttachEmptyDatabase();
+                var schemaHelper = new DatabaseSchemaHelper(DatabaseContext.Database, Logger, SqlSyntax);
+                schemaHelper.CreateDatabaseSchema(false, ApplicationContext);
+                _testDatabase.CaptureSchema();
             }
         }
 
@@ -220,38 +274,12 @@ namespace Umbraco.Tests.TestHelpers
         }
 
         /// <summary>
-        /// Creates the tables and data for the database
-        /// </summary>
-        protected virtual void InitializeDatabase()
-        {
-            if (DatabaseTestBehavior == DatabaseBehavior.NoDatabasePerFixture || DatabaseTestBehavior == DatabaseBehavior.EmptyDbFilePerTest)
-                return;
-
-            //create the schema and load default data if:
-            // - is the first test in the session
-            // - NewDbFileAndSchemaPerTest
-            // - _isFirstTestInFixture + DbInitBehavior.NewDbFileAndSchemaPerFixture
-
-            if (_isFirstRunInTestSession
-                || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest
-                || _isFirstTestInFixture && DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture)
-            {
-                var schemaHelper = new DatabaseSchemaHelper(DatabaseContext.Database, Logger, SqlSyntax);
-                //Create the umbraco database and its base data
-                schemaHelper.CreateDatabaseSchema(false, ApplicationContext);
-
-                //based on the type of database used, this will perform some magic to make sure test initialization is speedy
-                _dbTestHelper.ConfigureForFirstRun(ApplicationContext);
-            }
-        }
-
-        /// <summary>
         /// When all tests are completed
         /// </summary>
         [TestFixtureTearDown]
         public void FixtureTearDown()
         {
-            _dbTestHelper.Dispose();
+            _testDatabase.Drop();
         }
 
         [TearDown]
@@ -259,10 +287,16 @@ namespace Umbraco.Tests.TestHelpers
         {
             using (ProfilingLogger.TraceDuration<BaseDatabaseFactoryTest>("teardown"))
             {
-                _isFirstTestInFixture = false; //ensure this is false before anything!
+                _isFirstRunInFeature = false; //ensure this is false before anything!
 
-                _dbTestHelper.TestTearDown(ApplicationContext, DatabaseTestBehavior);
-                
+                // ensure we don't leak a connection
+                if (ApplicationContext != null
+                    && ApplicationContext.DatabaseContext != null
+                    && ApplicationContext.DatabaseContext.ScopeProvider != null)
+                {
+                    ApplicationContext.DatabaseContext.ScopeProvider.Reset();
+                }
+
                 AppDomain.CurrentDomain.SetData("DataDirectory", null);
 
                 SqlSyntaxContext.SqlSyntaxProvider = null;
@@ -273,29 +307,26 @@ namespace Umbraco.Tests.TestHelpers
 
         private void InitializeFirstRunFlags()
         {
-            //this needs to be thread-safe
-            _isFirstRunInTestSession = false;
-            if (_firstRunInTestSession)
+            _isFirstRunInTestSession = _isFirstRunInFeature = false;
+
+            if (_hasRunInTestSession == false || _hasRunInFeature == false)
             {
                 lock (Locker)
                 {
-                    if (_firstRunInTestSession)
+                    if (_hasRunInTestSession == false)
                     {
-                        _isFirstRunInTestSession = true; //set the flag
-                        _firstRunInTestSession = false;
+                        _isFirstRunInTestSession = true;
+                        _hasRunInTestSession = true;
+                    }
+
+                    if (_hasRunInFeature == false)
+                    {
+                        _isFirstRunInFeature = true;
+                        _hasRunInFeature = true;
                     }
                 }
             }
-            if (_firstTestInFixture == false) return;
-
-            lock (Locker)
-            {
-                if (_firstTestInFixture == false) return;
-
-                _isFirstTestInFixture = true; //set the flag
-                _firstTestInFixture = false;
-            }
-        }        
+        }
 
         protected DatabaseContext DatabaseContext
         {
@@ -342,7 +373,7 @@ namespace Umbraco.Tests.TestHelpers
 
             return factory;
         }
-        
+
         protected virtual string GetXmlContent(int templateId)
         {
             return @"<?xml version=""1.0"" encoding=""utf-8""?>

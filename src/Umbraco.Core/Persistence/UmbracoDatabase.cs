@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Text;
@@ -24,6 +25,7 @@ namespace Umbraco.Core.Persistence
     {
         private readonly ILogger _logger;
         private readonly Guid _instanceId = Guid.NewGuid();
+        private List<CommandInfo> _commands;
         private bool _enableCount;
 #if DEBUG_DATABASES
         private int _spid = -1;
@@ -236,6 +238,7 @@ namespace Umbraco.Core.Persistence
             {
                 SqlCount++;
             }
+            if (_commands != null) _commands.Add(new CommandInfo(cmd));
             base.OnExecutedCommand(cmd);
         }
 
@@ -273,6 +276,44 @@ namespace Umbraco.Core.Persistence
 
             //use the defaults
             base.BuildSqlDbSpecificPagingQuery(databaseType, skip, take, sql, sqlSelectRemoved, sqlOrderBy, ref args, out sqlPage);
+        }
+
+        public bool LogCommands
+        {
+            get { return _commands != null; }
+            set { _commands = value ? new List<CommandInfo>() : null; }
+        }
+
+        public List<CommandInfo> Commands { get { return _commands; } }
+
+        public class CommandInfo
+        {
+            public CommandInfo(IDbCommand cmd)
+            {
+                Text = cmd.CommandText;
+                var parameters = new List<ParameterInfo>();
+                foreach (IDbDataParameter parameter in cmd.Parameters) parameters.Add(new ParameterInfo(parameter));
+                Parameters = parameters.ToArray();
+            }
+
+            public string Text { get; private set; }
+            public ParameterInfo[] Parameters { get; private set; }
+        }
+
+        public class ParameterInfo
+        {
+            public ParameterInfo(IDbDataParameter parameter)
+            {
+                Name = parameter.ParameterName;
+                Value = parameter.Value;
+                DbType = parameter.DbType;
+                Size = parameter.Size;
+            }
+
+            public string Name { get; private set; }
+            public object Value { get; private set; }
+            public DbType DbType { get; private set; }
+            public int Size { get; private set; }
         }
     }
 }

@@ -188,6 +188,7 @@
     <Compile Include="Cache\CacheRefresherEventHandlerTests.cs" />
     <Compile Include="Models\Mapping\UserModelMapperTests.cs" />
     <Compile Include="Persistence\Repositories\SimilarNodeNameTests.cs" />
+    <Compile Include="Persistence\TestDatabaseTests.cs" />
     <Compile Include="TestHelpers\ControllerTesting\AuthenticateEverythingExtensions.cs" />
     <Compile Include="TestHelpers\ControllerTesting\AuthenticateEverythingMiddleware.cs" />
     <Compile Include="TestHelpers\ControllerTesting\SpecificAssemblyResolver.cs" />
@@ -196,11 +197,11 @@
     <Compile Include="TestHelpers\ControllerTesting\TestRunner.cs" />
     <Compile Include="TestHelpers\ControllerTesting\TestStartup.cs" />
     <Compile Include="TestHelpers\ControllerTesting\TraceExceptionLogger.cs" />
-    <Compile Include="TestHelpers\DatabaseTestHelper.cs" />
-    <Compile Include="TestHelpers\IDbTestHelper.cs" />
-    <Compile Include="TestHelpers\LocalDbHelper.cs" />
-    <Compile Include="TestHelpers\SqlCeHelper.cs" />
+    <Compile Include="TestHelpers\LocalDbTestDatabase.cs" />
+    <Compile Include="TestHelpers\SqlCeTestDatabase.cs" />
+    <Compile Include="TestHelpers\TestDatabase.cs" />
     <Compile Include="TestHelpers\SupportedTestDatabase.cs" />
+    <Compile Include="TestsSetup.cs" />
     <Compile Include="Web\Controllers\UserEditorAuthorizationHelperTests.cs" />
     <Compile Include="Web\Controllers\UsersControllerTests.cs" />
     <Compile Include="Dependencies\NuGet.cs" />

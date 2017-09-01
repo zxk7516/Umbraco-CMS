@@ -51,7 +51,7 @@ namespace Umbraco.Tests.Services
         /// <summary>
         /// don't create anything, we're testing against our own server
         /// </summary>
-        protected override void CreateDatabase()
+        protected override void InitializeDatabase()
         {
         }
 

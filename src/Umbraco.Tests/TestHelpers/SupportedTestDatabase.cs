@@ -2,6 +2,7 @@
 {
     public enum SupportedTestDatabase
     {
+        Unknown = 0,
         SqlCe,
         LocalDb
     }

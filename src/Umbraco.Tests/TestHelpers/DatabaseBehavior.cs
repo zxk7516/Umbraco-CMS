@@ -5,6 +5,8 @@
     /// </summary>
     public enum DatabaseBehavior
     {
+        Unknown = 0,
+
         /// <summary>
         /// A database is not required whatsoever for the fixture
         /// </summary>
