@@ -52,7 +52,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Deal_With_Corrupt_Duplicate_Newest_Published_Flags_Full_Model()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             ContentTypeRepository contentTypeRepository;
             IContent content1;            
@@ -127,7 +127,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         public void Deal_With_Corrupt_Duplicate_Newest_Published_Flags_Slim_Model()
         {
             // Arrange
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             ContentTypeRepository contentTypeRepository;
             IContent content1;

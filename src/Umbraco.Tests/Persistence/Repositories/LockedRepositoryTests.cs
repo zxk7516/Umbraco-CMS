@@ -41,7 +41,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void NoOuterScopeJustWorks()
         {
-            var uowProvider = new PetaPocoUnitOfWorkProvider(Logger);
+            var uowProvider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var sqlSyntax = ApplicationContext.DatabaseContext.SqlSyntax;
 
             var lrepo = new LockingRepository<IServerRegistrationRepository>(uowProvider,
@@ -89,7 +89,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void OuterScopeBadIsolationLevel()
         {
-            var uowProvider = new PetaPocoUnitOfWorkProvider(Logger);
+            var uowProvider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var sqlSyntax = ApplicationContext.DatabaseContext.SqlSyntax;
 
             var lrepo = new LockingRepository<IServerRegistrationRepository>(uowProvider,
@@ -123,7 +123,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void OuterScopeGoodIsolationLevel()
         {
-            var uowProvider = new PetaPocoUnitOfWorkProvider(Logger);
+            var uowProvider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var sqlSyntax = ApplicationContext.DatabaseContext.SqlSyntax;
 
             var lrepo = new LockingRepository<IServerRegistrationRepository>(uowProvider,

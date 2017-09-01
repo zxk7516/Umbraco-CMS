@@ -30,7 +30,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void CanSaveAndGet()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             using (var repo = CreateRepository(uow))
@@ -60,7 +60,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void CanSaveAndGetMostRecent()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             Assert.AreNotEqual(_textpage.Id, _otherpage.Id);
 
@@ -108,7 +108,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void CanSaveAndGetByContent()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             using (var repo = CreateRepository(uow))
@@ -152,7 +152,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void CanSaveAndDelete()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             using (var repo = CreateRepository(uow))

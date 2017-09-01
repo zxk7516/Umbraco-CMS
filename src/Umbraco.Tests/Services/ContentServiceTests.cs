@@ -964,7 +964,7 @@ namespace Umbraco.Tests.Services
             var content = contentService.GetById(NodeDto.NodeIdSeed + 1);
             bool published = contentService.Publish(content, 0);
 
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             using (var uow = provider.GetUnitOfWork())
             {
                 Assert.IsTrue(uow.Database.Exists<ContentXmlDto>(content.Id));
@@ -1030,7 +1030,7 @@ namespace Umbraco.Tests.Services
             }
             var allContent = rootContent.Concat(rootContent.SelectMany(x => x.Descendants()));
             //for testing we need to clear out the contentXml table so we can see if it worked
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             using (var uow = provider.GetUnitOfWork())
             {
                 uow.Database.TruncateTable("cmsContentXml");
@@ -1064,7 +1064,7 @@ namespace Umbraco.Tests.Services
             }
             var allContent = rootContent.Concat(rootContent.SelectMany(x => x.Descendants())).ToList();
             //for testing we need to clear out the contentXml table so we can see if it worked
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             {
@@ -1877,7 +1877,7 @@ namespace Umbraco.Tests.Services
 
             contentService.Save(content);
 
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             {
@@ -1901,7 +1901,7 @@ namespace Umbraco.Tests.Services
 
             contentService.Save(content);
 
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
 
             using (var uow = provider.GetUnitOfWork())
             {

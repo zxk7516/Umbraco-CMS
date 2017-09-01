@@ -27,7 +27,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Can_Add_Audit_Entry()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
             using (var repo = new AuditRepository(unitOfWork, CacheHelper, Logger, SqlSyntax))
             {

@@ -33,7 +33,7 @@ namespace Umbraco.Tests.Persistence.Repositories
 
         private int CreateTestData(string isoName, out ContentType ct)
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentRepository contentRepo;
@@ -57,7 +57,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Can_Create_And_Get_By_Id()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -92,7 +92,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Can_Create_And_Get_By_Id_Empty_lang()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -125,7 +125,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Cant_Create_Duplicate_Domain_Name()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -158,7 +158,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Can_Delete()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -193,7 +193,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Can_Update()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -245,7 +245,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Exists()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -276,7 +276,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_By_Name()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -307,7 +307,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_All()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -338,7 +338,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_All_Ids()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -371,7 +371,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_All_Without_Wildcards()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -406,7 +406,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_All_For_Content()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
@@ -457,7 +457,7 @@ namespace Umbraco.Tests.Persistence.Repositories
         [Test]
         public void Get_All_For_Content_Without_Wildcards()
         {
-            var provider = new PetaPocoUnitOfWorkProvider(Logger);
+            var provider = new PetaPocoUnitOfWorkProvider(ApplicationContext.ScopeProvider);
             var unitOfWork = provider.GetUnitOfWork();
 
             ContentType ct;
