@@ -196,6 +196,11 @@
     <Compile Include="TestHelpers\ControllerTesting\TestRunner.cs" />
     <Compile Include="TestHelpers\ControllerTesting\TestStartup.cs" />
     <Compile Include="TestHelpers\ControllerTesting\TraceExceptionLogger.cs" />
+    <Compile Include="TestHelpers\DatabaseTestHelper.cs" />
+    <Compile Include="TestHelpers\IDbTestHelper.cs" />
+    <Compile Include="TestHelpers\LocalDbHelper.cs" />
+    <Compile Include="TestHelpers\SqlCeHelper.cs" />
+    <Compile Include="TestHelpers\SupportedTestDatabase.cs" />
     <Compile Include="Web\Controllers\UserEditorAuthorizationHelperTests.cs" />
     <Compile Include="Web\Controllers\UsersControllerTests.cs" />
     <Compile Include="Dependencies\NuGet.cs" />

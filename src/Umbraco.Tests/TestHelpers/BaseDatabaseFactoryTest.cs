@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Configuration;
-using System.Data.SqlClient;
-using System.Data.SqlServerCe;
-using System.IO;
 using System.Threading;
 using System.Web.Routing;
 using System.Xml;
 using NUnit.Framework;
-using SQLCE4Umbraco;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
-using Umbraco.Core.Logging;
 using Umbraco.Core.Models.PublishedContent;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.Mappers;
@@ -54,8 +49,10 @@ namespace Umbraco.Tests.TestHelpers
 
         private string _dbPath;
         //used to store (globally) the pre-built db with schema and initial data
-        private static byte[] _dbBytes;
+        
         private DefaultDatabaseFactory _dbFactory;
+
+        private DatabaseTestHelper _dbTestHelper;
 
         [SetUp]
         public override void Initialize()
@@ -69,6 +66,8 @@ namespace Umbraco.Tests.TestHelpers
             // but these test classes are all weird, not going to change it now - v8
             SafeCallContext.Clear();
 
+            _dbTestHelper = new DatabaseTestHelper(TestHelper.CurrentAssemblyDirectory, ProfilingLogger);
+
             _dbFactory = new DefaultDatabaseFactory(
                 GetDbConnectionString(),
                 GetDbProviderName(),
@@ -81,7 +80,7 @@ namespace Umbraco.Tests.TestHelpers
             if (scopeProvider.AmbientScope != null)
                 scopeProvider.AmbientScope.Dispose(); // removes scope from context
 
-            base.Initialize();
+            base.Initialize();            
 
             using (ProfilingLogger.TraceDuration<BaseDatabaseFactoryTest>("init"))
             {
@@ -135,21 +134,12 @@ namespace Umbraco.Tests.TestHelpers
 
         protected virtual ISqlSyntaxProvider GetSyntaxProvider()
         {
-            return IsLocalDbInstalled()
-                ? (ISqlSyntaxProvider)new SqlServerSyntaxProvider()
-                :  new SqlCeSyntaxProvider();
+            return _dbTestHelper.GetSyntaxProvider();
         }
 
         protected virtual string GetDbProviderName()
         {
-            if (IsLocalDbInstalled())
-            {
-                return "System.Data.SqlClient";
-            }
-            else
-            {
-                return "System.Data.SqlServerCe.4.0";
-            }
+            return _dbTestHelper.GetDbProviderName();
         }
 
         /// <summary>
@@ -157,49 +147,9 @@ namespace Umbraco.Tests.TestHelpers
         /// </summary>
         protected virtual string GetDbConnectionString()
         {
-            if (IsLocalDbInstalled())
-            {
-                return @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\UmbracoPetaPocoTests.mdf;Integrated Security=True";
-            }
-            else
-            {
-                return @"Datasource=|DataDirectory|UmbracoPetaPocoTests.sdf;Flush Interval=1;";
-            }
+            return _dbTestHelper.GetDbConnectionString();
         }
-
-        private static bool? _isLocalDbInstalled;
-        public bool IsLocalDbInstalled()
-        {
-            return (_isLocalDbInstalled ?? (_isLocalDbInstalled = ExistsOnPath("SqlLocalDB.exe"))).Value;
-        }
-
-        public static bool ExistsOnPath(string fileName)
-        {
-            return GetFullPath(fileName) != null;
-        }
-
-        public static string GetFullPath(string fileName)
-        {
-            if (File.Exists(fileName))
-                return Path.GetFullPath(fileName);
-
-            var values = Environment.GetEnvironmentVariable("PATH");
-            foreach (var path in values.Split(';'))
-            {
-                var fullPath = Path.Combine(path, fileName);
-                if (File.Exists(fullPath))
-                    return fullPath;
-            }
-            return null;
-        }
-
-        private string GetDbPath(string baseDir)
-        {
-            return IsLocalDbInstalled()
-                ? string.Concat(baseDir, "\\UmbracoPetaPocoTests.mdf")
-                : string.Concat(baseDir, "\\UmbracoPetaPocoTests.sdf");
-        }
-
+        
         /// <summary>
         /// Creates the database if required
         /// </summary>
@@ -207,16 +157,13 @@ namespace Umbraco.Tests.TestHelpers
         {
             if (DatabaseTestBehavior == DatabaseBehavior.NoDatabasePerFixture)
                 return;
+            
+            var connString = GetDbConnectionString();
 
-            var path = TestHelper.CurrentAssemblyDirectory;
+            //Set the legacy connection string just in case something is referencing it
+            ConfigurationManager.AppSettings.Set(Constants.System.UmbracoConnectionName, connString);
 
-            //Get the connectionstring settings from config
-            var settings = ConfigurationManager.ConnectionStrings[Constants.System.UmbracoConnectionName];
-            ConfigurationManager.AppSettings.Set(
-                Constants.System.UmbracoConnectionName,
-                GetDbConnectionString());
-
-            _dbPath = GetDbPath(path);
+            _dbPath = _dbTestHelper.GetDbPath();
 
             //create a new database file if
             // - is the first test in the session
@@ -225,68 +172,24 @@ namespace Umbraco.Tests.TestHelpers
             // - _isFirstTestInFixture + DbInitBehavior.NewDbFileAndSchemaPerFixture
 
             //if this is the first test in the session, always ensure a new db file is created
-            if (_isFirstRunInTestSession || File.Exists(_dbPath) == false
-                || (DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest || DatabaseTestBehavior == DatabaseBehavior.EmptyDbFilePerTest)
+            if (_isFirstRunInTestSession
+                || _dbTestHelper.DbExists == false
+                || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest
+                || DatabaseTestBehavior == DatabaseBehavior.EmptyDbFilePerTest
                 || (_isFirstTestInFixture && DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture))
             {
-
-                using (ProfilingLogger.TraceDuration<BaseDatabaseFactoryTest>("Remove database file"))
+                try
                 {
-                    RemoveDatabaseFile(ex =>
-                    {
-                        //if this doesn't work we have to make sure everything is reset! otherwise
-                        // well run into issues because we've already set some things up
-                        TearDown();
-                        throw ex;
-                    });
+                    _dbTestHelper.CreateNewDb(ApplicationContext, DatabaseTestBehavior);
                 }
-
-                //Create the Sql file database
-                using (ProfilingLogger.TraceDuration<BaseDatabaseFactoryTest>("Create database file"))
+                catch (Exception ex)
                 {
-                    if (DatabaseTestBehavior != DatabaseBehavior.EmptyDbFilePerTest && _dbBytes != null)
-                    {
-                        File.WriteAllBytes(_dbPath, _dbBytes);
-                    }
-                    else
-                    {
-                        if (IsLocalDbInstalled())
-                        {
-                            var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB");                         
-                            using (connection)
-                            {
-                                connection.Open();
-                                var sql = string.Format(@"
-                                    CREATE DATABASE
-                                        [UmbracoPetaPocoTests]
-                                    ON PRIMARY (
-                                        NAME=Test_data,
-                                        FILENAME = '{0}\UmbracoPetaPocoTests.mdf'
-                                    )
-                                    LOG ON (
-                                        NAME=Test_log,
-                                        FILENAME = '{0}\UmbracoPetaPocoTests.ldf'
-                                    )",
-                                    path
-                                );
-                                using (var command = new SqlCommand(sql, connection))
-                                {
-                                    command.ExecuteNonQuery();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            using (var engine = new SqlCeEngine(settings.ConnectionString))
-                            {
-                                engine.CreateDatabase();
-                            }
-                        }
-                    }
+                    //if this doesn't work we have to make sure everything is reset! otherwise
+                    // well run into issues because we've already set some things up
+                    TearDown();
+                    throw ex;
                 }
-
             }
-
         }
 
         /// <summary>
@@ -329,32 +232,26 @@ namespace Umbraco.Tests.TestHelpers
             // - NewDbFileAndSchemaPerTest
             // - _isFirstTestInFixture + DbInitBehavior.NewDbFileAndSchemaPerFixture
 
-            if (_dbBytes == null &&                
-                (_isFirstRunInTestSession
+            if (_isFirstRunInTestSession
                 || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest
-                || (_isFirstTestInFixture && DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture)))
+                || _isFirstTestInFixture && DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture)
             {
                 var schemaHelper = new DatabaseSchemaHelper(DatabaseContext.Database, Logger, SqlSyntax);
                 //Create the umbraco database and its base data
                 schemaHelper.CreateDatabaseSchema(false, ApplicationContext);
-                
-                //TODO: this file copy trick doesn't currently work with LocalDb
-                if (IsLocalDbInstalled() == false)
-                {
-                    //close the connections, we're gonna read this baby in as a byte array so we don't have to re-initialize the
-                    // damn db for each test
-                    CloseDbConnections();
 
-                    _dbBytes = File.ReadAllBytes(_dbPath);
-                }
-
+                //based on the type of database used, this will perform some magic to make sure test initialization is speedy
+                _dbTestHelper.ConfigureForFirstRun(ApplicationContext);
             }
         }
 
+        /// <summary>
+        /// When all tests are completed
+        /// </summary>
         [TestFixtureTearDown]
         public void FixtureTearDown()
         {
-            RemoveDatabaseFile();
+            _dbTestHelper.Dispose();
         }
 
         [TearDown]
@@ -364,47 +261,14 @@ namespace Umbraco.Tests.TestHelpers
             {
                 _isFirstTestInFixture = false; //ensure this is false before anything!
 
-                if (DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest)
-                    RemoveDatabaseFile(); // closes connections too
-                else
-                    CloseDbConnections();
-
+                _dbTestHelper.TestTearDown(ApplicationContext, DatabaseTestBehavior);
+                
                 AppDomain.CurrentDomain.SetData("DataDirectory", null);
 
                 SqlSyntaxContext.SqlSyntaxProvider = null;
             }
 
             base.TearDown();
-        }
-
-        private void CloseDbConnections()
-        {
-            // just to be sure, although it's also done in TearDown
-            if (ApplicationContext != null
-                && ApplicationContext.DatabaseContext != null
-                && ApplicationContext.DatabaseContext.ScopeProvider != null)
-            {
-                ApplicationContext.DatabaseContext.ScopeProvider.Reset();
-            }
-
-            SqlCeContextGuardian.CloseBackgroundConnection();
-
-            if (IsLocalDbInstalled())
-            {
-                var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB");
-                using (connection)
-                {
-                    connection.Open();
-                    var sql = @"
-                                    EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'UmbracoPetaPocoTests;'
-                                    USE [master];
-                                    IF EXISTS(select * from sys.databases where name='UmbracoPetaPocoTests') ALTER DATABASE [UmbracoPetaPocoTests] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
-                    using (var command = new SqlCommand(sql, connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                }
-            }
         }
 
         private void InitializeFirstRunFlags()
@@ -431,61 +295,7 @@ namespace Umbraco.Tests.TestHelpers
                 _isFirstTestInFixture = true; //set the flag
                 _firstTestInFixture = false;
             }
-        }
-
-        private void RemoveDatabaseFile(Action<Exception> onFail = null)
-        {
-            CloseDbConnections();
-            var path = TestHelper.CurrentAssemblyDirectory;
-            try
-            {
-                if (IsLocalDbInstalled())
-                {                    
-                    var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB");
-                    using (connection)
-                    {
-                        connection.Open();
-                        var sql = @"
-                                    EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'UmbracoPetaPocoTests;'
-                                    USE [master];
-                                    IF EXISTS(select * from sys.databases where name='UmbracoPetaPocoTests') ALTER DATABASE [UmbracoPetaPocoTests] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                                    IF EXISTS(select * from sys.databases where name='UmbracoPetaPocoTests') DROP DATABASE [UmbracoPetaPocoTests];";
-                        using (var command = new SqlCommand(sql, connection))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                    }
-
-                    var filePath = string.Concat(path, "\\UmbracoPetaPocoTests.mdf");
-                    if (File.Exists(filePath))
-                    {
-                        File.Delete(filePath);
-                    }
-                    filePath = string.Concat(path, "\\UmbracoPetaPocoTests.ldf");
-                    if (File.Exists(filePath))
-                    {
-                        File.Delete(filePath);
-                    }
-                }
-                else
-                {
-                    var filePath = string.Concat(path, "\\UmbracoPetaPocoTests.sdf");
-                    if (File.Exists(filePath))
-                    {
-                        File.Delete(filePath);
-                    }
-                }
-                
-            }
-            catch (Exception ex)
-            {
-                LogHelper.Error<BaseDatabaseFactoryTest>("Could not remove the old database file", ex);
-
-                //We will swallow this exception! That's because a sub class might require further teardown logic.
-                if (onFail != null)
-                    onFail(ex);
-            }
-        }
+        }        
 
         protected DatabaseContext DatabaseContext
         {
