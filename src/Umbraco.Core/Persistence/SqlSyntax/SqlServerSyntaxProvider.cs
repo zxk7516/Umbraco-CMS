@@ -138,21 +138,11 @@ order by T.name, I.name");
         {
             return string.Format(RenameTable, oldName, newName);
         }
-
-        protected override string FormatIdentity(ColumnDefinition column)
-        {
-            return column.IsIdentity ? GetIdentityString(column) : string.Empty;
-        }
-
+        
         public override Sql SelectTop(Sql sql, int top)
         {
             return new Sql(sql.SQL.Insert(sql.SQL.IndexOf(' '), " TOP " + top), sql.Arguments);
-        }
-
-        private static string GetIdentityString(ColumnDefinition column)
-        {
-            return "IDENTITY(1,1)";
-        }
+        }        
 
         protected override string FormatSystemMethods(SystemMethods systemMethod)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.Linq;
+using Umbraco.Core.Persistence.DatabaseModelDefinitions;
 using Umbraco.Core.Persistence.Querying;
 
 namespace Umbraco.Core.Persistence.SqlSyntax
@@ -240,6 +241,19 @@ namespace Umbraco.Core.Persistence.SqlSyntax
                     throw new ArgumentOutOfRangeException();
             }
             return sqlDbType;
+        }
+
+        protected override string FormatIdentity(ColumnDefinition column)
+        {
+            return column.IsIdentity ? GetIdentityString(column) : string.Empty;
+        }
+
+        private static string GetIdentityString(ColumnDefinition column)
+        {
+            if (column.Seeding != default(int))
+                return string.Format("IDENTITY({0},1)", column.Seeding);
+
+            return "IDENTITY(1,1)";
         }
     }
 }

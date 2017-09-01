@@ -171,20 +171,7 @@ ORDER BY TABLE_NAME, INDEX_NAME");
 
             return result > 0;
         }
-
-        protected override string FormatIdentity(ColumnDefinition column)
-        {
-            return column.IsIdentity ? GetIdentityString(column) : string.Empty;
-        }
-
-        private static string GetIdentityString(ColumnDefinition column)
-        {
-            if (column.Seeding != default(int))
-                return string.Format("IDENTITY({0},1)", column.Seeding);
-
-            return "IDENTITY(1,1)";
-        }
-
+        
         protected override string FormatSystemMethods(SystemMethods systemMethod)
         {
             switch (systemMethod)

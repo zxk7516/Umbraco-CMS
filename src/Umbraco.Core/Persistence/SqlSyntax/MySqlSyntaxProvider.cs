@@ -294,6 +294,8 @@ ORDER BY TABLE_NAME, INDEX_NAME",
 
         protected override string FormatIdentity(ColumnDefinition column)
         {
+            //TODO: This doesn't take into account the Identity Seed
+
             return column.IsIdentity ? AutoIncrementDefinition : string.Empty;
         }
 

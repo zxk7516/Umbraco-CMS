@@ -44,9 +44,18 @@ namespace Umbraco.Tests.TestHelpers
             var values = Environment.GetEnvironmentVariable("PATH");
             foreach (var path in values.Split(';'))
             {
-                var fullPath = Path.Combine(path, fileName);
-                if (File.Exists(fullPath))
-                    return fullPath;
+                if (path.ContainsAny(Path.GetInvalidPathChars()))
+                    continue;
+                try
+                {
+                    var fullPath = Path.Combine(path, fileName);
+                    if (File.Exists(fullPath))
+                        return fullPath;
+                }
+                catch (ArgumentException)
+                {
+                    continue;
+                }
             }
             return null;
         }
