@@ -8,14 +8,27 @@ using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Tests.TestHelpers
 {
+    /// <summary>
+    /// A utility for working with LocalDb and unit tests
+    /// </summary>
+    /// <remarks>
+    /// We perform an initialization trick (just like we do with SQLCE) and on the first test run we'll take a binary snapshot of the database
+    /// file and then use that for each subsequent test. 
+    /// Doing this involves detaching the database which is ok but the tricky thing here is that when you connect to the database file with AttachDbFilename
+    /// the actual database file name changes to the full path instead of the original name! 
+    /// </remarks>
     public class LocalDbHelper : IDbTestHelper
     {
         private readonly string _dbFilePath;
         private readonly ProfilingLogger _profilingLogger;
-        //public static string DefaultConnectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\UmbracoPetaPocoTests.mdf;Integrated Security=True;MultipleActiveResultSets=True";
-        public static string DefaultConnectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\UmbracoPetaPocoTests.mdf;Integrated Security=True";
-        public static string ProviderName = "System.Data.SqlClient";
-        public static string FileName = "UmbracoPetaPocoTests.mdf";
+        public const string DefaultConnectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=|DataDirectory|\UmbracoPetaPocoTests.mdf;Integrated Security=True";
+        private const string MasterCatalogConnectionString = @"server=(localdb)\MSSQLLocalDB;Initial Catalog=master;";
+        public const string ProviderName = "System.Data.SqlClient";
+        public const string FileName = "UmbracoPetaPocoTests.mdf";
+        private const string DbName = "UmbracoPetaPocoTests";
+
+        private static readonly object Locker = new object();
+        private static byte[] _dbBytes;
 
         public LocalDbHelper(string dbFilePath, ProfilingLogger profilingLogger)
         {
@@ -60,20 +73,32 @@ namespace Umbraco.Tests.TestHelpers
             return null;
         }
 
-        private void ForciblyCloseAllConnections()
+        /// <summary>
+        /// Terminates all db connections
+        /// </summary>
+        /// <param name="useFilePath">
+        /// This will be true if the database has been connected to via the connection string using AttachDbFilename which will be in most
+        /// cases apart from the first run
+        /// </param>
+        private void ForciblyCloseAllConnections(bool useFilePath)
         {
-            using (var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB"))
+            var dbName = useFilePath ? _dbFilePath : DbName;
+
+            using (var connection = new SqlConnection(MasterCatalogConnectionString))
             {
                 connection.Open();
+
                 //taken from https://stackoverflow.com/a/7469167/694494 which seems to be the only thing that i can get to work consistently
-                var sql = @"USE [master];
-DECLARE @DatabaseName nvarchar(50);
-SET @DatabaseName = N'UmbracoPetaPocoTests';
+                //to kill anything that is connected to this db.
+                var sql = string.Format(@"USE [master];
+DECLARE @DatabaseName nvarchar(1000);
+SET @DatabaseName = N'{0}';
 DECLARE @SQL varchar(max);
 SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
 FROM MASTER..SysProcesses
 WHERE DBId = DB_ID(@DatabaseName) AND SPId <> @@SPId;
-EXEC(@SQL)";
+EXEC(@SQL);", dbName);
+
                 using (var command = new SqlCommand(sql, connection))
                 {
                     command.ExecuteNonQuery();
@@ -81,14 +106,42 @@ EXEC(@SQL)";
             }
         }
 
-        private void DropDatabase()
+        /// <summary>
+        /// This will detach the database so we can capture the database file
+        /// </summary>
+        /// <remarks>
+        /// This is ONLY used when we want to capture the file bytes on first run
+        /// </remarks>
+        private void DetachDatabase()
         {
-            ForciblyCloseAllConnections();
-            using (var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB"))
+            using (var connection = new SqlConnection(MasterCatalogConnectionString))
             {
                 connection.Open();
-                var sql = @"USE [master];
-                            IF EXISTS(select * from sys.databases where name='UmbracoPetaPocoTests') DROP DATABASE [UmbracoPetaPocoTests];";
+
+                var sql = string.Format(@"exec sp_detach_db '{0}';", DbName);
+                
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drops the database
+        /// </summary>
+        /// <param name="useFilePath">
+        /// This will be true if the database has been connected to via the connection string using AttachDbFilename which will be in most
+        /// cases apart from the first run
+        /// </param>
+        private void DropDatabase(bool useFilePath)
+        {
+            var dbName = useFilePath ? _dbFilePath : DbName;
+
+            using (var connection = new SqlConnection(MasterCatalogConnectionString))
+            {
+                connection.Open();
+                var sql = string.Format(@"IF EXISTS(select * from sys.databases where name='{0}') DROP DATABASE [{0}];", dbName);
                 using (var command = new SqlCommand(sql, connection))
                 {
                     command.ExecuteNonQuery();
@@ -102,22 +155,31 @@ EXEC(@SQL)";
             
             using (_profilingLogger.TraceDuration<LocalDbHelper>("Create new localdb database"))
             {
-                var baseDir = Path.GetDirectoryName(_dbFilePath);
-                
-                using (var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB"))
+                if (testBehavior != DatabaseBehavior.EmptyDbFilePerTest && _dbBytes != null)
                 {
-                    connection.Open();
-                    var sql = string.Format(@"
-                                    IF NOT EXISTS(select * from sys.databases where name='UmbracoPetaPocoTests')
-                                        CREATE DATABASE [UmbracoPetaPocoTests]
-                                        ON PRIMARY (NAME=Test_data, FILENAME = '{0}')
-                                        LOG ON (NAME=Test_log, FILENAME = '{1}\UmbracoPetaPocoTests.ldf')",
-                        _dbFilePath,
-                        baseDir
-                    );
-                    using (var command = new SqlCommand(sql, connection))
+                    File.WriteAllBytes(_dbFilePath, _dbBytes);
+                }
+                else
+                {
+                    var baseDir = Path.GetDirectoryName(_dbFilePath);
+
+                    using (var connection = new SqlConnection(MasterCatalogConnectionString))
                     {
-                        command.ExecuteNonQuery();
+                        connection.Open();
+
+                        var sql = string.Format(@"
+                                    IF NOT EXISTS(select * from sys.databases where name='{0}')
+                                        CREATE DATABASE [{0}]
+                                        ON PRIMARY (NAME='{0}', FILENAME = '{1}')
+                                        LOG ON (NAME='{0}_log', FILENAME = '{2}\{0}.ldf')",
+                            DbName,
+                            _dbFilePath,
+                            baseDir
+                        );
+                        using (var command = new SqlCommand(sql, connection))
+                        {
+                            command.ExecuteNonQuery();
+                        }
                     }
                 }
             }
@@ -127,24 +189,8 @@ EXEC(@SQL)";
         {
             using (_profilingLogger.TraceDuration<LocalDbHelper>("Dropping database tables if they exist"))
             {
-                if (DbExists())
+                if (DbExists(useFilePath:true))
                 {
-                    //This is supposed to work but ....
-
-                    //var connection = new SqlConnection(applicationContext.DatabaseContext.ConnectionString);
-                    //using (connection)
-                    //{
-                    //    connection.Open();
-                    //    var sql = @"
-                    //                        Use UmbracoPetaPocoTests;
-                    //                        EXEC sp_msforeachtable ""ALTER TABLE ? NOCHECK CONSTRAINT all"";
-                    //                        EXEC sp_MSforeachtable @command1 = ""DROP TABLE ?"";";
-                    //    using (var command = new SqlCommand(sql, connection))
-                    //    {
-                    //        command.ExecuteNonQuery();
-                    //    }
-                    //}
-
                     var schemaHelper = new DatabaseSchemaHelper(
                         applicationContext.DatabaseContext.Database,
                         _profilingLogger.Logger,
@@ -154,12 +200,15 @@ EXEC(@SQL)";
             }
         }
 
+        /// <summary>
+        /// This is called at the end of a unit test session
+        /// </summary>
         public void DeleteDatabase()
         {
             using (_profilingLogger.TraceDuration<LocalDbHelper>("Deleting database"))
             {
-                //ForciblyCloseAllConnections();
-                DropDatabase();
+                ForciblyCloseAllConnections(useFilePath:true);
+                DropDatabase(useFilePath: true);
                 try
                 {
                     if (File.Exists(_dbFilePath))
@@ -167,7 +216,7 @@ EXEC(@SQL)";
                         File.Delete(_dbFilePath);
                     }
                     var baseDir = Path.GetDirectoryName(_dbFilePath);
-                    var logFilePath = Path.Combine(baseDir, "UmbracoPetaPocoTests.ldf");
+                    var logFilePath = Path.Combine(baseDir, string.Format("{0}.ldf", DbName));
                     if (File.Exists(logFilePath))
                     {
                         File.Delete(logFilePath);
@@ -181,13 +230,37 @@ EXEC(@SQL)";
             }
         }
 
+        /// <summary>
+        /// This is called at the end of a unit test
+        /// </summary>
+        /// <param name="applicationContext"></param>
         public void ClearDatabase(ApplicationContext applicationContext)
         {
-            DropTables(applicationContext);
+            DeleteDatabase();
+            //DropTables(applicationContext);
         }
 
         public void ConfigureForFirstRun(ApplicationContext applicationContext)
-        {            
+        {
+            lock (Locker)
+            {
+                if (_dbBytes == null)
+                {
+                    //on first run, the database will have just been created which means we are not connecting to it via the
+                    //connection string with AttachDbFilename which means the database name will be the normal string and not the full path
+                    ForciblyCloseAllConnections(useFilePath:false);
+
+                    //once we detach, the entry for the newly created UmbracoPetaPocoTests database in the sys.databases table will be gone.
+                    //when we reconnect using the connection string with AttachDbFilename this entry will be re-created but the database name will
+                    //be the full path.
+                    DetachDatabase();
+                    
+                    
+                    //we're gonna read this baby in as a byte array
+                    //so we don't have to re-initialize the db for each test which is very slow
+                    _dbBytes = File.ReadAllBytes(_dbFilePath);                    
+                }
+            }
         }
 
         public string DbProviderName
@@ -208,14 +281,20 @@ EXEC(@SQL)";
         /// <summary>
         /// Checks with the master server if this db is registered
         /// </summary>
+        /// <param name="useFilePath">
+        /// This will be true if the database has been connected to via the connection string using AttachDbFilename which will be in most
+        /// cases apart from the first run
+        /// </param>
         /// <returns></returns>
-        private bool DbExists()
+        private bool DbExists(bool useFilePath)
         {
+            var dbName = useFilePath ? _dbFilePath : DbName;
+
             var exists = false;
-            using (var connection = new SqlConnection(@"server=(localdb)\MSSQLLocalDB"))
+            using (var connection = new SqlConnection(MasterCatalogConnectionString))
             {
                 connection.Open();
-                var sql = @"SELECT COUNT(*) from sys.databases where name='UmbracoPetaPocoTests'";
+                var sql = string.Format(@"SELECT COUNT(*) from sys.databases where name='{0}'", dbName);
                 using (var command = new SqlCommand(sql, connection))
                 {
                     var result = (int)command.ExecuteScalar();

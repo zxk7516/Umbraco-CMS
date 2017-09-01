@@ -15,7 +15,7 @@ namespace Umbraco.Tests.TestHelpers
         public static string ProviderName = "System.Data.SqlServerCe.4.0";
         public static string FileName = "UmbracoPetaPocoTests.sdf";
 
-        private static object _locker = new object();
+        private static readonly object Locker = new object();
         private static byte[] _dbBytes;
         private ISqlSyntaxProvider _syntaxProvider;
 
@@ -72,7 +72,7 @@ namespace Umbraco.Tests.TestHelpers
 
         public void ConfigureForFirstRun(ApplicationContext applicationContext)
         {
-            lock (_locker)
+            lock (Locker)
             {
                 if (_dbBytes == null)
                 {
