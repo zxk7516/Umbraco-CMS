@@ -102,7 +102,7 @@ namespace Umbraco.Tests.TestHelpers
             }
 
             _dbFactory = new DefaultDatabaseFactory(
-                GetDbConnectionString(),
+                GetDbConnectionString(), // fixme - too early!
                 GetDbProviderName(),
                 Logger);
 
@@ -119,7 +119,7 @@ namespace Umbraco.Tests.TestHelpers
             {
                 //TODO: Somehow make this faster - takes 5s +
 
-                DatabaseContext.Initialize(_dbFactory.ProviderName, _dbFactory.ConnectionString);
+                DatabaseContext.Initialize(_dbFactory.ProviderName, _dbFactory.ConnectionString); // fixme - too early
 
                 InitializeDatabase();
 
@@ -181,7 +181,9 @@ namespace Umbraco.Tests.TestHelpers
         /// </summary>
         protected virtual string GetDbConnectionString()
         {
-            return _testDatabase.ConnectionString;
+            var withSchema = DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture
+                             || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest;
+            return _testDatabase.GetConnectionString(withSchema);
         }
 
         protected virtual void InitializeDatabase()
@@ -191,11 +193,6 @@ namespace Umbraco.Tests.TestHelpers
 
             if (DatabaseTestBehavior == DatabaseBehavior.NoDatabasePerFixture)
                 return;
-
-            var cstr = GetDbConnectionString();
-
-            // set the legacy connection string just in case something is referencing it
-            ConfigurationManager.AppSettings.Set(Constants.System.UmbracoConnectionName, cstr);
 
             switch (DatabaseTestBehavior)
             {
@@ -216,6 +213,10 @@ namespace Umbraco.Tests.TestHelpers
                     AttachSchemaDatabase();
                     break;
             }
+
+            // set the legacy connection string just in case something is referencing it
+            var cstr = GetDbConnectionString();
+            ConfigurationManager.AppSettings.Set(Constants.System.UmbracoConnectionName, cstr);
         }
 
         protected void AttachEmptyDatabase()

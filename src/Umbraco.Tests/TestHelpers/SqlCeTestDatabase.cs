@@ -29,14 +29,12 @@ namespace Umbraco.Tests.TestHelpers
             get { return "System.Data.SqlServerCe.4.0"; }
         }
 
-        public override string ConnectionString
+        public override string GetConnectionString(bool withSchema)
         {
-            get
-            {
-                //return string.Format(@"Datasource=|DataDirectory|{0}.sdf;Flush Interval=1;", DatabaseName);
-                return string.Format(@"Datasource={0};Flush Interval=1;", _databaseFullPath);
-            }
+            //return string.Format(@"Datasource=|DataDirectory|{0}.sdf;Flush Interval=1;", DatabaseName);
+            return string.Format(@"Datasource={0};Flush Interval=1;", _databaseFullPath);
         }
+
 
         public override ISqlSyntaxProvider SqlSyntaxProvider
         {
@@ -55,7 +53,7 @@ namespace Umbraco.Tests.TestHelpers
 
         public override void Create()
         {
-            using (var engine = new SqlCeEngine(ConnectionString))
+            using (var engine = new SqlCeEngine(GetConnectionString(false)))
             {
                 engine.CreateDatabase();
             }

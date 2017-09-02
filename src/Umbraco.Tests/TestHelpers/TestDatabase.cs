@@ -40,7 +40,7 @@ namespace Umbraco.Tests.TestHelpers
 
         public abstract string ProviderName { get; }
 
-        public abstract string ConnectionString { get; }
+        public abstract string GetConnectionString(bool withSchema);
 
         public abstract ISqlSyntaxProvider SqlSyntaxProvider { get; }
 

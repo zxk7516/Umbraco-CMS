@@ -125,6 +125,7 @@ namespace Umbraco.Tests.Persistence
                 using (var conn = GetConnection())
                 using (var cmd = conn.CreateCommand())
                 {
+                    Console.WriteLine(conn.ConnectionString);
                     conn.Open();
                     cmd.CommandType = CommandType.Text;
                     cmd.CommandText = "SELECT 1";
