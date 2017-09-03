@@ -1,13 +1,13 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using Umbraco.Core;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.SqlSyntax;
-using Umbraco.Core.Scoping;
 
 namespace Umbraco.Tests.TestHelpers
 {
@@ -17,22 +17,19 @@ namespace Umbraco.Tests.TestHelpers
         private const string DatabaseName = "UmbracoTests";
 
         private readonly LocalDb _localDb;
-        private readonly LocalDb.Instance _instance;
-        private readonly string _filesPath;
-        private readonly string _databaseFullName;
+        private static LocalDb.Instance _instance;
+        private static string _filesPath;
         private ISqlSyntaxProvider _syntaxProvider;
-        private bool _hasDb;
         private UmbracoDatabase.CommandInfo[] _dbCommands;
-        private Thread _thread;
-        private int _currentEmpty;
-        private int _currentSchema;
         private string _currentCstr;
+        private static DatabasePool _emptyPool;
+        private static DatabasePool _schemaPool;
+        private DatabasePool _currentPool;
 
         public LocalDbTestDatabase(LocalDb localDb, string filesPath)
         {
             _localDb = localDb;
             _filesPath = filesPath;
-            _databaseFullName = Path.Combine(_filesPath, DatabaseName + ".mdf").ToUpper();
 
             _instance = _localDb.GetInstance(InstanceName);
             if (_instance != null) return;
@@ -47,15 +44,9 @@ namespace Umbraco.Tests.TestHelpers
             get { return "System.Data.SqlClient"; }
         }
 
-        public override string GetConnectionString(bool withSchema)
+        public override string ConnectionString
         {
-            return _currentCstr ?? GetConnectionString(false, 0);
-        }
-
-        private string GetConnectionString(bool withSchema, int current)
-        {
-            var name = DatabaseName + (withSchema ? "Schema" : "Empty") + current;
-            return _instance.GetAttachedConnectionString(name, _filesPath);
+            get { return _currentCstr ?? _instance.GetAttachedConnectionString("XXXXXX", _filesPath); }
         }
 
         public override ISqlSyntaxProvider SqlSyntaxProvider
@@ -63,138 +54,75 @@ namespace Umbraco.Tests.TestHelpers
             get { return _syntaxProvider ?? (_syntaxProvider = new SqlServerSyntaxProvider()); }
         }
 
-        public override bool HasEmpty
-        {
-            get { return _hasDb; }
-        }
-
-        public override bool HasSchema
-        {
-            get { return _hasDb; }
-        }
-
-        public override void Create()
+        private void Create()
         {
             var tempName = Guid.NewGuid().ToString("N");
             _instance.CreateDatabase(tempName, _filesPath);
             _instance.DetachDatabase(tempName);
 
-            _localDb.CopyDatabaseFiles(tempName, _filesPath, targetDatabaseName: DatabaseName + "Empty0", overwrite: true);
-            _localDb.CopyDatabaseFiles(tempName, _filesPath, targetDatabaseName: DatabaseName + "Empty1", overwrite: true);
-            _localDb.CopyDatabaseFiles(tempName, _filesPath, targetDatabaseName: DatabaseName + "Schema0", overwrite: true);
-            _localDb.CopyDatabaseFiles(tempName, _filesPath, targetDatabaseName: DatabaseName + "Schema1", delete: true, overwrite: true);
+            // there's probably a sweet spot to be found for size / parallel...
 
-            _currentSchema = _currentEmpty = 0;
-            _hasDb = true;
+            var s = ConfigurationManager.AppSettings["Umbraco.Tests.LocalDbTestDatabase.EmptyPoolSize"];
+            var emptySize = s == null ? 2 : int.Parse(s);
+            s = ConfigurationManager.AppSettings["Umbraco.Tests.LocalDbTestDatabase.EmptyPoolThreadCount"];
+            var emptyParallel = s == null ? 1 : int.Parse(s);
+            s = ConfigurationManager.AppSettings["Umbraco.Tests.LocalDbTestDatabase.SchemaPoolSize"];
+            var schemaSize = s == null ? 2 : int.Parse(s);
+            s = ConfigurationManager.AppSettings["Umbraco.Tests.LocalDbTestDatabase.SchemaPoolThreadCount"];
+            var schemaParallel = s == null ? 1 : int.Parse(s);
 
-            _thread = RebuildSchema(GetConnectionString(true, 1));
-            _thread.Start();
-        }
-
-        public override void CaptureEmpty()
-        {
-            // we don't
-        }
-
-        public override void CaptureSchema()
-        {
-            // we don't
+            _emptyPool = new DatabasePool(_localDb, _instance, DatabaseName + "-Empty", tempName, _filesPath, emptySize, emptyParallel);
+            _schemaPool = new DatabasePool(_localDb, _instance, DatabaseName + "-Schema", tempName, _filesPath, schemaSize, schemaParallel, delete: true, prepare: RebuildSchema);
         }
 
         public override void AttachEmpty()
         {
-            if (_hasDb == false)
-                throw new InvalidOperationException();
+            if (_emptyPool == null)
+                Create();
 
-            _thread.Join();
-
-            var other = _currentEmpty;
-            _currentEmpty = _currentEmpty == 0 ? 1 : 0;
-
-            SetConnectionString(_currentCstr = GetConnectionString(false, _currentEmpty));
-
-            _thread = RebuildEmpty(GetConnectionString(false, other));
-            _thread.Start();
-        }
-
-        private void SetConnectionString(string cstr)
-        {
-            var applicationContext = ApplicationContext.Current;
-            typeof(DatabaseContext)
-                .GetField("_connectionString", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(applicationContext.DatabaseContext, cstr);
-            var factory = ((ScopeProvider)applicationContext.ScopeProvider).DatabaseFactory;
-            typeof(DefaultDatabaseFactory)
-                .GetProperty("ConnectionString", BindingFlags.Instance | BindingFlags.Public)
-                .SetValue(factory, cstr);
-        }
-
-        private static Thread RebuildEmpty(string cstr)
-        {
-            return new Thread(() =>
-            {
-                using (var conn = new SqlConnection(cstr))
-                using (var cmd = conn.CreateCommand())
-                {
-                    conn.Open();
-                    ResetLocalDb(cmd);
-                }
-            });
+            _currentCstr = _emptyPool.AttachDatabase();
+            _currentPool = _emptyPool;
         }
 
         public override void AttachSchema()
         {
-            if (_hasDb == false)
-                throw new InvalidOperationException();
+            if (_schemaPool == null)
+                Create();
 
-            _thread.Join();
-
-            var other = _currentSchema;
-            _currentSchema = _currentSchema == 0 ? 1 : 0;
-
-            SetConnectionString(_currentCstr = GetConnectionString(true, _currentSchema));
-
-            _thread = RebuildSchema(GetConnectionString(true, other));
-            _thread.Start();
+            _currentCstr = _schemaPool.AttachDatabase();
+            _currentPool = _schemaPool;
         }
 
-        private Thread RebuildSchema(string cstr)
+        public override void Detach()
         {
-            return new Thread(() =>
+            _currentPool.DetachDatabase();
+        }
+
+        private void RebuildSchema(IDbConnection conn, IDbCommand cmd)
+        {
+            if (_dbCommands != null)
             {
-                using (var conn = new SqlConnection(cstr))
+                foreach (var dbCommand in _dbCommands)
                 {
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        conn.Open();
-                        ResetLocalDb(cmd);
+                    if (dbCommand.Text.StartsWith("SELECT ")) continue;
 
-                        if (_dbCommands != null)
-                        {
-                            foreach (var dbCommand in _dbCommands)
-                            {
-                                if (dbCommand.Text.StartsWith("SELECT ")) continue;
-
-                                cmd.CommandText = dbCommand.Text;
-                                cmd.Parameters.Clear();
-                                foreach (var parameterInfo in dbCommand.Parameters)
-                                    AddParameter(cmd, parameterInfo);
-                                cmd.ExecuteNonQuery();
-                            }
-                            return;
-                        }
-                    }
-
-                    var applicationContext = ApplicationContext.Current;
-                    using (var database = new UmbracoDatabase(conn, applicationContext.ProfilingLogger.Logger))
-                    {
-                        database.LogCommands = true;
-                        var schemaHelper = new DatabaseSchemaHelper(database, applicationContext.ProfilingLogger.Logger, SqlSyntaxProvider);
-                        schemaHelper.CreateDatabaseSchema(false, applicationContext);
-                        _dbCommands = database.Commands.ToArray();
-                    }
+                    cmd.CommandText = dbCommand.Text;
+                    cmd.Parameters.Clear();
+                    foreach (var parameterInfo in dbCommand.Parameters)
+                        AddParameter(cmd, parameterInfo);
+                    cmd.ExecuteNonQuery();
                 }
-            });
+                return;
+            }
+
+            var applicationContext = ApplicationContext.Current;
+            using (var database = new UmbracoDatabase(conn, applicationContext.ProfilingLogger.Logger))
+            {
+                database.LogCommands = true;
+                var schemaHelper = new DatabaseSchemaHelper(database, applicationContext.ProfilingLogger.Logger, SqlSyntaxProvider);
+                schemaHelper.CreateDatabaseSchema(false, applicationContext);
+                _dbCommands = database.Commands.ToArray();
+            }
         }
 
         private static void AddParameter(IDbCommand cmd, UmbracoDatabase.ParameterInfo parameterInfo)
@@ -207,20 +135,21 @@ namespace Umbraco.Tests.TestHelpers
             cmd.Parameters.Add(p);
         }
 
-        public override void Drop()
-        {
-            // we don't
-        }
-
         public override void Clear()
         {
-            if (_instance.DatabaseExists(_databaseFullName))
-                _instance.DropDatabase(_databaseFullName);
+            var filename = Path.Combine(_filesPath, DatabaseName).ToUpper();
 
-            _localDb.CopyDatabaseFiles(DatabaseName + "Empty0", _filesPath, delete: true);
-            _localDb.CopyDatabaseFiles(DatabaseName + "Empty1", _filesPath, delete: true);
-            _localDb.CopyDatabaseFiles(DatabaseName + "Schema0", _filesPath, delete: true);
-            _localDb.CopyDatabaseFiles(DatabaseName + "Schema1", _filesPath, delete: true);
+            foreach (var database in _instance.GetDatabases())
+            {
+                if (database.StartsWith(filename))
+                    _instance.DropDatabase(database);
+            }
+
+            foreach (var file in Directory.EnumerateFiles(_filesPath))
+            {
+                if (file.EndsWith(".mdf") == false && file.EndsWith(".ldf") == false) continue;
+                File.Delete(file);
+            }
         }
 
         private static void ResetLocalDb(IDbCommand cmd)
@@ -252,6 +181,131 @@ namespace Umbraco.Tests.TestHelpers
                 exec sp_executesql @stmt;
             ";
             cmd.ExecuteNonQuery();
+        }
+
+        public static void KillLocalDb()
+        {
+            if (_emptyPool != null)
+                _emptyPool.Stop();
+            if (_schemaPool != null)
+                _schemaPool.Stop();
+
+            var filename = Path.Combine(_filesPath, DatabaseName).ToUpper();
+
+            foreach (var database in _instance.GetDatabases())
+            {
+                if (database.StartsWith(filename))
+                    _instance.DropDatabase(database);
+            }
+
+            foreach (var file in Directory.EnumerateFiles(_filesPath))
+            {
+                if (file.EndsWith(".mdf") == false && file.EndsWith(".ldf") == false) continue;
+                File.Delete(file);
+            }
+        }
+
+        private class DatabasePool
+        {
+            private readonly LocalDb _localDb;
+            private readonly LocalDb.Instance _instance;
+            private readonly string _filesPath;
+            private readonly string _name;
+            private readonly int _size;
+            private readonly string[] _cstrs;
+            private readonly BlockingCollection<int> _prepareQueue, _readyQueue;
+            private readonly Action<IDbConnection, IDbCommand> _prepare;
+            private int _current;
+
+            public DatabasePool(LocalDb localDb, LocalDb.Instance instance, string name, string tempName, string filesPath, int size, int parallel = 1, Action<IDbConnection, IDbCommand> prepare = null, bool delete = false)
+            {
+                _localDb = localDb;
+                _instance = instance;
+                _filesPath = filesPath;
+                _name = name;
+                _size = size;
+                _prepare = prepare;
+                _prepareQueue = new BlockingCollection<int>();
+                _readyQueue = new BlockingCollection<int>();
+                _cstrs = new string[_size];
+
+                for (var i = 0; i < size; i++)
+                    localDb.CopyDatabaseFiles(tempName, filesPath, targetDatabaseName: name + "-" + i, overwrite: true, delete: delete && i == size - 1);
+
+                if (prepare == null)
+                {
+                    for (var i = 0; i < size; i++)
+                        _readyQueue.Add(i);
+                }
+                else
+                {
+                    for (var i = 0; i < size; i++)
+                        _prepareQueue.Add(i);
+                }
+
+                for (var i = 0; i < parallel; i++)
+                {
+                    var thread = new Thread(PrepareThread);
+                    thread.Start();
+                }
+            }
+
+            public string AttachDatabase()
+            {
+                try
+                {
+                    _current = _readyQueue.Take();
+                }
+                catch (InvalidOperationException)
+                {
+                    _current = 0;
+                    return null;
+                }
+                return ConnectionString(_current);
+            }
+
+            public void DetachDatabase()
+            {
+                _prepareQueue.Add(_current);
+            }
+
+            private string ConnectionString(int i)
+            {
+                return _cstrs[i] ?? (_cstrs[i] = _instance.GetAttachedConnectionString(_name + "-" + i, _filesPath));
+            }
+
+            private void PrepareThread()
+            {
+                while (_prepareQueue.IsCompleted == false)
+                {
+                    int i;
+                    try
+                    {
+                        i = _prepareQueue.Take();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        continue;
+                    }
+                    using (var conn = new SqlConnection(ConnectionString(i)))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        conn.Open();
+                        ResetLocalDb(cmd);
+                        if (_prepare != null) _prepare(conn, cmd);
+                    }
+                    _readyQueue.Add(i);
+                }
+            }
+
+            public void Stop()
+            {
+                int i;
+                _prepareQueue.CompleteAdding();
+                while (_prepareQueue.TryTake(out i)) { }
+                _readyQueue.CompleteAdding();
+                while (_readyQueue.TryTake(out i)) { }
+            }
         }
     }
 }

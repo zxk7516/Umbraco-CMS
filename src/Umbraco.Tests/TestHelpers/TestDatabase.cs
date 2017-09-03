@@ -38,27 +38,22 @@ namespace Umbraco.Tests.TestHelpers
             }
         }
 
+        public static void Kill()
+        {
+            LocalDbTestDatabase.KillLocalDb();
+        }
+
         public abstract string ProviderName { get; }
 
-        public abstract string GetConnectionString(bool withSchema);
+        public abstract string ConnectionString { get; }
 
         public abstract ISqlSyntaxProvider SqlSyntaxProvider { get; }
-
-        public abstract bool HasEmpty { get; }
-
-        public abstract bool HasSchema { get; }
-
-        public abstract void Create();
-
-        public abstract void CaptureEmpty();
-
-        public abstract void CaptureSchema();
 
         public abstract void AttachEmpty();
 
         public abstract void AttachSchema();
 
-        public abstract void Drop();
+        public abstract void Detach();
 
         public abstract void Clear();
     }

@@ -113,6 +113,8 @@ namespace Umbraco.Tests.Persistence
                 cmd.ExecuteNonQuery();
             }
 
+            DetachDatabase();
+
             Console.WriteLine("ELAPSED: {0}", stopWatch.Elapsed);
             stopWatch.Restart();
 
@@ -131,6 +133,8 @@ namespace Umbraco.Tests.Persistence
                     cmd.CommandText = "SELECT 1";
                     cmd.ExecuteNonQuery();
                 }
+
+                DetachDatabase();
 
                 Console.WriteLine("ELAPSED: {0}", stopWatch.Elapsed);
             }

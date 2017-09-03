@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Configuration;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Web.Routing;
 using System.Xml;
 using NUnit.Framework;
@@ -102,7 +104,7 @@ namespace Umbraco.Tests.TestHelpers
             }
 
             _dbFactory = new DefaultDatabaseFactory(
-                GetDbConnectionString(), // fixme - too early!
+                GetDbConnectionString(), // beware - too early!
                 GetDbProviderName(),
                 Logger);
 
@@ -119,7 +121,7 @@ namespace Umbraco.Tests.TestHelpers
             {
                 //TODO: Somehow make this faster - takes 5s +
 
-                DatabaseContext.Initialize(_dbFactory.ProviderName, _dbFactory.ConnectionString); // fixme - too early
+                DatabaseContext.Initialize(_dbFactory.ProviderName, _dbFactory.ConnectionString); // beware - too early!
 
                 InitializeDatabase();
 
@@ -176,14 +178,9 @@ namespace Umbraco.Tests.TestHelpers
             return _testDatabase.ProviderName;
         }
 
-        /// <summary>
-        /// Get the db conn string
-        /// </summary>
         protected virtual string GetDbConnectionString()
         {
-            var withSchema = DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture
-                             || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest;
-            return _testDatabase.GetConnectionString(withSchema);
+            return _testDatabase.ConnectionString;
         }
 
         protected virtual void InitializeDatabase()
@@ -221,30 +218,52 @@ namespace Umbraco.Tests.TestHelpers
 
         protected void AttachEmptyDatabase()
         {
-            if (_testDatabase.HasEmpty)
-            {
-                _testDatabase.AttachEmpty();
-            }
-            else
-            {
-                _testDatabase.Create();
-                _testDatabase.CaptureEmpty();
-            }
+            _testDatabase.AttachEmpty();
+            SetConnectionString(_testDatabase.ConnectionString);
         }
 
         protected void AttachSchemaDatabase()
         {
-            if (_testDatabase.HasSchema)
+            _testDatabase.AttachSchema();
+            SetConnectionString(_testDatabase.ConnectionString);
+        }
+
+        protected void DetachDatabase()
+        {
+            _testDatabase.Detach();
+        }
+
+        private Action<DatabaseContext, string> _cstrSet1;
+        private Action<DefaultDatabaseFactory, string> _cstrSet2;
+
+        // force-refreshes cstr
+        private void SetConnectionString(string cstr)
+        {
+            if (_cstrSet1 == null)
             {
-                _testDatabase.AttachSchema();
+                var type = typeof (DatabaseContext);
+                var field = type.GetField("_connectionString", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                var exprThis = Expression.Parameter(type, "this");
+                var exprField = Expression.Field(exprThis, field);
+                var exprArg = Expression.Parameter(typeof(string), "value");
+                var exprAssign = Expression.Assign(exprField, exprArg);
+                var expr1 = Expression.Lambda<Action<DatabaseContext, string>>(exprAssign, exprThis, exprArg);
+                _cstrSet1 = expr1.Compile();
+
+                type = typeof (DefaultDatabaseFactory);
+                var property = type.GetProperty("ConnectionString", BindingFlags.Instance | BindingFlags.Public);
+
+                exprThis = Expression.Parameter(type, "this");
+                exprArg = Expression.Parameter(typeof (string), "value");
+                var exprCall = Expression.Call(exprThis, property.SetMethod, exprArg);
+                var expr2 = Expression.Lambda<Action<DefaultDatabaseFactory, string>>(exprCall, exprThis, exprArg);
+                _cstrSet2 = expr2.Compile();
             }
-            else
-            {
-                AttachEmptyDatabase();
-                var schemaHelper = new DatabaseSchemaHelper(DatabaseContext.Database, Logger, SqlSyntax);
-                schemaHelper.CreateDatabaseSchema(false, ApplicationContext);
-                _testDatabase.CaptureSchema();
-            }
+
+            var applicationContext = ApplicationContext.Current;
+            _cstrSet1(applicationContext.DatabaseContext, cstr);
+            _cstrSet2((DefaultDatabaseFactory)((ScopeProvider) applicationContext.ScopeProvider).DatabaseFactory, cstr);
         }
 
         /// <summary>
@@ -263,7 +282,7 @@ namespace Umbraco.Tests.TestHelpers
 
             MappingResolver.Current = new MappingResolver(
                 new ActivatorServiceProvider(), Logger,
-               () => PluginManager.Current.ResolveAssignedMapperTypes());
+                () => PluginManager.Current.ResolveAssignedMapperTypes());
 
             if (PropertyValueConvertersResolver.HasCurrent == false)
                 PropertyValueConvertersResolver.Current = new PropertyValueConvertersResolver(new ActivatorServiceProvider(), Logger);
@@ -280,7 +299,8 @@ namespace Umbraco.Tests.TestHelpers
         [TestFixtureTearDown]
         public void FixtureTearDown()
         {
-            _testDatabase.Drop();
+            if (DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerFixture)
+                _testDatabase.Detach();
         }
 
         [TearDown]
@@ -299,6 +319,10 @@ namespace Umbraco.Tests.TestHelpers
                 }
 
                 AppDomain.CurrentDomain.SetData("DataDirectory", null);
+
+                if (DatabaseTestBehavior == DatabaseBehavior.EmptyDbFilePerTest
+                    || DatabaseTestBehavior == DatabaseBehavior.NewDbFileAndSchemaPerTest)
+                    _testDatabase.Detach();
 
                 SqlSyntaxContext.SqlSyntaxProvider = null;
             }
@@ -339,11 +363,11 @@ namespace Umbraco.Tests.TestHelpers
             var cache = new PublishedContentCache();
 
             cache.GetXmlDelegate = (context, preview) =>
-                {
-                    var doc = new XmlDocument();
-                    doc.LoadXml(GetXmlContent(templateId));
-                    return doc;
-                };
+            {
+                var doc = new XmlDocument();
+                doc.LoadXml(GetXmlContent(templateId));
+                return doc;
+            };
 
             PublishedContentCache.UnitTesting = true;
 
@@ -365,8 +389,8 @@ namespace Umbraco.Tests.TestHelpers
         protected FakeHttpContextFactory GetHttpContextFactory(string url, RouteData routeData = null)
         {
             var factory = routeData != null
-                            ? new FakeHttpContextFactory(url, routeData)
-                            : new FakeHttpContextFactory(url);
+                ? new FakeHttpContextFactory(url, routeData)
+                : new FakeHttpContextFactory(url);
 
 
             //set the state helper

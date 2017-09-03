@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Umbraco.Tests.TestHelpers;
 
 // this class has NO NAMESPACE
 // it applies to the whole assembly
@@ -22,6 +23,7 @@ public class TestsSetup
     //[OneTimeTearDown] v3
     public void TearDown()
     {
+        TestDatabase.Kill();
         Console.WriteLine("TOTAL TESTS DURATION: {0}", _stopwatch.Elapsed);
     }
 }

@@ -3,6 +3,8 @@ using System.Data.SqlServerCe;
 using System.IO;
 using System.Threading;
 using SQLCE4Umbraco;
+using Umbraco.Core;
+using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.SqlSyntax;
 
 namespace Umbraco.Tests.TestHelpers
@@ -29,69 +31,73 @@ namespace Umbraco.Tests.TestHelpers
             get { return "System.Data.SqlServerCe.4.0"; }
         }
 
-        public override string GetConnectionString(bool withSchema)
+        public override string ConnectionString
         {
-            //return string.Format(@"Datasource=|DataDirectory|{0}.sdf;Flush Interval=1;", DatabaseName);
-            return string.Format(@"Datasource={0};Flush Interval=1;", _databaseFullPath);
+            get
+            {
+                //return string.Format(@"Datasource=|DataDirectory|{0}.sdf;Flush Interval=1;", DatabaseName);
+                return string.Format(@"Datasource={0};Flush Interval=1;", _databaseFullPath);
+            }
         }
-
 
         public override ISqlSyntaxProvider SqlSyntaxProvider
         {
             get { return _syntaxProvider ?? (_syntaxProvider = new SqlCeSyntaxProvider()); }
         }
 
-        public override bool HasEmpty
+        private void Create()
         {
-            get { return _emptyDbBytes != null; }
-        }
-
-        public override bool HasSchema
-        {
-            get { return _schemaDbBytes != null; }
-        }
-
-        public override void Create()
-        {
-            using (var engine = new SqlCeEngine(GetConnectionString(false)))
+            using (var engine = new SqlCeEngine(ConnectionString))
             {
                 engine.CreateDatabase();
             }
         }
 
-        public override void CaptureEmpty()
-        {
-            SqlCeContextGuardian.CloseBackgroundConnection();
-            _emptyDbBytes = File.ReadAllBytes(_databaseFullPath);
-        }
-
-        public override void CaptureSchema()
-        {
-            SqlCeContextGuardian.CloseBackgroundConnection();
-            _schemaDbBytes = File.ReadAllBytes(_databaseFullPath);
-        }
-
         public override void AttachEmpty()
         {
             if (_emptyDbBytes == null)
-                throw new InvalidOperationException();
-            SqlCeContextGuardian.CloseBackgroundConnection();
-            if (File.Exists(_databaseFullPath))
-                FileDelete(_databaseFullPath, TimeSpan.FromSeconds(2));
-            File.WriteAllBytes(_databaseFullPath, _emptyDbBytes);
+            {
+                Create();
+
+                SqlCeContextGuardian.CloseBackgroundConnection();
+                _emptyDbBytes = File.ReadAllBytes(_databaseFullPath);
+            }
+            else
+            {
+                SqlCeContextGuardian.CloseBackgroundConnection();
+                if (File.Exists(_databaseFullPath))
+                    FileDelete(_databaseFullPath, TimeSpan.FromSeconds(2));
+                File.WriteAllBytes(_databaseFullPath, _emptyDbBytes);
+            }
         }
 
         public override void AttachSchema()
         {
             if (_schemaDbBytes == null)
-                throw new InvalidOperationException();
-            SqlCeContextGuardian.CloseBackgroundConnection();
-            if (File.Exists(_databaseFullPath))
-                FileDelete(_databaseFullPath, TimeSpan.FromSeconds(2));
-            File.WriteAllBytes(_databaseFullPath, _schemaDbBytes);
+            {
+                AttachEmpty();
+
+                var applicationContext = ApplicationContext.Current;
+                using (var conn = new SqlCeConnection(ConnectionString))
+                using (var database = new UmbracoDatabase(conn, applicationContext.ProfilingLogger.Logger))
+                {
+                    var schemaHelper = new DatabaseSchemaHelper(database, applicationContext.ProfilingLogger.Logger, SqlSyntaxProvider);
+                    schemaHelper.CreateDatabaseSchema(false, applicationContext);
+                }
+
+                SqlCeContextGuardian.CloseBackgroundConnection();
+                _schemaDbBytes = File.ReadAllBytes(_databaseFullPath);
+            }
+            else
+            {
+                SqlCeContextGuardian.CloseBackgroundConnection();
+                if (File.Exists(_databaseFullPath))
+                    FileDelete(_databaseFullPath, TimeSpan.FromSeconds(2));
+                File.WriteAllBytes(_databaseFullPath, _schemaDbBytes);
+            }
         }
 
-        public override void Drop()
+        public override void Detach()
         {
             SqlCeContextGuardian.CloseBackgroundConnection();
             if (File.Exists(_databaseFullPath))
@@ -100,7 +106,7 @@ namespace Umbraco.Tests.TestHelpers
 
         public override void Clear()
         {
-            Drop();
+            Detach();
         }
 
         private static void FileDelete(string filename, TimeSpan timeout)
