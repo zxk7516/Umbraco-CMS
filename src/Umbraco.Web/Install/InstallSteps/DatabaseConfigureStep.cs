@@ -54,10 +54,13 @@ namespace Umbraco.Web.Install.InstallSteps
             {
                 dbContext.ConfigureEmbeddedDatabaseConnection();
             }
+            else if (database.DatabaseType == DatabaseType.LocaDb)
+            {
+                dbContext.ConfigureLocalDbConnection();
+            }
             else if (database.IntegratedAuth)
             {
-                dbContext.ConfigureIntegratedSecurityDatabaseConnection(
-                    database.Server, database.DatabaseName);
+                dbContext.ConfigureIntegratedSecurityDatabaseConnection(database.Server, database.DatabaseName);
             }
             else
             {

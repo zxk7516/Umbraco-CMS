@@ -319,6 +319,45 @@ namespace Umbraco.Core
             return @"Data Source=|DataDirectory|\Umbraco.sdf;Flush Interval=1;";
         }
 
+        public void ConfigureLocalDbConnection()
+        {
+            const string providerName = Constants.DatabaseProviders.SqlServer;
+
+            var connectionString = GetLocalDbConnectionString();
+            SaveConnectionString(connectionString, providerName);
+
+            var localDb = new LocalDb();
+            if (localDb.IsAvailable == false)
+                throw new NotSupportedException("LocalDb is not available.");
+
+            if (localDb.InstanceExists("Umbraco") == false)
+                localDb.CreateInstance("Umbraco");
+
+            var appData = Path.Combine(GlobalSettings.FullpathToRoot, "App_Data");
+            if (File.Exists(Path.Combine(appData, "Umbraco.mdf")) == false)
+            {
+                var instance = localDb.GetInstance("Umbraco");
+
+                // if there's a database pointing to us already, with not files, kill it
+                instance.DropStaleDatabases();
+
+                // create the database with a random name to avoid instance-level collisions
+                var temp = Guid.NewGuid().ToString("N");
+                instance.CreateDatabase(temp, appData);
+
+                // detach and move here
+                instance.DetachDatabase(temp);
+                localDb.CopyDatabaseFiles(temp, appData, targetDatabaseName: "Umbraco", overwrite: false, delete: true);
+            }
+
+            Initialize(providerName);
+        }
+
+        public string GetLocalDbConnectionString()
+        {
+            return @"Server=(localdb)\Umbraco;AttachDbFileName=|DataDirectory|\Umbraco.mdf;Integrated Security=True;";
+        }
+
         /// <summary>
         /// Configure a ConnectionString that has been entered manually.
         /// </summary>

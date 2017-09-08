@@ -28,6 +28,13 @@ namespace Umbraco.Web.Install
                 return true;
                 //connectionString = dbContext.GetEmbeddedDatabaseConnectionString();
             }
+            else if (database.DatabaseType == DatabaseType.LocaDb)
+            {
+                // just ensure that local db is available
+                var localDb = new LocalDb();
+                if (localDb.IsAvailable) return true;
+                throw new NotSupportedException("LocalDb is not available.");
+            }
             else if (database.IntegratedAuth)
             {
                 connectionString = dbContext.GetIntegratedSecurityDatabaseConnectionString(
