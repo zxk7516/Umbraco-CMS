@@ -29,15 +29,31 @@ namespace Umbraco.Core.IO
 
         #region Singleton & Constructor
 
-        private static readonly FileSystemProviderManager Instance = new FileSystemProviderManager();
+        private static FileSystemProviderManager _instance;
+        private static readonly object _instanceLocker = new object();
 
         public static FileSystemProviderManager Current
         {
-            get { return Instance; }
+            get
+            {
+                lock (_instanceLocker)
+                {
+                    return _instance ?? (_instance = new FileSystemProviderManager());
+                }
+            }
         }
 
         // for tests only, totally unsafe
-        internal void Reset()
+        internal static void ResetCurrent()
+        {
+            lock (_instanceLocker)
+            {
+                if (_instance != null)
+                    _instance.Reset();
+            }
+        }
+
+        private void Reset()
         {
             _wrappers.Clear();
             _providerLookup.Clear();
