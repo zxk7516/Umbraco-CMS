@@ -273,6 +273,7 @@ namespace Umbraco.Core
         /// <summary>
         /// Resets the url.
         /// </summary>
+        /// <remarks>This will force the ApplicationContext to figure out the url again.</remarks>
         public void ResetUmbracoApplicationUrl()
         {
             _umbracoApplicationUrl = null;
@@ -280,10 +281,6 @@ namespace Umbraco.Core
 
 	    // ReSharper disable once InconsistentNaming
 	    internal string _umbracoApplicationUrl;
-
-        internal List<string> _umbracoApplicationDomains = new List<string>();
-
-        internal string _umbracoApplicationDeploymentId;
 
         private Lazy<bool> _configured;
         internal MainDom MainDom { get; private set; }

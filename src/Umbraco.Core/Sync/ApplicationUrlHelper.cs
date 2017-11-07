@@ -17,6 +17,7 @@ namespace Umbraco.Core.Sync
         private static readonly Type TypeOfApplicationUrlHelper = typeof(ApplicationUrlHelper);
 
         private static Func<HttpRequestBase, string> _applicationUrlProvider;
+        private static Func<HttpRequestBase, bool> _applicationUrlRefresher;
 
         /// <summary>
         /// Gets or sets a custom provider for the umbraco application url.
@@ -28,7 +29,7 @@ namespace Umbraco.Core.Sync
         /// in config files but is determined programmatically.</para>
         /// <para>Must be assigned before resolution is frozen.</para>
         /// </remarks>
-        public static Func<HttpRequestBase, string> ApplicationUrlProvider 
+        public static Func<HttpRequestBase, string> ApplicationUrlProvider
         {
             get
             {
@@ -40,27 +41,41 @@ namespace Umbraco.Core.Sync
                 {
                     _applicationUrlProvider = value;
                 }
-            } 
-        } 
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a refresher for the umbraco application url.
+        /// </summary>
+        /// <remarks>
+        /// <para>Receives the current request as a parameter, and it may be null. Must return true
+        /// if the application url should be refreshed.</para>
+        /// <para>Must be assigned before resolution is frozen.</para>
+        /// </remarks>
+        public static Func<HttpRequestBase, bool> ApplicationUrlRefresher
+        {
+            get
+            {
+                return _applicationUrlRefresher;
+            }
+            set
+            {
+                using (Resolution.Configuration)
+                {
+                    _applicationUrlRefresher = value;
+                }
+            }
+        }
 
         // request: will be null if called from ApplicationContext
         // settings: for unit tests only
         internal static void EnsureApplicationUrl(ApplicationContext appContext, HttpRequestBase request = null, IUmbracoSettingsSection settings = null)
         {
-            bool newApplicationUrl = false;
-            if (request != null)
-            {
-                var applicationUrl = GetApplicationUrlFromRequest(request);
-                newApplicationUrl = !appContext._umbracoApplicationDomains.Contains(applicationUrl);
-                if (newApplicationUrl)
-                {
-                    appContext._umbracoApplicationDomains.Add(applicationUrl);
-                    LogHelper.Info(typeof(ApplicationUrlHelper), $"New ApplicationUrl detected: {applicationUrl}");
-                }
-            }
+            // detect refresh
+            var refresh = _applicationUrlRefresher != null && _applicationUrlRefresher(request);
 
             // if initialized, return
-            if (appContext._umbracoApplicationUrl != null && !newApplicationUrl) return;
+            if (appContext._umbracoApplicationUrl != null && refresh == false) return;
 
             var logger = appContext.ProfilingLogger.Logger;
 
@@ -149,13 +164,13 @@ namespace Umbraco.Core.Sync
             logger.Info(TypeOfApplicationUrlHelper, "ApplicationUrl: " + appContext.UmbracoApplicationUrl + " (UmbracoModule request)");
         }
 
-        private static string GetApplicationUrlFromRequest(HttpRequestBase request)
+        public static string GetApplicationUrlFromRequest(HttpRequestBase request)
         {
             // if (HTTP and SSL not required) or (HTTPS and SSL required),
             //  use ports from request
             // otherwise,
             //  if non-standard ports used,
-            //  user may need to set umbracoApplicationUrl manually per 
+            //  user may need to set umbracoApplicationUrl manually per
             //  http://our.umbraco.org/documentation/Using-Umbraco/Config-files/umbracoSettings/#ScheduledTasks
             var port = (request.IsSecureConnection == false && GlobalSettings.UseSSL == false)
                         || (request.IsSecureConnection && GlobalSettings.UseSSL)
