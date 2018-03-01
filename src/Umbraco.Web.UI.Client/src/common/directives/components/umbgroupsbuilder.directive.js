@@ -487,10 +487,6 @@
                 property.dialogIsOpen = true;
                 scope.currentGroup = group;
                 scope.openEditorPickerOverlay(property);
-                // open property settings dialog
-
-                //scope.editPropertyTypeSettings(property, group);
-
             };
 
             var debounceAlias = _.debounce(checkAlias, 200);
@@ -553,27 +549,7 @@
                     scope.propertySettingsDialogModel.close = function (oldModel) {
 
                         // reset all property changes
-                        property.label = oldModel.property.label;
-                        property.alias = oldModel.property.alias;
-                        property.description = oldModel.property.description;
-                        property.config = oldModel.property.config;
-                        property.editor = oldModel.property.editor;
-                        property.view = oldModel.property.view;
-                        property.dataTypeId = oldModel.property.dataTypeId;
-                        property.dataTypeIcon = oldModel.property.dataTypeIcon;
-                        property.dataTypeName = oldModel.property.dataTypeName;
-                        property.validation.mandatory = oldModel.property.validation.mandatory;
-                        property.validation.pattern = oldModel.property.validation.pattern;
-                        property.showOnMemberProfile = oldModel.property.showOnMemberProfile;
-                        property.memberCanEdit = oldModel.property.memberCanEdit;
-
-                        // because we set state to active, to show a preview, we have to check if has been filled out
-                        // label is required so if it is not filled we know it is a placeholder
-                        if (oldModel.property.editor === undefined || oldModel.property.editor === null || oldModel.property.editor === "") {
-                            property.propertyState = "init";
-                        } else {
-                            property.propertyState = oldModel.property.propertyState;
-                        }
+                        scope.resetPropertyChanges(property, oldModel);
 
                         // remove dialog
                         scope.propertySettingsDialogModel.show = false;
@@ -601,6 +577,31 @@
                 }
 
             };
+
+            scope.resetPropertyChanges = function(property, oldModel) {
+                property.label = oldModel.property.label;
+                property.alias = oldModel.property.alias;
+                property.description = oldModel.property.description;
+                property.config = oldModel.property.config;
+                property.editor = oldModel.property.editor;
+                property.view = oldModel.property.view;
+                property.dataTypeId = oldModel.property.dataTypeId;
+                property.dataTypeIcon = oldModel.property.dataTypeIcon;
+                property.dataTypeName = oldModel.property.dataTypeName;
+                property.validation.mandatory = oldModel.property.validation.mandatory;
+                property.validation.pattern = oldModel.property.validation.pattern;
+                property.showOnMemberProfile = oldModel.property.showOnMemberProfile;
+                property.memberCanEdit = oldModel.property.memberCanEdit;
+
+                // because we set state to active, to show a preview, we have to check if has been filled out
+                // label is required so if it is not filled we know it is a placeholder
+                if (oldModel.property.editor === undefined || oldModel.property.editor === null || oldModel.property.editor === "") {
+                    property.propertyState = "init";
+                } else {
+                    property.propertyState = oldModel.property.propertyState;
+                }
+
+            }
             
             scope.openEditorPickerOverlay = function (property) {
                 scope.focusOnMandatoryField = false;
@@ -650,8 +651,11 @@
                 };
 
                 scope.editorPickerOverlay.close = function (model) {
-                    scope.editorPickerOverlay.show = false;
-                    scope.editorPickerOverlay = null;
+                        // reset all property changes
+                        scope.resetPropertyChanges(property, model);
+                        // remove dialog
+                        scope.editorPickerOverlay.show = false;
+                        scope.editorPickerOverlay = null;
                 };
 
             };

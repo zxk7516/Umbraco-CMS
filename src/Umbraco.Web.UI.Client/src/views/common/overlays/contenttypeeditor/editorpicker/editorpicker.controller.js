@@ -186,9 +186,6 @@
 
                     submitOverlay(newDataType, propertyType, true);
 
-                    vm.editorSettingsOverlay.show = false;
-                    vm.editorSettingsOverlay = null;
-
                 });
 
             });
