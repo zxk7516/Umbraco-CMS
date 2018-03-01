@@ -493,9 +493,9 @@
 
             };
 
-            var debounceAlias = _.throttle(checkAlias, 100);
+            var debounceAlias = _.debounce(checkAlias, 200);
             scope.updateAlias = function (property) {
-                if (property.tempAlias && property.label.length > 3) {
+                if (property.tempAlias && property.label.length > 1) {
                     debounceAlias(property);
                 }
             };
@@ -607,7 +607,7 @@
 
                 scope.editorPickerOverlay = {};
                 scope.editorPickerOverlay.property = property;
-                scope.editorPickerOverlay.contentTypeName = scope.model.contentTypeName;
+                scope.editorPickerOverlay.contentTypeName = scope.model.name;
                 scope.editorPickerOverlay.view = "views/common/overlays/contenttypeeditor/editorpicker/editorpicker.html";
                 scope.editorPickerOverlay.show = true;
 
