@@ -50,7 +50,7 @@
         vm.openEditorPickerOverlay = openEditorPickerOverlay;
         vm.openEditorSettingsOverlay = openEditorSettingsOverlay;
 
-        userService.getCurrentUser().then(function(user) {
+        userService.getCurrentUser().then(function (user) {
             vm.showSensitiveData = user.userGroups.indexOf("sensitiveData") != -1;
         });
 
@@ -106,22 +106,14 @@
             // get data type
             dataTypeResource.getById(property.dataTypeId).then(function (dataType) {
 
-<<<<<<< HEAD
-            vm.editorSettingsOverlay = {};
-            vm.editorSettingsOverlay.title = "Editor settings";
-            vm.editorSettingsOverlay.view = "views/common/overlays/contenttypeeditor/editorsettings/editorsettings.html";
-            vm.editorSettingsOverlay.dataType = dataType;
-
-            if (dataType.preValues.length > 0) {
-                vm.editorSettingsOverlay.show = true;
-            } 
-=======
                 vm.editorSettingsOverlay = {};
                 vm.editorSettingsOverlay.title = "Editor settings";
                 vm.editorSettingsOverlay.view = "views/common/overlays/contenttypeeditor/editorsettings/editorsettings.html";
                 vm.editorSettingsOverlay.dataType = dataType;
-                vm.editorSettingsOverlay.show = true;
->>>>>>> dev-v7
+
+                if (dataType.preValues.length > 0) {
+                    vm.editorSettingsOverlay.show = true;
+                }
 
                 vm.editorSettingsOverlay.submit = function (model) {
 
