@@ -50,7 +50,7 @@
         vm.openEditorPickerOverlay = openEditorPickerOverlay;
         vm.openEditorSettingsOverlay = openEditorSettingsOverlay;
 
-        userService.getCurrentUser().then(function (user) {
+        userService.getCurrentUser().then(function(user) {
             vm.showSensitiveData = user.userGroups.indexOf("sensitiveData") != -1;
         });
 
@@ -153,6 +153,7 @@
             });
 
         }
+        
 
         function matchValidationType() {
 

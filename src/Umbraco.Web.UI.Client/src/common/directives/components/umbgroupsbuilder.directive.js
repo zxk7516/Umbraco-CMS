@@ -506,7 +506,7 @@
 
             scope.editPropertyTypeSettings = function (property, group) {
 
-                if (!property.inherited && !property.locked) {
+                if (!property.inherited) {
 
                     scope.propertySettingsDialogModel = {};
                     scope.propertySettingsDialogModel.title = "Property settings";
@@ -542,7 +542,7 @@
                         // set focus on init property
                         var numberOfProperties = group.properties.length;
                         group.properties[numberOfProperties - 1].focus = true;
-
+                        
                         // push new init tab to the scope
                         addInitGroup(scope.model.groups);
 
@@ -561,6 +561,7 @@
 
                 }
             };
+
 
             scope.deleteProperty = function (tab, propertyIndex) {
 
@@ -593,6 +594,7 @@
                 property.validation.mandatory = oldModel.property.validation.mandatory;
                 property.validation.pattern = oldModel.property.validation.pattern;
                 property.showOnMemberProfile = oldModel.property.showOnMemberProfile;
+                property.isSensitiveValue = oldModel.property.isSensitiveValue;
                 property.memberCanEdit = oldModel.property.memberCanEdit;
 
                 // because we set state to active, to show a preview, we have to check if has been filled out
