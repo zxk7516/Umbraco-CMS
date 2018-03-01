@@ -367,6 +367,27 @@ function dataTypeResource($q, $http, umbDataFormatter, umbRequestHelper) {
                         "PostRenameContainer",
                         { id: id, name: name })),
                 "Failed to rename the folder with id " + id);
+        },
+
+        getContainer: function (name) {
+            return umbRequestHelper.resourcePromise(
+                $http.get(
+                    umbRequestHelper.getApiUrl(
+                        "dataTypeApiBaseUrl",
+                        "GetContainer",
+                        { name: name })),
+                'No container found with name: ' + name);
+
+        },
+
+        containerExist: function (name) {
+            return umbRequestHelper.resourcePromise(
+                $http.get(
+                    umbRequestHelper.getApiUrl(
+                        "dataTypeApiBaseUrl",
+                        "ContainerExist",
+                        { name: name })));
+
         }
     };
 }

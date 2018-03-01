@@ -187,6 +187,23 @@ namespace Umbraco.Web.Editors
                 : Request.CreateNotificationValidationErrorResponse(result.Exception.Message);
         }
 
+        [HttpGet]
+        public bool ContainerExist(string name)
+        {
+            var result = Services.DataTypeService.GetContainers(name, 1);
+
+            return result.Any();
+        }
+
+        public HttpResponseMessage GetContainer(string name)
+        {
+            var result = Services.DataTypeService.GetContainers(name, 1);
+
+            return result.Any()
+                ? Request.CreateResponse(HttpStatusCode.OK, result.First())
+                : Request.CreateResponse(HttpStatusCode.NotFound);
+        }
+
         /// <summary>
         /// Saves the data type
         /// </summary>
