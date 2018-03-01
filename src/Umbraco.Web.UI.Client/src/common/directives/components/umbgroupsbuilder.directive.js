@@ -497,8 +497,10 @@
             };
 
             function checkAlias(property) {
-                entityResource.getSafeAlias(property.label, true).then(function (safeAlias) {
-                    property.alias = safeAlias.alias;
+                $timeout(function() {
+                    entityResource.getSafeAlias(property.label, true).then(function(safeAlias) {
+                        property.alias = safeAlias.alias;
+                    });
                 });
             }
 
