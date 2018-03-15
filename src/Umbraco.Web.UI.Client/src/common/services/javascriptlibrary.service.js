@@ -1,7 +1,7 @@
 ﻿(function () {
     'use strict';
 
-    function javascriptLibraryHelperService($q, $http, umbRequestHelper) {
+    function javascriptLibraryService($q, $http, umbRequestHelper) {
 
         var existingLocales = [];
 
@@ -33,7 +33,7 @@
 
     }
 
-    angular.module('umbraco.services').factory('javascriptLibraryHelperService', javascriptLibraryHelperService);
+    angular.module('umbraco.services').factory('javascriptLibraryService', javascriptLibraryService);
 
 
 })();
