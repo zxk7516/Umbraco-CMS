@@ -31,9 +31,9 @@ function MainController($scope, $rootScope, $location, $routeParams, $timeout, $
         //idea to return one just in case some browser still support it
         var message = "You have " +
             editorsOpen.length +
-            " open which might have unsaved changes, are you sure you want to leave/refresh the page?";
+            " editors open which might have unsaved changes, are you sure you want to leave/refresh the page?";
 
-        //returning null or undefine will skip the pop up and procede to refresh/leave the page.
+        //returning null or undefined will skip the pop up and procede to refresh/leave the page.
         return editorsOpen.length > 0 ? message : null;
     };
 
