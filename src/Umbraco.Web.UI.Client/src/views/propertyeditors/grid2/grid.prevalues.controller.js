@@ -1,6 +1,6 @@
 angular.module("umbraco")
     .controller("Umbraco.PropertyEditors.Grid2PrevalueEditorController",
-    function ($scope, $http, assetsService, $rootScope, dialogService, mediaResource, gridService, imageHelper, $timeout, editorService) {
+    function ($scope, $http, assetsService, $rootScope, dialogService, mediaResource, gridService, imageHelper, $timeout, editorService, gridResource) {
 
         var vm = this;
 
@@ -43,8 +43,7 @@ angular.module("umbraco")
                     name: "Headline",
                     areas: [
                         {
-                            grid: 12,
-                            editors: ["headline"]
+                            grid: 12
                         }
                     ]
                 },
@@ -85,7 +84,7 @@ angular.module("umbraco")
                 view: "views/propertyEditors/grid2/dialogs/rowconfig.html",
                 size: "small",
                 currentRow: row,
-                editors: $scope.editors,
+                contentTypes: $scope.contentTypes,
                 columns: $scope.model.value.columns,
                 submit: function(model) {
                     editorService.close();
@@ -191,8 +190,8 @@ angular.module("umbraco")
         /****************
             editors
         *****************/
-        gridService.getGridEditors().then(function(response){
-            $scope.editors = response.data;
+        gridResource.getGridContentTypes().then(function(response){
+            $scope.contentTypes = response;
         });
 
 

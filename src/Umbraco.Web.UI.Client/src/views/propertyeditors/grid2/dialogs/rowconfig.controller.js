@@ -3,7 +3,7 @@ function RowConfigController($scope) {
     var vm = this;
 
     $scope.currentRow = $scope.model.currentRow;
-    $scope.editors = $scope.model.editors;
+    $scope.contentTypes = $scope.model.contentTypes;
     $scope.columns = $scope.model.columns;
 
     vm.submit = submit;
