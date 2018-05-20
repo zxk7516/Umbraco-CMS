@@ -10,6 +10,8 @@ using Umbraco.Core;
 
 namespace Umbraco.Web.Models.ContentEditing
 {
+
+
     [DataContract(Name = "scriptFile", Namespace = "")]
     public class CodeFileDisplay : INotificationModel, IValidatableObject
     {
