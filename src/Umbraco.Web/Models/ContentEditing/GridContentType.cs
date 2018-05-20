@@ -29,6 +29,26 @@ namespace Umbraco.Web.Models.ContentEditing
         public string Icon { get; set; }
 
         [DataMember(Name = "views")]
-        public string[] Views { get; set; }
+        public IDictionary<string, GridEditorPath> Views { get; set; }
+    }
+
+    [DataContract(Name = "contentType", Namespace = "")]
+    public class GridEditorPath
+    {
+        public GridEditorPath()
+        {
+
+        }
+
+        public GridEditorPath(string view, bool isPreview)
+        {
+            View = view;
+            IsPreview = isPreview;
+        }
+
+        [DataMember(Name = "view")]
+        public string View { get; set; }
+        [DataMember(Name = "isPreview")]
+        public bool IsPreview { get; set; }
     }
 }

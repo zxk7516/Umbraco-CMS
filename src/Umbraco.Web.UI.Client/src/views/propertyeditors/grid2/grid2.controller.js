@@ -1,6 +1,6 @@
 angular.module("umbraco")
     .controller("Umbraco.PropertyEditors.Grid2Controller",
-    function ($scope, $http, assetsService, localizationService, $rootScope, dialogService, gridService, mediaResource, imageHelper, $timeout, umbRequestHelper, angularHelper) {
+    function ($scope, $http, assetsService, localizationService, $rootScope, dialogService, gridResource, mediaResource, imageHelper, $timeout, umbRequestHelper, angularHelper) {
 
         // Grid status variables
         var placeHolder = "";
@@ -324,7 +324,7 @@ angular.module("umbraco")
             var row = angular.copy(layout);
 
             // Init row value
-            row = $scope.initRow(row);
+            row = initRow(row);
 
             // Push the new row
             if (row) {
@@ -580,18 +580,18 @@ angular.module("umbraco")
             newControl.active = true;
 
             //populate control
-            $scope.initControl(newControl, index + 1);
+            initControl(newControl, index + 1);
 
             cell.controls.push(newControl);
 
         };
 
         $scope.addTinyMce = function (cell) {
-            var rte = $scope.getEditor("rte");
+            var rte = getEditor("rte");
             $scope.addControl(rte, cell);
         };
 
-        $scope.getEditor = function (alias) {
+        function getEditor(alias) {
             return _.find($scope.availableEditors, function (editor) { return editor.alias === alias; });
         };
 
@@ -714,7 +714,7 @@ angular.module("umbraco")
             } else {
                 _.forEach(section.rows, function (row, index) {
                     if (!row.$initialized) {
-                        var initd = $scope.initRow(row);
+                        var initd = initRow(row);
 
                         //if init fails, remove
                         if (!initd) {
@@ -734,7 +734,7 @@ angular.module("umbraco")
         // *********************************************
         // Init layout / row
         // *********************************************
-        $scope.initRow = function (row) {
+        function initRow (row) {
 
             //merge the layout data with the original config data
             //if there are no config info on this, splice it out
@@ -782,7 +782,7 @@ angular.module("umbraco")
                             area.controls = currentArea.controls;
 
                             _.forEach(area.controls, function (control, controlIndex) {
-                                $scope.initControl(control, controlIndex);
+                                initControl(control, controlIndex);
                             });
 
                         } else {
@@ -816,49 +816,39 @@ angular.module("umbraco")
                 return original;
             }
 
-        };
+        }
 
 
         // *********************************************
         // Init control
         // *********************************************
-
-        $scope.initControl = function (control, index) {
+        
+        function initControl(control, index) {
             control.$index = index;
-            control.$uniqueId = $scope.setUniqueId();
+            control.$uniqueId = guid();
 
-            //error handling in case of missing editor..
-            //should only happen if stripped earlier
-            if (!control.editor) {
-                control.$editorPath = "views/propertyeditors/grid/editors/error.html";
-            }
+            //create the properties collection which will be bound here
+            control.properties = [];
 
-            if (!control.$editorPath) {
-                var editorConfig = $scope.getEditor(control.editor.alias);
-
-                if (editorConfig) {
-                    control.editor = editorConfig;
-
-                    //if its an absolute path
-                    if (control.editor.view.startsWith("/") || control.editor.view.startsWith("~/")) {
-                        control.$editorPath = umbRequestHelper.convertVirtualToAbsolutePath(control.editor.view);
-                    }
-                    else {
-                        //use convention
-                        control.$editorPath = "views/propertyeditors/grid/editors/" + control.editor.view + ".html";
-                    }
+            //get a scaffold for the current doc type
+            gridResource.getScaffold(control.editor.key).then(function (c) {
+                if (c.tabs && c.tabs.length) {
+                    control.properties = c.tabs[0].properties;
+                    _.each(control.properties, function (p) {
+                        p.hideLabel = true;
+                        //now we need to re-assign the view and set the boolean if it's a preview or not
+                        if (control.editor.views && control.editor.views[p.alias]) {
+                            p.view = control.editor.views[p.alias].view;
+                        }
+                    });
                 }
-                else {
-                    control.$editorPath = "views/propertyeditors/grid/editors/error.html";
-                }
-            }
-
+            });
 
         };
 
 
-        gridService.getGridEditors().then(function (response) {
-            $scope.availableEditors = response.data;
+        gridResource.getGridContentTypes().then(function (response) {
+            $scope.availableEditors = response;
 
             //Localize the grid editor names
             angular.forEach($scope.availableEditors, function (value, key) {
