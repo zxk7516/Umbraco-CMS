@@ -31,17 +31,6 @@ angular.module("umbraco")
                             grid: 12,
                         }
                     ]
-                },
-                {
-                    name: "2 column layout",
-                    sections: [
-                        {
-                            grid: 4,
-                        },
-                        {
-                            grid: 8
-                        }
-                    ]
                 }
             ],
 
