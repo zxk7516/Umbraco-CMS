@@ -104,7 +104,7 @@ angular.module("umbraco")
         $scope.deleteLayout = function(index) {
 
            $scope.rowDeleteOverlay = {};
-           $scope.rowDeleteOverlay.view = "views/propertyEditors/grid/dialogs/rowdeleteconfirm.html";
+           $scope.rowDeleteOverlay.view = "views/propertyEditors/grid2/dialogs/rowdeleteconfirm.html";
            $scope.rowDeleteOverlay.dialogData = {
              rowName: $scope.model.value.layouts[index].name
            };
@@ -156,7 +156,7 @@ angular.module("umbraco")
         var editConfigCollection = function(configValues, title, callback) {
 
            $scope.editConfigCollectionOverlay = {};
-           $scope.editConfigCollectionOverlay.view = "views/propertyeditors/grid/dialogs/editconfig.html";
+           $scope.editConfigCollectionOverlay.view = "views/propertyeditors/grid2/dialogs/editconfig.html";
            $scope.editConfigCollectionOverlay.config = configValues;
            $scope.editConfigCollectionOverlay.title = title;
            $scope.editConfigCollectionOverlay.show = true;

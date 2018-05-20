@@ -112,4 +112,4 @@ function RowConfigController($scope) {
 
 }
 
-angular.module("umbraco").controller("Umbraco.PropertyEditors.GridPrevalueEditor.RowConfigController", RowConfigController);
+angular.module("umbraco").controller("Umbraco.PropertyEditors.Grid2PrevalueEditor.RowConfigController", RowConfigController);
