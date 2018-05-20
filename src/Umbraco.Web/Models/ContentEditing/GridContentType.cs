@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
+using Umbraco.Core;
 
 namespace Umbraco.Web.Models.ContentEditing
 {
@@ -14,10 +11,7 @@ namespace Umbraco.Web.Models.ContentEditing
     public class GridContentType
     {
         [DataMember(Name = "id")]
-        public int Id { get; set; }
-
-        [DataMember(Name = "key")]
-        public Guid Key { get; set; }
+        public Udi Id { get; set; }
 
         [DataMember(Name = "name")]
         public string Name { get; set; }
@@ -48,6 +42,7 @@ namespace Umbraco.Web.Models.ContentEditing
 
         [DataMember(Name = "view")]
         public string View { get; set; }
+
         [DataMember(Name = "isPreview")]
         public bool IsPreview { get; set; }
     }

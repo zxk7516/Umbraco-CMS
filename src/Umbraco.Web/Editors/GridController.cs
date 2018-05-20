@@ -2,16 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web.Http;
 using Umbraco.Core;
-using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
 using Umbraco.Core.Models;
 using Umbraco.Core.PropertyEditors;
-using Umbraco.Core.Services;
 using Umbraco.Web.Models.ContentEditing;
 
 namespace Umbraco.Web.Editors
@@ -35,11 +30,10 @@ namespace Umbraco.Web.Editors
 
             return contentTypes.Select(x => new GridContentType
             {
+                Id = x.GetUdi(),
+                Name = x.Name,
                 Alias = x.Alias,
                 Icon = x.Icon,
-                Id = x.Id,
-                Key = x.Key,
-                Name = x.Name,
                 Views = GetPaths(x)
             });
         }
@@ -72,7 +66,7 @@ namespace Umbraco.Web.Editors
                 .WhereNotNull()
                 .ToDictionary(x => x.Alias, x => x);
 
-            foreach(var x in props)
+            foreach (var x in props)
             {
                 if (editors.TryGetValue(x.PropertyEditorAlias, out var editor))
                 {
@@ -94,7 +88,6 @@ namespace Umbraco.Web.Editors
             }
 
             return result;
-
         }
 
         private Attempt<string> GetPath(IDataValueEditor valueEditor, string suffix)
@@ -107,11 +100,11 @@ namespace Umbraco.Web.Editors
             var fullPath = !inlinePath.Contains("/") ? $"~{GlobalSettings.Path}/{relativePath}" : relativePath;
 
             var file = IOHelper.MapPath(fullPath);
+
             if (!System.IO.File.Exists(file))
                 return Attempt<string>.Fail();
+
             return Attempt.Succeed(relativePath);
         }
-
-        
     }
 }
