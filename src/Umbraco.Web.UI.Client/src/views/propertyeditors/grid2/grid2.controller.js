@@ -867,6 +867,37 @@ angular.module("umbraco")
 
         });
 
+        $scope.mapToPersistableModel = function(fullModel) {
+
+            var persistableModel = {
+                rows: _.map(fullModel.sections[0].rows,
+                    function (row) {
+                        return {
+                            alias: row.name,
+                            settings: {}, // fixme - add the settings
+                            cells: _.map(row.areas,
+                                function (cell) {
+                                    return {
+                                        settings: {},
+                                        items: _.map(cell.controls,
+                                            function (item) {
+                                                return {
+                                                    type: item.editor.key,
+                                                    values: _.object(_.map(item.properties,
+                                                        function (prop) {
+                                                            return [prop.alias, prop.value];
+                                                        }))
+                                                };
+                                            })
+                                    };
+                                })
+                        };
+                    })
+            };
+
+            return persistableModel;
+        }
+
         //Clean the grid value before submitting to the server, we don't need
         // all of that grid configuration in the value to be stored!! All of that
         // needs to be merged in at runtime to ensure that the real config values are used

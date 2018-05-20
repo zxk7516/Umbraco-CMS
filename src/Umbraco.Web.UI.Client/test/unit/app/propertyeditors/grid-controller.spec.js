@@ -114,43 +114,11 @@ describe("grid 2", function () {
             }));
         });
 
-    //fixme - Move to controller when done
-
-    function mapToPersistableModel(fullModel) {
-        // value, sections, rows, areas, controls
-
-        var persistableModel = {
-            rows: _.map(fullModel.sections[0].rows,
-                function (row) {
-                    return {
-                        alias: row.name,
-                        settings: {}, // fixme - add the settings
-                        cells: _.map(row.areas,
-                            function (cell) {
-                                return {
-                                    settings: {},
-                                    items: _.map(cell.controls,
-                                        function (item) {
-                                            return {
-                                                type: item.editor.key,
-                                                values: _.object(_.map(item.properties,
-                                                    function (prop) {
-                                                        return [prop.alias, prop.value];
-                                                    }))
-                                            };
-                                        })
-                                };
-                            })
-                    };
-                })
-        };
-
-        return persistableModel;
-    }
-
     it("maps the model to persistable model",
         function () {
-            var persistable = mapToPersistableModel(fullModel.value);
+            var persistable = $scope.mapToPersistableModel(fullModel.value);
+
+            console.log(JSON.stringify(persistable, null, '  '));
 
             expect(persistable).toEqual(jasmine.objectContaining({
                 rows: [
