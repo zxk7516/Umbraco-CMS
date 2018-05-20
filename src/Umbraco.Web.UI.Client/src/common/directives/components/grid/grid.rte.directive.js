@@ -22,8 +22,6 @@ angular.module("umbraco.directives")
                     //we always fetch the default one, and then override parts with our own
                     tinyMceService.configuration().then(function (tinyMceConfig) {
 
-
-
                         //config value from general tinymce.config file
                         var validElements = tinyMceConfig.validElements;
                         var fallbackStyles = [{title: "Page header", block: "h2"}, {title: "Section header", block: "h3"}, {title: "Paragraph header", block: "h4"}, {title: "Normal", block: "p"}, {title: "Quote", block: "blockquote"}, {title: "Code", block: "code"}];
@@ -51,11 +49,9 @@ angular.module("umbraco.directives")
                                 await.push(assetsService.loadJs("lib/tinymce/tinymce.min.js", scope));
                         }
 
-
                         if(scope.configuration && scope.configuration.toolbar){
                             toolbar = scope.configuration.toolbar.join(' | ');
                         }
-
 
                         if(scope.configuration && scope.configuration.stylesheets){
                             angular.forEach(scope.configuration.stylesheets, function(stylesheet, key){
@@ -91,7 +87,7 @@ angular.module("umbraco.directives")
                                     }));
                             });
                         }else{
-                            stylesheets.push("views/propertyeditors/grid/config/grid.default.rtestyles.css");
+                            stylesheets.push("common/directives/components/grid/grid.default.rtestyles.css");
                             styleFormats = fallbackStyles;
                         }
 
@@ -119,7 +115,6 @@ angular.module("umbraco.directives")
                                 //see http://archive.tinymce.com/wiki.php/Configuration:cache_suffix
                                 cache_suffix: "?umb__rnd=" + Umbraco.Sys.ServerVariables.application.cacheBuster
                             };
-
 
                             if (tinyMceConfig.customConfig) {
 
@@ -162,7 +157,6 @@ angular.module("umbraco.directives")
 
                                 //set the reference
                                 tinyMceEditor = editor;
-
 
                                 //enable browser based spell checking
                                 editor.on('init', function (e) {
@@ -212,7 +206,7 @@ angular.module("umbraco.directives")
                                             .css("margin-top", "0")
                                             .css("width", tinyMceWidth);
                                     }
-                                    
+
                                 };
 
                                 // unpin toolbar to top of screen
@@ -224,7 +218,7 @@ angular.module("umbraco.directives")
 
                                     // reset padding in top of mce so the content does not "jump" up
                                     _tinyMceEditArea.css("padding-top", "0");
-                                        
+
                                     _toolbar.css("position", "static");
 
                                 };

@@ -21,12 +21,22 @@ namespace Umbraco.Web.Models.Mapping
             var creatorResolver = new CreatorResolver(userService);
             var actionButtonsResolver = new ActionButtonsResolver(userService, contentService);
             var tabsAndPropertiesResolver = new TabsAndPropertiesResolver<IContent, ContentItemDisplay>(textService);
+            var gridCellTabsAndPropertiesResolver = new TabsAndPropertiesResolver<IContent, GridContentCell>(textService);
             var childOfListViewResolver = new ContentChildOfListViewResolver(contentService, contentTypeService);
             var contentTypeBasicResolver = new ContentTypeBasicResolver<IContent, ContentItemDisplay>();
             var contentTreeNodeUrlResolver = new ContentTreeNodeUrlResolver<IContent, ContentTreeController>();
             var defaultTemplateResolver = new DefaultTemplateResolver();
             var contentUrlResolver = new ContentUrlResolver(textService, contentService, logger);
             var variantResolver = new ContentItemDisplayVariationResolver(localizationService);
+
+            CreateMap<IContent, GridContentCell>()
+                .ForMember(dest => dest.Udi, opt => opt.MapFrom(src => Udi.Create(Constants.UdiEntityType.Document, src.Key)))
+                .ForMember(dest => dest.Icon, opt => opt.MapFrom(src => src.ContentType.Icon))
+                .ForMember(dest => dest.ContentTypeAlias, opt => opt.MapFrom(src => src.ContentType.Alias))
+                .ForMember(dest => dest.Properties, opt => opt.Ignore())
+                .ForMember(dest => dest.Alias, opt => opt.Ignore())
+                .ForMember(dest => dest.Tabs, opt => opt.ResolveUsing(gridCellTabsAndPropertiesResolver))
+                .ForMember(dest => dest.AdditionalData, opt => opt.Ignore());
 
             //FROM IContent TO ContentItemDisplay
             CreateMap<IContent, ContentItemDisplay>()

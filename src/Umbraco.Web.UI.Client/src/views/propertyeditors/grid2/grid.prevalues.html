@@ -1,47 +1,5 @@
-<div ng-controller="Umbraco.PropertyEditors.GridPrevalueEditorController" class="usky-grid usky-grid-configuration">
-    <div style="max-width: 600px">
-        <div class="control-group uSky-templates">
-
-            <h4><localize key="grid_gridLayouts"/></h4>
-            <p><localize key="grid_gridLayoutsDetail" /></p>
-
-            <ul class="unstyled"
-                ui-sortable
-                ng-model="model.value.templates">
-
-                <li ng-repeat="template in model.value.templates" class="clearfix">
-
-                    <div ng-click="configureTemplate(template)"
-                         class="preview-rows layout" style="margin-top: 5px; margin-bottom: 20px; float:left">
-
-                        <div class="preview-row">
-                            <div class="preview-col"
-                                 ng-class="{last:$last}"
-                                 ng-repeat="section in template.sections | filter:zeroWidthFilter"
-                                 ng-style="{width: percentage(section.grid) + '%', height: '60px', 'max-width': '100%'}">
-                                <div class="preview-cell"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        {{template.name}} <br />
-                        <i class="icon-delete red"></i>
-                        <a class="btn btn-small btn-link"
-                           href
-                           ng-click="deleteTemplate($index)"><localize key="general_delete" /></a>
-                    </div>
-
-                </li>
-            </ul>
-
-            <button class="btn btn-small"
-                    prevent-default
-                    ng-click="configureTemplate()">
-                    <i class="icon-add"></i> <localize key="grid_addGridLayout" />
-            </button>
-        </div>
-    </div>
+<div ng-controller="Umbraco.PropertyEditors.Grid2PrevalueEditorController" class="usky-grid usky-grid-configuration">
+    
     <div style="max-width: 600px">
 
         <div class="control-group uSky-templates">

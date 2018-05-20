@@ -1,5 +1,5 @@
 angular.module("umbraco")
-    .controller("Umbraco.PropertyEditors.GridPrevalueEditorController",
+    .controller("Umbraco.PropertyEditors.Grid2PrevalueEditorController",
     function ($scope, $http, assetsService, $rootScope, dialogService, mediaResource, gridService, imageHelper, $timeout) {
 
         var emptyModel = {
@@ -60,52 +60,6 @@ angular.module("umbraco")
                 }
             ]
         };
-
-        /****************
-            template
-        *****************/
-
-        $scope.configureTemplate = function(template) {
-
-           var templatesCopy = angular.copy($scope.model.value.templates);
-
-           if (template === undefined) {
-              template = {
-                 name: "",
-                 sections: [
-
-                 ]
-              };
-              $scope.model.value.templates.push(template);
-           }
-
-           $scope.layoutConfigOverlay = {};
-           $scope.layoutConfigOverlay.view = "views/propertyEditors/grid/dialogs/layoutconfig.html";
-           $scope.layoutConfigOverlay.currentLayout = template;
-           $scope.layoutConfigOverlay.rows = $scope.model.value.layouts;
-           $scope.layoutConfigOverlay.columns = $scope.model.value.columns;
-           $scope.layoutConfigOverlay.show = true;
-
-           $scope.layoutConfigOverlay.submit = function(model) {
-              $scope.layoutConfigOverlay.show = false;
-              $scope.layoutConfigOverlay = null;
-           };
-
-           $scope.layoutConfigOverlay.close = function(oldModel) {
-
-              //reset templates
-              $scope.model.value.templates = templatesCopy;
-
-              $scope.layoutConfigOverlay.show = false;
-              $scope.layoutConfigOverlay = null;
-           }
-
-        };
-
-        $scope.deleteTemplate = function(index){
-            $scope.model.value.templates.splice(index, 1);
-        };
-        
 
         /****************
             Row
