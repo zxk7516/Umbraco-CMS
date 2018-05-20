@@ -1,8 +1,13 @@
 function RowConfigController($scope) {
 
+    var vm = this;
+
     $scope.currentRow = $scope.model.currentRow;
     $scope.editors = $scope.model.editors;
     $scope.columns = $scope.model.columns;
+
+    vm.submit = submit;
+    vm.close = close;
 
     $scope.scaleUp = function(section, max, overflow) {
         var add = 1;
@@ -92,6 +97,18 @@ function RowConfigController($scope) {
             }
         }
     }, true);
+
+    function submit(model) {
+        if($scope.model.submit) {
+            $scope.model.submit();
+        }
+    }
+
+    function close() {
+        if($scope.model.close) {
+            $scope.model.close();
+        }
+    }
 
 }
 

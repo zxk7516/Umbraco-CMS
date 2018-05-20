@@ -1,6 +1,8 @@
 angular.module("umbraco")
     .controller("Umbraco.PropertyEditors.Grid2PrevalueEditorController",
-    function ($scope, $http, assetsService, $rootScope, dialogService, mediaResource, gridService, imageHelper, $timeout) {
+    function ($scope, $http, assetsService, $rootScope, dialogService, mediaResource, gridService, imageHelper, $timeout, editorService) {
+
+        var vm = this;
 
         var emptyModel = {
             styles:[
@@ -61,43 +63,42 @@ angular.module("umbraco")
             ]
         };
 
+        vm.configureRow = configureRow;
+
         /****************
             Row
         *****************/
 
-        $scope.configureLayout = function(layout) {
+        function configureRow(row) {
 
-           var layoutsCopy = angular.copy($scope.model.value.layouts);
+            var rowCopy = angular.copy($scope.model.value.layouts);
 
-           if(layout === undefined){
-                layout = {
+            if(row === undefined){
+                row = {
                     name: "",
-                    areas:[
-
-                    ]
+                    areas: []
                 };
-                $scope.model.value.layouts.push(layout);
-           }
+                $scope.model.value.layouts.push(row);
+            }
 
-           $scope.rowConfigOverlay = {};
-           $scope.rowConfigOverlay.view = "views/propertyEditors/grid/dialogs/rowconfig.html";
-           $scope.rowConfigOverlay.currentRow = layout;
-           $scope.rowConfigOverlay.editors = $scope.editors;
-           $scope.rowConfigOverlay.columns = $scope.model.value.columns;
-           $scope.rowConfigOverlay.show = true;
+            var rowConfigurationEditor = {
+                view: "views/propertyEditors/grid2/dialogs/rowconfig.html",
+                size: "small",
+                currentRow: row,
+                editors: $scope.editors,
+                columns: $scope.model.value.columns,
+                submit: function(model) {
+                    editorService.close();
+                },
+                close: function() {
+                    $scope.model.value.layouts = rowCopy;
+                    editorService.close();
+                }
+            }
 
-           $scope.rowConfigOverlay.submit = function(model) {
-             $scope.rowConfigOverlay.show = false;
-             $scope.rowConfigOverlay = null;
-           };
+            editorService.open(rowConfigurationEditor);
 
-           $scope.rowConfigOverlay.close = function(oldModel) {
-             $scope.model.value.layouts = layoutsCopy;
-             $scope.rowConfigOverlay.show = false;
-             $scope.rowConfigOverlay = null;
-           };
-
-        };
+        }
 
         //var rowDeletesPending = false;
         $scope.deleteLayout = function(index) {
