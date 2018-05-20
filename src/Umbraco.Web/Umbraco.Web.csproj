@@ -123,6 +123,7 @@
     <Compile Include="Editors\EditorValidatorCollectionBuilder.cs" />
     <Compile Include="Editors\EditorValidatorOfT.cs" />
     <Compile Include="Editors\FromJsonPathAttribute.cs" />
+    <Compile Include="Editors\GridController.cs" />
     <Compile Include="Editors\HelpController.cs" />
     <Compile Include="Editors\IsCurrentUserModelFilterAttribute.cs" />
     <Compile Include="Editors\LanguageController.cs" />
@@ -212,6 +213,8 @@
     <Compile Include="Editors\IEditorValidator.cs" />
     <Compile Include="Editors\EditorModelEventManager.cs" />
     <Compile Include="HtmlHelperBackOfficeExtensions.cs" />
+    <Compile Include="Models\ContentEditing\GridContentCell.cs" />
+    <Compile Include="Models\ContentEditing\GridContentType.cs" />
     <Compile Include="Models\ContentEditing\Permission.cs" />
     <Compile Include="Models\ContentEditing\PostedFolder.cs" />
     <Compile Include="Models\ContentEditing\SnippetDisplay.cs" />
