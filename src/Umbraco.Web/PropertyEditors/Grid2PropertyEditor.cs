@@ -18,7 +18,7 @@ namespace Umbraco.Web.PropertyEditors
     /// <summary>
     /// Represents a grid property and parameter editor.
     /// </summary>
-    [DataEditor(Constants.PropertyEditors.Aliases.Grid2, "Grid", "grid", HideLabel = true, ValueType = ValueTypes.Json, Group="rich content", Icon="icon-layout")]
+    [DataEditor(Constants.PropertyEditors.Aliases.Grid2, "Grid", "grid2", HideLabel = true, ValueType = ValueTypes.Json, Group="rich content", Icon="icon-layout")]
     public class Grid2PropertyEditor : DataEditor
     {
         public Grid2PropertyEditor(ILogger logger)
