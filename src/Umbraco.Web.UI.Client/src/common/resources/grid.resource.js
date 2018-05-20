@@ -6,7 +6,7 @@
 function gridResource($http, umbRequestHelper) {
     return {
 
-        getCultures: function () {
+        getGridContentTypes: function () {
             return umbRequestHelper.resourcePromise(
                 $http.get(
                     umbRequestHelper.getApiUrl(
