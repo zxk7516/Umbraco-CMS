@@ -23,16 +23,19 @@ namespace Umbraco.Core.PropertyEditors
             return PropertyCacheLevel.Snapshot;
         }
 
+        // TODO: Rename to ConvertSourceToCachableIntermediate
         public virtual object ConvertSourceToIntermediate(IPublishedElement owner, PublishedPropertyType propertyType, object source, bool preview)
         {
             return source;
         }
 
+        // TODO: Rename to ConvertSourceToCachableIntermediate
         public virtual object ConvertIntermediateToObject(IPublishedElement owner, PublishedPropertyType propertyType, PropertyCacheLevel referenceCacheLevel, object inter, bool preview)
         {
             return inter;
         }
 
+        // TODO: Rename to ConvertSourceToCachableIntermediate
         public virtual object ConvertIntermediateToXPath(IPublishedElement owner, PublishedPropertyType propertyType, PropertyCacheLevel referenceCacheLevel, object inter, bool preview)
         {
             return inter?.ToString() ?? string.Empty;
