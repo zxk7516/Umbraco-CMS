@@ -59,37 +59,59 @@ namespace Umbraco.Web.Editors
             return mapped;
         }
 
-        private string[] GetPaths(IContentType contentType)
+        public IDictionary<string, GridEditorPath> GetPaths(IContentType contentType)
         {
             if (contentType.PropertyGroups.Count == 0)
                 throw new InvalidOperationException($"The content type {contentType.Alias} does not contain any tabs/properties");
 
             var props = contentType.PropertyGroups[0].PropertyTypes;
 
-            var editors = props.Select(x => _propertyEditors.FirstOrDefault(p => p.Alias == x.PropertyEditorAlias)).WhereNotNull();
+            var result = new Dictionary<string, GridEditorPath>();
 
-            var views = editors
-                .Select(x =>
+            var editors = props.Select(x => _propertyEditors.FirstOrDefault(p => p.Alias == x.PropertyEditorAlias))
+                .WhereNotNull()
+                .ToDictionary(x => x.Alias, x => x);
+
+            foreach(var x in props)
+            {
+                if (editors.TryGetValue(x.PropertyEditorAlias, out var editor))
                 {
-                    var valueEditor = x.GetValueEditor();
-                    if (valueEditor == null) return null;
+                    var valueEditor = editor.GetValueEditor();
+                    if (valueEditor == null) continue;
 
-                    if (valueEditor.View.IsNullOrWhiteSpace()) return null;
+                    if (valueEditor.View.IsNullOrWhiteSpace()) continue;
 
-                    var path = valueEditor.View.InvariantEndsWith(".html")
-                        ? valueEditor.View.TrimEnd(".html") + ".inline.html"
-                        : valueEditor.View + ".inline.html";
+                    var inlineResult = GetPath(valueEditor, "inline");
+                    if (inlineResult)
+                        result[x.Alias] = new GridEditorPath(inlineResult.Result, false);
+                    else
+                    {
+                        var previewResult = GetPath(valueEditor, "preview");
+                        if (previewResult)
+                            result[x.Alias] = new GridEditorPath(previewResult.Result, true);
+                    }
+                }
+            }
 
-                    var relativePath = !path.Contains("/") ? $"views/propertyeditors/{valueEditor.View}/{path}" : path;
-                    var fullPath = !path.Contains("/") ? $"~{GlobalSettings.Path}/{relativePath}" : relativePath;
-
-                    var file = IOHelper.MapPath(fullPath);
-                    return System.IO.File.Exists(file) ? relativePath : null;
-                })
-                .WhereNotNull();
-
-            return views.ToArray();
+            return result;
 
         }
+
+        private Attempt<string> GetPath(IDataValueEditor valueEditor, string suffix)
+        {
+            var inlinePath = valueEditor.View.InvariantEndsWith(".html")
+                        ? valueEditor.View.TrimEnd(".html") + $".{suffix}.html"
+                        : valueEditor.View + $".{suffix}.html";
+
+            var relativePath = !inlinePath.Contains("/") ? $"views/propertyeditors/{valueEditor.View}/{inlinePath}" : inlinePath;
+            var fullPath = !inlinePath.Contains("/") ? $"~{GlobalSettings.Path}/{relativePath}" : relativePath;
+
+            var file = IOHelper.MapPath(fullPath);
+            if (!System.IO.File.Exists(file))
+                return Attempt<string>.Fail();
+            return Attempt.Succeed(relativePath);
+        }
+
+        
     }
 }
