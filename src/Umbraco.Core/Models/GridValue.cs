@@ -37,10 +37,10 @@ namespace Umbraco.Core.Models
             public IEnumerable<GridArea> Areas { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Styles { get; set; }
 
             [JsonProperty("config")]
-            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Config { get; set; }
         }
 
         public class GridArea
@@ -52,46 +52,34 @@ namespace Umbraco.Core.Models
             public IEnumerable<GridControl> Controls { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Styles { get; set; }
 
             [JsonProperty("config")]
-            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Config { get; set; }
         }
 
         public class GridControl
         {
             [JsonProperty("value")]
-            public JToken Value { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Value { get; set; }
 
             [JsonProperty("editor")]
             public GridEditor Editor { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Styles { get; set; }
 
             [JsonProperty("config")]
-            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
+            public JToken Config { get; set; }
         }
 
         public class GridEditor
         {
-            [JsonProperty("name")]
-            public string Name { get; set; }
-
             [JsonProperty("alias")]
             public string Alias { get; set; }
 
             [JsonProperty("view")]
             public string View { get; set; }
-
-            [JsonProperty("render")]
-            public string Render { get; set; }
-
-            [JsonProperty("icon")]
-            public string Icon { get; set; }
-
-            [JsonProperty("config")]
-            public IDictionary<string, object> Config { get; set; }
         }
     }
 }
