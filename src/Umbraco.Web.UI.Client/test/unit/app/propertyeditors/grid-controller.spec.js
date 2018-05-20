@@ -1,3 +1,5 @@
+/*globals jasmine*/
+
 describe("grid 2", function () {
 
     var controller,
@@ -17,7 +19,8 @@ describe("grid 2", function () {
                     "markup": "<h1>#value#</h1>"
                 }
             }
-        ];
+        ],
+        fullModel;
 
     function outputModel() {
         console.log(JSON.stringify(scope.model, null, ' '));
@@ -132,13 +135,14 @@ describe("grid 2", function () {
             }
         }
 
-        controller = $controller("Umbraco.PropertyEditors.GridController", {
+        controller = $controller("Umbraco.PropertyEditors.Grid2Controller", {
             "$scope": scope,
             "gridService": gridService,
             "angularHelper": angularHelper
         });
 
-        scope.$digest();
+        //fixme - Disable digest while we don't have the right logic
+        //scope.$digest();
     }));
 
     it("defaults to 12 columns", function () {
@@ -162,19 +166,315 @@ describe("grid 2", function () {
         }));
     });
 
-    it("adds editor to cell", function () {
-        scope.addControl(
-            gridEditors[0],
-            scope.model.value.sections[0].rows[0].areas[0],
-            0
-        );
+    it("adds editor to cell",
+        function() {
+            scope.addControl(
+                gridEditors[0],
+                scope.model.value.sections[0].rows[0].areas[0],
+                0
+            );
 
-        expect(scope.model.value.sections[0].rows[0].areas[0].controls[0]).toEqual(jasmine.objectContaining({
-            value: null,
-            editor: jasmine.objectContaining({
-                alias: "headline"
-            })
-        }));
-    })
+            expect(scope.model.value.sections[0].rows[0].areas[0].controls[0]).toEqual(jasmine.objectContaining({
+                value: null,
+                editor: jasmine.objectContaining({
+                    alias: "headline"
+                })
+            }));
+        });
+
+    //fixme - Move to controller when done
+
+    function mapToPersistableModel(fullModel) {
+        // value, sections, rows, areas, controls
+
+        var persistableModel = {
+            rows: _.map(fullModel.sections[0].rows,
+                function(row) {
+                    return {
+                        alias: row.name,
+                        settings: {}, // fixme - add the settings
+                        cells: _.map(row.areas,
+                            function(cell) {
+                                return {
+                                    settings: {},
+                                    items: _.map(cell.controls,
+                                        function(item) {
+                                            return {
+                                                type: item.editor.key,
+                                                values: _.object(_.map(item.properties,
+                                                    function(prop) {
+                                                        return [prop.alias, prop.value];
+                                                    }))
+                                            };
+                                        })
+                                };
+                            })
+                    };
+                })
+        };
+
+        return persistableModel;
+    }
+
+    it("maps the model to persistable model",
+        function() {
+            var persistable = mapToPersistableModel(fullModel.value);
+
+            expect(persistable).toEqual(jasmine.objectContaining({
+                rows: [
+                    {
+                        alias: "halfNHalf",
+                        settings: {},
+                        cells: [
+                            {
+                                settings: {},
+                                items: [
+                                    {
+                                        type: "859fcc96-b3b2-4dbc-8c95-b3489a665374",
+                                        values: {
+                                            value: "Hello world"
+                                        }
+                                    },
+                                    {
+                                        type: "859fcc96-b3b2-4dbc-8c95-b3489a665374",
+                                        values: {
+                                            value: "H5YR, World!"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                settings: {},
+                                items: [
+                                    {
+                                        type: "a0257a59-0dd5-4468-8221-bedfd8d14911",
+                                        values: {
+                                            content: "<p><strong>afsdfsadf</strong></p>\n<p><strong><img style=\"width: 500px; height:331.1360677083333px;\" src=\"/media/1001/analytics-blur-close-up-590020.jpg?width=500&amp;height=331.1360677083333\" alt=\"\" data-udi=\"umb://media/a701f1cd119f4324998de916b1fef117\" /></strong></p>\n<p> </p>\n<p>asdfasdf</p>"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }));
+
+        });
+
+    fullModel = {
+        "label": "Grid",
+        "description": null,
+        "view": "grid2",
+        "config": {
+            "items": {
+                "styles": [
+                    {
+                        "label": "Set a background image",
+                        "description": "Set a row background",
+                        "key": "background-image",
+                        "view": "imagepicker",
+                        "modifier": "url({0})"
+                    }
+                ],
+                "config": [
+                    {
+                        "label": "Class",
+                        "description": "Set a css class",
+                        "key": "class",
+                        "view": "textstring"
+                    }
+                ],
+                "columns": 12,
+                "templates": [
+                    {
+                        "name": "1 column layout",
+                        "sections": [
+                            {
+                                "grid": 12
+                            }
+                        ]
+                    }
+                ],
+                "layouts": [
+                    {
+                        "label": "Headline",
+                        "name": "Headline",
+                        "areas": [
+                            {
+                                "grid": 12,
+                                "editors": [
+                                    "headline"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "halfNHalf",
+                        "areas": [
+                            {
+                                "grid": 6
+                            },
+                            {
+                                "grid": 6
+                            }
+                        ],
+                        "label": "Half n Half"
+                    }
+                ]
+            }
+        },
+        "hideLabel": true,
+        "validation": {
+            "mandatory": false,
+            "pattern": null
+        },
+        "readonly": false,
+        "id": 0,
+        "value": {
+            "name": "1 column layout",
+            "sections": [
+                {
+                    "grid": 12,
+                    "rows": [
+                        {
+                            "name": "halfNHalf",
+                            "areas": [
+                                {
+                                    "grid": 6,
+                                    "hasConfig": false,
+                                    "controls": [
+                                        {
+                                            "value": null,
+                                            "editor": {
+                                                "id": 1061,
+                                                "key": "859fcc96-b3b2-4dbc-8c95-b3489a665374",
+                                                "name": {},
+                                                "alias": "headline",
+                                                "icon": "icon-document",
+                                                "views": [
+                                                    "views/propertyeditors/textbox/textbox.inline.html"
+                                                ]
+                                            },
+                                            "active": false,
+                                            "properties": [
+                                                {
+                                                    "label": "Value",
+                                                    "description": null,
+                                                    "view": "textbox",
+                                                    "config": {
+                                                        "maxChars": 500
+                                                    },
+                                                    "hideLabel": true,
+                                                    "validation": {
+                                                        "mandatory": false,
+                                                        "pattern": null
+                                                    },
+                                                    "readonly": false,
+                                                    "id": 0,
+                                                    "value": "Hello world",
+                                                    "alias": "value",
+                                                    "editor": "Umbraco.TextBox",
+                                                    "isSensitive": false,
+                                                    "maxlength": false,
+                                                    "count": 489
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "value": null,
+                                            "editor": {
+                                                "id": 1061,
+                                                "key": "859fcc96-b3b2-4dbc-8c95-b3489a665374",
+                                                "name": {},
+                                                "alias": "headline",
+                                                "icon": "icon-document",
+                                                "views": [
+                                                    "views/propertyeditors/textbox/textbox.inline.html"
+                                                ]
+                                            },
+                                            "active": false,
+                                            "properties": [
+                                                {
+                                                    "label": "Value",
+                                                    "description": null,
+                                                    "view": "textbox",
+                                                    "config": {
+                                                        "maxChars": 500
+                                                    },
+                                                    "hideLabel": true,
+                                                    "validation": {
+                                                        "mandatory": false,
+                                                        "pattern": null
+                                                    },
+                                                    "readonly": false,
+                                                    "id": 0,
+                                                    "value": "H5YR, World!",
+                                                    "alias": "value",
+                                                    "editor": "Umbraco.TextBox",
+                                                    "isSensitive": false,
+                                                    "maxlength": false,
+                                                    "count": 488
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "active": false
+                                },
+                                {
+                                    "grid": 6,
+                                    "hasConfig": false,
+                                    "controls": [
+                                        {
+                                            "value": null,
+                                            "editor": {
+                                                "id": 1066,
+                                                "key": "a0257a59-0dd5-4468-8221-bedfd8d14911",
+                                                "name": "Rich Text",
+                                                "alias": "richText",
+                                                "icon": "icon-document",
+                                                "views": []
+                                            },
+                                            "active": false,
+                                            "properties": [
+                                                {
+                                                    "label": "Content",
+                                                    "description": null,
+                                                    "view": "rte",
+                                                    "config": {
+                                                        "editor": null,
+                                                        "hideLabel": false
+                                                    },
+                                                    "hideLabel": true,
+                                                    "validation": {
+                                                        "mandatory": false,
+                                                        "pattern": null
+                                                    },
+                                                    "readonly": false,
+                                                    "id": 0,
+                                                    "value":
+                                                        "<p><strong>afsdfsadf</strong></p>\n<p><strong><img style=\"width: 500px; height:331.1360677083333px;\" src=\"/media/1001/analytics-blur-close-up-590020.jpg?width=500&amp;height=331.1360677083333\" alt=\"\" data-udi=\"umb://media/a701f1cd119f4324998de916b1fef117\" /></strong></p>\n<p> </p>\n<p>asdfasdf</p>",
+                                                    "alias": "content",
+                                                    "editor": "Umbraco.TinyMCEv3",
+                                                    "isSensitive": false
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "active": false
+                                }
+                            ],
+                            "label": "Half n Half",
+                            "hasConfig": false,
+                            "id": "e0193d47-e799-861d-47d7-274e3fa5f1a3",
+                            "active": false
+                        }
+                    ]
+                }
+            ]
+        },
+        "alias": "grid",
+        "editor": "Umbraco.Grid2",
+        "isSensitive": false
+    };
 
 });
