@@ -9,18 +9,29 @@ describe("grid 2", function () {
         q,
         gridEditors = [
             {
-                "name": "Headline",
+                "id": 1061,
+                "key": "859fcc96-b3b2-4dbc-8c95-b3489a665374",
+                "name": "Header",
                 "alias": "headline",
-                "view": "textstring",
-                "render": null,
-                "icon": "icon-coin",
-                "config": {
-                    "style": "font-size: 36px; line-height: 45px; font-weight: bold",
-                    "markup": "<h1>#value#</h1>"
+                "icon": "icon-document",
+                "views": {
+                     "value": {
+                         "view": "views/propertyeditors/textbox/textbox.inline.html",
+                         "isPreview": false
+                     }
                 }
+            }, {
+                "id": 1066,
+                "key": "a0257a59-0dd5-4468-8221-bedfd8d14911",
+                "name": "Rich Text",
+                "alias": "richText",
+                "icon": "icon-document",
+                "views": {}
             }
         ],
-        fullModel;
+        // These are populated at the bottom of this file
+        fullModel,
+        idealModel;
 
     function outputModel() {
         console.log(JSON.stringify(scope.model, null, ' '));
@@ -36,86 +47,7 @@ describe("grid 2", function () {
         q = $q;
         scope = $rootScope.$new();
 
-        scope.model = {
-            config: {
-                columns: 12,
-                rows: [
-                    {
-                        alias: "fullwidth",
-                        Name: "Full width",
-                        settingsType: "5C25DA30-822E-4E39-BDD5-1D86058323E3",
-                        cells: [
-                            {
-                                colspan: 8,
-                                // Main column settings
-                                settingsType: "B994CB2F-D5A0-48DD-A8BA-AD8E4970B216",
-                                allowAll: false,
-                                allowed: [
-                                    "84ADAEB2-BB42-4069-BCA8-52605158ECD2"
-                                ]
-                            },
-                            {
-                                colspan: 4,
-                                // Sidebar settings
-                                settingsType: "5DBC34A6-FEF5-4169-93BB-05CAB5344663",
-                                allowAll: true,
-                                allowed: []
-                            }
-                        ]
-                    }
-                ]
-            },
-            value: {
-                rows: [
-                    {
-                        alias: "fullwidth",
-                        settings: {
-                            classNames: "fancy row",
-                            backgroundImage: "0BAD7ABF-F423-4336-A6A4-F00AF1815971"
-                        },
-                        cells: [
-                            {
-                                settings: {
-                                    type: "B994CB2F-D5A0-48DD-A8BA-AD8E4970B216",
-                                    values: {
-                                        classNames: "fancy cell",
-                                        backgroundImage: "9805F5A9-D6F7-4981-88F7-2F2644ED0759"
-                                    }
-                                },
-                                items: [
-                                    {
-                                        type: "84ADAEB2-BB42-4069-BCA8-52605158ECD2",
-                                        values: {
-                                            "headline": "Welcome to the fantastic site"
-                                        }
-                                    }
-                                ]
-                            },
-                            {
-                                settings: {
-                                    type: "5DBC34A6-FEF5-4169-93BB-05CAB5344663",
-                                    values: {
-                                        classNames: "sidebar cell",
-                                        sidebarSetting: "some other setting"
-                                    }
-                                },
-                                items: [
-                                    {
-                                        type: "DBAD0C5C-95F2-4DF8-A888-C84B24DA1962",
-                                        values: {
-                                            "links": [
-                                                "47873858-D92B-4D9F-90C0-04A6C14954FF",
-                                                "F0814EF0-E356-44F3-911F-AF2A1B209223"
-                                            ]
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        };
+        scope.model = fullModel;
 
         gridService = {
             getGridEditors: function () {
@@ -142,7 +74,7 @@ describe("grid 2", function () {
         });
 
         //fixme - Disable digest while we don't have the right logic
-        //scope.$digest();
+        scope.$digest();
     }));
 
     it("defaults to 12 columns", function () {
@@ -167,7 +99,7 @@ describe("grid 2", function () {
     });
 
     it("adds editor to cell",
-        function() {
+        function () {
             scope.addControl(
                 gridEditors[0],
                 scope.model.value.sections[0].rows[0].areas[0],
@@ -189,20 +121,20 @@ describe("grid 2", function () {
 
         var persistableModel = {
             rows: _.map(fullModel.sections[0].rows,
-                function(row) {
+                function (row) {
                     return {
                         alias: row.name,
                         settings: {}, // fixme - add the settings
                         cells: _.map(row.areas,
-                            function(cell) {
+                            function (cell) {
                                 return {
                                     settings: {},
                                     items: _.map(cell.controls,
-                                        function(item) {
+                                        function (item) {
                                             return {
                                                 type: item.editor.key,
                                                 values: _.object(_.map(item.properties,
-                                                    function(prop) {
+                                                    function (prop) {
                                                         return [prop.alias, prop.value];
                                                     }))
                                             };
@@ -217,7 +149,7 @@ describe("grid 2", function () {
     }
 
     it("maps the model to persistable model",
-        function() {
+        function () {
             var persistable = mapToPersistableModel(fullModel.value);
 
             expect(persistable).toEqual(jasmine.objectContaining({
@@ -260,6 +192,87 @@ describe("grid 2", function () {
             }));
 
         });
+
+    idealModel = {
+        config: {
+            columns: 12,
+            rows: [
+                {
+                    alias: "fullwidth",
+                    Name: "Full width",
+                    settingsType: "5C25DA30-822E-4E39-BDD5-1D86058323E3",
+                    cells: [
+                        {
+                            colspan: 8,
+                            // Main column settings
+                            settingsType: "B994CB2F-D5A0-48DD-A8BA-AD8E4970B216",
+                            allowAll: false,
+                            allowed: [
+                                "84ADAEB2-BB42-4069-BCA8-52605158ECD2"
+                            ]
+                        },
+                        {
+                            colspan: 4,
+                            // Sidebar settings
+                            settingsType: "5DBC34A6-FEF5-4169-93BB-05CAB5344663",
+                            allowAll: true,
+                            allowed: []
+                        }
+                    ]
+                }
+            ]
+        },
+        value: {
+            rows: [
+                {
+                    alias: "fullwidth",
+                    settings: {
+                        classNames: "fancy row",
+                        backgroundImage: "0BAD7ABF-F423-4336-A6A4-F00AF1815971"
+                    },
+                    cells: [
+                        {
+                            settings: {
+                                type: "B994CB2F-D5A0-48DD-A8BA-AD8E4970B216",
+                                values: {
+                                    classNames: "fancy cell",
+                                    backgroundImage: "9805F5A9-D6F7-4981-88F7-2F2644ED0759"
+                                }
+                            },
+                            items: [
+                                {
+                                    type: "84ADAEB2-BB42-4069-BCA8-52605158ECD2",
+                                    values: {
+                                        "headline": "Welcome to the fantastic site"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            settings: {
+                                type: "5DBC34A6-FEF5-4169-93BB-05CAB5344663",
+                                values: {
+                                    classNames: "sidebar cell",
+                                    sidebarSetting: "some other setting"
+                                }
+                            },
+                            items: [
+                                {
+                                    type: "DBAD0C5C-95F2-4DF8-A888-C84B24DA1962",
+                                    values: {
+                                        "links": [
+                                            "47873858-D92B-4D9F-90C0-04A6C14954FF",
+                                            "F0814EF0-E356-44F3-911F-AF2A1B209223"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    };
 
     fullModel = {
         "label": "Grid",
@@ -452,7 +465,7 @@ describe("grid 2", function () {
                                                     "readonly": false,
                                                     "id": 0,
                                                     "value":
-                                                        "<p><strong>afsdfsadf</strong></p>\n<p><strong><img style=\"width: 500px; height:331.1360677083333px;\" src=\"/media/1001/analytics-blur-close-up-590020.jpg?width=500&amp;height=331.1360677083333\" alt=\"\" data-udi=\"umb://media/a701f1cd119f4324998de916b1fef117\" /></strong></p>\n<p> </p>\n<p>asdfasdf</p>",
+                                                    "<p><strong>afsdfsadf</strong></p>\n<p><strong><img style=\"width: 500px; height:331.1360677083333px;\" src=\"/media/1001/analytics-blur-close-up-590020.jpg?width=500&amp;height=331.1360677083333\" alt=\"\" data-udi=\"umb://media/a701f1cd119f4324998de916b1fef117\" /></strong></p>\n<p> </p>\n<p>asdfasdf</p>",
                                                     "alias": "content",
                                                     "editor": "Umbraco.TinyMCEv3",
                                                     "isSensitive": false
