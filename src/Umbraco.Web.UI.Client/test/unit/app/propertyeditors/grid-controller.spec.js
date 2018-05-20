@@ -103,7 +103,31 @@ describe("grid 2", function() {
     });
 
     it("shows add editor dialog", function() {
-
+        expect(scope.editorOverlay).toBeUndefined();
+        scope.openEditorOverlay(
+            {}, 
+            scope.model.value.sections[0].rows[0].areas[0],
+            0,
+            ""
+        );
+        expect(scope.editorOverlay).toEqual(jasmine.objectContaining({
+            view: "itempicker"
+        }));
     });
+
+    it("adds editor to cell", function() {
+        scope.addControl(
+            gridEditors[0], 
+            scope.model.value.sections[0].rows[0].areas[0], 
+            0
+        );
+
+        expect(scope.model.value.sections[0].rows[0].areas[0].controls[0]).toEqual(jasmine.objectContaining({
+            value: null,
+            editor: jasmine.objectContaining({
+                alias: "headline"
+            })
+        }));
+    })
 
 });
