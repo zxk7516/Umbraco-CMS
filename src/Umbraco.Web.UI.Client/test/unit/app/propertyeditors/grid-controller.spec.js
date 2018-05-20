@@ -4,7 +4,7 @@ describe("grid 2", function () {
 
     var controller,
         scope,
-        gridService,
+        gridResource,
         angularHelper,
         q,
         gridEditors = [
@@ -29,6 +29,54 @@ describe("grid 2", function () {
                 "views": {}
             }
         ],
+        scaffold = {
+            "tabs": [
+                {
+                    "id": 12,
+                    "active": true,
+                    "label": "Inline",
+                    "alias": "Inline",
+                    "properties": [
+                        {
+                            "label": "Value",
+                            "description": null,
+                            "view": "textbox",
+                            "config": {
+                                 "maxChars": null
+                            },
+                            "hideLabel": false,
+                            "validation": {
+                                "mandatory": false,
+                                "pattern": null
+                            },
+                            "readonly": false,
+                            "id": 0,
+                            "value": "",
+                            "alias": "value",
+                            "editor": "Umbraco.TextBox",
+                            "isSensitive": false
+                        }]
+                }
+            ],
+            "updateDate": "0001-01-01T00:00:00",
+            "createDate": "0001-01-01T00:00:00",
+            "published": false,
+            "edited": false,
+            "owner": null,
+            "updater": null,
+            "contentTypeAlias": "headline",
+            "sortOrder": 0,
+            "name": null,
+            "id": 0,
+            "udi": "umb://document/5cafb65193f1477ca13d5181565f67c0",
+            "icon": "icon-document",
+            "trashed": false,
+            "key": "5cafb651-93f1-477c-a13d-5181565f67c0",
+            "parentId": -1,
+            "alias": null,
+            "path": null,
+            "metaData": {}
+        },
         // These are populated at the bottom of this file
         fullModel,
         idealModel;
@@ -49,10 +97,15 @@ describe("grid 2", function () {
 
         scope.model = fullModel;
 
-        gridService = {
-            getGridEditors: function () {
+        gridResource = {
+            getGridContentTypes: function () {
                 var def = q.defer();
-                def.resolve([]);
+                def.resolve(gridEditors);
+                return def.promise;
+            },
+            getScaffold: function (guid) {
+                var def = q.defer();
+                def.resolve(scaffold);
                 return def.promise;
             }
         }
@@ -69,7 +122,7 @@ describe("grid 2", function () {
 
         controller = $controller("Umbraco.PropertyEditors.Grid2Controller", {
             "$scope": scope,
-            "gridService": gridService,
+            "gridResource": gridResource,
             "angularHelper": angularHelper
         });
 
@@ -116,7 +169,7 @@ describe("grid 2", function () {
 
     it("maps the model to persistable model",
         function () {
-            var persistable = $scope.mapToPersistableModel(fullModel.value);
+            var persistable = scope.mapToPersistableModel(fullModel.value);
 
             console.log(JSON.stringify(persistable, null, '  '));
 
