@@ -75,6 +75,11 @@ namespace Umbraco.Core
                 public const string Grid = "Umbraco.Grid";
 
                 /// <summary>
+                /// Grid.
+                /// </summary>
+                public const string Grid2 = "Umbraco.Grid2";
+
+                /// <summary>
                 /// Image Cropper.
                 /// </summary>
                 public const string ImageCropper = "Umbraco.ImageCropper";
