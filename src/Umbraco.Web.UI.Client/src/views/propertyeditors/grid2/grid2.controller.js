@@ -1,5 +1,5 @@
 angular.module("umbraco")
-    .controller("Umbraco.PropertyEditors.GridController",
+    .controller("Umbraco.PropertyEditors.Grid2Controller",
     function ($scope, $http, assetsService, localizationService, $rootScope, dialogService, gridService, mediaResource, imageHelper, $timeout, umbRequestHelper, angularHelper) {
 
         // Grid status variables
