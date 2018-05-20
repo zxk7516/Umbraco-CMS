@@ -81,10 +81,6 @@ describe("grid 2", function () {
         fullModel,
         idealModel;
 
-    function outputModel() {
-        console.log(JSON.stringify(scope.model, null, ' '));
-    }
-
     beforeEach(module('umbraco'));
 
     beforeEach(inject(function (
@@ -95,7 +91,7 @@ describe("grid 2", function () {
         q = $q;
         scope = $rootScope.$new();
 
-        scope.model = fullModel;
+        scope.model = JSON.parse(JSON.stringify(fullModel));
 
         gridResource = {
             getGridContentTypes: function () {
@@ -171,9 +167,7 @@ describe("grid 2", function () {
         function () {
             var persistable = scope.mapToPersistableModel(fullModel.value);
 
-            console.log(JSON.stringify(persistable, null, '  '));
-
-            expect(persistable).toEqual(jasmine.objectContaining({
+            expect(persistable.r).toEqual(jasmine.objectContaining({
                 rows: [
                     {
                         alias: "halfNHalf",
