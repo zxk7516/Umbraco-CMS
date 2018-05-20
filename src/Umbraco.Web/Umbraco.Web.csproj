@@ -277,6 +277,8 @@
     <Compile Include="PropertyEditors\DropDownMultipleConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\EmailAddressConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\EmailAddressConfiguration.cs" />
+    <Compile Include="PropertyEditors\Grid2Configuration.cs" />
+    <Compile Include="PropertyEditors\Grid2ConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\GridConfiguration.cs" />
     <Compile Include="PropertyEditors\GridConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\Grid2PropertyEditor.cs" />

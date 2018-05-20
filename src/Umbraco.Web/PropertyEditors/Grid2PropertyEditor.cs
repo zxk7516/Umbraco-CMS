@@ -110,7 +110,7 @@ namespace Umbraco.Web.PropertyEditors
         /// <returns></returns>
         protected override IDataValueEditor CreateValueEditor() => new GridPropertyValueEditor(Attribute);
 
-        protected override IConfigurationEditor CreateConfigurationEditor() => new GridConfigurationEditor();
+        protected override IConfigurationEditor CreateConfigurationEditor() => new Grid2ConfigurationEditor();
 
         internal class GridPropertyValueEditor : DataValueEditor
         {

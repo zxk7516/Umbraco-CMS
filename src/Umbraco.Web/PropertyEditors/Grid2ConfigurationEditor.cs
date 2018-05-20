@@ -5,6 +5,6 @@ namespace Umbraco.Web.PropertyEditors
     /// <summary>
     /// Represents the configuration for the gid value editor.
     /// </summary>
-    public class GridConfigurationEditor : ConfigurationEditor<GridConfiguration>
+    public class Grid2ConfigurationEditor : ConfigurationEditor<Grid2Configuration>
     { }
 }
