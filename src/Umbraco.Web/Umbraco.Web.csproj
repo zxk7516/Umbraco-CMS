@@ -279,6 +279,7 @@
     <Compile Include="PropertyEditors\EmailAddressConfiguration.cs" />
     <Compile Include="PropertyEditors\GridConfiguration.cs" />
     <Compile Include="PropertyEditors\GridConfigurationEditor.cs" />
+    <Compile Include="PropertyEditors\Grid2PropertyEditor.cs" />
     <Compile Include="PropertyEditors\ImageCropperConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\IntegerConfigurationEditor.cs" />
     <Compile Include="PropertyEditors\LabelConfiguration.cs" />
