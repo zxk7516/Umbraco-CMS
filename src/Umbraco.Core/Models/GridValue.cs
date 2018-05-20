@@ -75,11 +75,23 @@ namespace Umbraco.Core.Models
 
         public class GridEditor
         {
+            [JsonProperty("name")]
+            public string Name { get; set; }
+
             [JsonProperty("alias")]
             public string Alias { get; set; }
 
             [JsonProperty("view")]
             public string View { get; set; }
+
+            [JsonProperty("render")]
+            public string Render { get; set; }
+
+            [JsonProperty("icon")]
+            public string Icon { get; set; }
+
+            [JsonProperty("config")]
+            public IDictionary<string, object> Config { get; set; }
         }
     }
 }
