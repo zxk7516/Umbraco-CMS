@@ -1,33 +1,27 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Web.Mvc.Html;
-using Umbraco.Core;
-using Umbraco.Core.Models;
-using System.Web.Mvc;
-using Umbraco.Web.Templates;
 using System.IO;
-using System.Web.Routing;
+using System.Web.Mvc;
+using System.Web.Mvc.Html;
 using Umbraco.Core.Exceptions;
+using Umbraco.Core.Models;
 using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Web.Mvc;
 
 namespace Umbraco.Web
 {
-
     public static class GridTemplateExtensions
     {
-        // TODO: These extension methods can be reduced & reused, feels like there is duplication [LK:2018-05-20]
-
         public static MvcHtmlString GetGridHtml(this HtmlHelper html, IPublishedProperty property, string framework = "bootstrap3")
         {
-            var asString = property.GetValue() as string;
-            if (asString != null && string.IsNullOrEmpty(asString)) return new MvcHtmlString(string.Empty);
+            var model = property.GetValue();
 
-            var view = "Grid/" + framework;
-            return html.Partial(view, property.GetValue());
+            // NOTE: The Grid v2 uses a strongly-typed model, v1 is dynamic
+            if (model is Grid2Value)
+                return html.Partial($"Grid2/{framework}", model);
+
+            if (model is string s && string.IsNullOrEmpty(s))
+                return new MvcHtmlString(string.Empty);
+
+            return html.Partial($"Grid/{framework}", model);
         }
 
         public static MvcHtmlString GetGridHtml(this HtmlHelper html, IPublishedContent contentItem)
@@ -47,56 +41,35 @@ namespace Umbraco.Web
             if (string.IsNullOrWhiteSpace(propertyAlias))
                 throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
 
-            var prop = contentItem.GetProperty(propertyAlias);
-            if (prop == null)
-                throw new NullReferenceException("No property type found with alias " + propertyAlias);
+            var property = contentItem.GetProperty(propertyAlias);
+            if (property == null)
+                throw new NullReferenceException($"No property type found with alias '{propertyAlias}'");
 
-            var model = prop.GetValue();
-
-            // NOTE: The Grid v2 uses a strongly-typed model, v1 is dynamic
-            if (model is GridValue)
-                return html.Partial($"Grid2/{framework}", model);
-
-            var asString = model as string;
-            if (asString != null && string.IsNullOrEmpty(asString))
-                return new MvcHtmlString(string.Empty);
-
-            return html.Partial($"Grid/{framework}", model);
+            return html.GetGridHtml(property, framework);
         }
 
         public static MvcHtmlString GetGridHtml(this IPublishedProperty property, HtmlHelper html, string framework = "bootstrap3")
         {
-            var asString = property.GetValue() as string;
-            if (asString != null && string.IsNullOrEmpty(asString)) return new MvcHtmlString(string.Empty);
-
-            var view = "Grid/" + framework;
-            return html.Partial(view, property.GetValue());
+            return html.GetGridHtml(property, framework);
         }
+
         public static MvcHtmlString GetGridHtml(this IPublishedContent contentItem, HtmlHelper html)
         {
             return GetGridHtml(contentItem, html, "bodyText", "bootstrap3");
         }
+
         public static MvcHtmlString GetGridHtml(this IPublishedContent contentItem, HtmlHelper html, string propertyAlias)
         {
-            if (string.IsNullOrWhiteSpace(propertyAlias)) throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
+            if (string.IsNullOrWhiteSpace(propertyAlias))
+                throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
 
             return GetGridHtml(contentItem, html, propertyAlias, "bootstrap3");
         }
+
         public static MvcHtmlString GetGridHtml(this IPublishedContent contentItem, HtmlHelper html, string propertyAlias, string framework)
         {
-            if (string.IsNullOrWhiteSpace(propertyAlias)) throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
-
-            var view = "Grid/" + framework;
-            var prop = contentItem.GetProperty(propertyAlias);
-            if (prop == null) throw new NullReferenceException("No property type found with alias " + propertyAlias);
-            var model = prop.GetValue();
-
-            var asString = model as string;
-            if (asString != null && string.IsNullOrEmpty(asString)) return new MvcHtmlString(string.Empty);
-
-            return html.Partial(view, model);
+            return html.GetGridHtml(contentItem, propertyAlias, framework);
         }
-
 
         [Obsolete("This should not be used, GetGridHtml methods accepting HtmlHelper as a parameter or GetGridHtml extensions on HtmlHelper should be used instead")]
         public static MvcHtmlString GetGridHtml(this IPublishedProperty property, string framework = "bootstrap3")
