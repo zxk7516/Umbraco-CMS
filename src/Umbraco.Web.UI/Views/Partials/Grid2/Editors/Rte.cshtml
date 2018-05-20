@@ -1,0 +1,4 @@
+﻿@using Umbraco.Web.Templates
+@inherits UmbracoViewPage<GridValue.GridControl>
+
+@Html.Raw(TemplateUtilities.ParseInternalLinks(Model.Value.ToString()))

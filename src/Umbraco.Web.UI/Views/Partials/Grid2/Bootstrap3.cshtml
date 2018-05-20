@@ -1,0 +1,101 @@
+﻿@inherits UmbracoViewPage<GridValue>
+@if (Model != null && Model.Sections != null)
+{
+    // TODO: Review this, there should only be one column layout in v8, correct? [LK:2018-05-20]
+    var oneColumn = Model.Sections.Count() == 1;
+
+    <div class="umb-grid">
+        @if (oneColumn)
+        {
+            foreach (var section in Model.Sections)
+            {
+                <div class="grid-section">
+                    @foreach (var row in section.Rows)
+                    {
+                        @renderRow(row, true);
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="container">
+                <div class="row clearfix">
+                    @foreach (var s in Model.Sections)
+                    {
+                        <div class="grid-section">
+                            <div class="col-md-@s.Grid column">
+                                @foreach (var row in s.Rows)
+                                {
+                                    @renderRow(row, false);
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@helper renderRow(GridValue.GridRow row, bool singleColumn)
+{
+    <div @RenderElementAttributes(row)>
+        @Umbraco.If(singleColumn, "<div class='container'>")
+        <div class="row clearfix">
+            @foreach (var area in row.Areas)
+            {
+                <div class="col-md-@area.Grid column">
+                    <div @RenderElementAttributes(area)>
+                        @foreach (var control in area.Controls)
+                        {
+                            if (control != null && control.Editor != null && control.Editor.View != null)
+                            {
+                                <text>@Html.Partial("Grid2/Editors/Base", control)</text>
+                            }
+                        }
+                    </div>
+                </div>}
+        </div>
+        @Umbraco.If(singleColumn, "</div>")
+    </div>
+}
+
+@functions {
+    public static MvcHtmlString RenderElementAttributes(object contentItem)
+    {
+        // FIXME: Once the Grid implements `IPublishedElement` for row/area config, we can rework this code. [LK:2018-05-20]
+
+        var attrs = new List<string>();
+        //var cfg = contentItem.Config;
+
+        //if (cfg != null)
+        //{
+        //    foreach (JProperty property in cfg.Properties())
+        //    {
+        //        var propertyValue = HttpUtility.HtmlAttributeEncode(property.Value.ToString());
+        //        attrs.Add(property.Name + "=\"" + propertyValue + "\"");
+        //    }
+        //}
+
+        //var style = contentItem.Styles;
+
+        //if (style != null)
+        //{
+        //    var cssVals = new List<string>();
+        //    foreach (JProperty property in style.Properties())
+        //    {
+        //        var propertyValue = property.Value.ToString();
+        //        if (string.IsNullOrWhiteSpace(propertyValue) == false)
+        //        {
+        //            cssVals.Add(property.Name + ":" + propertyValue + ";");
+        //        }
+        //    }
+
+        //    if (cssVals.Count > 0)
+        //        attrs.Add("style=\"" + HttpUtility.HtmlAttributeEncode(string.Join(" ", cssVals)) + "\"");
+        //}
+
+        return new MvcHtmlString(string.Join(" ", attrs));
+    }
+}

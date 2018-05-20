@@ -37,10 +37,10 @@ namespace Umbraco.Core.Models
             public IEnumerable<GridArea> Areas { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; }
+            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
 
             [JsonProperty("config")]
-            public JToken Config { get; set; }
+            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
         }
 
         public class GridArea
@@ -52,25 +52,25 @@ namespace Umbraco.Core.Models
             public IEnumerable<GridControl> Controls { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; }
+            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
 
             [JsonProperty("config")]
-            public JToken Config { get; set; }
+            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
         }
 
         public class GridControl
         {
             [JsonProperty("value")]
-            public JToken Value { get; set; }
+            public JToken Value { get; set; } // FIXME: This property will become an`IPublishedElement`
 
             [JsonProperty("editor")]
             public GridEditor Editor { get; set; }
 
             [JsonProperty("styles")]
-            public JToken Styles { get; set; }
+            public JToken Styles { get; set; } // FIXME: This property will become an`IPublishedElement`
 
             [JsonProperty("config")]
-            public JToken Config { get; set; }
+            public JToken Config { get; set; } // FIXME: This property will become an`IPublishedElement`
         }
 
         public class GridEditor

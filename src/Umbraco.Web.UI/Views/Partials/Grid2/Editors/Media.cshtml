@@ -1,0 +1,29 @@
+﻿@inherits UmbracoViewPage<GridValue.GridControl>
+@if (Model.Value != null)
+{
+    // TODO: Get the "image" value
+    var url = Model.Value.image;
+    if (Model.Editor.Config != null && Model.Editor.Config.ContainsKey("size"))
+    {
+        url += "?width=" + Model.Editor.Config.size.width;
+        url += "&height=" + Model.Editor.Config.size.height;
+
+        // TODO: Get the "focalPoint" value
+        if (Model.Value.focalPoint != null)
+        {
+            url += "&center=" + Model.Value.focalPoint.top + "," + Model.Value.focalPoint.left;
+            url += "&mode=crop";
+        }
+    }
+
+    // TODO: Get the "altText" value
+    var altText = Model.Value.altText ?? Model.Value.caption ?? string.Empty;
+
+    <img src="@url" alt="@altText">
+
+    // TODO: Get the "caption" value
+    if (Model.Value.caption != null)
+    {
+        <p class="caption">@Model.Value.caption</p>
+    }
+}

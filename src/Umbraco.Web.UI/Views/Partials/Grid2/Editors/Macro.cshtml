@@ -1,0 +1,17 @@
+﻿@inherits UmbracoViewPage<GridValue.GridControl>
+@if (Model.Value != null)
+{
+    // TODO: Get the "macroAlias" items
+    var macroAlias = Model.Value.macroAlias.ToString();
+    ViewDataDictionary parameters = new ViewDataDictionary();
+
+    // TODO: Get the "macroParamsDictionary" items
+    foreach (dynamic mpd in Model.value.macroParamsDictionary)
+    {
+        parameters.Add(mpd.Name, mpd.Value);
+    }
+
+    <text>
+        @Umbraco.RenderMacro(macroAlias, parameters)
+    </text>
+}

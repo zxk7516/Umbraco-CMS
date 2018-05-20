@@ -19,6 +19,8 @@ namespace Umbraco.Web
 
     public static class GridTemplateExtensions
     {
+        // TODO: These extension methods can be reduced & reused, feels like there is duplication [LK:2018-05-20]
+
         public static MvcHtmlString GetGridHtml(this HtmlHelper html, IPublishedProperty property, string framework = "bootstrap3")
         {
             var asString = property.GetValue() as string;
@@ -42,17 +44,24 @@ namespace Umbraco.Web
 
         public static MvcHtmlString GetGridHtml(this HtmlHelper html, IPublishedContent contentItem, string propertyAlias, string framework)
         {
-            if (string.IsNullOrWhiteSpace(propertyAlias)) throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
+            if (string.IsNullOrWhiteSpace(propertyAlias))
+                throw new ArgumentNullOrEmptyException(nameof(propertyAlias));
 
-            var view = "Grid/" + framework;
             var prop = contentItem.GetProperty(propertyAlias);
-            if (prop == null) throw new NullReferenceException("No property type found with alias " + propertyAlias);
+            if (prop == null)
+                throw new NullReferenceException("No property type found with alias " + propertyAlias);
+
             var model = prop.GetValue();
 
-            var asString = model as string;
-            if (asString != null && string.IsNullOrEmpty(asString)) return new MvcHtmlString(string.Empty);
+            // NOTE: The Grid v2 uses a strongly-typed model, v1 is dynamic
+            if (model is GridValue)
+                return html.Partial($"Grid2/{framework}", model);
 
-            return html.Partial(view, model);
+            var asString = model as string;
+            if (asString != null && string.IsNullOrEmpty(asString))
+                return new MvcHtmlString(string.Empty);
+
+            return html.Partial($"Grid/{framework}", model);
         }
 
         public static MvcHtmlString GetGridHtml(this IPublishedProperty property, HtmlHelper html, string framework = "bootstrap3")

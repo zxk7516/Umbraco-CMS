@@ -1,0 +1,23 @@
+﻿@inherits UmbracoViewPage<GridValue.GridControl>
+@if (Model.Editor.Config != null && Model.Editor.Config.ContainsKey("markup"))
+{
+    var markup = Model.Editor.Config["markup"].ToString();
+    markup = markup.Replace("#value#", Umbraco.ReplaceLineBreaksForHtml(HttpUtility.HtmlEncode(Model.Value)));
+
+    if (markup.Contains("#style#") && Model.Editor.Config.ContainsKey("style"))
+    {
+        var style = Model.Editor.Config["style"].ToString();
+        markup = markup.Replace("#style#", style);
+    }
+
+    <text>
+        @Html.Raw(markup)
+    </text>
+}
+else
+{
+    var style = Model.Editor.Config.ContainsKey("style") ? Model.Editor.Config["style"].ToString() : null;
+    <text>
+        <div style="@style">@Model.Value</div>
+    </text>
+}
