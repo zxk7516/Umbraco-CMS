@@ -3,9 +3,8 @@
 <umb-editor-view>
 
     <umb-editor-header
-        name="model.title"
-        name-locked="true"
-        hide-alias="true"
+        name="currentRow.label"
+        alias="currentRow.name"
         hide-icon="true"
         hide-description="true">
     </umb-editor-header>
@@ -22,18 +21,9 @@
                     <p><localize key="grid_addRowConfigurationDetail" /></p>
                 
                     <div class="alert alert-warn ng-scope" ng-show="nameChanged">
-                        <p>Modifying a row configuration name will result in loss of
+                        <p>Modifying a row configuration alias will result in loss of
                         data for any existing content that is based on this configuration.</p>
-                        <p><strong>Modifying only the label will not result in data loss.</strong></p>
                     </div>
-                
-                    <umb-control-group label="@general_name">
-                        <input type="text" ng-model="currentRow.name" />
-                    </umb-control-group>
-                    
-                    <umb-control-group label="@general_label">
-                        <input type="text" ng-model="currentRow.label" placeholder="Overrides name" />
-                    </umb-control-group>
                 
                     <div class="uSky-templates-template"
                         style="margin: 0; width: 350px; position: relative;">
