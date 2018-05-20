@@ -394,6 +394,7 @@
     <Compile Include="PropertyEditors\PropertyEditorTagsExtensions.cs" />
     <Compile Include="PropertyEditors\SliderPropertyEditorConfiguration.cs" />
     <Compile Include="PropertyEditors\TagConfiguration.cs" />
+    <Compile Include="PropertyEditors\ValueConverters\Grid2ValueConverter.cs" />
     <Compile Include="PropertyEditors\ValueConverters\ImageCropperValue.cs" />
     <Compile Include="PropertyEditors\ValueConverters\ImageCropperValueTypeConverter.cs" />
     <Compile Include="PropertyEditors\ValueListConfiguration.cs" />
