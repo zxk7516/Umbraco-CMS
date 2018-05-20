@@ -10,7 +10,7 @@ namespace Umbraco.Core.Models
         public string Name { get; set; }
 
         public IPublishedElement Settings { get; set; }
-            
+
         public IEnumerable<Grid2Cell> Cells { get; set; }
     }
 }

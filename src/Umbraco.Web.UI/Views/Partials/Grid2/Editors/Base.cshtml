@@ -1,17 +1,8 @@
-﻿@inherits UmbracoViewPage<GridValue.GridControl>
+﻿@inherits UmbracoViewPage<IPublishedElement>
 @{
     try
     {
-        var view = Model.Editor.Render != null ? Model.Editor.Render : Model.Editor.View;
-
-        view = view.Replace(".html", ".cshtml", StringComparison.InvariantCultureIgnoreCase);
-
-        if (view.Contains("/") == false)
-        {
-            view = $"Grid2/Editors/{view}";
-        }
-
-        @Html.Partial(view, Model)
+        @Html.Partial($"Grid2/Editors/{Model.ContentType.Alias}", Model)
     }
     catch (Exception ex)
     {

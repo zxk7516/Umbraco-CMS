@@ -1,81 +1,52 @@
-﻿@inherits UmbracoViewPage<GridValue>
-@if (Model != null && Model.Sections != null)
+﻿@inherits UmbracoViewPage<Grid2Value>
+@if (Model != null && Model.Rows != null)
 {
-    var oneColumn = Model.Sections.Count() == 1;
-
     <div class="umb-grid">
-        @if (oneColumn)
-        {
-            foreach (var section in Model.Sections)
+        <div class="grid-section">
+            @foreach (var row in Model.Rows)
             {
-                <div class="grid-section">
-                    @foreach (var row in section.Rows)
-                    {
-                        @renderRow(row, true);
-                    }
+                <div @RenderElementAttributes(row.Settings)>
+                    <div class="container-fluid">
+                        <div class="row-fluid clearfix">
+                            @foreach (var cell in row.Cells)
+                            {
+                                <div class="@("span" + cell.Colspan) column">
+                                    <div @RenderElementAttributes(cell.Settings)>
+                                        @foreach (var item in cell.Items)
+                                        {
+                                            @Html.Partial("Grid2/Editors/Base", item)
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
-        }
-        else
-        {
-            <div class="container-fluid">
-                <div class="row-fluid clearfix">
-                    @foreach (var s in Model.Sections)
-                    {
-                        <div class="grid-section">
-                            <div class="@("span" + s.Grid) column">
-                                @foreach (var row in s.Rows)
-                                {
-                                    @renderRow(row, false);
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-    </div>
-}
-
-@helper renderRow(GridValue.GridRow row, bool singleColumn)
-{
-    <div @RenderElementAttributes(row)>
-        @Umbraco.If(singleColumn, "<div class='container-fluid'>")
-        <div class="row-fluid clearfix">
-            @foreach (var area in row.Areas)
-            {
-                <div class="@("span" + area.Grid) column">
-                    <div @RenderElementAttributes(area)>
-                        @foreach (var control in area.Controls)
-                        {
-                            if (control != null && control.Editor != null && control.Editor.View != null)
-                            {
-                                <text>@Html.Partial("Grid2/Editors/Base", control)</text>
-                            }
-                        }
-                    </div>
-                </div>}
         </div>
-        @Umbraco.If(singleColumn, "</div>")
     </div>
 }
 
 @functions {
-    public static MvcHtmlString RenderElementAttributes(object contentItem)
+    public static MvcHtmlString RenderElementAttributes(IPublishedElement settings)
     {
-        // FIXME: Once the Grid implements `IPublishedElement` for row/area config, we can rework this code. [LK:2018-05-20]
+        var attributes = new List<string>();
 
-        var attrs = new List<string>();
-        //JObject cfg = contentItem.config;
+        // FIXME: We'll need to discuss how the old "config" and "styles" would work here. [LK:2018-05-20]
+
+
+        //var cfg = contentItem.Config;
 
         //if (cfg != null)
+        //{
         //    foreach (JProperty property in cfg.Properties())
         //    {
         //        var propertyValue = HttpUtility.HtmlAttributeEncode(property.Value.ToString());
         //        attrs.Add(property.Name + "=\"" + propertyValue + "\"");
         //    }
+        //}
 
-        //JObject style = contentItem.styles;
+        //var style = contentItem.Styles;
 
         //if (style != null)
         //{
@@ -89,10 +60,19 @@
         //        }
         //    }
 
-        //    if (cssVals.Any())
-        //        attrs.Add("style='" + HttpUtility.HtmlAttributeEncode(string.Join(" ", cssVals)) + "'");
+        //    if (cssVals.Count > 0)
+        //        attrs.Add("style=\"" + HttpUtility.HtmlAttributeEncode(string.Join(" ", cssVals)) + "\"");
         //}
 
-        return new MvcHtmlString(string.Join(" ", attrs));
+        if (settings != null)
+        {
+            foreach (var property in settings.Properties)
+            {
+                var propertyValue = HttpUtility.HtmlAttributeEncode(property.Value<string>());
+                attributes.Add($"{property.Alias}=\"{propertyValue}\"");
+            }
+        }
+
+        return new MvcHtmlString(string.Join(" ", attributes));
     }
 }

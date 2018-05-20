@@ -8,7 +8,7 @@ namespace Umbraco.Core.Models
         public int Colspan { get; set; }
 
         public IPublishedElement Settings { get; set; }
-            
+
         public IEnumerable<IPublishedElement> Items { get; set; }
     }
 }
