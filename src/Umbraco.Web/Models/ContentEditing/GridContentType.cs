@@ -28,7 +28,7 @@ namespace Umbraco.Web.Models.ContentEditing
         [DataMember(Name = "icon")]
         public string Icon { get; set; }
 
-        [DataMember(Name = "view")]
-        public string View { get; set; }
+        [DataMember(Name = "views")]
+        public string[] Views { get; set; }
     }
 }
