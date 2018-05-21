@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Web.Http;
 using Umbraco.Core;
 using Umbraco.Core.IO;
@@ -35,9 +36,16 @@ namespace Umbraco.Web.Editors
             });
         }
 
-        public GridContentCell GetScaffold(Guid guid)
+        public GridContentCell GetScaffold(Udi id)
         {
-            var contentType = Services.ContentTypeService.Get(guid);
+            var guidUdi = id as GuidUdi;
+            if (guidUdi == null)
+            {
+                throw new HttpResponseException(HttpStatusCode.NotFound);
+            }
+            
+
+            var contentType = Services.ContentTypeService.Get(guidUdi.Guid);
             if (contentType == null) throw new HttpResponseException(System.Net.HttpStatusCode.NotFound);
 
             var emptyContent = Services.ContentService.Create("", -1, contentType.Alias, Security.GetUserId().ResultOr(0));
