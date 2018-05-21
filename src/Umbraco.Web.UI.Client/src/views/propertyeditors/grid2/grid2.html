@@ -1,4 +1,4 @@
-<div ng-controller="Umbraco.PropertyEditors.Grid2Controller" class="umb-grid umb-property-editor clearfix" id="umb-grid">
+<div ng-controller="Umbraco.PropertyEditors.Grid2Controller" class="umb-grid umb-property-editor clearfix" umb-grid-events id="umb-grid">
 
     <umb-editor-sub-header style="background-color: white;">
 
@@ -74,7 +74,8 @@
                                      '-active': row.active,
                                      '-active-child': row.hasActiveChild}"
                              on-outside-click="clickOutsideRow($index, section.rows)"
-                             bind-click-on="{{row.active}}">
+                             bind-click-on="{{row.active}}"
+                             data-rowid="{{row.$uniqueId}}">
 
                             <div class="umb-row-title-bar">
 
@@ -174,7 +175,8 @@
                                                              ng-class="{'-active': item.active}"
                                                              on-outside-click="clickOutsideControl($index, cell.items, cell)"
                                                              bind-click-on="{{item.active}}"
-                                                             umb-set-dirty-on-change="{{item.value}}">
+                                                             umb-set-dirty-on-change="{{item.value}}"
+                                                             data-itemid="{{item.$uniqueId}}">
 
                                                             <div class="umb-control-click-overlay" ng-show="!item.active && !sortMode"></div>
 
