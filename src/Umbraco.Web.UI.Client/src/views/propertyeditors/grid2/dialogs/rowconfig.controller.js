@@ -1,4 +1,4 @@
-function RowConfigController($scope, contentTypeResource, editorService) {
+function RowConfigController($scope, gridResource, editorService) {
 
     var vm = this;
 
@@ -6,8 +6,15 @@ function RowConfigController($scope, contentTypeResource, editorService) {
     $scope.contentTypes = $scope.model.contentTypes;
     $scope.columns = $scope.model.columns;
 
-    vm.currentCellDisplayGridEditors = [];
+    var availableEditors = [];
 
+    function onInit() {
+        gridResource.getGridContentTypes().then(function(gridEditors){
+            availableEditors = gridEditors;
+        });
+    }
+
+    vm.selectedGridEditors = [];
     vm.selectGridEditor = selectGridEditor;
     vm.removeGridEditor = removeGridEditor;
     vm.submit = submit;
@@ -64,6 +71,8 @@ function RowConfigController($scope, contentTypeResource, editorService) {
                 row.areas.push(cell);
             }
             $scope.currentCell = cell;
+
+            updateSelectedGridEditors();
         }
     };
 
@@ -80,7 +89,9 @@ function RowConfigController($scope, contentTypeResource, editorService) {
     };
 
     $scope.nameChanged = false;
+
     var originalName = $scope.currentRow.name;
+
     $scope.$watch("currentRow", function(row) {
         if (row) {
 
@@ -102,12 +113,23 @@ function RowConfigController($scope, contentTypeResource, editorService) {
         }
     }, true);
 
+    function updateSelectedGridEditors() {
+      vm.selectedGridEditors = _.filter(availableEditors, function (editor) {
+          if (_.indexOf($scope.currentCell.allowed, editor.udi) >= 0) {
+              editor.selected = true;
+              return true;
+          }
+      });
+    }
+
     function selectGridEditor() {
         var gridEditorPicker = {
             view: "views/propertyEditors/grid2/dialogs/grideditorpicker.html",
             size: "small",
+            gridEditors: availableEditors,
+            selection: vm.selectedGridEditors,
             submit: function(model) {
-                
+
                 if(model && model.selection.length > 0) {
 
                     if(!$scope.currentCell.allowed) {
@@ -119,6 +141,8 @@ function RowConfigController($scope, contentTypeResource, editorService) {
                             $scope.currentCell.allowed.push(gridEditor.udi);
                         }
                     });
+
+                    updateSelectedGridEditors();
                 }
 
                 editorService.close();
@@ -134,6 +158,7 @@ function RowConfigController($scope, contentTypeResource, editorService) {
 
     function removeGridEditor(index, allowedGridEditors) {
         allowedGridEditors.splice(index, 1);
+        updateSelectedGridEditors();
     }
 
     function submit(model) {
@@ -147,6 +172,8 @@ function RowConfigController($scope, contentTypeResource, editorService) {
             $scope.model.close();
         }
     }
+
+    onInit();
 
 }
 
