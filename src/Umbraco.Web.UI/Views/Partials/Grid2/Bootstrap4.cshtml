@@ -1,28 +1,30 @@
 ﻿@inherits UmbracoViewPage<Grid2Value>
 @if (Model != null && Model.Rows != null)
 {
-    <div class="umb-grid2 container">
-        @foreach (var row in Model.Rows)
-        {
-            <div @RenderElementAttributes(row.Settings, "row")>
-                @foreach (var cell in row.Cells)
-                {
-                    <div @RenderElementAttributes(cell.Settings, $"col-{cell.Colspan}")>
-                        @foreach (var item in cell.Items)
-                        {
-                            try
+    <div class="umb-grid2">
+        <div class="container">
+            @foreach (var row in Model.Rows)
+            {
+                <div @RenderElementAttributes(row.Settings, "row")>
+                    @foreach (var cell in row.Cells)
+                    {
+                        <div @RenderElementAttributes(cell.Settings, $"col-{cell.Colspan}")>
+                            @foreach (var item in cell.Items)
                             {
-                                @Html.Partial($"Grid2/Editors/{item.ContentType.Alias}", item)
+                                try
+                                {
+                                    @Html.Partial($"Grid2/Editors/{item.ContentType.Alias}", item)
+                                }
+                                catch (Exception ex)
+                                {
+                                    <pre>@ex.ToString()</pre>
+                                }
                             }
-                            catch (Exception ex)
-                            {
-                                <pre>@ex.ToString()</pre>
-                            }
-                        }
-                    </div>
-                }
-            </div>
-        }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
 }
 
@@ -58,7 +60,7 @@
         var attributes = new List<string>();
         foreach (var item in items)
         {
-            attributes.Add($"{item.Key}={item.Value}");
+            attributes.Add($"{item.Key}=\"{item.Value}\"");
         }
 
         return new MvcHtmlString(string.Join(" ", attributes));
