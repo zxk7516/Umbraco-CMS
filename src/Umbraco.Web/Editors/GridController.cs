@@ -22,11 +22,7 @@ namespace Umbraco.Web.Editors
 
         public IEnumerable<GridContentType> GetContentTypes()
         {
-            //fixme - the content types returned will need to come from the grid data type config
-            var folder = Services.ContentTypeService.GetContainers("GridEditors", 1).ToList();
-            if (folder.Count == 0) return Enumerable.Empty<GridContentType>();
-
-            var contentTypes = Services.ContentTypeService.GetChildren(folder[0].Id);
+            var contentTypes = GetGridContentTypes();
 
             return contentTypes.Select(x => new GridContentType
             {
@@ -47,7 +43,7 @@ namespace Umbraco.Web.Editors
             var mapped = Mapper.Map<GridContentCell>(emptyContent);
 
             //remove this tab if it exists: umbContainerView
-            var containerTab = mapped.Tabs.FirstOrDefault(x => x.Alias == Core.Constants.Conventions.PropertyGroups.ListViewGroupName);
+            var containerTab = mapped.Tabs.FirstOrDefault(x => x.Alias == Constants.Conventions.PropertyGroups.ListViewGroupName);
             mapped.Tabs = mapped.Tabs.Except(new[] { containerTab });
 
             return mapped;
@@ -88,6 +84,26 @@ namespace Umbraco.Web.Editors
             }
 
             return result;
+        }
+
+        private IEnumerable<IContentType> GetGridContentTypes()
+        {
+            const string GridContentTypeFolderName = "GridEditors";
+
+            var folder = Services.ContentTypeService
+                .GetContainers(GridContentTypeFolderName, 1)
+                .FirstOrDefault();
+
+            if (folder == null)
+            {
+                return Enumerable.Empty<IContentType>();
+            }
+
+            var contentTypes = Services.ContentTypeService
+                .GetDescendants(folder.Id, false)
+                .Where(x => !x.IsContainer);
+
+            return contentTypes;
         }
 
         private Attempt<string> GetPath(IDataValueEditor valueEditor, string suffix)
