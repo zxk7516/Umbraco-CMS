@@ -1,0 +1,66 @@
+﻿@inherits UmbracoViewPage<Grid2Value>
+@if (Model != null && Model.Rows != null)
+{
+    <div class="umb-grid2 container">
+        @foreach (var row in Model.Rows)
+        {
+            <div @RenderElementAttributes(row.Settings, "row")>
+                @foreach (var cell in row.Cells)
+                {
+                    <div @RenderElementAttributes(cell.Settings, $"col-{cell.Colspan}")>
+                        @foreach (var item in cell.Items)
+                        {
+                            try
+                            {
+                                @Html.Partial($"Grid2/Editors/{item.ContentType.Alias}", item)
+                            }
+                            catch (Exception ex)
+                            {
+                                <pre>@ex.ToString()</pre>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@functions {
+    public static MvcHtmlString RenderElementAttributes(IPublishedElement settings, string className)
+    {
+        /* NOTE: Developers will need to implement their own attributes based on their Settings document type */
+
+        var items = new Dictionary<string, string>();
+
+        // loop over each of the properties
+        if (settings != null)
+        {
+            foreach (var property in settings.Properties)
+            {
+                var propertyValue = HttpUtility.HtmlAttributeEncode(property.Value<string>());
+                items.Add(property.Alias, propertyValue);
+            }
+        }
+
+        // we need to add the `className` (for row/cell),
+        // so we check if the "class" attribute has already been defined.
+        // if it does, then we'll add to it, otherwise we'll create it.
+        if (items.ContainsKey("class"))
+        {
+            items["class"] = $"{className} {items["class"]}";
+        }
+        else
+        {
+            items.Add("class", className);
+        }
+
+        var attributes = new List<string>();
+        foreach (var item in items)
+        {
+            attributes.Add($"{item.Key}={item.Value}");
+        }
+
+        return new MvcHtmlString(string.Join(" ", attributes));
+    }
+}
