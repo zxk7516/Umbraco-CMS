@@ -167,7 +167,7 @@ describe("grid 2", function () {
         function () {
             var persistable = scope.mapToPersistableModel(fullModel.value);
 
-            expect(persistable.r).toEqual(jasmine.objectContaining({
+            expect(persistable).toEqual(jasmine.objectContaining({
                 rows: [
                     {
                         alias: "halfNHalf",
