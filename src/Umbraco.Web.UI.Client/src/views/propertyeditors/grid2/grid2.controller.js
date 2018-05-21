@@ -738,7 +738,7 @@ angular.module("umbraco")
                             cell.$allowsRTE = true;
                         } else {
                             cell.$allowedEditors = _.filter($scope.availableEditors, function (editor) {
-                                return _.indexOf(cell.allowed, editor.alias) >= 0;
+                                return _.indexOf(cell.allowed, editor.udi) >= 0;
                             });
 
                             if (_.indexOf(cell.allowed, "rte") >= 0) {
