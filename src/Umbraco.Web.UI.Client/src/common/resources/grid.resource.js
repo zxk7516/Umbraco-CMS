@@ -15,12 +15,12 @@ function gridResource($http, umbRequestHelper) {
                 "Failed to get grid content types");
         },
 
-        getScaffold: function (guid) {
+        getScaffold: function (id) {
             return umbRequestHelper.resourcePromise(
                 $http.get(
                     umbRequestHelper.getApiUrl(
                         "gridApiBaseUrl",
-                        "GetScaffold", {guid: guid})),
+                        "GetScaffold", {id: id})),
                 "Failed to get scaffold");
         }
     };

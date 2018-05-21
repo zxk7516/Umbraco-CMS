@@ -566,7 +566,7 @@ angular.module("umbraco")
             initialize = (initialize !== false);
 
             var newItem = {
-                type: editor.key,
+                type: editor.udi,
                 values: {},
                 //editor: editor,
                 $initializing: initialize
