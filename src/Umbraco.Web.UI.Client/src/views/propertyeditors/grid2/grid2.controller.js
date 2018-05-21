@@ -117,7 +117,7 @@ angular.module("umbraco")
                 var allowedEditors = cell.allowed;
 
                 if (($.inArray(ui.item.scope().control.editor.alias, allowedEditors) < 0 && allowedEditors) ||
-                    (startingCell != cell && cell.maxItems != '' && cell.maxItems > 0 && cell.maxItems < cell.controls.length + 1)) {
+                    (startingCell != cell && cell.maxItems != '' && cell.maxItems > 0 && cell.maxItems < cell.items.length + 1)) {
 
                     $scope.$apply(function () {
                         $(event.target).scope().cell.dropNotAllowed = true;
@@ -127,7 +127,7 @@ angular.module("umbraco")
                     cancelMove = true;
                 }
                 else {
-                    if ($(event.target).scope().cell.controls.length == 0){
+                    if ($(event.target).scope().cell.items.length == 0){
 
                         $scope.$apply(function () {
                             $(event.target).scope().cell.dropOnEmpty = true;
@@ -228,7 +228,7 @@ angular.module("umbraco")
                 $scope.$apply(function () {
 
                     var cell = $(e.target).scope().cell;
-                    cell.hasActiveChild = hasActiveChild(cell, cell.controls);
+                    cell.hasActiveChild = hasActiveChild(cell, cell.items);
                     cell.active = false;
                 });
             }
@@ -520,14 +520,14 @@ angular.module("umbraco")
         // *********************************************
         // Control management functions
         // *********************************************
-        $scope.clickControl = function (index, controls, cell) {
-            controls[index].active = true;
+        $scope.clickControl = function (index, items, cell) {
+            items[index].active = true;
             cell.hasActiveChild = true;
         };
 
-        $scope.clickOutsideControl = function (index, controls, cell) {
-            controls[index].active = false;
-            cell.hasActiveChild = hasActiveChild(cell, controls);
+        $scope.clickOutsideControl = function (index, items, cell) {
+            items[index].active = false;
+            cell.hasActiveChild = hasActiveChild(cell, items);
         };
 
         function hasActiveChild(item, children) {
@@ -600,7 +600,7 @@ angular.module("umbraco")
 
         $scope.removeControl = function (cell, $index) {
             $scope.currentControl = null;
-            cell.controls.splice($index, 1);
+            cell.items.splice($index, 1);
         };
 
         $scope.percentage = function (spans) {
@@ -750,7 +750,7 @@ angular.module("umbraco")
                             }
                         }
 
-                        //copy over existing controls into the new cells
+                        //copy over existing items into the new cells
                         if (row.cells.length > cellIndex && row.cells[cellIndex].items) {
                             cell.items = currentCell.items;
 
@@ -811,12 +811,18 @@ angular.module("umbraco")
                         p.$uniqueId = guid();
                         p.hideLabel = true;
                         p.value = item.values[p.alias];
-
+                        
                         var editor = getEditorByUdi(item.type);
                         
                         //now we need to re-assign the view and set the boolean if it's a preview or not
                         if (editor.views && editor.views[p.alias]) {
                             p.view = editor.views[p.alias].view;
+                        }
+                        else {
+                            //show the icon
+                            p.view = "views/propertyeditors/grid2/cellplaceholder.html";
+                            p.icon = editor.icon;
+                            p.title = editor.name;
                         }
                     });
                 }
@@ -854,38 +860,6 @@ angular.module("umbraco")
 
         var unsubscribe = $scope.$on("formSubmitting", function () {
             $scope.model.value = umbDataFormatter.mapGridValueToPersistableModel($scope.model.value);
-
-            //if ($scope.model.value && $scope.model.value.sections) {
-            //    _.each($scope.model.value.sections, function(section) {
-            //        if (section.rows) {
-            //            _.each(section.rows, function (row) {
-            //                if (row.cells) {
-            //                    _.each(row.cells, function (cell) {
-
-            //                        //Remove the 'editors' - these are the allowed editors, these will
-            //                        // be injected at runtime to this editor, it should not be persisted
-
-            //                        if (cell.editors) {
-            //                            delete cell.editors;
-            //                        }
-
-            //                        if (cell.controls) {
-            //                            _.each(cell.controls, function (control) {
-            //                                if (control.editor) {
-            //                                    //replace
-            //                                    var alias = control.editor.alias;
-            //                                    control.editor = {
-            //                                        alias: alias
-            //                                    };
-            //                                }
-            //                            });
-            //                        }
-            //                    });
-            //                }
-            //            });
-            //        }
-            //    });
-            //}
         });
 
         //when the scope is destroyed we need to unsubscribe
