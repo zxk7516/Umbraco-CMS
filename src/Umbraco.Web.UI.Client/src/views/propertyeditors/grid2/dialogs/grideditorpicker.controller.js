@@ -1,11 +1,11 @@
 (function() {
     "use strict";
 
-    function GridEditorPicker($scope, gridResource, editorService) {
+    function GridEditorPicker($scope, editorService) {
 
         var vm = this;
 
-        vm.gridEditors = [];
+        vm.gridEditors = $scope.model.gridEditors;
 
         vm.submit = submit;
         vm.close = close;
@@ -23,10 +23,6 @@
                 $scope.model.selection = [];
             }
 
-            gridResource.getGridContentTypes().then(function(gridEditors){
-                vm.gridEditors = gridEditors;
-            });
-            
         }
 
         function selectGridEditor(selectedGridEditor) {

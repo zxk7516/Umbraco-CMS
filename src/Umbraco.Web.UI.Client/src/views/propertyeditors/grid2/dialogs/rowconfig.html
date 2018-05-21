@@ -71,13 +71,15 @@
                                 <localize key="general_delete" class="ng-isolate-scope ng-scope">Delete</localize>
                             </a>
                         </umb-control-group>
-                
+
                         <umb-control-group label="Allowed Grid Editors" description="Select the grid editors which should be allowed for this cell">
 
                             <umb-node-preview
                                 style="max-width: 100%"
-                                ng-repeat="gridEditor in currentCell.allowed"
-                                name="gridEditor"
+                                ng-repeat="gridEditor in vm.selectedGridEditors"
+                                name="gridEditor.name"
+                                description="gridEditor.alias"
+                                icon="gridEditor.icon"
                                 allow-remove="true"
                                 on-remove="vm.removeGridEditor($index, currentCell.allowed)">
                             </umb-node-preview>
