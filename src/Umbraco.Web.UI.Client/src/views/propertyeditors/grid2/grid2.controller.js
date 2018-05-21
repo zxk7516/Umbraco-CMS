@@ -749,10 +749,8 @@ angular.module("umbraco")
                 original.config = row.config;
                 original.hasConfig = gridItemHasConfig(row.styles, row.config);
 
-
                 //sync area configuration
                 _.each(original.areas, function (area, areaIndex) {
-
 
                     if (area.grid > 0) {
                         var currentArea = row.areas[areaIndex];
@@ -766,7 +764,7 @@ angular.module("umbraco")
                         //set editor permissions
                         if (area.allowed && area.allowed.length !== 0) {
                             area.$allowedEditors = _.filter($scope.availableEditors, function (editor) {
-                                return _.indexOf(area.allowed, editor.id) >= 0;
+                                return _.indexOf(area.allowed, editor.udi) >= 0;
                             });
                         }
                         else {
@@ -818,7 +816,7 @@ angular.module("umbraco")
         // *********************************************
         // Init control
         // *********************************************
-        
+
         function initControl(control, index) {
             control.$index = index;
             control.$uniqueId = guid();

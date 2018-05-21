@@ -26,7 +26,8 @@ namespace Umbraco.Web.Editors
 
             return contentTypes.Select(x => new GridContentType
             {
-                Id = x.GetUdi(),
+                Id = x.Id,
+                Udi = x.GetUdi(),
                 Name = x.Name,
                 Alias = x.Alias,
                 Icon = x.Icon,

@@ -11,7 +11,10 @@ namespace Umbraco.Web.Models.ContentEditing
     public class GridContentType
     {
         [DataMember(Name = "id")]
-        public Udi Id { get; set; }
+        public int Id { get; set; }
+
+        [DataMember(Name = "udi")]
+        public Udi Udi { get; set; }
 
         [DataMember(Name = "name")]
         public string Name { get; set; }
