@@ -1,4 +1,4 @@
-function RowConfigController($scope) {
+function RowConfigController($scope, contentTypeResource, editorService) {
 
     var vm = this;
 
@@ -6,6 +6,10 @@ function RowConfigController($scope) {
     $scope.contentTypes = $scope.model.contentTypes;
     $scope.columns = $scope.model.columns;
 
+    vm.currentCellDisplayGridEditors = [];
+
+    vm.selectGridEditor = selectGridEditor;
+    vm.removeGridEditor = removeGridEditor;
     vm.submit = submit;
     vm.close = close;
 
@@ -97,6 +101,40 @@ function RowConfigController($scope) {
             }
         }
     }, true);
+
+    function selectGridEditor() {
+        var gridEditorPicker = {
+            view: "views/propertyEditors/grid2/dialogs/grideditorpicker.html",
+            size: "small",
+            submit: function(model) {
+                
+                if(model && model.selection.length > 0) {
+
+                    if(!$scope.currentCell.allowed) {
+                        $scope.currentCell.allowed = [];
+                    }
+
+                    model.selection.forEach(function(gridEditor){
+                        if($scope.currentCell.allowed.indexOf(gridEditor.udi) === -1) {
+                            $scope.currentCell.allowed.push(gridEditor.udi);
+                        }
+                    });
+                }
+
+                editorService.close();
+
+            },
+            close: function() {
+                editorService.close();
+            }
+        };
+
+        editorService.open(gridEditorPicker);
+    }
+
+    function removeGridEditor(index, allowedGridEditors) {
+        allowedGridEditors.splice(index, 1);
+    }
 
     function submit(model) {
         if($scope.model.submit) {

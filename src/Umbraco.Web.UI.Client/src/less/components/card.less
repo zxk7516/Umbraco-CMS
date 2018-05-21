@@ -114,13 +114,12 @@
 	width: 100%;
 	height: 100%;
 	border-radius: 3px;
+	position: relative;
 }
 
 
  .umb-card-grid .umb-card-grid-item:hover,
- .umb-card-grid .umb-card-grid-item:focus,
- .umb-card-grid .umb-card-grid-item:hover > *,
- .umb-card-grid .umb-card-grid-item:focus > *  {
+ .umb-card-grid .umb-card-grid-item:focus  {
 	background: @gray-10;
 	//color: white;
 	cursor: pointer;
@@ -139,6 +138,17 @@
      display: block;
 	  color: @gray-3;
  }
+
+ .umb-card-grid .umb-card-grid__checkmark {
+	font-size: 13px;
+	color: @white;
+	position: absolute;
+	top: 5px;
+	left: 5px;
+	line-height: 1em;
+    display: flex;
+    align-items: center;
+}
 
  .umb-card-grid .umb-card-grid-item__loading {
 	 position: absolute;

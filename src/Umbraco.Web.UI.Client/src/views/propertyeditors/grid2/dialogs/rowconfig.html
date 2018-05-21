@@ -66,39 +66,30 @@
                         </umb-control-group>
 
                         <umb-control-group hide-label="true">
-                                <i class="icon-delete red"></i>
-                                <a class="btn btn-small btn-link" href="" ng-click="deleteArea(currentCell, currentRow)">
-                                    <localize key="general_delete" class="ng-isolate-scope ng-scope">Delete</localize>
-                                </a>
-                            </umb-control-group>
+                            <i class="icon-delete red"></i>
+                            <a class="btn btn-small btn-link" href="" ng-click="deleteArea(currentCell, currentRow)">
+                                <localize key="general_delete" class="ng-isolate-scope ng-scope">Delete</localize>
+                            </a>
+                        </umb-control-group>
+                
+                        <umb-control-group label="Allowed Grid Editors" description="Select the grid editors which should be allowed for this cell">
 
-                        <umb-control-group hide-label="true">
-                            <ul class="unstyled">
-                                <li>
-                                    <label>
-                                        <input type="checkbox"
-                                            ng-model="currentCell.allowAll"
-                                            ng-checked="currentCell.allowed === undefined"
-                                            ng-change="toggleCollection(currentCell.allowed, currentCell.allowAll)" />
-                                            <localize key="grid_allowAllEditors"/>
-                                    </label>
-                                </li>
-                            </ul>
+                            <umb-node-preview
+                                style="max-width: 100%"
+                                ng-repeat="gridEditor in currentCell.allowed"
+                                name="gridEditor"
+                                allow-remove="true"
+                                on-remove="vm.removeGridEditor($index, currentCell.allowed)">
+                            </umb-node-preview>
 
-                            <div ng-if="currentCell.allowAll === false">
-                                <hr />
-                                <ul class="unstyled">
-                                    <li ng-repeat="contentType in contentTypes">
-                                        <label>
-                                            <input type="checkbox"
-                                                checklist-model="currentCell.allowed"
-                                                checklist-value="contentType.id">
-                                                <i class="icon {{contentType.icon}}"></i> {{contentType.name}}
-                                                <small class="input-label--small">({{contentType.alias}})</small>
-                                        </label>
-                                    </li>
-                                </ul>
-                            </div>
+                            <a class="umb-node-preview-add"
+                                style="max-width: 100%"
+                                href=""
+                                ng-click="vm.selectGridEditor()"
+                                prevent-default>
+                                <localize key="general_add">Add</localize>
+                            </a>
+
                         </umb-control-group>
                     </div>
 

@@ -1,0 +1,61 @@
+<div ng-controller="Umbraco.PropertyEditors.GridPrevalueEditor.GridEditorPickerController as vm">
+
+<umb-editor-view>
+
+    <umb-editor-header
+        name="model.title"
+        name-locked="true"
+        hide-alias="true"
+        hide-icon="true"
+        hide-description="true">
+    </umb-editor-header>
+
+    <umb-editor-container>
+        <umb-box>
+            <umb-box-content>
+                <ul class="umb-card-grid">
+                    <li ng-repeat="gridEditor in vm.gridEditors | orderBy:'name'"
+                        data-element="grid-editor-{{gridEditor.name}}"
+                        ng-click="vm.selectGridEditor(gridEditor)"
+                        class="-four-in-row">
+                        <a class="umb-card-grid-item" href="" title="{{ gridEditor.name }}">
+                            <umb-checkmark
+                                class="umb-card-grid__checkmark"
+                                ng-if="gridEditor.selected"
+                                checked="gridEditor.selected"
+                                size="xs">
+                            </umb-checkmark>
+                            <i class="{{ gridEditor.icon }}" ng-class="{'icon-item-arrangement': gridEditor.icon == null}"></i>
+                            {{ gridEditor.name }}
+                        </a>
+                    </li>
+                </ul>
+            </umb-box-content>
+        </umb-box>
+    </umb-editor-container>
+
+    <umb-editor-footer>
+
+        <umb-editor-footer-content-right>
+
+            <umb-button
+                type="button"
+                button-style="link"
+                label-key="general_close"
+                action="vm.close()">
+            </umb-button>
+
+            <umb-button
+                type="button"
+                button-style="success"
+                label-key="general_submit"
+                action="vm.submit(model)">
+            </umb-button>
+        
+        </umb-editor-footer-content-right>
+
+    </umb-editor-footer>
+
+</umb-editor-view>
+
+</div>
