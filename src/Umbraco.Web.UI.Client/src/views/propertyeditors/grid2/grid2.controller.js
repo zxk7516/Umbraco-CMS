@@ -592,7 +592,11 @@ angular.module("umbraco")
 
         function getEditor(alias) {
             return _.find($scope.availableEditors, function (editor) { return editor.alias === alias; });
-        };
+        }
+
+        function getEditorByUdi(udi) {
+            return _.find($scope.availableEditors, function (editor) { return editor.udi === udi; });
+        }
 
         $scope.removeControl = function (cell, $index) {
             $scope.currentControl = null;
@@ -806,14 +810,13 @@ angular.module("umbraco")
                     _.each(item.properties, function (p) {
                         p.$uniqueId = guid();
                         p.hideLabel = true;
-
                         p.value = item.values[p.alias];
 
-                        return;
-                        //fixme - we probably don't need to do this any more
+                        var editor = getEditorByUdi(item.type);
+                        
                         //now we need to re-assign the view and set the boolean if it's a preview or not
-                        if (item.editor.views && item.editor.views[p.alias]) {
-                            p.view = item.editor.views[p.alias].view;
+                        if (editor.views && editor.views[p.alias]) {
+                            p.view = editor.views[p.alias].view;
                         }
                     });
                 }
