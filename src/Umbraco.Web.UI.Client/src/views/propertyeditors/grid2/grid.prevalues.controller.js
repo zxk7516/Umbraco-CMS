@@ -84,7 +84,6 @@ angular.module("umbraco")
                 view: "views/propertyEditors/grid2/dialogs/rowconfig.html",
                 size: "small",
                 currentRow: row,
-                contentTypes: $scope.contentTypes,
                 columns: $scope.model.value.columns,
                 submit: function(model) {
                     editorService.close();
@@ -186,14 +185,6 @@ angular.module("umbraco")
                $scope.model.value.styles = data;
            });
         };
-
-        /****************
-            editors
-        *****************/
-        gridResource.getGridContentTypes().then(function(response){
-            $scope.contentTypes = response;
-        });
-
 
         /* init grid data */
         if (!$scope.model.value || $scope.model.value === "" || !$scope.model.value.templates) {
