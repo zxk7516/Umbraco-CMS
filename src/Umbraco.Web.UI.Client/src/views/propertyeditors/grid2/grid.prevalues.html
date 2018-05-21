@@ -1,63 +1,74 @@
 <div ng-controller="Umbraco.PropertyEditors.Grid2PrevalueEditorController as vm" class="usky-grid usky-grid-configuration">
-    
+
+    <div style="max-width: 600px">
+
+      <div class="control-group uSky-templates">
+
+          <umb-control-group
+              label="@grid_columns"
+              description="@grid_columnsDetails">
+                  <input type="number" min="1" ng-model="model.value.columns" />
+          </umb-control-group>
+
+      </div>
+
+    </div>
+
     <div style="max-width: 600px">
 
         <div class="control-group uSky-templates">
 
-            <h4><localize key="grid_rowConfigurations" /></h4>
-            <p><localize key="grid_rowConfigurationsDetail" /></p>
+          <umb-control-group
+            label="@grid_rowConfigurations"
+            description="@grid_rowConfigurationsDetail">
 
-            <div class="control-group uSky-templates-rows">
-                <ul class="unstyled"
-                    ui-sortable
-                    ng-model="model.value.layouts">
+                <div class="control-group uSky-templates-rows">
+                    <ul class="unstyled"
+                        ui-sortable
+                        ng-model="model.value.layouts">
 
-                    <li ng-repeat="row in model.value.layouts" class="clearfix">
+                        <li ng-repeat="row in model.value.layouts" class="clearfix">
 
-                        <div ng-click="vm.configureRow(row)"
-                            class="preview-rows columns" style="margin-top: 5px; margin-bottom: 25px; float:left">
+                            <div ng-click="vm.configureRow(row)"
+                                class="preview-rows columns" style="margin-top: 5px; margin-bottom: 25px; float:left">
 
-                            <div class="preview-row">
-                                <div class="preview-col"
-                                    ng-class="{last:$last}"
-                                    ng-repeat="area in row.areas | filter:zeroWidthFilter"
-                                    ng-style="{width: percentage(area.grid) + '%', 'max-width': '100%'}">
+                                <div class="preview-row">
+                                    <div class="preview-col"
+                                        ng-class="{last:$last}"
+                                        ng-repeat="area in row.areas | filter:zeroWidthFilter"
+                                        ng-style="{width: percentage(area.grid) + '%', 'max-width': '100%'}">
 
-                                    <div class="preview-cell">
-                                        <p style="font-size: 6px; line-height: 8px; text-align: center" ng-show="area.maxItems > 0">{{area.maxItems}}</p>
+                                        <div class="preview-cell">
+                                            <p style="font-size: 6px; line-height: 8px; text-align: center" ng-show="area.maxItems > 0">{{area.maxItems}}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div>
-                            {{row.label || row.name}}<br />
-                            <i class="icon-delete red"></i>
-                            <a class="btn btn-small btn-link" href ng-click="deleteLayout($index)">
-                                <localize key="general_delete" />
-                            </a>
-                        </div>
+                            <div>
+                                {{row.label || row.name}}<br />
+                                <i class="icon-delete red"></i>
+                                <a class="btn btn-small btn-link" href ng-click="deleteLayout($index)">
+                                    <localize key="general_delete" />
+                                </a>
+                            </div>
 
-                    </li>
-                </ul>
+                        </li>
+                    </ul>
 
-                <button class="btn btn-small" prevent-default ng-click="vm.configureRow()">
-                    <i class="icon-add"></i> <localize key="grid_addRowConfiguration" />
-                </button>
+                    <button class="btn btn-small" prevent-default ng-click="vm.configureRow()">
+                        <i class="icon-add"></i> <localize key="grid_addRowConfiguration" />
+                    </button>
 
-            </div>
+                </div>
+
+          </umb-control-group>
+
         </div>
 
     </div>
 
-
     <div style="max-width: 600px">
-
-        <umb-control-group
-            label="@grid_columns"
-            description="@grid_columnsDetails">
-                <input type="number" min="1" ng-model="model.value.columns" />
-        </umb-control-group>
 
         <umb-control-group
             label="@grid_settings"
@@ -88,8 +99,6 @@
                 </li>
             </ul>
         </umb-control-group>
-
-
 
         <umb-control-group
             label="@grid_styles"
