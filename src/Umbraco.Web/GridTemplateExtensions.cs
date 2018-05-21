@@ -10,7 +10,7 @@ namespace Umbraco.Web
     public static class GridTemplateExtensions
     {
         private const string _defaultPropertyAlias = "bodyText";
-        private const string _defaultFramework = "bootstrap3";
+        private const string _defaultFramework = "bootstrap4";
 
         public static MvcHtmlString GetGridHtml(this HtmlHelper html, IPublishedContent contentItem)
         {

@@ -486,11 +486,7 @@
     <Content Include="Umbraco\Views\Preview\Shadow.cshtml" />
     <Content Include="Umbraco\Views\Preview\Slider.cshtml" />
     <Content Include="Umbraco\Views\Preview\web.config" />
-    <Content Include="Views\Partials\Grid2\Bootstrap2-Fluid.cshtml" />
-    <Content Include="Views\Partials\Grid2\Bootstrap2.cshtml" />
-    <Content Include="Views\Partials\Grid2\Bootstrap3-Fluid.cshtml" />
-    <Content Include="Views\Partials\Grid2\Bootstrap3.cshtml" />
-    <Content Include="Views\Partials\Grid2\Editors\Base.cshtml" />
+    <Content Include="Views\Partials\Grid2\Bootstrap4.cshtml" />
     <Content Include="Views\Partials\Grid2\Editors\Embed.cshtml" />
     <Content Include="Views\Partials\Grid2\Editors\Macro.cshtml" />
     <Content Include="Views\Partials\Grid2\Editors\Media.cshtml" />
