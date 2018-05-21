@@ -45,7 +45,7 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
             => typeof (Grid2Value);
 
         public override PropertyCacheLevel GetPropertyCacheLevel(PublishedPropertyType propertyType)
-            => PropertyCacheLevel.Element;
+            => PropertyCacheLevel.None;
 
         public override object ConvertIntermediateToObject(IPublishedElement owner, PublishedPropertyType propertyType, PropertyCacheLevel referenceCacheLevel, object inter, bool preview)
         {
@@ -56,20 +56,150 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
             {
                 try
                 {
+                    sourceString = @"{
+     'rows': [
+        {
+            'alias': 'fullwidth',
+            'settings': {
+                'type': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                'values': {
+                    'classNames': 'fancy row',
+                    'bgColor': '000000'
+                }
+            },
+            'cells': [
+                {
+                    'settings': {
+                        'type': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                        'values': {
+                            'classNames': 'fancy row',
+                            'bgColor': '000000'
+                        }
+                    },
+                    'items': [
+                        {
+                            'type': 'umb://document-type/7efe7d7c-a627-4367-bf03-aa64b4d4ec8f',
+                            'values': {
+                                'headline': 'Welcome to the fantastic site'
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            'alias': 'twocol',
+            'settings': {
+                'type': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                'values': {
+                    'classNames': 'fancy row',
+                    'bgColor': '000000'
+                }
+            },
+            'cells': [
+                {
+                    'settings': {
+                        'type': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                        'values': {
+                            'classNames': 'fancy row',
+                            'bgColor': '000000'
+                        }
+                    },
+                    'items': [
+                        {
+                            'type': 'umb://document-type/7efe7d7c-a627-4367-bf03-aa64b4d4ec8f',
+                            'values': {
+                                'headline': 'Welcome to the fantastic site'
+                            }
+                        }
+                    ]
+                },
+                {
+                    'settings': {
+                        'type': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                        'values': {
+                            'classNames': 'fancy row',
+                            'bgColor': '000000'
+                        }
+                    },
+                    'items': [
+                        {
+                            'type': 'umb://document-type/d57b379d-d993-47b0-b05f-1ab69acd83df',
+                            'values': {
+                                'rte': 'Some rich text'
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}";
+
+                    var configString = @"{
+   'columns': 12,
+    'rows': [
+        {
+            'alias': 'fullwidth',
+            'name': 'Full Width',
+            'settingsType': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+            'cells': [
+                {
+                    'colspan': 12,
+                    'settingsType': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                    'allowAll': false,
+                    'allowed': [
+                        'umb://document-type/7efe7d7c-a627-4367-bf03-aa64b4d4ec8f',
+                        'umb://document-type/d57b379d-d993-47b0-b05f-1ab69acd83df'
+                    ]
+                }
+            ]
+        },
+        {
+            'alias': 'twocol',
+            'name': 'Two Column',
+            'settingsType': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+            'cells': [
+                {
+                    'colspan': 6,
+                    'settingsType': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                    'allowAll': false,
+                    'allowed': [
+                        'umb://document-type/7efe7d7c-a627-4367-bf03-aa64b4d4ec8f',
+                        'umb://document-type/d57b379d-d993-47b0-b05f-1ab69acd83df'
+                    ]
+                },
+                {
+                    'colspan': 6,
+                    'settingsType': 'umb://document-type/740d3802-ffe6-446d-8f03-288e22ba3e17',
+                    'allowAll': false,
+                    'allowed': [
+                        'umb://document-type/7efe7d7c-a627-4367-bf03-aa64b4d4ec8f',
+                        'umb://document-type/d57b379d-d993-47b0-b05f-1ab69acd83df'
+                    ]
+                }
+            ]
+        }
+    ]
+}";
+
                     var obj = JsonConvert.DeserializeObject<JObject>(sourceString);
 
                     var dataType = _dataTypeService.GetDataType(propertyType.DataType.Id);
-                    var config = dataType.ConfigurationAs<Grid2Configuration>();
+                    var config = dataType.ConfigurationAs<Grid2Configuration>().Items;
+
+                    // TEMP
+                    config = JsonConvert.DeserializeObject<JObject>(configString);
 
                     var value = new Grid2Value();
-                    value.Columns = config.Items["columns"].ToObject<int>();
+                    value.Columns = config["columns"].ToObject<int>();
                     
-                    var rowConfigs = GetArray(config.Items, "rows")
+                    var rowConfigs = GetArray(config, "rows")
                         .ToDictionary(x => x["alias"].ToString(), x => x.ToObject<JObject>());
 
                     var rows = new List<Grid2Row>();
                     var rawRows = GetArray(obj, "rows");
-                    for (var r = 0; r <= rawRows.Count; r++)
+                    for (var r = 0; r < rawRows.Count; r++)
                     {
                         var rawRow = rawRows[r].ToObject<JObject>();
                         var rowConfig = rowConfigs[rawRow["alias"].ToString()];
@@ -87,7 +217,7 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
                         var cells = new List<Grid2Cell>();
                         var cellConfigs = GetArray(rowConfig, "cells");
                         var rawCells = GetArray(rawRow, "cells");
-                        for(var c = 0; c <= rawCells.Count; c++)
+                        for(var c = 0; c < rawCells.Count; c++)
                         {
                             var rawCell = rawCells[c].ToObject<JObject>();
                             var cellConfig = cellConfigs[c].ToObject<JObject>();
@@ -160,9 +290,10 @@ namespace Umbraco.Web.PropertyEditors.ValueConverters
 
             var propertyValues = sourceObject["values"].ToObject<Dictionary<string, object>>();
 
+            // TOFIX each editor needs to be given a unique GUID key
             if (!propertyValues.TryGetValue("key", out var keyo)
                 || !Guid.TryParse(keyo.ToString(), out var key))
-                key = Guid.Empty;
+                key = Guid.NewGuid();
 
             IPublishedElement element = new PublishedElement(publishedContentType, key, propertyValues, preview, referenceCacheLevel, _publishedSnapshotAccessor);
             element = PublishedModelFactory.CreateModel(element);

@@ -496,6 +496,7 @@
     <Content Include="Views\Partials\Grid2\Editors\Media.cshtml" />
     <Content Include="Views\Partials\Grid2\Editors\Rte.cshtml" />
     <Content Include="Views\Partials\Grid2\Editors\TextString.cshtml" />
+    <Content Include="Views\Home.cshtml" />
     <None Include="Web.Debug.config.transformed" />
     <None Include="web.Template.Debug.config">
       <DependentUpon>Web.Template.config</DependentUpon>
