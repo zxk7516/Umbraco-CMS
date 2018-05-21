@@ -29,7 +29,7 @@ namespace Umbraco.Web.Models.ContentEditing
         public IDictionary<string, GridEditorPath> Views { get; set; }
     }
 
-    [DataContract(Name = "contentType", Namespace = "")]
+    [DataContract(Name = "editorPath", Namespace = "")]
     public class GridEditorPath
     {
         public GridEditorPath()

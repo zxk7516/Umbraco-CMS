@@ -10,6 +10,38 @@
         
         return {
 
+            
+            mapGridValueToPersistableModel: function (model) {
+                // fixme - we now really only need to remove the properties collections of items
+                var persistableModel = {
+                    rows: _.map(model.sections[0].rows,
+                        function (row) {
+                            return {
+                                alias: row.name,
+                                settings: {}, // fixme - add the settings
+                                cells: _.map(row.cells,
+                                    function (cell) {
+                                        return {
+                                            settings: {},
+                                            items: _.map(cell.items,
+                                                function (item) {
+                                                    return {
+                                                        type: item.type,
+                                                        values: _.object(_.map(item.properties,
+                                                            function (prop) {
+                                                                return [prop.alias, prop.value];
+                                                            }))
+                                                    };
+                                                })
+                                        };
+                                    })
+                            };
+                        })
+                };
+
+                return persistableModel;
+            },
+
             formatChangePasswordModel: function(model) {
                 if (!model) {
                     return null;
