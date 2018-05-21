@@ -764,17 +764,13 @@ angular.module("umbraco")
                         }
 
                         //set editor permissions
-                        if (!area.allowed || area.allowAll === true) {
-                            area.$allowedEditors = $scope.availableEditors;
-                            area.$allowsRTE = true;
-                        } else {
+                        if (area.allowed && area.allowed.length !== 0) {
                             area.$allowedEditors = _.filter($scope.availableEditors, function (editor) {
-                                return _.indexOf(area.allowed, editor.alias) >= 0;
+                                return _.indexOf(area.allowed, editor.id) >= 0;
                             });
-
-                            if (_.indexOf(area.allowed, "rte") >= 0) {
-                                area.$allowsRTE = true;
-                            }
+                        }
+                        else {
+                            area.$allowedEditors = $scope.availableEditors;
                         }
 
                         //copy over existing controls into the new areas
