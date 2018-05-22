@@ -3,8 +3,8 @@
     grid.initializing
     grid.initialized
     grid.rowAdded
+    grid.itemAdded
 */
-
 angular.module("umbraco")
     .controller("Umbraco.PropertyEditors.Grid2Controller",
     function (
@@ -839,7 +839,7 @@ angular.module("umbraco")
                         p.value = item.values[p.alias];
                         
                         var editor = getEditorByUdi(item.type);
-                        
+
                         //now we need to re-assign the view and set the boolean if it's a preview or not
                         if (editor.views && editor.views[p.alias]) {
                             p.view = editor.views[p.alias].view;
